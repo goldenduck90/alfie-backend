@@ -34,7 +34,7 @@ class UserService {
       role: user.role,
     })
 
-    // return the jwt
+    // return the jwt & user
     return {
       token,
       user,
