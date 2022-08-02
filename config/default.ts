@@ -1,3 +1,1 @@
-export default {
-  publicKey: "PUBLIC_KEY",
-}
+export default {}
