@@ -1,7 +1,7 @@
 name: (DEV) Build and Deploy
 
 env:
-  APP_NAME: alfie-backend
+  APP_NAME:	alfie-backend
   S3_BUCKET: elasticbeanstalk-us-east-1-322311686188
   AWS_REGION: us-east-1
   AWS_PLATFORM: Docker
@@ -46,7 +46,7 @@ jobs:
       with:
         aws_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        application_name: backend-alfie
+        application_name: alfie-backend
         environment_name: develop
         region: us-east-1
         version_label: "${{ steps.timestamp.outputs.date }}"
