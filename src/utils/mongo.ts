@@ -4,7 +4,7 @@ import config from "config"
 export async function connectToMongo() {
   try {
     await mongoose.connect(config.get("dbUri"))
-    console.log("connected to database")
+    console.log("Connected to MongoDB")
   } catch (error) {
     console.error(error)
     process.exit(1)
