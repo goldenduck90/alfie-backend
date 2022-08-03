@@ -10,7 +10,6 @@
     "baseUrl": ".",
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
-    "typeRoots": ["./src/@types"],
     "paths": {
       "*": ["node_modules/*"]
     },
