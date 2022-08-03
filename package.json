@@ -5,7 +5,6 @@
   "main": "build/index.js",
   "scripts": {
     "build": "tsc",
-    "start": "tsc & node .",
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
     "format": "prettier --check . --config ./.prettierrc",
     "format:fix": "prettier --write . --config ./.prettierrc",
