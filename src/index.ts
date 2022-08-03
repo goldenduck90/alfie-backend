@@ -59,7 +59,7 @@ async function bootstrap() {
   server.applyMiddleware({ app, path })
 
   // app.listen on express server
-  app.listen({ port: 4000 }, () => {
+  app.listen({ port: process.env.PORT || 4000 }, () => {
     console.log(
       `App is listening on http://localhost:4000${server.graphqlPath}`
     )
