@@ -1,0 +1,54 @@
+name: (DEV) Build and Deploy
+
+env:
+  APP_NAME:	alfie-backend
+  S3_BUCKET: elasticbeanstalk-us-east-1-322311686188
+  AWS_REGION: us-east-1
+  AWS_PLATFORM: Docker
+  PIPELINE_ID: ${GITHUB_RUN_ID}-${GITHUB_RUN_NUMBER}
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: "16"
+          cache: "npm"
+      - name: Install modules
+        run: npm install
+      - name: Typescript
+        run: npm run tsc
+      - name: Prettier check
+        run: npm run format
+      - name: ESLint check
+        run: npm run lint
+  build:
+    needs: lint
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v3
+    - name: Generate deployment package
+      run: zip -r package.zip . -x ".git/*" -x ".github/*" -x ".vscode/*"
+    - name: Get timestamp
+      id: timestamp
+      run: echo "::set-output name=date::$(date +'%Y-%m-%dT%H-%M-%S-%3NZ')"
+    - name: Run beanstalk deploy
+      uses: einaregilsson/beanstalk-deploy@v2
+      with:
+        aws_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        application_name: alfie-backend
+        environment_name: production
+        region: us-east-1
+        version_label: "${{ steps.timestamp.outputs.date }}"
+        deployment_package: package.zip
