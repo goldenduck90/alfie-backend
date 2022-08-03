@@ -1,0 +1,28 @@
+# Name of workflow as seen in Github actions tab
+name: Lint Only
+on:
+  push:
+    branches-ignore:
+      - develop
+      - master
+  pull_request:
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: "16"
+          cache: "npm"
+      - name: Install modules
+        run: npm install
+      - name: Typescript
+        run: npm run tsc
+      - name: Prettier check
+        run: npm run format
+      - name: ESLint check
+        run: npm run lint
