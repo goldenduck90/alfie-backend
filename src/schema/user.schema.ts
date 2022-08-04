@@ -102,6 +102,9 @@ export class LoginInput {
 
   @Field(() => String)
   password: string
+
+  @Field(() => Boolean, { nullable: true })
+  remember: boolean
 }
 
 @ObjectType()

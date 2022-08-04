@@ -5,4 +5,8 @@ export default {
       code: "FORBIDDEN",
     },
   },
+  login: {
+    rememberExpiration: "7d",
+    normalExpiration: "1d",
+  },
 }

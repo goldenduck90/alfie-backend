@@ -10,29 +10,36 @@ class UserService {
   }
 
   async login(input: LoginInput) {
+    const { email, password, remember } = input
     const { message, code } = config.get("errors.invalidCredentials")
+    const { rememberExpiration, normalExpiration } = config.get("login")
 
     // Get our user by email
-    const user = await UserModel.find().findByEmail(input.email).lean()
+    const user = await UserModel.find().findByEmail(email).lean()
 
     if (!user) {
       throw new ApolloError(message, code)
     }
 
     // validate the password
-    const passwordIsValid = await bcrypt.compare(input.password, user.password)
+    const passwordIsValid = await bcrypt.compare(password, user.password)
 
     if (!passwordIsValid) {
       throw new ApolloError(message, code)
     }
 
     // sign a jwt
-    const token = signJwt({
-      _id: user._id,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-    })
+    const token = signJwt(
+      {
+        _id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+      },
+      {
+        expiresIn: remember ? rememberExpiration : normalExpiration,
+      }
+    )
 
     // return the jwt & user
     return {

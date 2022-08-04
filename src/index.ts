@@ -56,7 +56,10 @@ async function bootstrap() {
   await server.start()
 
   // apply middleware to server
-  server.applyMiddleware({ app, path })
+  server.applyMiddleware({
+    app,
+    path,
+  })
 
   // app.listen on express server
   app.listen({ port: process.env.PORT || 4000 }, () => {
