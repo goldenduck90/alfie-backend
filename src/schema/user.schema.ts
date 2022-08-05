@@ -11,6 +11,9 @@ import { AsQueryMethod } from "@typegoose/typegoose/lib/types"
 import bcrypt from "bcrypt"
 import { IsEmail, MaxLength, MinLength } from "class-validator"
 import { Field, InputType, ObjectType } from "type-graphql"
+import config from "config"
+
+const { email: emailValidation, password } = config.get("validations")
 
 export enum Role {
   Patient = "PATIENT",
@@ -30,8 +33,24 @@ function findByEmail(
   return this.findOne({ email })
 }
 
+function findBySignupToken(
+  this: ReturnModelType<typeof User, QueryHelpers>,
+  signupToken: User["signupToken"]
+) {
+  return this.findOne({ signupToken })
+}
+
+function findByResetPasswordToken(
+  this: ReturnModelType<typeof User, QueryHelpers>,
+  resetPasswordToken: User["resetPasswordToken"]
+) {
+  return this.findOne({ resetPasswordToken })
+}
+
 interface QueryHelpers {
   findByEmail: AsQueryMethod<typeof findByEmail>
+  findBySignupToken: AsQueryMethod<typeof findBySignupToken>
+  findByResetPasswordToken: AsQueryMethod<typeof findByResetPasswordToken>
 }
 
 @pre<User>("save", async function () {
@@ -47,6 +66,8 @@ interface QueryHelpers {
 })
 @index({ email: 1 })
 @queryMethod(findByEmail)
+@queryMethod(findBySignupToken)
+@queryMethod(findByResetPasswordToken)
 @ObjectType()
 export class User {
   @Field(() => String)
@@ -60,7 +81,8 @@ export class User {
   @prop({ required: true })
   email: string
 
-  @prop({ required: true })
+  @Field(() => String)
+  @prop()
   password: string
 
   @Field(() => Role)
@@ -69,6 +91,30 @@ export class User {
     required: true,
   })
   role: Role
+
+  @Field(() => Boolean)
+  @prop({ default: false, required: true })
+  emailVerified: boolean
+
+  @Field(() => String)
+  @prop()
+  signupToken: string
+
+  @Field(() => String)
+  @prop()
+  resetPasswordToken: string
+
+  @Field(() => Date)
+  @prop()
+  resetPasswordTokenExpiresAt: Date
+
+  @Field(() => Date)
+  @prop({ default: Date.now() })
+  createdAt: Date
+
+  @Field(() => Date)
+  @prop({ default: Date.now() })
+  updatedAt: Date
 }
 
 export const UserModel = getModelForClass<typeof User, QueryHelpers>(User)
@@ -78,15 +124,15 @@ export class CreateUserInput {
   @Field(() => String)
   name: string
 
-  @IsEmail()
+  @IsEmail({}, { message: emailValidation.message })
   @Field(() => String)
   email: string
 
-  @MinLength(6, {
-    message: "password must be at least 6 characters long",
+  @MinLength(password.length.minValue, {
+    message: password.length.minMessage,
   })
-  @MaxLength(50, {
-    message: "password must not be longer than 50 characters",
+  @MaxLength(password.length.maxValue, {
+    message: password.length.maxMessage,
   })
   @Field(() => String)
   password: string
@@ -97,6 +143,7 @@ export class CreateUserInput {
 
 @InputType()
 export class LoginInput {
+  @IsEmail({}, { message: emailValidation.message })
   @Field(() => String)
   email: string
 
@@ -109,9 +156,43 @@ export class LoginInput {
 
 @ObjectType()
 export class LoginResponse {
+  @Field(() => String, { nullable: true })
+  message: string
+
   @Field(() => String)
   token: string
 
   @Field(() => User)
   user: User
+}
+
+@InputType()
+export class ForgotPasswordInput {
+  @IsEmail({}, { message: emailValidation.message })
+  @Field(() => String)
+  email: string
+}
+
+@InputType()
+export class ResetPasswordInput {
+  @Field(() => String)
+  token: string
+
+  @MinLength(password.length.minValue, {
+    message: password.length.minMessage,
+  })
+  @MaxLength(password.length.maxValue, {
+    message: password.length.maxMessage,
+  })
+  @Field(() => String)
+  password: string
+
+  @Field(() => Boolean)
+  registration: boolean
+}
+
+@ObjectType()
+export class MessageResponse {
+  @Field(() => String)
+  message: string
 }

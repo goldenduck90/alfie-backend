@@ -1,8 +1,11 @@
 import { Arg, Authorized, Ctx, Mutation, Query, Resolver } from "type-graphql"
 import {
   CreateUserInput,
+  ForgotPasswordInput,
   LoginInput,
   LoginResponse,
+  MessageResponse,
+  ResetPasswordInput,
   Role,
   User,
 } from "../schema/user.schema"
@@ -24,6 +27,16 @@ export default class UserResolver {
   @Mutation(() => LoginResponse) // returns the jwt
   login(@Arg("input") input: LoginInput) {
     return this.userService.login(input)
+  }
+
+  @Mutation(() => MessageResponse)
+  forgotPassword(@Arg("input") input: ForgotPasswordInput) {
+    return this.userService.forgotPassword(input)
+  }
+
+  @Mutation(() => LoginResponse)
+  resetPassword(@Arg("input") input: ResetPasswordInput) {
+    return this.userService.resetPassword(input)
   }
 
   @Query(() => User, { nullable: true })
