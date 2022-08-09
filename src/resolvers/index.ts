@@ -1,3 +1,4 @@
 import UserResolver from "./user.resolver"
+import CheckoutResolver from "./checkout.resolver"
 
-export default [UserResolver] as const
+export default [UserResolver, CheckoutResolver] as const

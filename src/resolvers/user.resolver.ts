@@ -7,6 +7,7 @@ import {
   MessageResponse,
   ResetPasswordInput,
   Role,
+  SubscribeEmailInput,
   User,
 } from "../schema/user.schema"
 import UserService from "../services/user.service"
@@ -37,6 +38,11 @@ export default class UserResolver {
   @Mutation(() => LoginResponse)
   resetPassword(@Arg("input") input: ResetPasswordInput) {
     return this.userService.resetPassword(input)
+  }
+
+  @Mutation(() => MessageResponse)
+  subscribeEmail(@Arg("input") input: SubscribeEmailInput) {
+    return this.userService.subscribeEmail(input)
   }
 
   @Query(() => User, { nullable: true })

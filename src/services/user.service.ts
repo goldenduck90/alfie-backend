@@ -1,4 +1,5 @@
 import { ApolloError } from "apollo-server-errors"
+import axios from "axios"
 import bcrypt from "bcrypt"
 import config from "config"
 import { addMinutes } from "date-fns"
@@ -7,6 +8,7 @@ import {
   ForgotPasswordInput,
   LoginInput,
   ResetPasswordInput,
+  SubscribeEmailInput,
   User,
   UserModel,
 } from "../schema/user.schema"
@@ -16,6 +18,39 @@ import EmailService from "./email.service"
 class UserService extends EmailService {
   async createUser(input: CreateUserInput) {
     return UserModel.create(input)
+  }
+
+  async subscribeEmail(input: SubscribeEmailInput) {
+    const { email, fullName, location, waitlist, currentMember } = input
+    const { unknownError } = config.get("errors.subscribeEmail")
+    const waitlistMessage = config.get("messages.subscribeEmail")
+    const url = config.get("apiGatewayBaseUrl")
+    const path = config.get("apiGatewayPaths.subscribeEmail")
+
+    try {
+      const { data } = await axios.post(
+        `${url}${path}`,
+        {
+          emailAddress: email,
+          name: fullName,
+          location,
+          waitlist,
+          currentMember,
+        },
+        {
+          headers: {
+            "Content-Type": "application/json",
+            "x-api-key": process.env.API_GATEWAY_KEY,
+          },
+        }
+      )
+
+      return {
+        message: waitlist ? waitlistMessage : data,
+      }
+    } catch (error) {
+      throw new ApolloError(unknownError.message, unknownError.code)
+    }
   }
 
   async forgotPassword(input: ForgotPasswordInput) {

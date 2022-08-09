@@ -196,3 +196,22 @@ export class MessageResponse {
   @Field(() => String)
   message: string
 }
+
+@InputType()
+export class SubscribeEmailInput {
+  @IsEmail({}, { message: emailValidation.message })
+  @Field(() => String)
+  email: string
+
+  @Field(() => String)
+  fullName: string
+
+  @Field(() => String)
+  location: string
+
+  @Field(() => Boolean)
+  waitlist: boolean
+
+  @Field(() => Boolean)
+  currentMember: boolean
+}
