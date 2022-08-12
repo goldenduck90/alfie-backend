@@ -87,7 +87,7 @@ export class Checkout {
   stripeCheckoutId?: string
 
   @Field(() => User, { nullable: true })
-  @prop({ ref: "User" })
+  @prop({ ref: () => User, type: String, required: false })
   user?: Ref<User>
 }
 

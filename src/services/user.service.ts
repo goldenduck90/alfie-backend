@@ -39,6 +39,7 @@ class UserService extends EmailService {
       heightInInches,
       stripeCustomerId,
       subscriptionExpiresAt,
+      stripeSubscriptionId,
     } = input
 
     const existingUser = await UserModel.find().findByEmail(email).lean()
@@ -69,6 +70,7 @@ class UserService extends EmailService {
       heightInInches,
       stripeCustomerId,
       subscriptionExpiresAt,
+      stripeSubscriptionId,
     })
     if (!user) {
       throw new ApolloError(unknownError.message, unknownError.code)
