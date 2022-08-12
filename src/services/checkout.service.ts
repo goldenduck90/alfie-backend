@@ -115,15 +115,8 @@ class CheckoutService extends UserService {
       const existingLink = await this.stripeSdk.paymentLinks.retrieve(
         paymentLinkId
       )
-      if (!existingLink.active) {
-        if (update) {
-          await CheckoutModel.find()
-            .findByStripePaymentLinkId(paymentLinkId)
-            .updateOne({
-              stripePaymentLinkId: paymentLinkId,
-            })
-        }
 
+      if (existingLink.active) {
         return {
           id: existingLink.id,
           url: existingLink.url,
@@ -141,6 +134,14 @@ class CheckoutService extends UserService {
         enabled: true,
       },
     })
+
+    if (paymentLinkId && update) {
+      await CheckoutModel.find()
+        .findByStripePaymentLinkId(paymentLinkId)
+        .updateOne({
+          stripePaymentLinkId: paymentLink.id,
+        })
+    }
 
     return {
       id: paymentLink.id,
