@@ -5,24 +5,14 @@ import {
   queryMethod,
   index,
 } from "@typegoose/typegoose"
-import { registerEnumType } from "type-graphql"
 import { AsQueryMethod, Ref } from "@typegoose/typegoose/lib/types"
-import { IsEmail } from "class-validator"
+import { IsEmail, IsPhoneNumber } from "class-validator"
 import { Field, InputType, ObjectType } from "type-graphql"
 import config from "config"
-import { User } from "./user.schema"
+import { Address, Gender, User } from "./user.schema"
 
-const { email: emailValidation } = config.get("validations")
-
-export enum Gender {
-  Male = "male",
-  Female = "female",
-}
-
-registerEnumType(Gender, {
-  name: "Gender",
-  description: "",
-})
+const { email: emailValidation, phone: phoneValidation } =
+  config.get("validations")
 
 function findByEmail(
   this: ReturnModelType<typeof Checkout, QueryHelpers>,
@@ -31,16 +21,30 @@ function findByEmail(
   return this.findOne({ email })
 }
 
+function findByStripePaymentLinkId(
+  this: ReturnModelType<typeof Checkout, QueryHelpers>,
+  stripePaymentLinkId: Checkout["stripePaymentLinkId"]
+) {
+  return this.findOne({ stripePaymentLinkId })
+}
+
 interface QueryHelpers {
   findByEmail: AsQueryMethod<typeof findByEmail>
+  findByStripePaymentLinkId: AsQueryMethod<typeof findByStripePaymentLinkId>
 }
 
 @index({ email: 1 })
+@index({ stripePaymentLinkId: 1 })
 @queryMethod(findByEmail)
+@queryMethod(findByStripePaymentLinkId)
 @ObjectType()
 export class Checkout {
   @Field(() => String)
   _id: string
+
+  @Field(() => String)
+  @prop({ required: true })
+  stripePaymentLinkId: string
 
   @Field(() => String)
   @prop({ required: true })
@@ -59,7 +63,7 @@ export class Checkout {
   dateOfBirth: Date
 
   @Field(() => Gender)
-  @prop({ required: true })
+  @prop({ enum: Gender, type: String, required: true })
   gender: Gender
 
   @Field(() => String)
@@ -80,12 +84,11 @@ export class Checkout {
 
   @Field(() => String)
   @prop()
-  stripeCustomerId: string
+  stripeCheckoutId?: string
 
   @Field(() => User, { nullable: true })
-  @prop({ ref: () => User, type: () => String })
-  @prop()
-  user: Ref<User>
+  @prop({ ref: "User" })
+  user?: Ref<User>
 }
 
 export const CheckoutModel = getModelForClass<typeof Checkout, QueryHelpers>(
@@ -128,6 +131,34 @@ export class GetCheckoutInput {
   @Field(() => String)
   _id: string
 }
+@InputType()
+export class CompleteCheckoutInput {
+  @Field(() => String, { description: "Stripe payment link ID" })
+  stripePaymentLinkId: string
+
+  @Field(() => String, { description: "Stripe subscription ID" })
+  stripeSubscriptionId: string
+
+  @Field(() => String, { description: "Stripe customer ID" })
+  stripeCustomerId: string
+
+  @Field(() => String, { description: "Stripe checkout ID" })
+  stripeCheckoutId: string
+
+  @IsPhoneNumber("US", { message: phoneValidation.message })
+  @Field(() => String)
+  phone: string
+
+  @Field(() => Address, { description: "Retrieved from Stripe checkout" })
+  address: Address
+
+  @Field(() => Date, {
+    nullable: true,
+    description:
+      "When the user's subscription expires. Retrieved from Stripe checkout. Default is 1 month from now.",
+  })
+  subscriptionExpiresAt?: Date
+}
 
 @ObjectType()
 export class CheckoutResponse {
@@ -136,4 +167,7 @@ export class CheckoutResponse {
 
   @Field(() => Checkout)
   checkout: Checkout
+
+  @Field(() => String)
+  paymentLink: string
 }

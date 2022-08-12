@@ -11,7 +11,7 @@ import {
 } from "apollo-server-core"
 import resolvers from "./resolvers"
 import { connectToMongo } from "./utils/mongo"
-import authChecker from "./utils/authChecker"
+import authChecker from "./middleware/authChecker"
 import Context from "./types/context"
 
 async function bootstrap() {

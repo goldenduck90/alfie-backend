@@ -1,13 +1,21 @@
 import * as AWS from "aws-sdk"
 import config from "config"
 
-const AWS_SES = new AWS.SES({
-  accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-  region: process.env.AWS_REGION,
-})
-
 class EmailService {
+  noReplyEmail: string
+  baseUrl: string
+  awsSes: AWS.SES
+
+  constructor() {
+    this.noReplyEmail = config.get("noReplyEmail")
+    this.baseUrl = config.get("baseUrl")
+    this.awsSes = new AWS.SES({
+      accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+      secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+      region: process.env.AWS_REGION,
+    })
+  }
+
   async sendForgotPasswordEmail({
     email,
     token,
@@ -15,13 +23,11 @@ class EmailService {
     email: string
     token: string
   }) {
-    const baseUrl = config.get("baseUrl")
-    const path = config.get("paths.forgotPassword")
-    const url = `${baseUrl}/${path}/${token}`
+    const { path, subject } = config.get("emails.forgotPassword")
+    const url = `${this.baseUrl}/${path}/${token}`
 
-    console.log(email, token)
     const params = {
-      Source: "no-reply@joinalfie.com",
+      Source: this.noReplyEmail,
       Destination: {
         ToAddresses: [email],
       },
@@ -30,30 +36,57 @@ class EmailService {
         Body: {
           Html: {
             Charset: "UTF-8",
-            Data: url,
+            Data: url, // TODO: build email template & copy
           },
         },
         Subject: {
           Charset: "UTF-8",
-          Data: url,
+          Data: subject,
         },
       },
     }
 
-    const result = await AWS_SES.sendEmail(params).promise()
+    const result = await this.awsSes.sendEmail(params).promise()
     return result.MessageId
   }
 
   async sendRegistrationEmail({
     email,
     token,
+    manual = false,
   }: {
     email: string
     token: string
+    manual?: boolean
   }) {
-    // send email via sns
-    console.log(email, token)
-    return true
+    const { path, subject } = config.get("emails.completeRegistration")
+    const url = `${this.baseUrl}/${path}/${token}`
+
+    // TODO: change email content based on manual flag
+    console.log(manual)
+
+    const params = {
+      Source: this.noReplyEmail,
+      Destination: {
+        ToAddresses: [email],
+      },
+      ReplyToAddresses: [] as string[],
+      Message: {
+        Body: {
+          Html: {
+            Charset: "UTF-8",
+            Data: url, // TODO: build email template & copy
+          },
+        },
+        Subject: {
+          Charset: "UTF-8",
+          Data: subject,
+        },
+      },
+    }
+
+    const result = await this.awsSes.sendEmail(params).promise()
+    return result.MessageId
   }
 }
 

@@ -8,6 +8,7 @@ import {
   ResetPasswordInput,
   Role,
   SubscribeEmailInput,
+  UpdateSubscriptionInput,
   User,
 } from "../schema/user.schema"
 import UserService from "../services/user.service"
@@ -43,6 +44,12 @@ export default class UserResolver {
   @Mutation(() => MessageResponse)
   subscribeEmail(@Arg("input") input: SubscribeEmailInput) {
     return this.userService.subscribeEmail(input)
+  }
+
+  @Authorized([Role.Admin])
+  @Mutation(() => MessageResponse)
+  async updateSubscription(@Arg("input") input: UpdateSubscriptionInput) {
+    return this.userService.updateSubscription(input)
   }
 
   @Query(() => User, { nullable: true })

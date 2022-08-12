@@ -9,16 +9,80 @@ import {
 import { registerEnumType } from "type-graphql"
 import { AsQueryMethod } from "@typegoose/typegoose/lib/types"
 import bcrypt from "bcrypt"
-import { IsEmail, MaxLength, MinLength } from "class-validator"
+import {
+  IsDate,
+  IsEmail,
+  IsPhoneNumber,
+  MaxDate,
+  MaxLength,
+  MinLength,
+} from "class-validator"
 import { Field, InputType, ObjectType } from "type-graphql"
 import config from "config"
+import mongoose from "mongoose"
 
-const { email: emailValidation, password } = config.get("validations")
+const {
+  email: emailValidation,
+  phone: phoneValidation,
+  password,
+  dateOfBirth: dateOfBirthValidation,
+} = config.get("validations")
+const { rememberExp, normalExp } = config.get("jwtExpiration")
+
+@ObjectType()
+@InputType("AddressInput")
+export class Address {
+  @Field(() => String)
+  @prop({ required: true })
+  line1: string
+
+  @Field(() => String)
+  @prop()
+  line2?: string
+
+  @Field(() => String)
+  @prop({ required: true })
+  city: string
+
+  @Field(() => String)
+  @prop({ required: true })
+  state: string
+
+  @Field(() => String)
+  @prop({ required: true })
+  postalCode: string
+
+  @Field(() => String)
+  @prop({ default: "US", required: true })
+  country: string
+}
+
+@ObjectType()
+export class Weight {
+  @Field(() => Number)
+  @prop({ required: true })
+  value: number
+
+  @Field(() => Date)
+  @prop({ default: Date.now(), required: true })
+  date: Date
+}
+
+export enum Gender {
+  Male = "male",
+  Female = "female",
+}
+
+registerEnumType(Gender, {
+  name: "Gender",
+  description: "",
+})
 
 export enum Role {
   Patient = "PATIENT",
   Clinician = "CLINICIAN",
   Admin = "ADMIN",
+  BillingLock = "BILLING_LOCK",
 }
 
 registerEnumType(Role, {
@@ -33,31 +97,28 @@ function findByEmail(
   return this.findOne({ email })
 }
 
-function findBySignupToken(
+function findByEmailToken(
   this: ReturnModelType<typeof User, QueryHelpers>,
-  signupToken: User["signupToken"]
+  emailToken: User["emailToken"]
 ) {
-  return this.findOne({ signupToken })
+  return this.findOne({ emailToken })
 }
 
-function findByResetPasswordToken(
+function findBySubscriptionId(
   this: ReturnModelType<typeof User, QueryHelpers>,
-  resetPasswordToken: User["resetPasswordToken"]
+  stripeSubscriptionId: User["stripeSubscriptionId"]
 ) {
-  return this.findOne({ resetPasswordToken })
+  return this.findOne({ stripeSubscriptionId })
 }
-
 interface QueryHelpers {
   findByEmail: AsQueryMethod<typeof findByEmail>
-  findBySignupToken: AsQueryMethod<typeof findBySignupToken>
-  findByResetPasswordToken: AsQueryMethod<typeof findByResetPasswordToken>
+  findByEmailToken: AsQueryMethod<typeof findByEmailToken>
+  findBySubscriptionId: AsQueryMethod<typeof findBySubscriptionId>
 }
 
 @pre<User>("save", async function () {
-  // check that the password is being modified
-  if (!this.isModified("password")) {
-    return
-  }
+  if (!this.password) return
+  if (!this.isModified("password")) return
 
   const salt = await bcrypt.genSalt(10)
   const hash = await bcrypt.hashSync(this.password, salt)
@@ -66,8 +127,7 @@ interface QueryHelpers {
 })
 @index({ email: 1 })
 @queryMethod(findByEmail)
-@queryMethod(findBySignupToken)
-@queryMethod(findByResetPasswordToken)
+@queryMethod(findByEmailToken)
 @ObjectType()
 export class User {
   @Field(() => String)
@@ -83,7 +143,11 @@ export class User {
 
   @Field(() => String)
   @prop()
-  password: string
+  phone?: string
+
+  @Field(() => String)
+  @prop()
+  password?: string
 
   @Field(() => Role)
   @prop({
@@ -92,33 +156,50 @@ export class User {
   })
   role: Role
 
-  @Field(() => Boolean)
-  @prop({ default: false, required: true })
-  emailVerified: boolean
+  @Field(() => String)
+  @prop()
+  emailToken?: string
+
+  @Field(() => Date)
+  @prop()
+  emailTokenExpiresAt?: Date
+
+  @Field(() => Date)
+  @prop({ required: true })
+  dateOfBirth: Date
+
+  @Field(() => Address)
+  @prop()
+  address: Address
+
+  @Field(() => [Weight])
+  @prop({ default: [], required: true })
+  weights: mongoose.Types.Array<Weight>
+
+  @Field(() => Gender)
+  @prop({ enum: Gender, type: String, required: true })
+  gender: Gender
+
+  @Field(() => Number)
+  @prop({ required: true })
+  heightInInches: number
 
   @Field(() => String)
   @prop()
-  signupToken: string
+  stripeCustomerId?: string
 
   @Field(() => String)
   @prop()
-  resetPasswordToken: string
+  stripeSubscriptionId?: string
 
   @Field(() => Date)
-  @prop()
-  resetPasswordTokenExpiresAt: Date
-
-  @Field(() => Date)
-  @prop({ default: Date.now() })
-  createdAt: Date
-
-  @Field(() => Date)
-  @prop({ default: Date.now() })
-  updatedAt: Date
+  @prop({ default: Date.now(), required: true })
+  subscriptionExpiresAt: Date
 }
 
-export const UserModel = getModelForClass<typeof User, QueryHelpers>(User)
-
+export const UserModel = getModelForClass<typeof User, QueryHelpers>(User, {
+  schemaOptions: { timestamps: true },
+})
 @InputType()
 export class CreateUserInput {
   @Field(() => String)
@@ -128,17 +209,82 @@ export class CreateUserInput {
   @Field(() => String)
   email: string
 
+  @IsPhoneNumber("US", { message: phoneValidation.message })
+  @Field(() => String, { nullable: true })
+  phone?: string
+
   @MinLength(password.length.minValue, {
     message: password.length.minMessage,
   })
   @MaxLength(password.length.maxValue, {
     message: password.length.maxMessage,
   })
-  @Field(() => String)
-  password: string
+  @Field(() => String, {
+    nullable: true,
+    description:
+      "If no password is provided, an email will be sent to create one.",
+  })
+  password?: string
 
-  @Field(() => Role, { nullable: true })
-  role: Role
+  @Field(() => Role, {
+    nullable: true,
+    description: "If no role is provided, defaults to Patient.",
+  })
+  role?: Role
+
+  @IsDate({
+    message: dateOfBirthValidation.message,
+  })
+  @MaxDate(
+    new Date(
+      `${new Date().getFullYear() - dateOfBirthValidation.minAge.value}-01-01`
+    ),
+    {
+      message: dateOfBirthValidation.minAge.message,
+    }
+  )
+  @Field(() => Date, {
+    description: `User must be atleast ${dateOfBirthValidation.minAge.value} years old.`,
+  })
+  dateOfBirth: Date
+
+  @Field(() => Address, {
+    nullable: true,
+    description:
+      "If not provided, user will be assigned a task to provide this information.",
+  })
+  address?: Address
+
+  @Field(() => Number, {
+    nullable: true,
+    description: "Current weight in lbs.",
+  })
+  weightInLbs?: number
+
+  @Field(() => Gender)
+  gender: Gender
+
+  @Field(() => Number, { description: "Height in inches." })
+  heightInInches: number
+
+  @Field(() => String, {
+    nullable: true,
+    description: "If not provided, will be set after checkout.",
+  })
+  stripeCustomerId?: string
+
+  @Field(() => String, {
+    nullable: true,
+    description: "If not provided, will be set after checkout.",
+  })
+  stripeSubscriptionId?: string
+
+  @Field(() => Date, {
+    nullable: true,
+    description:
+      "When the user's subscription expires. If not provided, the subscription won't be active.",
+  })
+  subscriptionExpiresAt?: Date
 }
 
 @InputType()
@@ -150,8 +296,17 @@ export class LoginInput {
   @Field(() => String)
   password: string
 
-  @Field(() => Boolean, { nullable: true })
+  @Field(() => Boolean, {
+    nullable: true,
+    description: `If not set token will expire in ${normalExp}. If set to true, token will expire in ${rememberExp}.`,
+  })
   remember: boolean
+
+  @Field(() => Boolean, {
+    nullable: true,
+    description: "Only useable by admins to generate auth tokens",
+  })
+  noExpire?: boolean
 }
 
 @ObjectType()
@@ -214,4 +369,13 @@ export class SubscribeEmailInput {
 
   @Field(() => Boolean)
   currentMember: boolean
+}
+
+@InputType()
+export class UpdateSubscriptionInput {
+  @Field(() => String)
+  stripeSubscriptionId: string
+
+  @Field(() => Date)
+  subscriptionExpiresAt: Date
 }

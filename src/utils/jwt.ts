@@ -2,16 +2,7 @@ import jwt from "jsonwebtoken"
 import { User } from "../schema/user.schema"
 
 export const signJwt = (
-  object: Omit<
-    User,
-    | "password"
-    | "emailVerified"
-    | "signupToken"
-    | "resetPasswordToken"
-    | "resetPasswordTokenExpiresAt"
-    | "createdAt"
-    | "updatedAt"
-  >,
+  object: Pick<User, "_id" | "name" | "email" | "role">,
   options?: jwt.SignOptions | undefined
 ) => {
   return jwt.sign(object, process.env.JWT_SECRET, {
