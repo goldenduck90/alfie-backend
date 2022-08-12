@@ -26,6 +26,22 @@ async function bootstrap() {
   // init express
   const app = express()
 
+  // create the apollo server
+  const server = new ApolloServer({
+    schema,
+    context: (ctx: Context) => {
+      const context = ctx.req
+      // req.user is set by the jwt middleware
+      context.user = ctx.req.auth
+      return context
+    },
+    plugins: [
+      process.env.NODE_ENV === "production"
+        ? ApolloServerPluginLandingPageProductionDefault()
+        : ApolloServerPluginLandingPageGraphQLPlayground(),
+    ],
+  })
+
   // mount jwt middleware & run before the GraphQL execution
   app.use(
     path,
@@ -35,22 +51,6 @@ async function bootstrap() {
       algorithms: ["HS256"],
     })
   )
-
-  // create the apollo server
-  const server = new ApolloServer({
-    schema,
-    context: (ctx: Context) => {
-      const context = ctx
-      // req.user is set by the jwt middleware
-      context.user = ctx.req.user
-      return context
-    },
-    plugins: [
-      process.env.NODE_ENV === "production"
-        ? ApolloServerPluginLandingPageProductionDefault()
-        : ApolloServerPluginLandingPageGraphQLPlayground(),
-    ],
-  })
 
   // start apollo server
   await server.start()
