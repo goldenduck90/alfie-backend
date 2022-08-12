@@ -128,6 +128,7 @@ interface QueryHelpers {
 @index({ email: 1 })
 @queryMethod(findByEmail)
 @queryMethod(findByEmailToken)
+@queryMethod(findBySubscriptionId)
 @ObjectType()
 export class User {
   @Field(() => String)
