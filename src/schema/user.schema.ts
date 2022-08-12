@@ -36,7 +36,7 @@ export class Address {
   @prop({ required: true })
   line1: string
 
-  @Field(() => String)
+  @Field(() => String, { nullable: true })
   @prop()
   line2?: string
 

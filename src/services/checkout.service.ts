@@ -95,7 +95,7 @@ class CheckoutService extends UserService {
         ...checkout,
         stripePaymentLinkId: paymentLink.id,
       },
-      paymentLink,
+      paymentLink: paymentLink.url,
     }
   }
 
