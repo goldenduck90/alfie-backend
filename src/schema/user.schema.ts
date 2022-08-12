@@ -5,6 +5,7 @@ import {
   ReturnModelType,
   queryMethod,
   index,
+  ModelOptions,
 } from "@typegoose/typegoose"
 import { registerEnumType } from "type-graphql"
 import { AsQueryMethod } from "@typegoose/typegoose/lib/types"
@@ -31,6 +32,7 @@ const { rememberExp, normalExp } = config.get("jwtExpiration")
 
 @ObjectType()
 @InputType("AddressInput")
+@ModelOptions({ schemaOptions: { _id: false } })
 export class Address {
   @Field(() => String)
   @prop({ required: true })
