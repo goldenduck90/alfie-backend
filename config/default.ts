@@ -113,6 +113,7 @@ export default {
       "You've been successfully subscribed to our waitlist. We will email you as soon as we launch in your area.",
     checkoutFound: "Checkout updated successfully.",
     checkoutCreated: "Checkout created successfully.",
+    checkoutCompleted: "Checkout completed successfully.",
     userCreatedViaCheckout:
       "Thank you for subscribing to Alfie! Please check your email to complete your registration.",
     userCreatedManually:
