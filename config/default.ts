@@ -13,6 +13,10 @@ export default {
         code: "NOT_FOUND",
         message: "User not found",
       },
+      notPermitted: {
+        code: "UNAUTHORIZED",
+        message: "You are not permitted to view another patient's task.",
+      },
     },
     registration: {
       invalidToken: {

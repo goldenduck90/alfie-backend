@@ -29,11 +29,15 @@ class TaskService extends EmailService {
     return task
   }
 
-  async getUserTask(id: string) {
-    const { notFound } = config.get("errors.tasks")
+  async getUserTask(id: string, userId?: string) {
+    const { notFound, notPermitted } = config.get("errors.tasks")
     const userTask = await UserTaskModel.findById(id)
     if (!userTask) {
       throw new ApolloError(notFound.message, notFound.code)
+    }
+
+    if (userId && userTask.user.toString() !== userId) {
+      throw new ApolloError(notPermitted.message, notPermitted.code)
     }
 
     return userTask
