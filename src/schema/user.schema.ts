@@ -382,3 +382,9 @@ export class UpdateSubscriptionInput {
   @Field(() => Date)
   subscriptionExpiresAt: Date
 }
+
+@InputType()
+export class CreateHealthiePatientInput {
+  @Field(() => String)
+  userId: string
+}

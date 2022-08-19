@@ -1,5 +1,19 @@
 export default {
   errors: {
+    tasks: {
+      alreadyAssigned: {
+        code: "ALREADY_EXISTS",
+        message: "Task already assigned to user",
+      },
+      notFound: {
+        code: "NOT_FOUND",
+        message: "Task not found",
+      },
+      userNotFound: {
+        code: "NOT_FOUND",
+        message: "User not found",
+      },
+    },
     registration: {
       invalidToken: {
         message: "Invalid token provided! Please contact support.",
@@ -67,7 +81,7 @@ export default {
       },
       alreadyCheckedOut: {
         message: "You've already signed up for Alfie!",
-        code: "ALREADY_CHECKED_OUT",
+        code: "ALREADY_EXISTS",
       },
       paymentNotComplete: {
         message: "Your payment was not completed. Please contact support.",
@@ -119,6 +133,7 @@ export default {
     userCreatedManually:
       "User created successfully. They will receive an email to complete their registration.",
     updateSubscription: "Subscription updated successfully.",
+    taskCompleted: "Task completed successfully.",
   },
   jwtExpiration: {
     rememberExp: "7d",
@@ -132,6 +147,10 @@ export default {
     completeRegistration: {
       path: "signup/password",
       subject: "Complete your Alfie registration",
+    },
+    taskAssigned: {
+      path: "task",
+      subject: "You've been assigned a new task",
     },
   },
   paths: {

@@ -16,6 +16,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@apollo/client": "^3.6.9",
     "@typegoose/typegoose": "^9.11.0",
     "apollo-server": "^3.10.0",
     "aws-sdk": "^2.1189.0",

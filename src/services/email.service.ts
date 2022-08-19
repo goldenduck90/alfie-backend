@@ -1,5 +1,6 @@
 import * as AWS from "aws-sdk"
 import config from "config"
+import { format } from "date-fns"
 
 class EmailService {
   noReplyEmail: string
@@ -76,6 +77,61 @@ class EmailService {
           Html: {
             Charset: "UTF-8",
             Data: url, // TODO: build email template & copy
+          },
+        },
+        Subject: {
+          Charset: "UTF-8",
+          Data: subject,
+        },
+      },
+    }
+
+    const result = await this.awsSes.sendEmail(params).promise()
+    return result.MessageId
+  }
+
+  async sendTaskAssignedEmail({
+    email,
+    taskName,
+    taskId,
+    dueAt,
+  }: {
+    email: string
+    taskName: string
+    taskId: string
+    dueAt?: Date
+  }) {
+    const { path, subject } = config.get("emails.taskAssigned")
+    const url = `${this.baseUrl}/${path}/${taskId}`
+
+    const emailBody = `
+      Hello,<br/><br/>
+      
+      You have been assigned a task: ${taskName}.<br/>
+      ${
+        dueAt
+          ? `It is due on ${format(dueAt, "MM/dd/yyyy @ h:mm a")}.<br/><br/>`
+          : "<br/>"
+      }
+
+      Please click the link below to complete the task:<br/>
+      ${url}<br/><br/>
+
+      Thanks,<br/>
+      Alfie Team
+    `
+
+    const params = {
+      Source: this.noReplyEmail,
+      Destination: {
+        ToAddresses: [email],
+      },
+      ReplyToAddresses: [] as string[],
+      Message: {
+        Body: {
+          Html: {
+            Charset: "UTF-8",
+            Data: emailBody, // TODO: build email template & copy
           },
         },
         Subject: {

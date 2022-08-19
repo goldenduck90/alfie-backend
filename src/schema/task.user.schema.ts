@@ -1,0 +1,133 @@
+import {
+  getModelForClass,
+  prop,
+  ReturnModelType,
+  queryMethod,
+  ModelOptions,
+} from "@typegoose/typegoose"
+import { AsQueryMethod, Ref } from "@typegoose/typegoose/lib/types"
+import { Field, InputType, ObjectType } from "type-graphql"
+import { Task } from "./task.schema"
+import { User } from "./user.schema"
+
+@ObjectType()
+@ModelOptions({ schemaOptions: { _id: false } })
+export class UserAnswer {
+  @Field(() => String)
+  @prop({ required: true })
+  key: string
+
+  @Field(() => String)
+  @prop({ required: true })
+  value: string
+}
+
+function findByTaskId(
+  this: ReturnModelType<typeof UserTask, QueryHelpers>,
+  taskId: string
+) {
+  return this.findOne({ task: taskId })
+}
+
+function findTasksByUserId(
+  this: ReturnModelType<typeof UserTask, QueryHelpers>,
+  userId: string
+) {
+  return this.find({ user: userId })
+}
+
+function findUserTask(
+  this: ReturnModelType<typeof UserTask, QueryHelpers>,
+  userId: string,
+  taskId: string
+) {
+  return this.findOne({ user: userId, task: taskId })
+}
+
+interface QueryHelpers {
+  findByTaskId: AsQueryMethod<typeof findByTaskId>
+  findTasksByUserId: AsQueryMethod<typeof findTasksByUserId>
+  findUserTask: AsQueryMethod<typeof findUserTask>
+}
+
+@ObjectType()
+@queryMethod(findByTaskId)
+@queryMethod(findTasksByUserId)
+@queryMethod(findUserTask)
+export class UserTask {
+  @Field(() => String)
+  _id: string
+
+  @Field(() => Task)
+  @prop({ ref: () => Task, required: true })
+  task: Ref<Task>
+
+  @Field(() => User)
+  @prop({ ref: () => User, required: true })
+  user: Ref<User>
+
+  @Field(() => [UserAnswer])
+  @prop({ type: () => [UserAnswer], required: false })
+  answers?: UserAnswer[]
+
+  @Field(() => Boolean)
+  @prop({ required: true, default: false })
+  completed: boolean
+
+  @Field(() => Date, { nullable: true })
+  @prop({ required: false })
+  dueAt?: Date
+
+  @Field(() => Boolean, { nullable: true })
+  pastDue?: boolean
+
+  @Field(() => Date, { nullable: true })
+  @prop({ required: false })
+  completedAt?: Date
+}
+
+export const UserTaskModel = getModelForClass<typeof UserTask>(UserTask, {
+  schemaOptions: { timestamps: true },
+})
+
+@InputType()
+export class CreateUserTaskInput {
+  @Field(() => String)
+  taskId: string
+
+  @Field(() => String)
+  userId: string
+}
+
+@InputType()
+export class GetUserTasksInput {
+  @Field(() => Number, { nullable: true, defaultValue: 10 })
+  limit?: number
+
+  @Field(() => Number, { nullable: true, defaultValue: 0 })
+  offset?: number
+}
+
+@InputType()
+export class CompleteUserTaskInput {
+  @Field(() => String)
+  _id: string
+
+  @Field(() => [UserAnswer])
+  answers: UserAnswer[]
+}
+
+@ObjectType()
+export class UserTaskList {
+  @Field(() => [UserTask])
+  userTasks: UserTask[]
+
+  @Field(() => Number)
+  total: number
+
+  @Field(() => Number)
+  limit: number
+
+  @Field(() => Number)
+  offset: number
+}
