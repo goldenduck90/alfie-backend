@@ -4,6 +4,7 @@ import { Task, CreateTaskInput } from "../schema/task.schema"
 import TaskService from "../services/task.service"
 import {
   CreateUserTaskInput,
+  CreateUserTasksInput,
   GetUserTasksInput,
   UserTask,
   UserTaskList,
@@ -22,10 +23,16 @@ export default class TaskResolver {
     return this.taskService.createTask(input)
   }
 
-  @Authorized([Role.Admin, Role.Clinician])
+  @Authorized([Role.Admin])
   @Mutation(() => UserTask)
   assignTaskToUser(@Arg("input") input: CreateUserTaskInput) {
     return this.taskService.assignTaskToUser(input)
+  }
+
+  @Authorized([Role.Admin])
+  @Mutation(() => [UserTask])
+  bulkAssignTasksToUser(@Arg("input") input: CreateUserTasksInput) {
+    return this.taskService.bulkAssignTasksToUser(input)
   }
 
   @Authorized([Role.Patient])

@@ -1,7 +1,9 @@
 import {
   CompleteUserTaskInput,
   CreateUserTaskInput,
+  CreateUserTasksInput,
   GetUserTasksInput,
+  UserTask,
   UserTaskModel,
 } from "../schema/task.user.schema"
 import { CreateTaskInput, TaskModel } from "../schema/task.schema"
@@ -9,7 +11,7 @@ import { ApolloError } from "apollo-server"
 import config from "config"
 import EmailService from "./email.service"
 import { UserModel } from "../schema/user.schema"
-import { addHours, isPast } from "date-fns"
+import { addDays, isPast } from "date-fns"
 
 class TaskService extends EmailService {
   async createTask(input: CreateTaskInput) {
@@ -44,20 +46,33 @@ class TaskService extends EmailService {
   }
 
   async getUserTasks(userId: string, input: GetUserTasksInput) {
-    const { limit, offset } = input
-    const userTasks = await UserTaskModel.find({ user: userId })
-      .skip(offset)
-      .limit(limit)
+    const { limit, offset, completed } = input
+    const { noTasks } = config.get("errors.tasks")
+    const where = { ...(completed !== undefined && { completed }) }
+
     const userTasksCount = await UserTaskModel.find({
       user: userId,
-    }).countDocuments()
+    })
+      .where(where)
+      .countDocuments()
+    if (userTasksCount === 0) {
+      throw new ApolloError(noTasks.message, noTasks.code)
+    }
+
+    const userTasks = await UserTaskModel.find({ user: userId })
+      .where(where)
+      .skip(offset)
+      .limit(limit)
+      .sort({ highPriority: -1, dueAt: -1, createdAt: 1 })
+      .populate("task")
+      .populate("user")
 
     return {
       total: userTasksCount,
       limit,
       offset,
       userTasks: userTasks.map((userTask) => ({
-        ...userTask,
+        ...userTask.toObject(),
         ...(userTask.dueAt && { pastDue: isPast(userTask.dueAt) }),
       })),
     }
@@ -82,15 +97,82 @@ class TaskService extends EmailService {
     }
   }
 
+  async bulkAssignTasksToUser(input: CreateUserTasksInput) {
+    const { alreadyAssigned, notFound, userNotFound } =
+      config.get("errors.tasks")
+    const { userId, taskTypes } = input
+    const user = await UserModel.findById(userId)
+    if (!user) {
+      throw new ApolloError(userNotFound.message, userNotFound.code)
+    }
+
+    const tasks = await TaskModel.find({ type: { $in: taskTypes } })
+      .where({ completed: false })
+      .lean()
+    if (tasks.length !== taskTypes.length) {
+      throw new ApolloError(notFound.message, notFound.code)
+    }
+    const taskIds = tasks.map((task) => task._id)
+
+    const userTasks = await UserTaskModel.find({
+      user: userId,
+      task: { $in: taskIds },
+    })
+
+    const newTasks: Omit<UserTask, "_id" | "completed">[] = tasks.reduce(
+      (filtered: Omit<UserTask, "_id" | "completed">[], task) => {
+        const existingTask = userTasks.find(
+          (userTask) => userTask.task.toString() === task._id.toString()
+        )
+
+        if (!existingTask || (existingTask && task.canHaveMultiple)) {
+          filtered.push({
+            user: userId,
+            task: task._id,
+            ...(task.daysTillDue && {
+              dueAt: addDays(new Date(), task.daysTillDue),
+            }),
+            highPriority: task.highPriority,
+            lastNotifiedUserAt: task.notifyWhenAssigned
+              ? new Date()
+              : undefined,
+          })
+        }
+
+        return filtered
+      },
+      []
+    )
+    if (!newTasks.length) {
+      throw new ApolloError(alreadyAssigned.message, alreadyAssigned.code)
+    }
+
+    const newUserTasks = await UserTaskModel.create(newTasks)
+
+    return newUserTasks.map((userTask) => ({
+      ...userTask.toObject(),
+      ...(userTask.dueAt && { pastDue: false }),
+    }))
+  }
+
   async assignTaskToUser(input: CreateUserTaskInput) {
     const { alreadyAssigned, notFound, userNotFound } =
       config.get("errors.tasks")
-    const { userId, taskId } = input
+    const { userId, taskType } = input
+    const task = await TaskModel.find().findByType(taskType).lean()
+    if (task) {
+      throw new ApolloError(notFound.message, notFound.code)
+    }
+
     const existingUserTask = await UserTaskModel.find().findUserTask(
       userId,
-      taskId
+      task._id
     )
-    if (existingUserTask && !existingUserTask.completed) {
+    if (
+      existingUserTask &&
+      !task.canHaveMultiple &&
+      !existingUserTask.completed
+    ) {
       throw new ApolloError(alreadyAssigned.message, alreadyAssigned.code)
     }
 
@@ -99,17 +181,14 @@ class TaskService extends EmailService {
       throw new ApolloError(userNotFound.message, userNotFound.code)
     }
 
-    const task = await TaskModel.findById(taskId)
-    if (!task) {
-      throw new ApolloError(notFound.message, notFound.code)
-    }
-
     const newTask = await UserTaskModel.create({
       user: userId,
-      task: taskId,
-      dueAt: task.hoursTillDue
-        ? addHours(new Date(), task.hoursTillDue)
+      task: task._id,
+      dueAt: task.daysTillDue
+        ? addDays(new Date(), task.daysTillDue)
         : undefined,
+      highPriority: task.highPriority,
+      lastNotifiedUserAt: task.notifyWhenAssigned ? new Date() : undefined,
     })
 
     await newTask.populate("user")
@@ -120,13 +199,14 @@ class TaskService extends EmailService {
         email: user.email,
         taskName: task.name,
         taskId: newTask._id,
+        taskType: task.type,
         dueAt: newTask.dueAt,
       })
     }
 
     return {
-      ...newTask,
-      ...(newTask.dueAt && { pastDue: isPast(newTask.dueAt) }),
+      ...newTask.toObject(),
+      ...(newTask.dueAt && { pastDue: false }),
     }
   }
 }

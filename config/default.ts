@@ -9,6 +9,11 @@ export default {
         code: "NOT_FOUND",
         message: "Task not found",
       },
+      noTasks: {
+        code: "NOT_FOUND",
+        message:
+          "You have no tasks to complete right now. We'll notify you when you do!",
+      },
       userNotFound: {
         code: "NOT_FOUND",
         message: "User not found",
@@ -16,6 +21,12 @@ export default {
       notPermitted: {
         code: "UNAUTHORIZED",
         message: "You are not permitted to view another patient's task.",
+      },
+    },
+    user: {
+      notFound: {
+        code: "NOT_FOUND",
+        message: "User not found",
       },
     },
     registration: {
@@ -167,5 +178,8 @@ export default {
   }`,
   apiGatewayPaths: {
     subscribeEmail: "/",
+  },
+  s3: {
+    expiresInSeconds: 600, // 10 mins
   },
 }

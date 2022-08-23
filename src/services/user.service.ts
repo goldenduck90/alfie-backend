@@ -17,8 +17,16 @@ import {
 } from "../schema/user.schema"
 import { signJwt } from "../utils/jwt"
 import EmailService from "./email.service"
+import TaskService from "./task.service"
 
 class UserService extends EmailService {
+  private taskService: TaskService
+
+  constructor() {
+    super()
+    this.taskService = new TaskService()
+  }
+
   async createUser(input: CreateUserInput, manual = false) {
     const { alreadyExists, unknownError, emailSendError } =
       config.get("errors.createUser")
@@ -84,6 +92,10 @@ class UserService extends EmailService {
       waitlist: false,
       currentMember: true,
     })
+
+    // TODO: create patient entry in DrChrono
+
+    // TODO: assign patient intake & id/insurance tasks to user
 
     // send email with link to set password
     const sent = await this.sendRegistrationEmail({

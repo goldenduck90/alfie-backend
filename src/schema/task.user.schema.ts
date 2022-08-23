@@ -6,9 +6,22 @@ import {
   ModelOptions,
 } from "@typegoose/typegoose"
 import { AsQueryMethod, Ref } from "@typegoose/typegoose/lib/types"
-import { Field, InputType, ObjectType } from "type-graphql"
-import { Task } from "./task.schema"
+import { Field, InputType, ObjectType, registerEnumType } from "type-graphql"
+import { Task, TaskType } from "./task.schema"
 import { User } from "./user.schema"
+
+export enum AnswerType {
+  STRING = "STRING",
+  NUMBER = "NUMBER",
+  BOOLEAN = "BOOLEAN",
+  DATE = "DATE",
+  FILE = "FILE",
+}
+
+registerEnumType(AnswerType, {
+  name: "AnswerType",
+  description: "The type of answer",
+})
 
 @ObjectType()
 @ModelOptions({ schemaOptions: { _id: false } })
@@ -20,6 +33,15 @@ export class UserAnswer {
   @Field(() => String)
   @prop({ required: true })
   value: string
+
+  @Field(() => AnswerType)
+  @prop({
+    enum: AnswerType,
+    type: String,
+    required: true,
+    default: AnswerType.STRING,
+  })
+  type: AnswerType
 }
 
 function findByTaskId(
@@ -81,19 +103,57 @@ export class UserTask {
   @Field(() => Boolean, { nullable: true })
   pastDue?: boolean
 
+  @Field(() => Boolean)
+  @prop({ required: true, default: false })
+  highPriority: boolean
+
+  @Field(() => Date, { nullable: true })
+  @prop({ required: false })
+  lastNotifiedUserAt?: Date
+
+  @Field(() => Date, { nullable: true })
+  @prop({ required: false })
+  lastNotifiedUserPastDueAt?: Date
+
+  @Field(() => Date, { nullable: true })
+  @prop({ required: false })
+  lastNotifiedProviderPastDueAt?: Date
+
+  @Field(() => Date, { nullable: true })
+  @prop({ required: false })
+  lastNotifiedHealthCoachPastDueAt?: Date
+
   @Field(() => Date, { nullable: true })
   @prop({ required: false })
   completedAt?: Date
+
+  @Field(() => Date)
+  createdAt?: Date
+
+  @Field(() => Date)
+  updatedAt?: Date
 }
 
-export const UserTaskModel = getModelForClass<typeof UserTask>(UserTask, {
-  schemaOptions: { timestamps: true },
-})
+export const UserTaskModel = getModelForClass<typeof UserTask, QueryHelpers>(
+  UserTask,
+  {
+    schemaOptions: { timestamps: true },
+  }
+)
 
 @InputType()
 export class CreateUserTaskInput {
+  @Field(() => TaskType)
+  taskType: TaskType
+
   @Field(() => String)
-  taskId: string
+  userId: string
+}
+
+@InputType()
+export class CreateUserTasksInput {
+  @Field(() => [TaskType])
+  taskTypes: TaskType[]
 
   @Field(() => String)
   userId: string
@@ -106,6 +166,9 @@ export class GetUserTasksInput {
 
   @Field(() => Number, { nullable: true, defaultValue: 0 })
   offset?: number
+
+  @Field(() => Boolean, { nullable: true })
+  completed?: boolean
 }
 
 @InputType()

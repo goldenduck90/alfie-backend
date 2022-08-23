@@ -6,4 +6,7 @@ export default {
   stripe: {
     defaultPriceId: "price_1KMviXDOjl0X0gOq9Pk7gRFE",
   },
+  s3: {
+    patientBucketName: "develop-platform-patient-storage",
+  },
 }

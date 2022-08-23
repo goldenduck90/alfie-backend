@@ -93,16 +93,18 @@ class EmailService {
   async sendTaskAssignedEmail({
     email,
     taskName,
+    taskType,
     taskId,
     dueAt,
   }: {
     email: string
     taskName: string
     taskId: string
+    taskType: string
     dueAt?: Date
   }) {
     const { path, subject } = config.get("emails.taskAssigned")
-    const url = `${this.baseUrl}/${path}/${taskId}`
+    const url = `${this.baseUrl}/${path}/${taskType}/${taskId}`
 
     const emailBody = `
       Hello,<br/><br/>

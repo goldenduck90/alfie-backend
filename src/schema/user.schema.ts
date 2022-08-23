@@ -8,7 +8,7 @@ import {
   ModelOptions,
 } from "@typegoose/typegoose"
 import { registerEnumType } from "type-graphql"
-import { AsQueryMethod } from "@typegoose/typegoose/lib/types"
+import { AsQueryMethod, Ref } from "@typegoose/typegoose/lib/types"
 import bcrypt from "bcrypt"
 import {
   IsDate,
@@ -30,6 +30,40 @@ const {
 } = config.get("validations")
 const { rememberExp, normalExp } = config.get("jwtExpiration")
 
+export enum FileType {
+  InsuranceCard = "INSURANCE_CARD",
+  PhotoId = "PHOTO_ID",
+  Other = "OTHER",
+}
+
+registerEnumType(FileType, {
+  name: "FileType",
+  description: "Represents the file's purpose",
+})
+
+export enum Gender {
+  Male = "male",
+  Female = "female",
+}
+
+registerEnumType(Gender, {
+  name: "Gender",
+  description: "",
+})
+
+export enum Role {
+  Patient = "PATIENT",
+  Clinician = "CLINICIAN",
+  HealthCoach = "HEALTH_COACH",
+  Supervisor = "SUPERVISOR",
+  Admin = "ADMIN",
+  BillingLock = "BILLING_LOCK",
+}
+
+registerEnumType(Role, {
+  name: "Role",
+  description: "The user roles a user can be assigned to",
+})
 @ObjectType()
 @InputType("AddressInput")
 @ModelOptions({ schemaOptions: { _id: false } })
@@ -70,27 +104,53 @@ export class Weight {
   date: Date
 }
 
-export enum Gender {
-  Male = "male",
-  Female = "female",
+@ObjectType()
+@InputType("FileMetadataInput")
+export class FileMetadata {
+  @Field(() => String)
+  @prop({ required: true })
+  key: string
+
+  @Field(() => String)
+  @prop({ required: true })
+  value: string
 }
 
-registerEnumType(Gender, {
-  name: "Gender",
-  description: "",
-})
+@ObjectType()
+@InputType("FileInput")
+export class File {
+  @Field(() => String)
+  @prop({ required: true })
+  key: string
 
-export enum Role {
-  Patient = "PATIENT",
-  Clinician = "CLINICIAN",
-  Admin = "ADMIN",
-  BillingLock = "BILLING_LOCK",
+  @Field(() => String)
+  @prop({ required: true })
+  url: string
+
+  @Field(() => String)
+  @prop({ required: true })
+  ETag: string
+
+  @Field(() => FileType)
+  @prop({ required: true, default: FileType.Other })
+  type: FileType
+
+  @Field(() => String)
+  @prop({ required: true })
+  contentType: string
+
+  @Field(() => [FileMetadata], { nullable: true })
+  @prop({ default: [], required: true })
+  metadata?: mongoose.Types.Array<FileMetadata>
+
+  @Field(() => String, { nullable: true })
+  @prop()
+  versionId?: string
+
+  @Field(() => Date, { nullable: true })
+  @prop({ default: Date.now(), required: true })
+  createdAt?: Date
 }
-
-registerEnumType(Role, {
-  name: "Role",
-  description: "The user roles a user can be assigned to",
-})
 
 function findByEmail(
   this: ReturnModelType<typeof User, QueryHelpers>,
@@ -198,6 +258,18 @@ export class User {
   @Field(() => Date)
   @prop({ default: Date.now(), required: true })
   subscriptionExpiresAt: Date
+
+  @Field(() => [File])
+  @prop({ default: [], required: true })
+  files: mongoose.Types.Array<File>
+
+  @Field(() => User, { nullable: true })
+  @prop({ ref: () => User, required: false })
+  provider: Ref<User>
+
+  @Field(() => User, { nullable: true })
+  @prop({ ref: () => User, required: false })
+  healthCoach: Ref<User>
 }
 
 export const UserModel = getModelForClass<typeof User, QueryHelpers>(User, {
@@ -384,7 +456,22 @@ export class UpdateSubscriptionInput {
 }
 
 @InputType()
-export class CreateHealthiePatientInput {
+export class SignedUrlRequest {
   @Field(() => String)
-  userId: string
+  key: string
+
+  @Field(() => [FileMetadata], { nullable: true })
+  metadata?: FileMetadata[]
+
+  @Field(() => String)
+  contentType: string
+}
+
+@ObjectType()
+export class SignedUrlResponse {
+  @Field(() => String)
+  key: string
+
+  @Field(() => String)
+  url: string
 }

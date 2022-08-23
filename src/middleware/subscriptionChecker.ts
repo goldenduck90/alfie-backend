@@ -7,17 +7,23 @@ export const SubscriptionChecker: MiddlewareFn<Context> = async (
   { context },
   next
 ) => {
-  if (!context.user) next()
-  if (context.user.role === Role.Admin || context.user.role === Role.Clinician)
+  if (!context.user) {
+    throw new ApolloError("Not authenticated", "NOT_AUTHORIZED")
+  } else if (
+    context.user.role === Role.Admin ||
+    context.user.role === Role.Clinician ||
+    context.user.role === Role.Supervisor
+  ) {
     next()
+  } else {
+    const { user } = context
+    const dbUser = await UserModel.findById(user._id).lean()
+    if (!dbUser) throw new ApolloError("User not found", "NOT FOUND")
 
-  const { user } = context
-  const dbUser = await UserModel.findById(user._id).lean()
-  if (!dbUser) next()
-
-  if (dbUser.subscriptionExpiresAt > new Date()) {
-    next()
+    if (dbUser.subscriptionExpiresAt > new Date()) {
+      next()
+    } else {
+      throw new ApolloError("Subscription expired", "SUBSCRIPTION_EXPIRED")
+    }
   }
-
-  throw new ApolloError("Subscription expired", "SUBSCRIPTION_EXPIRED")
 }

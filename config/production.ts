@@ -4,4 +4,7 @@ export default {
   stripe: {
     defaultPriceId: "price_1KMv4hDOjl0X0gOqRIWXpGVz",
   },
+  s3: {
+    patientBucketName: "production-platform-alfie-patient-files",
+  },
 }
