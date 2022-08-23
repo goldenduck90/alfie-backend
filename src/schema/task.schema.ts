@@ -11,7 +11,7 @@ import { Field, InputType, ObjectType } from "type-graphql"
 
 export enum TaskType {
   ID_AND_INSURANCE_UPLOAD = "ID_AND_INSURANCE_UPLOAD",
-  NEW_PATIENT_INTAKE = "NEW_PATIENT_INTAKE",
+  NEW_PATIENT_INTAKE_FORM = "NEW_PATIENT_INTAKE_FORM",
   DAILY_METRICS_LOG = "DAILY_LOG",
   HP_AND_BP_LOG = "HP_AND_BP_LOG",
 }
@@ -48,15 +48,15 @@ export class Task {
   notifyWhenAssigned: boolean
 
   @Field(() => Boolean)
-  @prop({ required: false })
+  @prop({ required: true, default: false })
   notifyWhenPastDue?: boolean
 
   @Field(() => Boolean)
-  @prop({ required: false })
+  @prop({ required: false, default: false })
   notifyProviderWhenPastDue?: boolean
 
   @Field(() => Boolean)
-  @prop({ required: false })
+  @prop({ required: false, default: false })
   notifyHealthCoachWhenPastDue?: boolean
 
   @Field(() => TaskType)
