@@ -301,6 +301,16 @@ class UserService extends EmailService {
       user,
     }
   }
+
+  async getUser(userId: string) {
+    const { notFound } = config.get("errors.user")
+    const user = await UserModel.findById(userId).lean()
+    if (!user) {
+      throw new ApolloError(notFound.message, notFound.code)
+    }
+
+    return user
+  }
 }
 
 export default UserService

@@ -52,18 +52,20 @@ registerEnumType(Gender, {
 })
 
 export enum Role {
-  Patient = "PATIENT",
-  Clinician = "CLINICIAN",
-  HealthCoach = "HEALTH_COACH",
-  Supervisor = "SUPERVISOR",
-  Admin = "ADMIN",
-  BillingLock = "BILLING_LOCK",
+  Patient = "Patient",
+  Practitioner = "Practitioner",
+  Doctor = "Doctor",
+  HealthCoach = "HealthCoach",
+  Nutritionist = "Nutritionist",
+  CareCoordinator = "CareCoordinator",
+  Admin = "Admin",
 }
 
 registerEnumType(Role, {
   name: "Role",
   description: "The user roles a user can be assigned to",
 })
+
 @ObjectType()
 @InputType("AddressInput")
 @ModelOptions({ schemaOptions: { _id: false } })
@@ -255,6 +257,18 @@ export class User {
   @prop()
   stripeSubscriptionId?: string
 
+  @Field(() => String, { nullable: true })
+  @prop()
+  eaCustomerId?: string
+
+  @Field(() => String, { nullable: true })
+  @prop()
+  eaPractitionerId?: string
+
+  @Field(() => String, { nullable: true })
+  @prop()
+  eaHealthCoachId?: string
+
   @Field(() => Date)
   @prop({ default: Date.now(), required: true })
   subscriptionExpiresAt: Date
@@ -347,6 +361,27 @@ export class CreateUserInput {
     description: "If not provided, will be set after checkout.",
   })
   stripeCustomerId?: string
+
+  @Field(() => String, {
+    nullable: true,
+    description:
+      "EasyAppointments Customer ID. If not provided, will be created after checkout.",
+  })
+  eaCustomerId?: string
+
+  @Field(() => String, {
+    nullable: true,
+    description:
+      "EasyAppointments Practitioner ID. If not provided, will be assigned after the patient has their first appointment.",
+  })
+  eaPractitionerId?: string
+
+  @Field(() => String, {
+    nullable: true,
+    description:
+      "EasyAppointments Health Coach ID. If not provided, will be assigned after the patient has their first appointment.",
+  })
+  eaHealthCoachId?: string
 
   @Field(() => String, {
     nullable: true,

@@ -11,8 +11,8 @@ export const SubscriptionChecker: MiddlewareFn<Context> = async (
     throw new ApolloError("Not authenticated", "NOT_AUTHORIZED")
   } else if (
     context.user.role === Role.Admin ||
-    context.user.role === Role.Clinician ||
-    context.user.role === Role.Supervisor
+    context.user.role === Role.Practitioner ||
+    context.user.role === Role.Doctor
   ) {
     next()
   } else {

@@ -28,6 +28,10 @@ export default {
         code: "NOT_FOUND",
         message: "User not found",
       },
+      noEaCustomerId: {
+        code: "NOT_FOUND",
+        message: "User does not have an EA customer ID",
+      },
     },
     registration: {
       invalidToken: {

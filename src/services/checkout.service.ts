@@ -5,17 +5,21 @@ import {
   CreateCheckoutInput,
 } from "../schema/checkout.schema"
 import UserService from "./user.service"
+import AppointmentService from "./appointment.service"
 import config from "config"
 import stripe from "stripe"
 import { addMonths } from "date-fns"
 class CheckoutService extends UserService {
-  stripeSdk: stripe
+  private stripeSdk: stripe
+  private appointmentService: AppointmentService
 
   constructor() {
     super()
     this.stripeSdk = new stripe(process.env.STRIPE_SECRET_KEY, {
       apiVersion: "2022-08-01",
     })
+
+    this.appointmentService = new AppointmentService()
   }
 
   async completeCheckout(input: CompleteCheckoutInput) {
@@ -66,7 +70,23 @@ class CheckoutService extends UserService {
     checkout.checkedOut = true
     checkout.stripeCheckoutId = stripeCheckoutId
     checkout.user = user._id
-    await CheckoutModel.findByIdAndUpdate(checkout.id, checkout)
+    await CheckoutModel.findByIdAndUpdate(checkout._id, checkout)
+
+    // create easyappointment customer
+    const firstName = user.name.split(" ")[0]
+    const lastName = user.name.split(" ")[1]
+    await this.appointmentService.createCustomer({
+      userId: user._id,
+      firstName,
+      lastName,
+      email: user.email,
+      phone,
+      address: address.line1 + " " + address.line2,
+      city: address.city,
+      zipCode: address.postalCode,
+      notes: "",
+      updateUser: true,
+    })
 
     return {
       message: checkoutCompleted,

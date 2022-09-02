@@ -52,8 +52,8 @@ export default class UserResolver {
     return this.userService.updateSubscription(input)
   }
 
-  @Query(() => User, { nullable: true })
+  @Query(() => User)
   me(@Ctx() context: Context) {
-    return context.user
+    return this.userService.getUser(context.user._id)
   }
 }
