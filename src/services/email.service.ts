@@ -24,7 +24,7 @@ class EmailService {
     email: string
     token: string
   }) {
-    const { path, subject } = config.get("emails.forgotPassword")
+    const { path, subject } = config.get("emails.forgotPassword") as any
     const url = `${this.baseUrl}/${path}/${token}`
 
     const params = {
@@ -60,7 +60,7 @@ class EmailService {
     token: string
     manual?: boolean
   }) {
-    const { path, subject } = config.get("emails.completeRegistration")
+    const { path, subject } = config.get("emails.completeRegistration") as any
     const url = `${this.baseUrl}/${path}/${token}`
 
     // TODO: change email content based on manual flag
@@ -103,7 +103,7 @@ class EmailService {
     taskType: string
     dueAt?: Date
   }) {
-    const { path, subject } = config.get("emails.taskAssigned")
+    const { path, subject } = config.get("emails.taskAssigned") as any
     const url = `${this.baseUrl}/${path}/${taskType}/${taskId}`
 
     const emailBody = `

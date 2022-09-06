@@ -28,7 +28,7 @@ class AppointmentService {
   }
 
   async createCustomer(input: CreateCustomerInput) {
-    const { notFound } = config.get("errors.user")
+    const { notFound } = config.get("errors.user") as any
     const {
       userId,
       firstName,
@@ -73,7 +73,7 @@ class AppointmentService {
   }
 
   async allTimeslots(userId: string, input: AllTimeslotsInput) {
-    const { notFound } = config.get("errors.user")
+    const { notFound } = config.get("errors.user") as any
     const user = await UserModel.findById(userId).lean()
     if (!user) {
       throw new ApolloError(notFound.message, notFound.code)
@@ -165,7 +165,7 @@ class AppointmentService {
   }
 
   async createAppointment(userId: string, input: CreateAppointmentInput) {
-    const { notFound, noEaCustomerId } = config.get("errors.user")
+    const { notFound, noEaCustomerId } = config.get("errors.user") as any
     const user = await UserModel.findById(userId).lean()
     if (!user) {
       throw new ApolloError(notFound.message, notFound.code)
@@ -222,7 +222,7 @@ class AppointmentService {
   }
 
   async updateAppointment(userId: string, input: UpdateAppointmentInput) {
-    const { notFound, noEaCustomerId } = config.get("errors.user")
+    const { notFound, noEaCustomerId } = config.get("errors.user") as any
     const user = await UserModel.findById(userId).lean()
     if (!user) {
       throw new ApolloError(notFound.message, notFound.code)
@@ -280,7 +280,7 @@ class AppointmentService {
   }
 
   async cancelAppointment(userId: string, eaAppointmentId: string) {
-    const { notFound, noEaCustomerId } = config.get("errors.user")
+    const { notFound, noEaCustomerId } = config.get("errors.user") as any
     const user = await UserModel.findById(userId).lean()
     if (!user) {
       throw new ApolloError(notFound.message, notFound.code)
@@ -298,7 +298,7 @@ class AppointmentService {
   }
 
   async getAppointment(userId: string, eaAppointmentId: string) {
-    const { notFound, noEaCustomerId } = config.get("errors.user")
+    const { notFound, noEaCustomerId } = config.get("errors.user") as any
     const user = await UserModel.findById(userId).lean()
     if (!user) {
       throw new ApolloError(notFound.message, notFound.code)
@@ -309,7 +309,6 @@ class AppointmentService {
     }
 
     const { data } = await this.axios.get(`/appointments/${eaAppointmentId}`)
-
     return {
       eaAppointmentId: data.id,
       startTimeInUtc: new Date(data.start),
@@ -333,7 +332,7 @@ class AppointmentService {
   }
 
   async getAppointments(userId: string, limit: number) {
-    const { notFound, noEaCustomerId } = config.get("errors.user")
+    const { notFound, noEaCustomerId } = config.get("errors.user") as any
     const user = await UserModel.findById(userId).lean()
     if (!user) {
       throw new ApolloError(notFound.message, notFound.code)
