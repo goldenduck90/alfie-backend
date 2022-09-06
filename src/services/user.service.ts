@@ -90,7 +90,7 @@ class UserService extends EmailService {
     await this.subscribeEmail({
       email,
       fullName: name,
-      location: "address.state",
+      location: address.state,
       waitlist: false,
       currentMember: true,
     })
