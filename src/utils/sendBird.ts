@@ -14,12 +14,10 @@ const channelMessages = [
   },
 ]
 const sendBirdInstance = axios.create({
-  baseURL: "https://api-56D883B9-B30F-428B-8B7A-31184E513DF4.sendbird.com",
-  // process.env.SENDBIRD_API_URL,
+  baseURL: process.env.SENDBIRD_API_URL,
   headers: {
     "Content-Type": "application/ json; charset = utf8",
-    "Api-Token": "87a46d4fefa7ccff15c3eb1364f8bc787f10fc49",
-    // process.env.SENDBIRD_API_TOKEN,
+    "Api-Token": process.env.SENDBIRD_API_TOKEN,
   },
 })
 // TODO: This whole file needs proper typing...
