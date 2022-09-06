@@ -45,7 +45,7 @@ const createSendBirdUser = async (
       profile_url,
       profile_file,
     })
-
+    console.log(data, "data in the createSendBirdUser function")
     return data
   } catch (error) {
     throw new Error(error)
@@ -56,6 +56,7 @@ const createSendBirdUser = async (
  * @param user_id
  * @returns a channel object and the full response object can be found here: https://sendbird.com/docs/chat/v3/platform-api/channel/creating-a-channel/create-a-group-channel#2-responses
  */
+
 const createSendBirdChannelForNewUser = async (user_id: string) => {
   try {
     const healthCoach = await sendBirdInstance.post("/v3/group_channels", {
@@ -81,6 +82,7 @@ const createSendBirdChannelForNewUser = async (user_id: string) => {
       medical,
       customerSupport,
     ])
+    console.log(channelCreationResponseData, "channelCreationResponseData")
     return channelCreationResponseData
   } catch (error) {
     throw new Error(error)
@@ -92,6 +94,7 @@ const createSendBirdChannelForNewUser = async (user_id: string) => {
  * @param message
  * @returns a message object and the full response object can be found here: https://sendbird.com/docs/chat/v3/platform-api/message/messaging-basics/send-a-message#2-responses
  */
+// TODO: Remove this function and replace it with an invite to channel function
 const sendMessageToChannel = async (channel_url: string, message: string) => {
   try {
     const { data } = await sendBirdInstance.post(
@@ -102,6 +105,7 @@ const sendMessageToChannel = async (channel_url: string, message: string) => {
         message,
       }
     )
+    console.log(data, "data in the sendMessageToChannel function")
     return data
   } catch (error) {
     throw new Error(error)
@@ -128,7 +132,9 @@ const triggerEntireSendBirdFlow = async (
       profile_url,
       profile_file
     )
+    console.log(user, "user in the triggerEntireSendBirdFlow function")
     const channel = await createSendBirdChannelForNewUser(user.user_id)
+    console.log(channel, "channel in the triggerEntireSendBirdFlow function")
     const arrayOfSendChannelMessagePromises = channel.map(
       async (sendBirdChannel: any) => {
         const message = channelMessages.find(

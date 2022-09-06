@@ -309,7 +309,6 @@ class AppointmentService {
     }
 
     const { data } = await this.axios.get(`/appointments/${eaAppointmentId}`)
-
     return {
       eaAppointmentId: data.id,
       startTimeInUtc: new Date(data.start),

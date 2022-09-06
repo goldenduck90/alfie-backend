@@ -93,7 +93,7 @@ class UserService extends EmailService {
       waitlist: false,
       currentMember: true,
     })
-    // await triggerEntireSendBirdFlow(user._id, name, "", "")
+    await triggerEntireSendBirdFlow(user._id, user.name, "", "")
 
     // TODO: create patient entry in DrChrono
 
