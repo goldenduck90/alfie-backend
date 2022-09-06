@@ -15,7 +15,6 @@ const channelMessages = [
 ]
 const sendBirdInstance = axios.create({
   baseURL: process.env.SENDBIRD_API_URL,
-  timeout: 1000,
   headers: {
     "Content-Type": "application/ json; charset = utf8",
     "Api-Token": process.env.SENDBIRD_API_TOKEN,
