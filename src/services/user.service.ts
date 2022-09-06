@@ -3,6 +3,7 @@ import axios from "axios"
 import bcrypt from "bcrypt"
 import config from "config"
 import { addMinutes } from "date-fns"
+import { triggerEntireSendBirdFlow } from "../utils/sendBird"
 import { v4 as uuidv4 } from "uuid"
 import {
   CreateUserInput,
@@ -92,6 +93,7 @@ class UserService extends EmailService {
       waitlist: false,
       currentMember: true,
     })
+    // await triggerEntireSendBirdFlow(user._id, name, "", "")
 
     // TODO: create patient entry in DrChrono
 

@@ -74,6 +74,10 @@ export class Address {
   @prop({ required: true })
   line1: string
 
+  @Field(() => [String])
+  @prop({ required: true })
+  channelIds: mongoose.Types.Array<string>
+
   @Field(() => String, { nullable: true })
   @prop()
   line2?: string
