@@ -8,7 +8,7 @@ on:
   pull_request:
 
 jobs:
-  lint:
+  prepare:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -22,7 +22,7 @@ jobs:
         run: npm install
       - name: Typescript
         run: npm run tsc
-      - name: Prettier check
-        run: npm run format
-      - name: ESLint check
-        run: npm run lint
+      # - name: Prettier check
+      #   run: npm run format
+      # - name: ESLint check
+      #   run: npm run lint
