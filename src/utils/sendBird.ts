@@ -88,7 +88,6 @@ const createSendBirdChannelForNewUser = async (user_id: string) => {
  * @param message
  * @returns a message object and the full response object can be found here: https://sendbird.com/docs/chat/v3/platform-api/message/messaging-basics/send-a-message#2-responses
  */
-// TODO: Remove this function and replace it with an invite to channel function
 const inviteUserToChannel = async (channel_url: string, user_id: string) => {
   try {
     const { data } = await sendBirdInstance.post(
