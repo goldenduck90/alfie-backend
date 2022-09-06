@@ -23,8 +23,8 @@ class CheckoutService extends UserService {
   }
 
   async completeCheckout(input: CompleteCheckoutInput) {
-    const { checkoutCompleted } = config.get("messages")
-    const { notFound, alreadyCheckedOut } = config.get("errors.checkout")
+    const { checkoutCompleted } = config.get("messages") as any
+    const { notFound, alreadyCheckedOut } = config.get("errors.checkout") as any
 
     const {
       stripePaymentLinkId,
@@ -94,8 +94,9 @@ class CheckoutService extends UserService {
   }
 
   async getCheckout(checkoutId: string) {
-    const { checkoutNotFound, alreadyCheckedOut } =
-      config.get("errors.checkout")
+    const { checkoutNotFound, alreadyCheckedOut } = config.get(
+      "errors.checkout"
+    ) as any
 
     const checkout = await CheckoutModel.findById(checkoutId).lean()
     if (!checkout) {
@@ -126,7 +127,7 @@ class CheckoutService extends UserService {
     paymentLinkId?: string
     update?: boolean
   }) {
-    const { defaultPriceId } = config.get("stripe")
+    const { defaultPriceId } = config.get("stripe") as any
     const baseUrl = config.get("baseUrl")
     const path = config.get("paths.checkoutSuccess")
     const url = `${baseUrl}/${path}`
@@ -170,8 +171,8 @@ class CheckoutService extends UserService {
   }
 
   async createOrFindCheckout(input: CreateCheckoutInput) {
-    const { checkoutFound, checkoutCreated } = config.get("messages")
-    const { alreadyCheckedOut } = config.get("errors.checkout")
+    const { checkoutFound, checkoutCreated } = config.get("messages") as any
+    const { alreadyCheckedOut } = config.get("errors.checkout") as any
 
     const {
       name,

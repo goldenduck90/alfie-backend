@@ -26,7 +26,7 @@ class S3Service {
   }
 
   async completeUpload(input: File[], userId: string): Promise<User> {
-    const { notFound } = config.get("errors.users")
+    const { notFound } = config.get("errors.users") as any
     const user = await UserModel.findById(userId).countDocuments()
     if (!user) {
       throw new ApolloError(notFound.message, notFound.code)

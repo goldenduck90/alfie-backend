@@ -29,13 +29,14 @@ class UserService extends EmailService {
   }
 
   async createUser(input: CreateUserInput, manual = false) {
-    const { alreadyExists, unknownError, emailSendError } =
-      config.get("errors.createUser")
+    const { alreadyExists, unknownError, emailSendError } = config.get(
+      "errors.createUser"
+    ) as any
     const userCreatedMessage = config.get(
       manual
         ? "messages.userCreatedManually"
         : "messages.userCreatedViaCheckout"
-    )
+    ) as any
     const {
       name,
       email,
@@ -117,7 +118,7 @@ class UserService extends EmailService {
 
   async updateSubscription(input: UpdateSubscriptionInput) {
     const { stripeSubscriptionId, subscriptionExpiresAt } = input
-    const { notFound } = config.get("errors.updateSubscription")
+    const { notFound } = config.get("errors.updateSubscription") as any
     const message = config.get("messages.updateSubscription")
 
     const user = await UserModel.find()
@@ -135,7 +136,7 @@ class UserService extends EmailService {
 
   async subscribeEmail(input: SubscribeEmailInput) {
     const { email, fullName, location, waitlist, currentMember } = input
-    const { unknownError } = config.get("errors.subscribeEmail")
+    const { unknownError } = config.get("errors.subscribeEmail") as any
     const waitlistMessage = config.get("messages.subscribeEmail")
     const url = config.get("apiGatewayBaseUrl")
     const path = config.get("apiGatewayPaths.subscribeEmail")
@@ -173,7 +174,7 @@ class UserService extends EmailService {
     )
     const { emailNotFound, emailSendError } = config.get(
       "errors.forgotPassword"
-    )
+    ) as any
     const forgotPasswordMessage = config.get("messages.forgotPassword")
 
     // Get our user by email
@@ -207,7 +208,9 @@ class UserService extends EmailService {
 
   async resetPassword(input: ResetPasswordInput) {
     const { token, password, registration } = input
-    const { invalidToken, tokenExpired } = config.get("errors.resetPassword")
+    const { invalidToken, tokenExpired } = config.get(
+      "errors.resetPassword"
+    ) as any
     const resetPasswordMessage = config.get("messages.resetPassword")
     const completedRegistrationMessage = config.get(
       "messages.completedRegistration"
@@ -260,12 +263,13 @@ class UserService extends EmailService {
 
   async login(input: LoginInput) {
     const { email, password, remember, noExpire } = input
-    const { invalidCredentials, passwordNotCreated } =
-      config.get("errors.login")
-    const { rememberExp, normalExp } = config.get("jwtExpiration")
+    const { invalidCredentials, passwordNotCreated } = config.get(
+      "errors.login"
+    ) as any
+    const { rememberExp, normalExp } = config.get("jwtExpiration") as any
 
     // Get our user by email
-    const user = await UserModel.find().findByEmail(email).lean()
+    const user = (await UserModel.find().findByEmail(email).lean()) as any
     if (!user) {
       throw new ApolloError(invalidCredentials.message, invalidCredentials.code)
     }
@@ -305,7 +309,7 @@ class UserService extends EmailService {
   }
 
   async getUser(userId: string) {
-    const { notFound } = config.get("errors.user")
+    const { notFound } = config.get("errors.user") as any
     const user = await UserModel.findById(userId).lean()
     if (!user) {
       throw new ApolloError(notFound.message, notFound.code)

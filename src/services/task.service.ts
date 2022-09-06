@@ -32,7 +32,7 @@ class TaskService extends EmailService {
   }
 
   async getUserTask(id: string, userId?: string) {
-    const { notFound, notPermitted } = config.get("errors.tasks")
+    const { notFound, notPermitted } = config.get("errors.tasks") as any
     const userTask = await UserTaskModel.findById(id)
     if (!userTask) {
       throw new ApolloError(notFound.message, notFound.code)
@@ -47,7 +47,7 @@ class TaskService extends EmailService {
 
   async getUserTasks(userId: string, input: GetUserTasksInput) {
     const { limit, offset, completed } = input
-    const { noTasks } = config.get("errors.tasks")
+    const { noTasks } = config.get("errors.tasks") as any
     const where = { ...(completed !== undefined && { completed }) }
 
     const userTasksCount = await UserTaskModel.find({
@@ -79,7 +79,7 @@ class TaskService extends EmailService {
   }
 
   async completeUserTask(input: CompleteUserTaskInput) {
-    const { notFound } = config.get("errors.tasks")
+    const { notFound } = config.get("errors.tasks") as any
     const message = config.get("messages.taskCompleted")
     const { _id, answers } = input
     const userTask = await UserTaskModel.findById(_id)
@@ -98,8 +98,9 @@ class TaskService extends EmailService {
   }
 
   async bulkAssignTasksToUser(input: CreateUserTasksInput) {
-    const { alreadyAssigned, notFound, userNotFound } =
-      config.get("errors.tasks")
+    const { alreadyAssigned, notFound, userNotFound } = config.get(
+      "errors.tasks"
+    ) as any
     const { userId, taskTypes } = input
     const user = await UserModel.findById(userId)
     if (!user) {
@@ -156,8 +157,9 @@ class TaskService extends EmailService {
   }
 
   async assignTaskToUser(input: CreateUserTaskInput) {
-    const { alreadyAssigned, notFound, userNotFound } =
-      config.get("errors.tasks")
+    const { alreadyAssigned, notFound, userNotFound } = config.get(
+      "errors.tasks"
+    ) as any
     const { userId, taskType } = input
     const task = await TaskModel.find().findByType(taskType).lean()
     if (task) {
