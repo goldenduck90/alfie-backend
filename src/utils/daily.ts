@@ -12,10 +12,10 @@ const createDailyRoom = async () => {
   try {
     const data = await dailyInstance.post("/rooms", {
       privacy: "true",
-      // TODO: Enable expiration date to be 4hrs after the meeting starts
-      // properties: {
-      //     exp:
-      // }
+      properties: {
+        enable_knocking: true,
+        exp: 1630000000, // TODO: Enable expiration date to be 4hrs after the meeting starts
+      },
     })
     return data
   } catch (error) {
