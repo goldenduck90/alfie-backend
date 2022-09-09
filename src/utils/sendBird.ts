@@ -93,7 +93,7 @@ const inviteUserToChannel = async (channel_url: string, user_id: string) => {
     const { data } = await sendBirdInstance.post(
       `/v3/group_channels/${channel_url}/invite`,
       {
-        user_ids: [user_id, 1], // iser id 1 is the admin
+        user_ids: [user_id, 1, 353665], // iser id 1 is the admin
       }
     )
     return data
