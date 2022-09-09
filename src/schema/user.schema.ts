@@ -27,8 +27,8 @@ const {
   phone: phoneValidation,
   password,
   dateOfBirth: dateOfBirthValidation,
-} = config.get("validations")
-const { rememberExp, normalExp } = config.get("jwtExpiration")
+} = config.get("validations") as any
+const { rememberExp, normalExp } = config.get("jwtExpiration") as any
 
 export enum FileType {
   InsuranceCard = "INSURANCE_CARD",
@@ -197,6 +197,9 @@ interface QueryHelpers {
 export class User {
   @Field(() => String)
   _id: string
+
+  @Field(() => String)
+  meetingRoomUrl: string
 
   @Field(() => String)
   @prop({ required: true })

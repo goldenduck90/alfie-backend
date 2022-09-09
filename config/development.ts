@@ -3,7 +3,8 @@ export default {
   baseUrl:
     "http://develop.platform.joinalfie.com.s3-website-us-east-1.amazonaws.com",
   healthieGraphqlUrl: "https://staging-api.gethealthie.com/graphql",
-  easyAppointmentsApiUrl: "http://localhost:8082/index.php/api/v1",
+  easyAppointmentsApiUrl:
+    "http://develop-ea.us-east-1.elasticbeanstalk.com/index.php/api/v1",
   stripe: {
     defaultPriceId: "price_1KMviXDOjl0X0gOq9Pk7gRFE",
   },

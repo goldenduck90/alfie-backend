@@ -2,6 +2,7 @@ import { ApolloError } from "apollo-server"
 import axios, { AxiosInstance } from "axios"
 import config from "config"
 import { addMinutes, format } from "date-fns"
+import { createMeetingAndToken } from "../utils/daily"
 import {
   CreateCustomerInput,
   AllTimeslotsInput,
@@ -183,11 +184,11 @@ class AppointmentService {
       endTimeInUtc,
       notes,
     } = input
-
+    const meetingData = await createMeetingAndToken(userId)
     const { data: response } = await this.axios.post("/appointments", {
       start: format(startTimeInUtc, "yyyy-MM-dd HH:mm:ss"),
       end: format(endTimeInUtc, "yyyy-MM-dd HH:mm:ss"),
-      location: "https://meet.joinalfie.com",
+      location: `${meetingData.room.url}?t=${meetingData.token}`,
       customerId: user.eaCustomerId,
       providerId: eaProviderId,
       serviceId: eaServiceId,
@@ -241,11 +242,11 @@ class AppointmentService {
       providerType,
       eaServiceId,
     } = input
-
+    const meetingData = await createMeetingAndToken(userId)
     const { data } = await this.axios.put(`/appointments/${eaAppointmentId}`, {
       start: format(startTimeInUtc, "yyyy-MM-dd HH:mm:ss"),
       end: format(endTimeInUtc, "yyyy-MM-dd HH:mm:ss"),
-      location: "https://meet.joinalfie.com",
+      location: `${meetingData.room.url}?t=${meetingData.token}`,
       customerId: user.eaCustomerId,
       providerId: eaProviderId,
       serviceId: eaServiceId,
