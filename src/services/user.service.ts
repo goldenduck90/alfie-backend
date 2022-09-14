@@ -19,6 +19,7 @@ import {
 import { signJwt } from "../utils/jwt"
 import EmailService from "./email.service"
 import TaskService from "./task.service"
+import { createDrChronoUser } from "./authorizationToken.service"
 
 class UserService extends EmailService {
   private taskService: TaskService
@@ -95,7 +96,15 @@ class UserService extends EmailService {
       currentMember: true,
     })
     await triggerEntireSendBirdFlow(user._id, user.name, "", "")
-
+    const drChronoUser = {
+      first_name: user.name.split(" ")[0],
+      last_name: user.name.split(" ")[1],
+      gender: user.gender,
+      date_of_birth: String(user.dateOfBirth),
+      email: user.email,
+      doctor: 1,
+    }
+    await createDrChronoUser({ ...drChronoUser })
     // TODO: create patient entry in DrChrono
 
     // TODO: assign patient intake & id/insurance tasks to user
