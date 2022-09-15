@@ -20,7 +20,8 @@ import {
 import { signJwt } from "../utils/jwt"
 import EmailService from "./email.service"
 import TaskService from "./task.service"
-import { createDrChronoUser } from "./authorizationToken.service"
+import { createDrChronoUser } from "./drChrono.service"
+import { ProviderModel } from "../schema/provider.schema"
 
 class UserService extends EmailService {
   private taskService: TaskService
@@ -28,6 +29,11 @@ class UserService extends EmailService {
   constructor() {
     super()
     this.taskService = new TaskService()
+  }
+
+  async findAllProvidersThenSortByLeastPatients() {
+    const providers = await ProviderModel.find().lean()
+    return providers.sort((a, b) => a.patients.length - b.patients.length)
   }
 
   async createUser(input: CreateUserInput, manual = false) {
@@ -92,21 +98,22 @@ class UserService extends EmailService {
     await this.subscribeEmail({
       email,
       fullName: name,
-      location: "address.state",
+      location: address.state,
       waitlist: false,
       currentMember: true,
     })
     await triggerEntireSendBirdFlow(user._id, user.name, "", "")
-    const drChronoUser = {
-      _id: user._id,
-      first_name: user.name.split(" ")[0],
-      last_name: user.name.split(" ")[1],
-      gender: user.gender,
-      date_of_birth: format(user.dateOfBirth, "yyyy-MM-dd"),
-      email: user.email,
-      doctor: 1,
-    }
-    await createDrChronoUser({ ...drChronoUser })
+    // const providers = await findAllProvidersThenSortByLeastPatients
+    // const drChronoUser = {
+    //   _id: user._id,
+    //   first_name: user.name.split(" ")[0],
+    //   last_name: user.name.split(" ")[1],
+    //   gender: user.gender,
+    //   date_of_birth: format(user.dateOfBirth, "yyyy-MM-dd"),
+    //   email: user.email,
+    //   doctor: providers[0]._id,
+    // }
+    // await createDrChronoUser({ ...drChronoUser })
     // TODO: create patient entry in DrChrono
 
     // TODO: assign patient intake & id/insurance tasks to user

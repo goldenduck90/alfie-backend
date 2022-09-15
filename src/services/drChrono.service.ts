@@ -133,7 +133,6 @@ async function createDrChronoUser({
       email,
       doctor,
     })
-    console.log("AUTHORIZATIION TOKEN!!!!!!!!!!!!", authToken)
     const { data } = await drChronoInstance.post(
       "/api/patients",
       {
@@ -157,9 +156,6 @@ async function createDrChronoUser({
       drchronoId: data.id,
       // eaPractitionerId: data.doctor,
     })
-    console.log(updatedUser)
-
-    // const updateUser = await UserModel.findOneAndUpdate()
     //TODO Lookup all the doctors associated to where the patient is located by state, we need to assign the patient to the doctor with the least amount of patients assigned to them. filter by practitioner
     // TODO: Also store the doctor ID in the patient record
     // TODO: Add the eaPractitionerId to the patient record
