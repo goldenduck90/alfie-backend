@@ -42,8 +42,8 @@ registerEnumType(FileType, {
 })
 
 export enum Gender {
-  Male = "male",
-  Female = "female",
+  Male = "Male",
+  Female = "Female",
 }
 
 registerEnumType(Gender, {
