@@ -81,10 +81,8 @@ class CheckoutService extends UserService {
       lastName,
       email: user.email,
       phone,
-      address: address.line1 + " " + address.line2,
       city: address.city,
       zipCode: address.postalCode,
-      notes: "",
       updateUser: true,
     })
 

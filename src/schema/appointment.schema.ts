@@ -103,9 +103,6 @@ export class CreateCustomerInput {
   phone: string
 
   @Field(() => String)
-  address: string
-
-  @Field(() => String)
   city: string
 
   @Field(() => String)
