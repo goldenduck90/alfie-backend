@@ -23,6 +23,7 @@ module.exports = {
   rules: {
     "prettier/prettier": 0,
     "semi": "off",
+    "@typescript-eslint/no-explicit-any": "off",
     "@typescript-eslint/semi": ["warn", "never"],
     "quotes": "off",
     "@typescript-eslint/quotes": ["warn", "double"],
