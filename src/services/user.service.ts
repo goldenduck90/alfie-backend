@@ -1,3 +1,4 @@
+import { format } from "date-fns"
 import { ApolloError } from "apollo-server-errors"
 import axios from "axios"
 import bcrypt from "bcrypt"
@@ -91,16 +92,17 @@ class UserService extends EmailService {
     await this.subscribeEmail({
       email,
       fullName: name,
-      location: address.state,
+      location: "address.state",
       waitlist: false,
       currentMember: true,
     })
     await triggerEntireSendBirdFlow(user._id, user.name, "", "")
     const drChronoUser = {
+      _id: user._id,
       first_name: user.name.split(" ")[0],
       last_name: user.name.split(" ")[1],
       gender: user.gender,
-      date_of_birth: String(user.dateOfBirth),
+      date_of_birth: format(user.dateOfBirth, "yyyy-MM-dd"),
       email: user.email,
       doctor: 1,
     }
