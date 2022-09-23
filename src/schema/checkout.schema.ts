@@ -11,8 +11,9 @@ import { Field, InputType, ObjectType } from "type-graphql"
 import config from "config"
 import { Address, Gender, User } from "./user.schema"
 
-const { email: emailValidation, phone: phoneValidation } =
-  config.get("validations")
+const { email: emailValidation, phone: phoneValidation } = config.get(
+  "validations"
+) as any
 
 function findByEmail(
   this: ReturnModelType<typeof Checkout, QueryHelpers>,
