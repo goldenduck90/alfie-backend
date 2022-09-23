@@ -6,7 +6,7 @@ import {
   UserTask,
   UserTaskModel,
 } from "../schema/task.user.schema"
-import { CreateTaskInput, TaskModel } from "../schema/task.schema"
+import { CreateTaskInput, TaskModel, TaskType } from "../schema/task.schema"
 import { ApolloError } from "apollo-server"
 import config from "config"
 import EmailService from "./email.service"
@@ -91,6 +91,20 @@ class TaskService extends EmailService {
     userTask.completedAt = new Date()
     userTask.answers = answers
     await userTask.save()
+
+    const task = await TaskModel.findById(userTask.task)
+
+    // we can add more types here in a switch to save data to different places
+    if (task.type === TaskType.DAILY_METRICS_LOG) {
+      const weight = {
+        date: new Date(),
+        value: answers.find((a) => a.key === "weightInLbs").value,
+      }
+
+      const user = await UserModel.findById(userTask.user)
+      user.weights.push(weight)
+      await user.save()
+    }
 
     return {
       message,

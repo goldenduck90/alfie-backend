@@ -3,6 +3,7 @@ import { Role } from "../schema/user.schema"
 import { Task, CreateTaskInput } from "../schema/task.schema"
 import TaskService from "../services/task.service"
 import {
+  CompleteUserTaskInput,
   CreateUserTaskInput,
   CreateUserTasksInput,
   GetUserTasksInput,
@@ -27,6 +28,12 @@ export default class TaskResolver {
   @Mutation(() => UserTask)
   assignTaskToUser(@Arg("input") input: CreateUserTaskInput) {
     return this.taskService.assignTaskToUser(input)
+  }
+
+  @Authorized([Role.Patient])
+  @Mutation(() => UserTask)
+  completeUserTask(@Arg("input") input: CompleteUserTaskInput) {
+    return this.taskService.completeUserTask(input)
   }
 
   @Authorized([Role.Admin])
