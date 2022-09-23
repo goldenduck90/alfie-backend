@@ -14,6 +14,9 @@ export enum TaskType {
   NEW_PATIENT_INTAKE_FORM = "NEW_PATIENT_INTAKE_FORM",
   DAILY_METRICS_LOG = "DAILY_LOG",
   HP_AND_BP_LOG = "HP_AND_BP_LOG",
+  BP_LOG = "BP_LOG",
+  MP_HUNGER = "MP_HUNGER_",
+  MP_FEELING = "MP_FEELING",
 }
 
 registerEnumType(TaskType, {
