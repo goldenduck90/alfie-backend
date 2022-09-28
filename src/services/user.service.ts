@@ -19,8 +19,7 @@ import {
 import { signJwt } from "../utils/jwt"
 import EmailService from "./email.service"
 import TaskService from "./task.service"
-
-import { ProviderModel } from "../schema/provider.schema"
+import { TaskType } from "../schema/task.schema"
 
 class UserService extends EmailService {
   private taskService: TaskService
@@ -29,12 +28,13 @@ class UserService extends EmailService {
     super()
     this.taskService = new TaskService()
   }
-
-  // async findAllProvidersThenSortByLeastPatients() {
-  //   const providers = await ProviderModel.find().lean()
-  //   return providers.sort((a, b) => a.patients.length - b.patients.length)
-  // }
-
+  async assignUserTasks(userId: string, taskTypes: TaskType[]) {
+    const input = {
+      userId,
+      taskTypes,
+    }
+    this.taskService.bulkAssignTasksToUser(input)
+  }
   async createUser(input: CreateUserInput, manual = false) {
     const { alreadyExists, unknownError, emailSendError } = config.get(
       "errors.createUser"
@@ -102,19 +102,18 @@ class UserService extends EmailService {
       currentMember: true,
     })
     await triggerEntireSendBirdFlow(user._id, user.name, "", "")
-    // const providers = await findAllProvidersThenSortByLeastPatients
-    // const drChronoUser = {
-    //   _id: user._id,
-    //   first_name: user.name.split(" ")[0],
-    //   last_name: user.name.split(" ")[1],
-    //   gender: user.gender,
-    //   date_of_birth: format(user.dateOfBirth, "yyyy-MM-dd"),
-    //   email: user.email,
-    //   doctor: providers[0]._id,
-    // }
-    // await createDrChronoUser({ ...drChronoUser })
-    // TODO: create patient entry in DrChrono
-
+    const tasks = [
+      TaskType.ID_AND_INSURANCE_UPLOAD,
+      TaskType.NEW_PATIENT_INTAKE_FORM,
+      TaskType.MP_HUNGER,
+      TaskType.MP_FEELING,
+      TaskType.BP_LOG,
+      TaskType.DAILY_METRICS_LOG,
+      TaskType.HR_AND_BP_LOG,
+      // TaskType.WEIGHT_LOG, TODO: uncomment when weight log is ready
+      // TaskType.WAIST_MEASUREMENT, TODO: uncomment when waist measurement is ready
+    ]
+    await this.assignUserTasks(user._id, tasks)
     // TODO: assign patient intake & id/insurance tasks to user
 
     // send email with link to set password
