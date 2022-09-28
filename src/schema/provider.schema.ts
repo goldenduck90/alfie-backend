@@ -29,13 +29,13 @@ export class Provider {
   @prop({ required: true })
   eaPractitionerId: number
 
-  @Field(() => [String])
-  @prop({ type: [String], required: true })
-  validState: mongoose.Types.Array<string>
+  // @Field(() => [String])
+  // @prop({ type: [String], required: true })
+  // validState: mongoose.Types.Array<string>
 
-  @Field(() => [String])
-  @prop({ type: [String], required: true })
-  patients: mongoose.Types.Array<string>
+  // @Field(() => [String])
+  // @prop({ type: [String], required: true })
+  // patients: mongoose.Types.Array<string>
 }
 
 export const ProviderModel = getModelForClass<typeof Provider>(Provider, {

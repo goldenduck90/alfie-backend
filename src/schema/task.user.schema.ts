@@ -25,6 +25,7 @@ registerEnumType(AnswerType, {
 })
 
 @ObjectType()
+@InputType("UserAnswersInput")
 @ModelOptions({ schemaOptions: { _id: false } })
 export class UserAnswer {
   @Field(() => String)
@@ -81,9 +82,13 @@ export class UserTask {
   @Field(() => String)
   _id: string
 
-  @Field(() => Task)
+  @Field(() => Task, { nullable: true })
   @prop({ ref: () => Task, required: true })
   task: Ref<Task>
+
+  @Field(() => Boolean, { nullable: true })
+  @prop({ required: true, default: false })
+  archived: boolean
 
   @Field(() => User)
   @prop({ ref: () => User, required: true })
@@ -170,6 +175,10 @@ export class GetUserTasksInput {
 
   @Field(() => Boolean, { nullable: true })
   completed?: boolean
+
+  @Field(() => String, { nullable: true })
+  @prop({ required: false })
+  userId?: boolean
 }
 
 @InputType()
@@ -183,7 +192,7 @@ export class CompleteUserTaskInput {
 
 @ObjectType()
 export class UserTaskList {
-  @Field(() => [UserTask])
+  @Field(() => [UserTask], { nullable: true })
   userTasks: UserTask[]
 
   @Field(() => Number)

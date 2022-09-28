@@ -1,4 +1,3 @@
-import { format } from "date-fns"
 import { ApolloError } from "apollo-server-errors"
 import axios from "axios"
 import bcrypt from "bcrypt"
@@ -20,7 +19,7 @@ import {
 import { signJwt } from "../utils/jwt"
 import EmailService from "./email.service"
 import TaskService from "./task.service"
-import { createDrChronoUser } from "./drChrono.service"
+
 import { ProviderModel } from "../schema/provider.schema"
 
 class UserService extends EmailService {
@@ -31,10 +30,10 @@ class UserService extends EmailService {
     this.taskService = new TaskService()
   }
 
-  async findAllProvidersThenSortByLeastPatients() {
-    const providers = await ProviderModel.find().lean()
-    return providers.sort((a, b) => a.patients.length - b.patients.length)
-  }
+  // async findAllProvidersThenSortByLeastPatients() {
+  //   const providers = await ProviderModel.find().lean()
+  //   return providers.sort((a, b) => a.patients.length - b.patients.length)
+  // }
 
   async createUser(input: CreateUserInput, manual = false) {
     const { alreadyExists, unknownError, emailSendError } = config.get(
@@ -334,6 +333,14 @@ class UserService extends EmailService {
     }
 
     return user
+  }
+  async getAllUsers() {
+    try {
+      const users = await UserModel.find().lean()
+      return users
+    } catch (error) {
+      throw new ApolloError(error.message, error.code)
+    }
   }
 }
 

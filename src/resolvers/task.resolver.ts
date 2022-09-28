@@ -30,6 +30,28 @@ export default class TaskResolver {
     return this.taskService.assignTaskToUser(input)
   }
 
+  @Authorized([Role.Admin])
+  @Mutation(() => [Task])
+  getAllTasks() {
+    return this.taskService.getAllTasks()
+  }
+  @Authorized([Role.Admin])
+  @Mutation(() => UserTask)
+  archiveTask(@Arg("taskId") taskId: string) {
+    return this.taskService.archiveTask(taskId)
+  }
+  @Authorized([Role.Admin])
+  @Query(() => UserTaskList)
+  allUserTasks() {
+    return this.taskService.getAllUserTasks()
+  }
+
+  @Authorized([Role.Admin])
+  @Query(() => [UserTask], { nullable: true })
+  allUserTasksByUserId(@Arg("userId") userId: string) {
+    return this.taskService.getAllUserTasksByUserId(userId)
+  }
+
   @Authorized([Role.Patient])
   @Mutation(() => UserTask)
   completeUserTask(@Arg("input") input: CompleteUserTaskInput) {

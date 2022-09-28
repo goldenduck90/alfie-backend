@@ -86,14 +86,14 @@ class TaskService extends EmailService {
     if (!userTask) {
       throw new ApolloError(notFound.message, notFound.code)
     }
-
+    console.log(userTask, "userTask")
     userTask.completed = true
     userTask.completedAt = new Date()
     userTask.answers = answers
     await userTask.save()
 
     const task = await TaskModel.findById(userTask.task)
-
+    console.log(task, "task")
     // we can add more types here in a switch to save data to different places
     if (task.type === TaskType.DAILY_METRICS_LOG) {
       const weight = {
@@ -107,7 +107,7 @@ class TaskService extends EmailService {
     }
 
     return {
-      message,
+      ...userTask.toObject(),
     }
   }
 
@@ -151,6 +151,7 @@ class TaskService extends EmailService {
             lastNotifiedUserAt: task.notifyWhenAssigned
               ? new Date()
               : undefined,
+            archived: false,
           })
         }
 
@@ -175,8 +176,9 @@ class TaskService extends EmailService {
       "errors.tasks"
     ) as any
     const { userId, taskType } = input
+    console.log({ userId, taskType })
     const task = await TaskModel.find().findByType(taskType).lean()
-    if (task) {
+    if (!task) {
       throw new ApolloError(notFound.message, notFound.code)
     }
 
@@ -223,6 +225,46 @@ class TaskService extends EmailService {
     return {
       ...newTask.toObject(),
       ...(newTask.dueAt && { pastDue: false }),
+    }
+  }
+  async getAllTasks() {
+    try {
+      const tasks = await TaskModel.find()
+      console.log(tasks)
+      return tasks
+    } catch (error) {
+      console.log(error)
+    }
+  }
+  async getAllUserTasks() {
+    try {
+      const userTasks = await UserTaskModel.find()
+      return userTasks
+    } catch (error) {
+      console.log(error)
+    }
+  }
+  async getAllUserTasksByUserId(userId: string) {
+    try {
+      const userTasks = await UserTaskModel.find({ user: userId })
+        .populate("task")
+        .populate("user")
+      return userTasks
+    } catch (error) {
+      console.log(error)
+    }
+  }
+  async archiveTask(taskId: string) {
+    try {
+      const task = await UserTaskModel.findById(taskId)
+      if (!task) {
+        throw new ApolloError("Task not found", "404")
+      }
+      task.archived = true
+      await task.save()
+      return task
+    } catch (error) {
+      console.log(error)
     }
   }
 }

@@ -1,6 +1,6 @@
 import axios from "axios"
 import { UserModel } from "../schema/user.schema"
-
+import config from "config"
 const dailyInstance = axios.create({
   baseURL: process.env.SEND_BIRD_API_URL,
   headers: {
@@ -47,11 +47,12 @@ const createMeetingAndToken = async (user_id: string) => {
   try {
     const room = await createDailyRoom()
     const token = await createDailyMeetingToken(room.data.room_name)
+    const meetingRoomUrl = `${config.get("baseUrl")}?id=${token.data.token}`
     await UserModel.updateOne(
       { _id: user_id },
-      { meetingRooomUrl: `${room.data.url}?t=${token.data.token}` }
+      { meetingRoomUrl: meetingRoomUrl }
     )
-    return { room: room.data, token: token.data }
+    return { meetingRoomUrl }
   } catch (error) {
     throw new Error(error)
   }

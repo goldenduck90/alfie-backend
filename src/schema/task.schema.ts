@@ -15,7 +15,7 @@ export enum TaskType {
   DAILY_METRICS_LOG = "DAILY_LOG",
   HR_AND_BP_LOG = "HR_AND_BP_LOG",
   BP_LOG = "BP_LOG",
-  MP_HUNGER = "MP_HUNGER_",
+  MP_HUNGER = "MP_HUNGER",
   MP_FEELING = "MP_FEELING",
 }
 
@@ -42,11 +42,11 @@ export class Task {
   @Field(() => String)
   _id: string
 
-  @Field(() => String)
+  @Field(() => String, { nullable: true })
   @prop({ required: true })
   name: string
 
-  @Field(() => Boolean)
+  @Field(() => Boolean, { nullable: true })
   @prop({ required: true, default: false })
   notifyWhenAssigned: boolean
 
@@ -70,7 +70,7 @@ export class Task {
   @prop({ required: true, default: false })
   canHaveMultiple: boolean
 
-  @Field(() => Number)
+  @Field(() => Number, { nullable: true })
   @prop({ required: false })
   daysTillDue?: number
 
@@ -78,7 +78,7 @@ export class Task {
   @prop({ required: true, default: false })
   highPriority: boolean
 
-  @Field(() => String)
+  @Field(() => String, { nullable: true })
   @prop({ required: false })
   interval?: string
 }
