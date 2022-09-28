@@ -7,6 +7,7 @@ import {
   CreateUserTaskInput,
   CreateUserTasksInput,
   GetUserTasksInput,
+  UpdateUserTaskInput,
   UserTask,
   UserTaskList,
 } from "../schema/task.user.schema"
@@ -31,15 +32,26 @@ export default class TaskResolver {
   }
 
   @Authorized([Role.Admin])
-  @Mutation(() => [Task])
+  @Query(() => [Task])
   getAllTasks() {
     return this.taskService.getAllTasks()
   }
+
+  @Authorized([Role.Admin])
+  @Mutation(() => UserTask)
+  updateUserTask(
+    @Arg("taskId") taskId: string,
+    @Arg("input") input: UpdateUserTaskInput
+  ) {
+    return this.taskService.updateTask(taskId, input)
+  }
+
   @Authorized([Role.Admin])
   @Mutation(() => UserTask)
   archiveTask(@Arg("taskId") taskId: string) {
     return this.taskService.archiveTask(taskId)
   }
+
   @Authorized([Role.Admin])
   @Query(() => UserTaskList)
   allUserTasks() {

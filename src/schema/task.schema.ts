@@ -75,7 +75,7 @@ export class Task {
   daysTillDue?: number
 
   @Field(() => Boolean)
-  @prop({ required: true, default: false })
+  @prop({ required: false, default: false })
   highPriority: boolean
 
   @Field(() => String, { nullable: true })

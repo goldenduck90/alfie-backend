@@ -3,6 +3,7 @@ import {
   CreateUserTaskInput,
   CreateUserTasksInput,
   GetUserTasksInput,
+  UpdateUserTaskInput,
   UserTask,
   UserTaskModel,
 } from "../schema/task.user.schema"
@@ -261,6 +262,20 @@ class TaskService extends EmailService {
         throw new ApolloError("Task not found", "404")
       }
       task.archived = true
+      await task.save()
+      return task
+    } catch (error) {
+      console.log(error)
+    }
+  }
+  async updateTask(taskId: string, input: UpdateUserTaskInput) {
+    try {
+      const task = await UserTaskModel.findById(taskId)
+      if (!task) {
+        throw new ApolloError("Task not found", "404")
+      }
+      const { lastNotifiedUserAt } = input
+      task.lastNotifiedUserAt = lastNotifiedUserAt
       await task.save()
       return task
     } catch (error) {

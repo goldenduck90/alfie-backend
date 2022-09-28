@@ -110,7 +110,7 @@ export class UserTask {
   pastDue?: boolean
 
   @Field(() => Boolean)
-  @prop({ required: true, default: false })
+  @prop({ required: false, default: false })
   highPriority: boolean
 
   @Field(() => Date, { nullable: true })
@@ -146,7 +146,11 @@ export const UserTaskModel = getModelForClass<typeof UserTask, QueryHelpers>(
     schemaOptions: { timestamps: true },
   }
 )
-
+@InputType()
+export class UpdateUserTaskInput {
+  @Field(() => Date)
+  lastNotifiedUserAt: Date
+}
 @InputType()
 export class CreateUserTaskInput {
   @Field(() => TaskType)
