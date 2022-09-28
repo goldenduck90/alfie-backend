@@ -2,7 +2,7 @@ import axios from "axios"
 import { UserModel } from "../schema/user.schema"
 import config from "config"
 const dailyInstance = axios.create({
-  baseURL: process.env.SEND_BIRD_API_URL,
+  baseURL: process.env.DAILY_API_URL,
   headers: {
     Authorization: `Bearer ${process.env.DAILY_API_KEY}`,
   },
@@ -11,14 +11,16 @@ const dailyInstance = axios.create({
 const createDailyRoom = async () => {
   try {
     const data = await dailyInstance.post("/rooms", {
-      privacy: "true",
+      privacy: "private",
       properties: {
         enable_knocking: true,
-        exp: 1630000000, // TODO: Enable expiration date to be 4hrs after the meeting starts
+        // TODO: Enable expiration date to be 4hrs after the meeting starts
+        // exp: 1630000000,
       },
     })
     return data
   } catch (error) {
+    console.log(error, "error")
     throw new Error(error)
   }
 }
@@ -30,11 +32,14 @@ const createDailyRoom = async () => {
 const createDailyMeetingToken = async (roomName: string) => {
   try {
     const data = await dailyInstance.post("/meeting-tokens", {
-      room_name: roomName,
+      properties: {
+        room_name: roomName,
+      },
       // exp: TODO: Enable expiration date to be 4hrs after the meeting starts
     })
     return data
   } catch (error) {
+    console.log(error, "error")
     throw new Error(error)
   }
 }
@@ -46,14 +51,17 @@ const createDailyMeetingToken = async (roomName: string) => {
 const createMeetingAndToken = async (user_id: string) => {
   try {
     const room = await createDailyRoom()
-    const token = await createDailyMeetingToken(room.data.room_name)
-    const meetingRoomUrl = `${config.get("baseUrl")}?id=${token.data.token}`
+    await createDailyMeetingToken(room.data.name)
+    const meetingRoomUrl = `${config.get("baseUrl")}/appointments/call?id=${
+      room.data.name
+    }`
     await UserModel.updateOne(
       { _id: user_id },
       { meetingRoomUrl: meetingRoomUrl }
     )
-    return { meetingRoomUrl }
+    return meetingRoomUrl
   } catch (error) {
+    console.log(error, "error")
     throw new Error(error)
   }
 }

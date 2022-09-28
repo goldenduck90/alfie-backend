@@ -190,6 +190,7 @@ export class CompleteUserTaskInput {
   @Field(() => String)
   _id: string
 
+  @prop({ required: true })
   @Field(() => [UserAnswer])
   answers: UserAnswer[]
 }

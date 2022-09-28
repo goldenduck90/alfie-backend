@@ -188,7 +188,7 @@ class AppointmentService {
     const { data: response } = await this.axios.post("/appointments", {
       start: format(startTimeInUtc, "yyyy-MM-dd HH:mm:ss"),
       end: format(endTimeInUtc, "yyyy-MM-dd HH:mm:ss"),
-      location: meetingData.meetingRoomUrl,
+      location: meetingData,
       customerId: user.eaCustomerId,
       providerId: eaProviderId,
       serviceId: eaServiceId,
@@ -246,7 +246,7 @@ class AppointmentService {
     const { data } = await this.axios.put(`/appointments/${eaAppointmentId}`, {
       start: format(startTimeInUtc, "yyyy-MM-dd HH:mm:ss"),
       end: format(endTimeInUtc, "yyyy-MM-dd HH:mm:ss"),
-      location: meetingData.meetingRoomUrl,
+      location: meetingData,
       customerId: user.eaCustomerId,
       providerId: eaProviderId,
       serviceId: eaServiceId,
