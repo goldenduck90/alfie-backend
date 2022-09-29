@@ -179,8 +179,6 @@ class UserService extends EmailService {
       TaskType.MP_HUNGER,
       TaskType.MP_FEELING,
       TaskType.BP_LOG,
-      TaskType.DAILY_METRICS_LOG,
-      TaskType.HR_AND_BP_LOG,
       // TaskType.WEIGHT_LOG, TODO: uncomment when weight log is ready
       // TaskType.WAIST_MEASUREMENT, TODO: uncomment when waist measurement is ready
     ]
