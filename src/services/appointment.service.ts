@@ -12,6 +12,7 @@ import {
   UpdateAppointmentInput,
 } from "../schema/appointment.schema"
 import { Role, UserModel } from "../schema/user.schema"
+import { ProviderModel } from "../schema/provider.schema"
 
 class AppointmentService {
   public baseUrl: string
@@ -39,6 +40,7 @@ class AppointmentService {
       address,
       city,
       zipCode,
+      state,
       notes,
       updateUser = false,
     } = input
@@ -57,6 +59,7 @@ class AppointmentService {
       phone,
       address,
       city,
+      state,
       zip: zipCode,
       timezone: "UTC",
       language: "english",
@@ -167,10 +170,12 @@ class AppointmentService {
 
   async createAppointment(userId: string, input: CreateAppointmentInput) {
     const { notFound, noEaCustomerId } = config.get("errors.user") as any
-    const user = await UserModel.findById(userId).lean()
+    const user = await UserModel.findById(userId).populate("provider")
     if (!user) {
       throw new ApolloError(notFound.message, notFound.code)
     }
+
+    const provider = user.provider as any
 
     if (!user.eaCustomerId) {
       throw new ApolloError(noEaCustomerId.message, noEaCustomerId.code)
@@ -197,10 +202,18 @@ class AppointmentService {
 
     if (
       providerType === Role.Practitioner &&
-      user.eaPractitionerId !== eaProviderId
+      provider.eaProviderId !== eaProviderId
     ) {
+      const newProvider = await ProviderModel.findOne({ eaProviderId })
+      if (!newProvider) {
+        throw new ApolloError(
+          `Provider with eaProviderId ${eaProviderId} not found.`,
+          "NOT_FOUND"
+        )
+      }
+
       await UserModel.findByIdAndUpdate(userId, {
-        eaPractitionerId: eaProviderId,
+        provider: newProvider._id,
       })
     } else if (
       providerType === Role.HealthCoach &&
@@ -224,7 +237,7 @@ class AppointmentService {
 
   async updateAppointment(userId: string, input: UpdateAppointmentInput) {
     const { notFound, noEaCustomerId } = config.get("errors.user") as any
-    const user = await UserModel.findById(userId).lean()
+    const user = await UserModel.findById(userId).populate("provider")
     if (!user) {
       throw new ApolloError(notFound.message, notFound.code)
     }
@@ -232,6 +245,8 @@ class AppointmentService {
     if (!user.eaCustomerId) {
       throw new ApolloError(noEaCustomerId.message, noEaCustomerId.code)
     }
+
+    const provider = user.provider as any
 
     const {
       eaAppointmentId,
@@ -255,10 +270,18 @@ class AppointmentService {
 
     if (
       providerType === Role.Practitioner &&
-      user.eaPractitionerId !== eaProviderId
+      provider.eaProviderId !== eaProviderId
     ) {
+      const newProvider = await ProviderModel.findOne({ eaProviderId })
+      if (!newProvider) {
+        throw new ApolloError(
+          `Provider with eaProviderId ${eaProviderId} not found.`,
+          "NOT_FOUND"
+        )
+      }
+
       await UserModel.findByIdAndUpdate(userId, {
-        eaPractitionerId: eaProviderId,
+        provider: newProvider._id,
       })
     } else if (
       providerType === Role.HealthCoach &&

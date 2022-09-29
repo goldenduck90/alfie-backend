@@ -81,7 +81,7 @@ class TaskService extends EmailService {
 
   async completeUserTask(input: CompleteUserTaskInput) {
     const { notFound } = config.get("errors.tasks") as any
-    const message = config.get("messages.taskCompleted")
+    // const message = config.get("messages.taskCompleted")
     const { _id, answers } = input
     const userTask = await UserTaskModel.findById(_id)
     if (!userTask) {

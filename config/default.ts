@@ -186,4 +186,5 @@ export default {
   s3: {
     expiresInSeconds: 600, // 10 mins
   },
+  akuteApiUrl: "https://api.akutehealth.com/v1",
 }

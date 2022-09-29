@@ -109,6 +109,9 @@ export class CreateCustomerInput {
   city: string
 
   @Field(() => String)
+  state: string
+
+  @Field(() => String)
   zipCode: string
 
   @Field(() => String, { nullable: true })

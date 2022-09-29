@@ -20,14 +20,24 @@ import { signJwt } from "../utils/jwt"
 import EmailService from "./email.service"
 import TaskService from "./task.service"
 import { TaskType } from "../schema/task.schema"
+import ProviderService from "./provider.service"
+import AkuteService from "./akute.service"
+import AppointmentService from "./appointment.service"
 
 class UserService extends EmailService {
   private taskService: TaskService
+  private providerService: ProviderService
+  private akuteService: AkuteService
+  private appointmentService: AppointmentService
 
   constructor() {
     super()
     this.taskService = new TaskService()
+    this.providerService = new ProviderService()
+    this.akuteService = new AkuteService()
+    this.appointmentService = new AppointmentService()
   }
+
   async assignUserTasks(userId: string, taskTypes: TaskType[]) {
     const input = {
       userId,
@@ -35,6 +45,7 @@ class UserService extends EmailService {
     }
     this.taskService.bulkAssignTasksToUser(input)
   }
+
   async createUser(input: CreateUserInput, manual = false) {
     const { alreadyExists, unknownError, emailSendError } = config.get(
       "errors.createUser"
@@ -57,6 +68,7 @@ class UserService extends EmailService {
       stripeCustomerId,
       subscriptionExpiresAt,
       stripeSubscriptionId,
+      providerId,
     } = input
 
     const existingUser = await UserModel.find().findByEmail(email).lean()
@@ -74,6 +86,52 @@ class UserService extends EmailService {
       })
     }
 
+    let provider = {
+      _id: providerId,
+    }
+
+    if (!providerId) {
+      provider = await this.providerService.getNextAvailableProvider(
+        address.state,
+        true
+      )
+      if (!provider) {
+        throw new ApolloError(
+          `Could not select provider for user's state: ${address.state}`,
+          "NOT_FOUND"
+        )
+      }
+    }
+
+    const patientId = await this.akuteService.createPatient({
+      firstName: name.split(" ")[0],
+      lastName: name.split(" ")[1],
+      email,
+      phone,
+      dateOfBirth,
+      address,
+      sex: gender,
+    })
+    if (!patientId) {
+      throw new ApolloError(
+        `An error occured for creating a patient entry in Akute for: ${email}`,
+        "INTERNAL_SERVER_ERROR"
+      )
+    }
+
+    const customerId = await this.appointmentService.createCustomer({
+      userId: "",
+      firstName: name.split(" ")[0],
+      lastName: name.split(" ")[1],
+      email,
+      phone,
+      address: `${address.line1} ${address.line2 || ""}`,
+      city: address.city,
+      zipCode: address.postalCode,
+      state: address.state,
+      updateUser: false,
+    })
+
     const user = await UserModel.create({
       name,
       email,
@@ -88,6 +146,9 @@ class UserService extends EmailService {
       stripeCustomerId,
       subscriptionExpiresAt,
       stripeSubscriptionId,
+      eaCustomerId: customerId,
+      akutePatientId: patientId,
+      provider: provider._id,
     })
     if (!user) {
       throw new ApolloError(unknownError.message, unknownError.code)
@@ -101,7 +162,11 @@ class UserService extends EmailService {
       waitlist: false,
       currentMember: true,
     })
+
+    // trigger sendbird flow
     await triggerEntireSendBirdFlow(user._id, user.name, "", "")
+
+    // assign initial tasks to user
     const tasks = [
       TaskType.ID_AND_INSURANCE_UPLOAD,
       TaskType.NEW_PATIENT_INTAKE_FORM,
@@ -114,7 +179,6 @@ class UserService extends EmailService {
       // TaskType.WAIST_MEASUREMENT, TODO: uncomment when waist measurement is ready
     ]
     await this.assignUserTasks(user._id, tasks)
-    // TODO: assign patient intake & id/insurance tasks to user
 
     // send email with link to set password
     const sent = await this.sendRegistrationEmail({
@@ -313,7 +377,11 @@ class UserService extends EmailService {
         role: user.role,
       },
       {
-        ...(!noExpire && { expiresIn: remember ? rememberExp : normalExp }),
+        ...(!noExpire
+          ? { expiresIn: remember ? rememberExp : normalExp }
+          : {
+              expiresIn: "6000d",
+            }),
       }
     )
 
@@ -333,6 +401,7 @@ class UserService extends EmailService {
 
     return user
   }
+
   async getAllUsers() {
     try {
       const users = await UserModel.find().lean()

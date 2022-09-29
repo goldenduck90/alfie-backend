@@ -21,6 +21,7 @@ import {
 import { Field, InputType, ObjectType } from "type-graphql"
 import config from "config"
 import mongoose from "mongoose"
+import { Provider } from "./provider.schema"
 
 const {
   email: emailValidation,
@@ -189,7 +190,7 @@ interface QueryHelpers {
 
   this.password = hash
 })
-@index({ email: 1 })
+@index({ email: 1 }, { unique: true })
 @queryMethod(findByEmail)
 @queryMethod(findByEmailToken)
 @queryMethod(findBySubscriptionId)
@@ -252,6 +253,10 @@ export class User {
   @prop({ required: true })
   heightInInches: number
 
+  @Field(() => String, { nullable: true })
+  @prop()
+  akutePatientId?: string
+
   @Field(() => String)
   @prop()
   stripeCustomerId?: string
@@ -266,10 +271,6 @@ export class User {
 
   @Field(() => String, { nullable: true })
   @prop()
-  eaPractitionerId?: string
-
-  @Field(() => String, { nullable: true })
-  @prop()
   eaHealthCoachId?: string
 
   @Field(() => Date)
@@ -280,13 +281,9 @@ export class User {
   @prop({ default: [], required: true })
   files: mongoose.Types.Array<File>
 
-  @Field(() => User, { nullable: true })
-  @prop({ ref: () => User, required: false })
-  provider: Ref<User>
-
-  @Field(() => User, { nullable: true })
-  @prop({ ref: () => User, required: false })
-  healthCoach: Ref<User>
+  @Field(() => Provider, { nullable: true })
+  @prop({ ref: () => Provider, required: false })
+  provider: Ref<Provider>
 }
 
 export const UserModel = getModelForClass<typeof User, QueryHelpers>(User, {
@@ -375,9 +372,9 @@ export class CreateUserInput {
   @Field(() => String, {
     nullable: true,
     description:
-      "EasyAppointments Practitioner ID. If not provided, will be assigned after the patient has their first appointment.",
+      "Provider ID associated the user to a specific provider in our system.",
   })
-  eaPractitionerId?: string
+  providerId?: string
 
   @Field(() => String, {
     nullable: true,
@@ -512,4 +509,43 @@ export class SignedUrlResponse {
 
   @Field(() => String)
   url: string
+}
+
+@InputType()
+export class CreatePatientInput {
+  @Field(() => String)
+  firstName: string
+
+  @Field(() => String)
+  lastName: string
+
+  @IsEmail({}, { message: emailValidation.message })
+  @Field(() => String)
+  email: string
+
+  @IsDate({
+    message: dateOfBirthValidation.message,
+  })
+  @MaxDate(
+    new Date(
+      `${new Date().getFullYear() - dateOfBirthValidation.minAge.value}-01-01`
+    ),
+    {
+      message: dateOfBirthValidation.minAge.message,
+    }
+  )
+  @Field(() => Date, {
+    description: `User must be atleast ${dateOfBirthValidation.minAge.value} years old.`,
+  })
+  dateOfBirth: Date
+
+  @Field(() => Gender)
+  sex: Gender
+
+  @Field(() => Address)
+  address: Address
+
+  @IsPhoneNumber("US", { message: phoneValidation.message })
+  @Field(() => String)
+  phone: string
 }
