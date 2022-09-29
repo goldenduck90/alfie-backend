@@ -45,35 +45,39 @@ class AppointmentService {
       updateUser = false,
     } = input
 
-    if (updateUser) {
-      const user = await UserModel.findById(userId).countDocuments()
-      if (!user) {
-        throw new ApolloError(notFound.message, notFound.code)
+    try {
+      if (updateUser) {
+        const user = await UserModel.findById(userId).countDocuments()
+        if (!user) {
+          throw new ApolloError(notFound.message, notFound.code)
+        }
       }
-    }
 
-    const { data } = await this.axios.post("/customers", {
-      firstName,
-      lastName,
-      email,
-      phone,
-      address,
-      city,
-      state,
-      zip: zipCode,
-      timezone: "UTC",
-      language: "english",
-      notes,
-    })
-
-    if (updateUser) {
-      await UserModel.findByIdAndUpdate(userId, {
-        eaCustomerId: data.id,
+      const { data } = await this.axios.post("/customers", {
+        firstName,
+        lastName,
+        email,
+        phone,
+        address,
+        city,
+        state,
+        zip: zipCode,
+        timezone: "UTC",
+        language: "english",
+        notes,
       })
-    }
 
-    // return easyappointments customer id
-    return data.id
+      if (updateUser) {
+        await UserModel.findByIdAndUpdate(userId, {
+          eaCustomerId: data.id,
+        })
+      }
+
+      // return easyappointments customer id
+      return data.id
+    } catch (error) {
+      console.log(error)
+    }
   }
 
   async allTimeslots(userId: string, input: AllTimeslotsInput) {

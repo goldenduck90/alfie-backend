@@ -40,6 +40,7 @@ class AkuteService {
         `/patients?email=${email}`
       )
       if (status === 200) {
+        console.log(patientData[0].id)
         return patientData[0].id
       }
 
