@@ -51,6 +51,24 @@ class AkuteService {
       primary_phone_type: "mobile",
     })
 
+    console.log({
+      first_name,
+      last_name,
+      status: "active",
+      date_of_birth: format(dateOfBirth, "yyyy-MM-dd"),
+      sex: sex.toLowerCase(),
+      address_line_1,
+      address_line_2,
+      address_city,
+      address_state,
+      address_zipcode,
+      email,
+      primary_phone_number,
+      primary_phone_type: "mobile",
+    })
+
+    console.log(data)
+
     return data.id
   }
 }
