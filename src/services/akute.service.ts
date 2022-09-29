@@ -36,6 +36,13 @@ class AkuteService {
     } = input
 
     try {
+      const { status, data: patientData } = await this.axios.get(
+        `/patients?email=${email}`
+      )
+      if (status === 200) {
+        return patientData[0].id
+      }
+
       const { data } = await this.axios.post("/patients", {
         first_name,
         last_name,
