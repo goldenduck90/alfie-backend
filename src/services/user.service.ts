@@ -131,6 +131,12 @@ class UserService extends EmailService {
       state: address.state,
       updateUser: false,
     })
+    if (!customerId) {
+      throw new ApolloError(
+        `An error occured for creating a customer entry in Easy Appointments for: ${email}`,
+        "INTERNAL_SERVER_ERROR"
+      )
+    }
 
     const user = await UserModel.create({
       name,
