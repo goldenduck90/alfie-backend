@@ -59,7 +59,7 @@ class AkuteService {
         date_of_birth: format(dateOfBirth, "yyyy-MM-dd"),
         sex: sex.toLowerCase(),
         address_line_1,
-        address_line_2,
+        ...(address_line_2 && { address_line_2 }),
         address_city,
         address_state,
         address_zipcode,
