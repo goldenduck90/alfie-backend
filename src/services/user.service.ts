@@ -394,7 +394,9 @@ class UserService extends EmailService {
 
   async getUser(userId: string) {
     const { notFound } = config.get("errors.user") as any
-    const user = await UserModel.findById(userId).lean()
+    const user = await (await UserModel.findById(userId))
+      .populated("provider")
+      .lean()
     if (!user) {
       throw new ApolloError(notFound.message, notFound.code)
     }
@@ -404,7 +406,7 @@ class UserService extends EmailService {
 
   async getAllUsers() {
     try {
-      const users = await UserModel.find().lean()
+      const users = await UserModel.find().populate("provider").lean()
       return users
     } catch (error) {
       throw new ApolloError(error.message, error.code)
