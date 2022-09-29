@@ -190,7 +190,6 @@ export class CompleteUserTaskInput {
   @Field(() => String)
   _id: string
 
-  @prop({ type: () => [UserAnswer], required: false })
   @Field(() => [UserAnswer])
   answers: UserAnswer[]
 }
