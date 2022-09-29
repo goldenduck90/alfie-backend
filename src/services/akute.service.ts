@@ -64,7 +64,7 @@ class AkuteService {
         address_state,
         address_zipcode,
         email,
-        primary_phone_number,
+        primary_phone_number: primary_phone_number.replace("+1", ""),
         primary_phone_type: "mobile",
       })
 
