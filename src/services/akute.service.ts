@@ -36,22 +36,6 @@ class AkuteService {
     } = input
 
     try {
-      console.log({
-        first_name,
-        last_name,
-        status: "active",
-        date_of_birth: format(dateOfBirth, "yyyy-MM-dd"),
-        sex: sex.toLowerCase(),
-        address_line_1,
-        address_line_2,
-        address_city,
-        address_state,
-        address_zipcode,
-        email,
-        primary_phone_number,
-        primary_phone_type: "mobile",
-      })
-
       const { data } = await this.axios.post("/patients", {
         first_name,
         last_name,
@@ -68,9 +52,7 @@ class AkuteService {
         primary_phone_type: "mobile",
       })
 
-      console.log(data)
-
-      return data.id
+      return data.data.id
     } catch (error) {
       console.log(error)
     }
