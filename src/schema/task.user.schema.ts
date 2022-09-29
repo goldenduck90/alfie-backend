@@ -38,8 +38,6 @@ export class UserAnswer {
 
   @Field(() => AnswerType)
   @prop({
-    enum: AnswerType,
-    type: String,
     required: true,
     default: AnswerType.STRING,
   })
