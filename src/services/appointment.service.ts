@@ -376,7 +376,6 @@ class AppointmentService {
         length: limit,
       },
     })
-
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const apps = data.map((app: any) => ({
       eaAppointmentId: app.id,

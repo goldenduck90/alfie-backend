@@ -67,7 +67,6 @@ class TaskService extends EmailService {
       .sort({ highPriority: -1, dueAt: -1, createdAt: 1 })
       .populate("task")
       .populate("user")
-
     return {
       total: userTasksCount,
       limit,
@@ -81,7 +80,6 @@ class TaskService extends EmailService {
 
   async completeUserTask(input: CompleteUserTaskInput) {
     const { notFound } = config.get("errors.tasks") as any
-    // const message = config.get("messages.taskCompleted")
     const { _id, answers } = input
     const userTask = await UserTaskModel.findById(_id)
     if (!userTask) {

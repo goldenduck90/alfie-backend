@@ -179,8 +179,8 @@ class UserService extends EmailService {
       TaskType.MP_HUNGER,
       TaskType.MP_FEELING,
       TaskType.BP_LOG,
-      // TaskType.WEIGHT_LOG, TODO: uncomment when weight log is ready
-      // TaskType.WAIST_MEASUREMENT, TODO: uncomment when waist measurement is ready
+      TaskType.WEIGHT_LOG,
+      TaskType.WAIST_LOG,
     ]
     await this.assignUserTasks(user._id, tasks)
 

@@ -52,7 +52,7 @@ const createMeetingAndToken = async (user_id: string) => {
   try {
     const room = await createDailyRoom()
     await createDailyMeetingToken(room.data.name)
-    const meetingRoomUrl = `${config.get("baseUrl")}/appointments/call?id=${
+    const meetingRoomUrl = `${config.get("baseUrl")}/appointments/call/${
       room.data.name
     }`
     await UserModel.updateOne(

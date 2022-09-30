@@ -17,6 +17,8 @@ export enum TaskType {
   BP_LOG = "BP_LOG",
   MP_HUNGER = "MP_HUNGER",
   MP_FEELING = "MP_FEELING",
+  WEIGHT_LOG = "WEIGHT_LOG",
+  WAIST_LOG = "WAIST_LOG",
 }
 
 registerEnumType(TaskType, {
