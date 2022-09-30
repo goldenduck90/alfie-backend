@@ -67,6 +67,7 @@ class TaskService extends EmailService {
       .sort({ highPriority: -1, dueAt: -1, createdAt: 1 })
       .populate("task")
       .populate("user")
+    console.log(userTasks, "userTasks")
     return {
       total: userTasksCount,
       limit,

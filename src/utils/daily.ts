@@ -11,7 +11,7 @@ const dailyInstance = axios.create({
 const createDailyRoom = async () => {
   try {
     const data = await dailyInstance.post("/rooms", {
-      privacy: "private",
+      privacy: "public",
       properties: {
         enable_knocking: true,
         // TODO: Enable expiration date to be 4hrs after the meeting starts

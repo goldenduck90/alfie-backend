@@ -173,69 +173,73 @@ class AppointmentService {
   }
 
   async createAppointment(userId: string, input: CreateAppointmentInput) {
-    const { notFound, noEaCustomerId } = config.get("errors.user") as any
-    const user = await UserModel.findById(userId).populate("provider")
-    if (!user) {
-      throw new ApolloError(notFound.message, notFound.code)
-    }
-
-    const provider = user.provider as any
-
-    if (!user.eaCustomerId) {
-      throw new ApolloError(noEaCustomerId.message, noEaCustomerId.code)
-    }
-
-    const {
-      providerType,
-      eaServiceId,
-      eaProviderId,
-      startTimeInUtc,
-      endTimeInUtc,
-      notes,
-    } = input
-    const meetingData = await createMeetingAndToken(userId)
-    const { data: response } = await this.axios.post("/appointments", {
-      start: format(startTimeInUtc, "yyyy-MM-dd HH:mm:ss"),
-      end: format(endTimeInUtc, "yyyy-MM-dd HH:mm:ss"),
-      location: meetingData,
-      customerId: user.eaCustomerId,
-      providerId: eaProviderId,
-      serviceId: eaServiceId,
-      notes: notes || "",
-    })
-
-    if (
-      providerType === Role.Practitioner &&
-      provider.eaProviderId !== eaProviderId
-    ) {
-      const newProvider = await ProviderModel.findOne({ eaProviderId })
-      if (!newProvider) {
-        throw new ApolloError(
-          `Provider with eaProviderId ${eaProviderId} not found.`,
-          "NOT_FOUND"
-        )
+    try {
+      const { notFound, noEaCustomerId } = config.get("errors.user") as any
+      const user = await UserModel.findById(userId).populate("provider")
+      if (!user) {
+        throw new ApolloError(notFound.message, notFound.code)
       }
 
-      await UserModel.findByIdAndUpdate(userId, {
-        provider: newProvider._id,
-      })
-    } else if (
-      providerType === Role.HealthCoach &&
-      user.eaHealthCoachId !== eaProviderId
-    ) {
-      await UserModel.findByIdAndUpdate(userId, {
-        eaHealthCoachId: eaProviderId,
-      })
-    }
+      const provider = user.provider as any
 
-    return {
-      eaAppointmentId: response.id,
-      startTimeInUtc: new Date(response.start),
-      endTimeInUtc: new Date(response.end),
-      location: response.location,
-      notes: response.notes,
-      eaProvider: response.provider,
-      eaService: response.service,
+      if (!user.eaCustomerId) {
+        throw new ApolloError(noEaCustomerId.message, noEaCustomerId.code)
+      }
+
+      const {
+        providerType,
+        eaServiceId,
+        eaProviderId,
+        startTimeInUtc,
+        endTimeInUtc,
+        notes,
+      } = input
+      const meetingData = await createMeetingAndToken(userId)
+      const { data: response } = await this.axios.post("/appointments", {
+        start: format(startTimeInUtc, "yyyy-MM-dd HH:mm:ss"),
+        end: format(endTimeInUtc, "yyyy-MM-dd HH:mm:ss"),
+        location: meetingData,
+        customerId: user.eaCustomerId,
+        providerId: eaProviderId,
+        serviceId: eaServiceId,
+        notes: notes || "",
+      })
+
+      if (
+        providerType === Role.Practitioner &&
+        provider.eaProviderId !== eaProviderId
+      ) {
+        const newProvider = await ProviderModel.findOne({ eaProviderId })
+        if (!newProvider) {
+          throw new ApolloError(
+            `Provider with eaProviderId ${eaProviderId} not found.`,
+            "NOT_FOUND"
+          )
+        }
+
+        await UserModel.findByIdAndUpdate(userId, {
+          provider: newProvider._id,
+        })
+      } else if (
+        providerType === Role.HealthCoach &&
+        user.eaHealthCoachId !== eaProviderId
+      ) {
+        await UserModel.findByIdAndUpdate(userId, {
+          eaHealthCoachId: eaProviderId,
+        })
+      }
+
+      return {
+        eaAppointmentId: response.id,
+        startTimeInUtc: new Date(response.start),
+        endTimeInUtc: new Date(response.end),
+        location: response.location,
+        notes: response.notes,
+        eaProvider: response.provider,
+        eaService: response.service,
+      }
+    } catch (error) {
+      console.log(error)
     }
   }
 
@@ -376,8 +380,12 @@ class AppointmentService {
         length: limit,
       },
     })
+    console.log(data)
+    const removePastAppointments = data.filter(
+      (appointment: any) => new Date(appointment.start) > new Date()
+    )
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const apps = data.map((app: any) => ({
+    const apps = removePastAppointments.map((app: any) => ({
       eaAppointmentId: app.id,
       startTimeInUtc: new Date(app.start),
       endTimeInUtc: new Date(app.end),
