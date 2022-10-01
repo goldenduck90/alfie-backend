@@ -58,6 +58,7 @@ class AkuteService {
         email,
         primary_phone_number: primary_phone_number.replace("+1", ""),
         primary_phone_type: "mobile",
+        appointment_state: address_state,
       })
 
       return data.data.id
