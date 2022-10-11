@@ -136,6 +136,9 @@ export class UserTask {
 
   @Field(() => Date)
   updatedAt?: Date
+
+  @Field(() => String)
+  providerEmail?: string
 }
 
 export const UserTaskModel = getModelForClass<typeof UserTask, QueryHelpers>(
