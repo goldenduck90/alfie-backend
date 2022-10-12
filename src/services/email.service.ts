@@ -77,7 +77,7 @@ class EmailService {
         Destination: {
           ToAddresses: [email],
         },
-        Template: "patient-tasks",
+        Template: "signup",
         TemplateData: JSON.stringify({
           url: url,
           name: name,
