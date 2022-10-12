@@ -64,12 +64,15 @@ class EmailService {
     try {
       const { path } = config.get("emails.completeRegistration") as any
       const url = `${this.baseUrl}/${path}/${token}`
-      console.log({
-        email,
-        token,
-        manual,
-        name,
-      })
+      console.log(
+        {
+          email,
+          token,
+          manual,
+          name,
+        },
+        "logs"
+      )
       const params = {
         Destination: {
           ToAddresses: [email],
