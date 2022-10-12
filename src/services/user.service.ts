@@ -187,10 +187,11 @@ class UserService extends EmailService {
     await this.assignUserTasks(user._id, tasks)
 
     // send email with link to set password
-    const sent = await this.sendRegistrationEmail({
+    const sent = await this.sendRegistrationEmailTemplate({
       email,
       token: emailToken,
       manual,
+      name,
     })
     if (!sent) {
       throw new ApolloError(emailSendError.message, emailSendError.code)

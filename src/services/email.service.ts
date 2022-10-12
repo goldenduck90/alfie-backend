@@ -50,7 +50,34 @@ class EmailService {
     const result = await this.awsSes.sendEmail(params).promise()
     return result.MessageId
   }
-
+  async sendRegistrationEmailTemplate({
+    email,
+    token,
+    manual = false,
+    name,
+  }: {
+    email: string
+    token: string
+    manual?: boolean
+    name: string
+  }) {
+    const { path } = config.get("emails.completeRegistration") as any
+    const url = `${this.baseUrl}/${path}/${token}`
+    console.log(manual)
+    const params = {
+      Destination: {
+        ToAddresses: [email],
+      },
+      Template: "patient-tasks",
+      TemplateData: JSON.stringify({
+        url: url,
+        name: name,
+      }),
+      Source: "patients@joinalfie.com",
+    }
+    const result = await this.awsSes.sendTemplatedEmail(params).promise()
+    return result.MessageId
+  }
   async sendRegistrationEmail({
     email,
     token,
