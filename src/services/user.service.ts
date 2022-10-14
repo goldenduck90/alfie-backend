@@ -69,6 +69,7 @@ class UserService extends EmailService {
       subscriptionExpiresAt,
       stripeSubscriptionId,
       providerId,
+      textOptIn,
     } = input
 
     const existingUser = await UserModel.find().findByEmail(email).lean()
@@ -155,6 +156,7 @@ class UserService extends EmailService {
       eaCustomerId: customerId,
       akutePatientId: patientId,
       provider: provider._id,
+      textOptIn,
     })
     if (!user) {
       throw new ApolloError(unknownError.message, unknownError.code)

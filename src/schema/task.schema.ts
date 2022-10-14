@@ -22,6 +22,7 @@ export enum TaskType {
   MP_ACTIVITY = "MP_ACTIVITY", // Steps
   MP_BLUE_CAPSULE = "MP_BLUE_CAPSULE",
   MP_BLUE_CAPSULE_2 = "MP_BLUE_CAPSULE_2",
+  SCHEDULE_APPOINTMENT = "SCHEDULE_APPOINTMENT",
 }
 
 registerEnumType(TaskType, {

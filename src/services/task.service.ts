@@ -105,6 +105,17 @@ class TaskService extends EmailService {
       user.weights.push(weight)
       await user.save()
     }
+    if (task.type === TaskType.NEW_PATIENT_INTAKE_FORM) {
+      // If the task type is NEW_PATIENT_INTAKE_FORM and hasRequiredLabs is true, we want to create a new task for the patient to schedule their first appointment
+      const hasRequiredLabs = answers.find((a) => a.key === "hasRequiredLabs")
+      if (hasRequiredLabs && hasRequiredLabs.value === "true") {
+        const newTaskInput: CreateUserTaskInput = {
+          taskType: TaskType.SCHEDULE_APPOINTMENT,
+          userId: userTask.user.toString(),
+        }
+        await this.assignTaskToUser(newTaskInput)
+      }
+    }
 
     return {
       ...userTask.toObject(),

@@ -198,6 +198,9 @@ interface QueryHelpers {
 export class User {
   @Field(() => String)
   _id: string
+  @Field(() => Boolean)
+  @prop({ default: false, required: true })
+  textOptIn: boolean
 
   @Field(() => String)
   meetingRoomUrl: string
@@ -293,6 +296,9 @@ export const UserModel = getModelForClass<typeof User, QueryHelpers>(User, {
 export class CreateUserInput {
   @Field(() => String)
   name: string
+  // textOptIn: boolean
+  @Field(() => Boolean)
+  textOptIn: boolean
 
   @IsEmail({}, { message: emailValidation.message })
   @Field(() => String)

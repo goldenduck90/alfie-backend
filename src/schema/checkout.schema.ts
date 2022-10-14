@@ -90,6 +90,10 @@ export class Checkout {
   @Field(() => User, { nullable: true })
   @prop({ ref: () => User, type: String, required: false })
   user?: Ref<User>
+
+  @Field(() => Boolean)
+  @prop({ default: false, required: true })
+  textOptIn: boolean
 }
 
 export const CheckoutModel = getModelForClass<typeof Checkout, QueryHelpers>(
@@ -125,6 +129,9 @@ export class CreateCheckoutInput {
 
   @Field(() => Number)
   weightInLbs: number
+
+  @Field(() => Boolean)
+  textOptIn: boolean
 }
 
 @InputType()
