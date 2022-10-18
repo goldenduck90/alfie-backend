@@ -22,6 +22,7 @@ import { Field, InputType, ObjectType } from "type-graphql"
 import config from "config"
 import mongoose from "mongoose"
 import { Provider } from "./provider.schema"
+import { processHTTPRequest } from "apollo-server-core/dist/runHttpQuery"
 
 const {
   email: emailValidation,
@@ -198,8 +199,9 @@ interface QueryHelpers {
 export class User {
   @Field(() => String)
   _id: string
-  @Field(() => Boolean)
-  @prop({ default: false, required: true })
+
+  @Field(() => Boolean, { nullable: true })
+  @prop({ nullable: true })
   textOptIn: boolean
 
   @Field(() => String)
@@ -296,8 +298,8 @@ export const UserModel = getModelForClass<typeof User, QueryHelpers>(User, {
 export class CreateUserInput {
   @Field(() => String)
   name: string
-  // textOptIn: boolean
-  @Field(() => Boolean)
+
+  @Field(() => Boolean, { nullable: true })
   textOptIn: boolean
 
   @IsEmail({}, { message: emailValidation.message })

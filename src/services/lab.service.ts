@@ -31,6 +31,14 @@ class LabService {
       console.log(error)
     }
   }
+  async getAllLabLocations() {
+    try {
+      const labLocations = await LabModel.find({})
+      return labLocations
+    } catch (error) {
+      console.log(error)
+    }
+  }
 }
 
 export default LabService

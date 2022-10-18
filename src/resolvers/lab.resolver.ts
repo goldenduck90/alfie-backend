@@ -4,6 +4,7 @@ import LabService from "../services/lab.service"
 import {
   BatchCreateOrUpdateLabsInput,
   BatchCreateOrUpdateLabsResponse,
+  Lab,
 } from "../schema/lab.schema"
 import {
   GooglePlacesSearchResult,
@@ -25,5 +26,9 @@ export default class LabResolver {
   @Query(() => [GooglePlacesSearchResult])
   async labLocations(@Arg("input") input: GooglePlacesSearchInput) {
     return this.labService.getLocationsFromGoogleAutoComplete(input)
+  }
+  @Query(() => [Lab])
+  async getLabLocations() {
+    return this.labService.getAllLabLocations()
   }
 }
