@@ -36,6 +36,10 @@ export class Provider {
   @prop({ required: true })
   eaProviderId: number
 
+  @Field(() => String)
+  @prop({ required: true })
+  npi: string
+
   @Field(() => [String])
   @prop({ type: [String], required: true })
   licensedStates: mongoose.Types.Array<string>
@@ -71,6 +75,9 @@ export class ProviderInput {
 
   @Field(() => Int)
   eaProviderId: number
+
+  @Field(() => String)
+  npi: string
 
   @Field(() => [String])
   licensedStates: mongoose.Types.Array<string>

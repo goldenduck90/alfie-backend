@@ -146,6 +146,7 @@ class FaxService {
         formData
       )
       const data = await resp.json()
+      console.log(resp.status)
 
       return data
     } catch (err) {

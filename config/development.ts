@@ -11,6 +11,7 @@ export default {
     patientBucketName: "develop-platform-patient-storage",
   },
   ringCentral: {
+    clientId: "DiUqEh27Rz-fDuQiez1OdQ",
     number: "+19167582408",
     extension: "101",
   },

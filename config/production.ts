@@ -9,6 +9,7 @@ export default {
     patientBucketName: "production-platform-patient-storage",
   },
   ringCentral: {
+    clientId: "L_mex0WgQg6_j-KcMNBAcg",
     number: "+19178934212",
     extension: "101",
   },
