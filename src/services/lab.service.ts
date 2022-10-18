@@ -24,8 +24,7 @@ class LabService {
   async getLocationsFromGoogleAutoComplete(input: GooglePlacesSearchInput) {
     try {
       console.log(input)
-      const url =
-        "https://maps.googleapis.com/maps/api/geocode/json?latlng=lat,lng&key=${process.env.GOOGLE_API_KEY}"
+      const url = `https://maps.googleapis.com/maps/api/geocode/json?latlng=lat,lng&key=${process.env.GOOGLE_API_KEY}`
       const response = await axios.get(url)
       return response.data.predictions
     } catch (error) {
