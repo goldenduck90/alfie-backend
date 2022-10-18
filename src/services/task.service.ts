@@ -14,7 +14,6 @@ import EmailService from "./email.service"
 import { UserModel } from "../schema/user.schema"
 import { addDays, isPast } from "date-fns"
 import { ProviderModel } from "../schema/provider.schema"
-import mongoose from "mongoose"
 class TaskService extends EmailService {
   async createTask(input: CreateTaskInput) {
     const { name, type, interval } = input
