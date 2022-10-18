@@ -10,6 +10,15 @@ export class AuthorizationToken {
   @Field(() => String)
   @prop({ required: true })
   refreshToken: string
+
+  @Field(() => Date)
+  @prop({ required: true })
+  expiresAt: Date
+
+  @Field(() => Date, { nullable: true })
+  @prop({ required: false })
+  refreshTokenExpiresAt?: Date
+
   @Field(() => String)
   @prop({ required: true })
   provider: string
