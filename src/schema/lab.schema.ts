@@ -4,6 +4,7 @@ import {
   InputType,
   Int,
   registerEnumType,
+  Float,
 } from "type-graphql"
 import { getModelForClass, index, prop } from "@typegoose/typegoose"
 
@@ -16,7 +17,7 @@ registerEnumType(LabCompany, {
 })
 
 @ObjectType()
-@index({ locationId: 1 }, { unique: true })
+@index({ faxNumber: 1 }, { unique: true })
 export class Lab {
   @Field(() => String)
   _id: string
@@ -41,11 +42,11 @@ export class Lab {
   @prop({ required: true })
   postalCode: string
 
-  @Field(() => Int)
+  @Field(() => Float)
   @prop({ required: true })
   latitude: number
 
-  @Field(() => Int)
+  @Field(() => Float)
   @prop({ required: true })
   longitude: number
 
@@ -56,10 +57,6 @@ export class Lab {
   @Field(() => LabCompany)
   @prop({ required: true })
   company: LabCompany
-
-  @Field(() => String)
-  @prop({ required: true })
-  locationId: string
 }
 
 @InputType()
@@ -79,10 +76,10 @@ export class LabInput {
   @Field(() => String)
   postalCode: string
 
-  @Field(() => Int)
+  @Field(() => Float)
   latitude: number
 
-  @Field(() => Int)
+  @Field(() => Float)
   longitude: number
 
   @Field(() => String)
@@ -90,9 +87,6 @@ export class LabInput {
 
   @Field(() => LabCompany)
   company: LabCompany
-
-  @Field(() => String)
-  locationId: string
 }
 
 export const LabModel = getModelForClass<typeof Lab>(Lab, {

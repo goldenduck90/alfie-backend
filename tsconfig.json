@@ -13,7 +13,7 @@
     "paths": {
       "*": ["node_modules/*"]
     },
-    "lib": ["es2018", "esnext.asynciterable"]
+    "lib": ["es2018", "esnext.asynciterable", "dom"]
   },
-  "include": ["src/**/*", "config/*"]
+  "include": ["src/**/*", "config/*", "assets/*"]
 }

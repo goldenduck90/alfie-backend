@@ -185,6 +185,11 @@ export default {
   },
   s3: {
     expiresInSeconds: 600, // 10 mins
+    labOrderTemplateKey: "LAB_ORDER_TEMPLATE.pdf",
+    labOrderTemplateBucket: "alfie-lab-templates",
   },
   akuteApiUrl: "https://api.akutehealth.com/v1",
+  ringCentral: {
+    clientId: "DiUqEh27Rz-fDuQiez1OdQ",
+  },
 }
