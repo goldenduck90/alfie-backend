@@ -2,15 +2,18 @@ import axios from "axios"
 const channelMessages = [
   {
     type: "Health Coach",
-    message: "Welcome to the Health Coach channel!",
+    message:
+      "Use this channel to speak with your health coach. You’ll be assigned a health coach after meeting with the provider and receiving your prescription.",
   },
   {
     type: "Medical",
-    message: "Welcome to the Medical channel!",
+    message:
+      "Use this channel to message directly with your provider and the medical team regarding medications or other questions. You’ll see a task to schedule with a provider once we have received your lab results. ",
   },
   {
     type: "Customer Support",
-    message: "Welcome to the Customer Support channel!",
+    message:
+      "Use this channel to speak with a customer support representative. If you need help getting medication approval, working with the pharmacy, or other questions.",
   },
 ]
 const sendBirdInstance = axios.create({

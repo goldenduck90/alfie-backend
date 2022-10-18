@@ -69,6 +69,7 @@ class UserService extends EmailService {
       subscriptionExpiresAt,
       stripeSubscriptionId,
       providerId,
+      textOptIn,
     } = input
 
     const existingUser = await UserModel.find().findByEmail(email).lean()
@@ -155,6 +156,7 @@ class UserService extends EmailService {
       eaCustomerId: customerId,
       akutePatientId: patientId,
       provider: provider._id,
+      textOptIn,
     })
     if (!user) {
       throw new ApolloError(unknownError.message, unknownError.code)
@@ -181,14 +183,17 @@ class UserService extends EmailService {
       TaskType.BP_LOG,
       TaskType.WEIGHT_LOG,
       TaskType.WAIST_LOG,
+      TaskType.MP_BLUE_CAPSULE,
+      TaskType.MP_ACTIVITY,
     ]
     await this.assignUserTasks(user._id, tasks)
 
     // send email with link to set password
-    const sent = await this.sendRegistrationEmail({
+    const sent = await this.sendRegistrationEmailTemplate({
       email,
       token: emailToken,
       manual,
+      name,
     })
     if (!sent) {
       throw new ApolloError(emailSendError.message, emailSendError.code)

@@ -61,6 +61,7 @@ class CheckoutService extends UserService {
       stripeCustomerId,
       subscriptionExpiresAt: expiresAt,
       stripeSubscriptionId,
+      textOptIn: checkout.textOptIn,
     })
 
     checkout.checkedOut = true
@@ -163,6 +164,7 @@ class CheckoutService extends UserService {
       state,
       heightInInches,
       weightInLbs,
+      textOptIn,
     } = input
 
     const checkout = await CheckoutModel.find().findByEmail(email).lean()
@@ -180,6 +182,7 @@ class CheckoutService extends UserService {
       checkout.state = state
       checkout.heightInInches = heightInInches
       checkout.weightInLbs = weightInLbs
+      checkout.textOptIn = textOptIn
 
       const { id, url } = await this.getPaymentLink({
         update: false,
@@ -219,6 +222,7 @@ class CheckoutService extends UserService {
       heightInInches,
       weightInLbs,
       stripePaymentLinkId: id,
+      textOptIn,
     })
 
     // return new checkout

@@ -13,7 +13,8 @@ import config from "config"
 import EmailService from "./email.service"
 import { UserModel } from "../schema/user.schema"
 import { addDays, isPast } from "date-fns"
-
+import { ProviderModel } from "../schema/provider.schema"
+import mongoose from "mongoose"
 class TaskService extends EmailService {
   async createTask(input: CreateTaskInput) {
     const { name, type, interval } = input
@@ -93,7 +94,6 @@ class TaskService extends EmailService {
     await userTask.save()
 
     const task = await TaskModel.findById(userTask.task)
-    console.log(task, "task")
     // we can add more types here in a switch to save data to different places
     if (task.type === TaskType.DAILY_METRICS_LOG) {
       const weight = {
@@ -104,6 +104,17 @@ class TaskService extends EmailService {
       const user = await UserModel.findById(userTask.user)
       user.weights.push(weight)
       await user.save()
+    }
+    if (task.type === TaskType.NEW_PATIENT_INTAKE_FORM) {
+      // If the task type is NEW_PATIENT_INTAKE_FORM and hasRequiredLabs is true, we want to create a new task for the patient to schedule their first appointment
+      const hasRequiredLabs = answers.find((a) => a.key === "hasRequiredLabs")
+      if (hasRequiredLabs && hasRequiredLabs.value === "true") {
+        const newTaskInput: CreateUserTaskInput = {
+          taskType: TaskType.SCHEDULE_APPOINTMENT,
+          userId: userTask.user.toString(),
+        }
+        await this.assignTaskToUser(newTaskInput)
+      }
     }
 
     return {
@@ -246,10 +257,25 @@ class TaskService extends EmailService {
   }
   async getAllUserTasksByUserId(userId: string) {
     try {
-      const userTasks = await UserTaskModel.find({ user: userId })
+      const userTasks: any = await UserTaskModel.find({ user: userId })
         .populate("task")
         .populate("user")
-      return userTasks
+      // console.log(userTasks)
+      const providerId = userTasks[0].user.provider.toHexString()
+      const lookUpProviderEmail = await ProviderModel.findOne({
+        _id: providerId,
+      })
+      const arrayOfUserTasksWithProviderEmail = userTasks.map((task: any) => {
+        return {
+          ...task.toObject(),
+          providerEmail: lookUpProviderEmail.email,
+        }
+      })
+      console.log(
+        arrayOfUserTasksWithProviderEmail,
+        "arrayOfUserTasksWithProviderEmail"
+      )
+      return arrayOfUserTasksWithProviderEmail
     } catch (error) {
       console.log(error)
     }
