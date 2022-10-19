@@ -251,7 +251,7 @@ class UserService extends EmailService {
     try {
       const { $response } = await this.awsDynamo
         .getItem({
-          TableName: waitlist ? !emailSubscribersTable : waitlistTable,
+          TableName: !waitlist ? emailSubscribersTable : waitlistTable,
           Key: {
             emailaddress: {
               S: email,
