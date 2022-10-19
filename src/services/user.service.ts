@@ -56,7 +56,9 @@ class UserService extends EmailService {
     const { alreadyExists, unknownError, emailSendError } = config.get(
       "errors.createUser"
     ) as any
-    const { emailSubscribersTable } = config.get("dynamoDb") as any
+    const { emailSubscribersTable, waitlistTable } = config.get(
+      "dynamoDb"
+    ) as any
     const userCreatedMessage = config.get(
       manual
         ? "messages.userCreatedManually"
@@ -188,6 +190,24 @@ class UserService extends EmailService {
       )
     }
 
+    const { $response: $response2 } = await this.awsDynamo
+      .deleteItem({
+        TableName: waitlistTable,
+        Key: {
+          emailaddress: {
+            S: email,
+          },
+        },
+      })
+      .promise()
+
+    if ($response2.error) {
+      console.log(
+        "An error occured deleting user from DynamoDB",
+        $response2.error.message
+      )
+    }
+
     // trigger sendbird flow
     await triggerEntireSendBirdFlow(user._id, user.name, "", "")
 
@@ -314,6 +334,7 @@ class UserService extends EmailService {
         message: waitlistMessage,
       }
     } catch (error) {
+      console.log(error)
       throw new ApolloError(unknownError.message, unknownError.code)
     }
   }
