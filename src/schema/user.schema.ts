@@ -22,7 +22,6 @@ import { Field, InputType, ObjectType } from "type-graphql"
 import config from "config"
 import mongoose from "mongoose"
 import { Provider } from "./provider.schema"
-import { processHTTPRequest } from "apollo-server-core/dist/runHttpQuery"
 
 const {
   email: emailValidation,

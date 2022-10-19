@@ -7,6 +7,10 @@ export default {
   stripe: {
     defaultPriceId: "price_1KMviXDOjl0X0gOq9Pk7gRFE",
   },
+  dynamoDb: {
+    emailSubscribersTable: "develop-platform-email-subscribers",
+    waitlistTable: "develop-platform-waitlist",
+  },
   s3: {
     patientBucketName: "develop-platform-patient-storage",
   },

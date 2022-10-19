@@ -154,6 +154,7 @@ class CheckoutService extends UserService {
   async createOrFindCheckout(input: CreateCheckoutInput) {
     const { checkoutFound, checkoutCreated } = config.get("messages") as any
     const { alreadyCheckedOut } = config.get("errors.checkout") as any
+    const { emailSubscribersTable } = config.get("dynamoDb") as any
 
     const {
       name,
@@ -201,13 +202,23 @@ class CheckoutService extends UserService {
     }
 
     // send to email subscriber lambda
-    await this.subscribeEmail({
-      email,
-      fullName: name,
-      location: state,
-      waitlist: false,
-      currentMember: false,
-    })
+    const { $response } = await this.awsDynamo
+      .putItem({
+        TableName: emailSubscribersTable,
+        Item: {
+          emailaddress: { S: email },
+          fullname: { S: name },
+          state: { S: state },
+        },
+      })
+      .promise()
+
+    if ($response.error) {
+      console.log(
+        "An error occured creating entry in dynamodb",
+        $response.error.message
+      )
+    }
 
     const { id, url } = await this.getPaymentLink({})
 

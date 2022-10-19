@@ -1,5 +1,5 @@
+import * as AWS from "aws-sdk"
 import { ApolloError } from "apollo-server-errors"
-import axios from "axios"
 import bcrypt from "bcrypt"
 import config from "config"
 import { addMinutes } from "date-fns"
@@ -29,6 +29,7 @@ class UserService extends EmailService {
   private providerService: ProviderService
   private akuteService: AkuteService
   private appointmentService: AppointmentService
+  public awsDynamo: AWS.DynamoDB
 
   constructor() {
     super()
@@ -36,6 +37,11 @@ class UserService extends EmailService {
     this.providerService = new ProviderService()
     this.akuteService = new AkuteService()
     this.appointmentService = new AppointmentService()
+    this.awsDynamo = new AWS.DynamoDB({
+      accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+      secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+      region: process.env.AWS_REGION,
+    })
   }
 
   async assignUserTasks(userId: string, taskTypes: TaskType[]) {
@@ -50,6 +56,7 @@ class UserService extends EmailService {
     const { alreadyExists, unknownError, emailSendError } = config.get(
       "errors.createUser"
     ) as any
+    const { emailSubscribersTable } = config.get("dynamoDb") as any
     const userCreatedMessage = config.get(
       manual
         ? "messages.userCreatedManually"
@@ -162,14 +169,24 @@ class UserService extends EmailService {
       throw new ApolloError(unknownError.message, unknownError.code)
     }
 
-    // notify Alex's emailSubscribe flow that user signed up
-    await this.subscribeEmail({
-      email,
-      fullName: name,
-      location: address.state,
-      waitlist: false,
-      currentMember: true,
-    })
+    // delete user from email subscribers table
+    const { $response } = await this.awsDynamo
+      .deleteItem({
+        TableName: emailSubscribersTable,
+        Key: {
+          emailaddress: {
+            S: email,
+          },
+        },
+      })
+      .promise()
+
+    if ($response.error) {
+      console.log(
+        "An error occured deleting user from DynamoDB",
+        $response.error.message
+      )
+    }
 
     // trigger sendbird flow
     await triggerEntireSendBirdFlow(user._id, user.name, "", "")
@@ -227,29 +244,74 @@ class UserService extends EmailService {
     const { email, fullName, location, waitlist, currentMember } = input
     const { unknownError } = config.get("errors.subscribeEmail") as any
     const waitlistMessage = config.get("messages.subscribeEmail")
-    const url = config.get("apiGatewayBaseUrl")
-    const path = config.get("apiGatewayPaths.subscribeEmail")
+    const { emailSubscribersTable, waitlistTable } = config.get(
+      "dynamoDb"
+    ) as any
 
     try {
-      const { data } = await axios.post(
-        `${url}${path}`,
-        {
-          emailAddress: email,
-          name: fullName,
-          location,
-          waitlist,
-          currentMember,
-        },
-        {
-          headers: {
-            "Content-Type": "application/json",
-            "x-api-key": process.env.API_GATEWAY_KEY,
+      const { $response } = await this.awsDynamo
+        .getItem({
+          TableName: waitlist ? !emailSubscribersTable : waitlistTable,
+          Key: {
+            emailaddress: {
+              S: email,
+            },
           },
+        })
+        .promise()
+
+      if ($response.data && $response.data.Item && currentMember) {
+        const { $response: $response2 } = await this.awsDynamo
+          .deleteItem({
+            TableName: !waitlist ? emailSubscribersTable : waitlistTable,
+            Key: {
+              emailaddress: {
+                S: email,
+              },
+            },
+          })
+          .promise()
+
+        if ($response2.error) {
+          console.log(
+            "An error occured deleting user from DynamoDB",
+            $response2.error.message
+          )
+          throw new ApolloError(unknownError.message, unknownError.code)
         }
-      )
+
+        return {
+          message: waitlistMessage,
+        }
+      }
+
+      const { $response: $response3 } = await this.awsDynamo
+        .putItem({
+          TableName: !waitlist ? emailSubscribersTable : waitlistTable,
+          Item: {
+            emailaddress: {
+              S: email,
+            },
+            fullname: {
+              S: fullName,
+            },
+            state: {
+              S: location,
+            },
+          },
+        })
+        .promise()
+
+      if ($response3.error) {
+        console.log(
+          "An error occured adding user to DynamoDB",
+          $response3.error.message
+        )
+        throw new ApolloError(unknownError.message, unknownError.code)
+      }
 
       return {
-        message: waitlist ? waitlistMessage : data,
+        message: waitlistMessage,
       }
     } catch (error) {
       throw new ApolloError(unknownError.message, unknownError.code)
