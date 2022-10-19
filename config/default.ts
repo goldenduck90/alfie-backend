@@ -189,7 +189,4 @@ export default {
     labOrderTemplateBucket: "alfie-lab-templates",
   },
   akuteApiUrl: "https://api.akutehealth.com/v1",
-  ringCentral: {
-    clientId: "DiUqEh27Rz-fDuQiez1OdQ",
-  },
 }
