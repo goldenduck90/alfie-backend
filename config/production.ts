@@ -8,6 +8,10 @@ export default {
   s3: {
     patientBucketName: "production-platform-patient-storage",
   },
+  dynamoDb: {
+    emailSubscribersTable: "production-platform-email-subscribers",
+    waitlistTable: "production-platform-waitlist",
+  },
   ringCentral: {
     clientId: "L_mex0WgQg6_j-KcMNBAcg",
     number: "+19178934212",
