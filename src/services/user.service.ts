@@ -131,8 +131,8 @@ class UserService extends EmailService {
 
     const customerId = await this.appointmentService.createCustomer({
       userId: "",
-      firstName: name.split(" ")[0],
-      lastName: name.split(" ")[1],
+      firstName: name.split(" ")[0] || "",
+      lastName: name.split(" ")[1] || "",
       email,
       phone,
       address: `${address.line1} ${address.line2 || ""}`,
