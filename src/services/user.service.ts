@@ -222,6 +222,7 @@ class UserService extends EmailService {
       TaskType.WAIST_LOG,
       TaskType.MP_BLUE_CAPSULE,
       TaskType.MP_ACTIVITY,
+      TaskType.FOOD_LOG,
     ]
     await this.assignUserTasks(user._id, tasks)
 
