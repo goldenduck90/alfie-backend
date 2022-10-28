@@ -364,11 +364,12 @@ class UserService extends EmailService {
       provider.emailToken = uuidv4()
       provider.emailTokenExpiresAt = addMinutes(new Date(), expirationInMinutes)
 
-      await ProviderModel.findByIdAndUpdate(user._id, user)
+      await ProviderModel.findByIdAndUpdate(provider._id, provider)
 
       const sent = await this.sendForgotPasswordEmail({
         email,
         token: provider.emailToken,
+        provider: true,
       })
 
       if (!sent) {

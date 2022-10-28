@@ -69,10 +69,11 @@ class ProviderService {
       )
 
       // send password email
-      await this.emailService.sendRegistrationEmail({
+      await this.emailService.sendRegistrationEmailTemplate({
         email: provider.email,
         token: emailToken,
         provider: true,
+        name: `${provider.firstName} ${provider.lastName}`,
       })
     }
 
