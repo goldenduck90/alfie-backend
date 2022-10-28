@@ -183,4 +183,5 @@ export default {
     labOrderTemplateBucket: "alfie-lab-templates",
   },
   akuteApiUrl: "https://api.akutehealth.com/v1",
+  intercomApiUrl: "https://api.intercom.io",
 }

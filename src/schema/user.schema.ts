@@ -427,6 +427,21 @@ export class LoginInput {
 }
 
 @ObjectType()
+export class PartialUser {
+  @Field(() => String)
+  _id: string
+
+  @Field(() => String)
+  name: string
+
+  @Field(() => String)
+  email: string
+
+  @Field(() => Role)
+  role: Role
+}
+
+@ObjectType()
 export class LoginResponse {
   @Field(() => String, { nullable: true })
   message: string
@@ -434,8 +449,8 @@ export class LoginResponse {
   @Field(() => String)
   token: string
 
-  @Field(() => User)
-  user: User
+  @Field(() => PartialUser)
+  user: PartialUser
 }
 
 @InputType()
@@ -461,6 +476,9 @@ export class ResetPasswordInput {
 
   @Field(() => Boolean)
   registration: boolean
+
+  @Field(() => Boolean, { defaultValue: false })
+  provider: boolean
 }
 
 @ObjectType()

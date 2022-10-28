@@ -23,6 +23,7 @@ import { TaskType } from "../schema/task.schema"
 import ProviderService from "./provider.service"
 import AkuteService from "./akute.service"
 import AppointmentService from "./appointment.service"
+import { ProviderModel } from "../schema/provider.schema"
 
 class UserService extends EmailService {
   private taskService: TaskService
@@ -354,11 +355,31 @@ class UserService extends EmailService {
     const user = await UserModel.find().findByEmail(email).lean()
 
     if (!user) {
-      throw new ApolloError(emailNotFound.message, emailNotFound.code)
+      const provider = await ProviderModel.find().findByEmail(email).lean()
+      if (!provider) {
+        throw new ApolloError(emailNotFound.message, emailNotFound.code)
+      }
+
+      // set resetPasswordToken & resetPasswordTokenExpiresAt
+      provider.emailToken = uuidv4()
+      provider.emailTokenExpiresAt = addMinutes(new Date(), expirationInMinutes)
+
+      await ProviderModel.findByIdAndUpdate(user._id, user)
+
+      const sent = await this.sendForgotPasswordEmail({
+        email,
+        token: provider.emailToken,
+      })
+
+      if (!sent) {
+        throw new ApolloError(emailSendError.message, emailSendError.code)
+      }
+
+      return { message: forgotPasswordMessage }
     }
 
     // set resetPasswordToken & resetPasswordTokenExpiresAt
-    user.emailToken = Math.random().toString(36).slice(2, 16)
+    user.emailToken = uuidv4()
     user.emailTokenExpiresAt = addMinutes(new Date(), expirationInMinutes)
 
     await UserModel.findByIdAndUpdate(user._id, user)
@@ -380,7 +401,7 @@ class UserService extends EmailService {
   }
 
   async resetPassword(input: ResetPasswordInput) {
-    const { token, password, registration } = input
+    const { token, password, registration, provider } = input
     const { invalidToken, tokenExpired } = config.get(
       "errors.resetPassword"
     ) as any
@@ -389,42 +410,87 @@ class UserService extends EmailService {
       "messages.completedRegistration"
     )
 
-    const user = await UserModel.find().findByEmailToken(token).lean()
-    if (!user) {
-      throw new ApolloError(invalidToken.message, invalidToken.code)
-    }
-
-    if (!registration && user.emailTokenExpiresAt < new Date()) {
-      throw new ApolloError(tokenExpired.message, tokenExpired.code)
-    }
-
-    // set emailToken & emailTokenExpiresAt to null
-    user.emailToken = null
-    user.emailTokenExpiresAt = null
-    user.password = await this.hashPassword(password)
-
-    // update the user
-    await UserModel.findByIdAndUpdate(user._id, user)
-
-    // sign jwt
-    const jwt = signJwt(
-      {
-        _id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-      },
-      {
-        expiresIn: config.get("jwtExpiration.normalExp"),
+    if (provider) {
+      const dbProvider = await ProviderModel.find()
+        .findByEmailToken(token)
+        .lean()
+      if (!dbProvider) {
+        throw new ApolloError(invalidToken.message, invalidToken.code)
       }
-    )
 
-    return {
-      message: registration
-        ? completedRegistrationMessage
-        : resetPasswordMessage,
-      token: jwt,
-      user,
+      if (!registration && dbProvider.emailTokenExpiresAt < new Date()) {
+        throw new ApolloError(tokenExpired.message, tokenExpired.code)
+      }
+
+      dbProvider.emailToken = null
+      dbProvider.emailTokenExpiresAt = null
+      dbProvider.password = await this.hashPassword(password)
+
+      await ProviderModel.findByIdAndUpdate(dbProvider._id, dbProvider)
+
+      // sign jwt
+      const jwt = signJwt(
+        {
+          _id: dbProvider._id,
+          name: dbProvider.firstName + " " + dbProvider.lastName,
+          email: dbProvider.email,
+          role: dbProvider.type,
+        },
+        {
+          expiresIn: config.get("jwtExpiration.normalExp"),
+        }
+      )
+
+      return {
+        message: registration
+          ? completedRegistrationMessage
+          : resetPasswordMessage,
+        token: jwt,
+        user: {
+          _id: dbProvider._id,
+          name: dbProvider.firstName + " " + dbProvider.lastName,
+          email: dbProvider.email,
+          role: dbProvider.type,
+        },
+      }
+    } else {
+      const user = await UserModel.find().findByEmailToken(token).lean()
+      if (!user) {
+        throw new ApolloError(invalidToken.message, invalidToken.code)
+      }
+
+      if (!registration && user.emailTokenExpiresAt < new Date()) {
+        throw new ApolloError(tokenExpired.message, tokenExpired.code)
+      }
+
+      // set emailToken & emailTokenExpiresAt to null
+      user.emailToken = null
+      user.emailTokenExpiresAt = null
+      user.password = await this.hashPassword(password)
+
+      // update the user
+      await UserModel.findByIdAndUpdate(user._id, user)
+
+      // sign jwt
+      const jwt = signJwt(
+        {
+          _id: user._id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+        },
+        {
+          expiresIn: config.get("jwtExpiration.normalExp"),
+        }
+      )
+
+      return {
+        message: registration
+          ? completedRegistrationMessage
+          : resetPasswordMessage,
+        token: jwt,
+        user,
+      }
     }
   }
 
@@ -444,7 +510,58 @@ class UserService extends EmailService {
     // Get our user by email
     const user = (await UserModel.find().findByEmail(email).lean()) as any
     if (!user) {
-      throw new ApolloError(invalidCredentials.message, invalidCredentials.code)
+      const provider = await ProviderModel.find().findByEmail(email).lean()
+      if (!provider) {
+        throw new ApolloError(
+          invalidCredentials.message,
+          invalidCredentials.code
+        )
+      }
+
+      if (!provider.password) {
+        throw new ApolloError(
+          passwordNotCreated.message,
+          passwordNotCreated.code
+        )
+      }
+
+      const validPassword = await bcrypt.compare(password, provider.password)
+      if (!validPassword) {
+        throw new ApolloError(
+          invalidCredentials.message,
+          invalidCredentials.code
+        )
+      }
+
+      if (noExpire && provider.role !== Role.Admin) {
+        throw new ApolloError(
+          invalidCredentials.message,
+          invalidCredentials.code
+        )
+      }
+
+      // sign jwt
+      const jwt = signJwt(
+        {
+          _id: provider._id,
+          name: provider.firstName + " " + provider.lastName,
+          email: provider.email,
+          role: provider.type,
+        },
+        {
+          expiresIn: noExpire ? "1y" : remember ? rememberExp : normalExp,
+        }
+      )
+
+      return {
+        token: jwt,
+        user: {
+          _id: provider._id,
+          name: provider.firstName + " " + provider.lastName,
+          email: provider.email,
+          role: provider.type,
+        },
+      }
     }
 
     if (!user.password) {

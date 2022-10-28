@@ -90,17 +90,20 @@ class EmailService {
       console.log(error)
     }
   }
+
   async sendRegistrationEmail({
     email,
     token,
+    provider = false,
     manual = false,
   }: {
     email: string
     token: string
+    provider?: boolean
     manual?: boolean
   }) {
     const { path, subject } = config.get("emails.completeRegistration") as any
-    const url = `${this.baseUrl}/${path}/${token}`
+    const url = `${this.baseUrl}/${path}/${token}?provider=${provider}`
 
     // TODO: change email content based on manual flag
     console.log(manual)
