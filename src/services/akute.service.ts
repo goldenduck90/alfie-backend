@@ -1,7 +1,9 @@
+import { ApolloError } from "apollo-server"
 import axios, { AxiosInstance } from "axios"
 import config from "config"
 import { format } from "date-fns"
-import { CreatePatientInput } from "../schema/user.schema"
+import { PharmacyLocationInput } from "../schema/akute.schema"
+import { CreatePatientInput, UserModel } from "../schema/user.schema"
 
 class AkuteService {
   public baseUrl: string
@@ -62,6 +64,57 @@ class AkuteService {
       })
 
       return data.data.id
+    } catch (error) {
+      console.log(error)
+    }
+  }
+  async convertAddressToLatLng(
+    addressLine1: string,
+    addressCity: string,
+    addressState: string,
+    addressZipCode: string
+  ): Promise<{ lat: number, lng: number }> {
+    try {
+      const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${addressLine1},${addressCity},${addressState},${addressZipCode}&key=${process.env.GOOGLE_API_KEY}`
+      const response = await axios.get(url)
+      console.log(response.data.results[0].geometry.location, "DATA")
+      // If geometry is not found, return 0,0
+      if (!response.data.results[0].geometry) {
+        return { lat: 0, lng: 0 }
+      } else {
+        return {
+          lat: response.data?.results[0]?.geometry?.location?.lat,
+          lng: response.data?.results[0]?.geometry.location.lng,
+        }
+      }
+    } catch (error) {
+      console.log(error)
+    }
+  }
+  async getPharmacyLocations(input: PharmacyLocationInput, userId: string) {
+    try {
+      const user = await UserModel.findById(userId)
+      if (!user) {
+        throw new ApolloError("User not found", "NOT_FOUND")
+      }
+      const data = await this.axios.get(
+        `/pharmacy?name=${input.name}&zip=${user.address.postalCode}`
+      )
+      // console.log(data.data)
+      // convert each object in the response to have a lat and lng property
+      // Promise all the conversions and return the results in an array of objects with lat and lng properties
+      const pharmacyLocations = await Promise.all(
+        data.data.map(async (pharmacy: any) => {
+          const { lat, lng } = (await this.convertAddressToLatLng(
+            pharmacy.address_line_1,
+            pharmacy.address_city,
+            pharmacy.address_state,
+            pharmacy.address_zipcode
+          )) || { lat: 0, lng: 0 }
+          return { ...pharmacy, lat, lng }
+        })
+      )
+      return pharmacyLocations
     } catch (error) {
       console.log(error)
     }
