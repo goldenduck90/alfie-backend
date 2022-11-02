@@ -100,9 +100,6 @@ class AkuteService {
       const data = await this.axios.get(
         `/pharmacy?name=${input.name}&zip=${user.address.postalCode}`
       )
-      // console.log(data.data)
-      // convert each object in the response to have a lat and lng property
-      // Promise all the conversions and return the results in an array of objects with lat and lng properties
       const pharmacyLocations = await Promise.all(
         data.data.map(async (pharmacy: any) => {
           const { lat, lng } = (await this.convertAddressToLatLng(
@@ -117,6 +114,22 @@ class AkuteService {
       return pharmacyLocations
     } catch (error) {
       console.log(error)
+    }
+  }
+  async createPharmacyListForPatient(
+    pharmacyId: string,
+    patientId: string,
+    isPrimary: boolean
+  ) {
+    try {
+      const { data } = await this.axios.post("/pharmacy", {
+        pharmacy_id: pharmacyId,
+        patient_id: patientId,
+        set_as_primary: isPrimary,
+      })
+      return data
+    } catch (e) {
+      new ApolloError(e.message, "ERROR")
     }
   }
 }

@@ -288,6 +288,10 @@ export class User {
   @Field(() => Provider, { nullable: true })
   @prop({ ref: () => Provider, required: false })
   provider: Ref<Provider>
+
+  @Field(() => String, { nullable: true })
+  @prop()
+  pharmacyLocation?: string
 }
 
 export const UserModel = getModelForClass<typeof User, QueryHelpers>(User, {
