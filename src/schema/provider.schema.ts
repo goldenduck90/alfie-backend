@@ -1,32 +1,44 @@
+import { Field, ObjectType, InputType, Int } from "type-graphql"
 import {
-  Field,
-  ObjectType,
-  InputType,
-  registerEnumType,
-  Int,
-} from "type-graphql"
-import { getModelForClass, index, prop } from "@typegoose/typegoose"
+  getModelForClass,
+  index,
+  prop,
+  queryMethod,
+  ReturnModelType,
+} from "@typegoose/typegoose"
 import mongoose from "mongoose"
+import { AsQueryMethod } from "@typegoose/typegoose/lib/types"
+import { Role } from "./user.schema"
 
-export enum ProviderType {
-  Practitioner = "practitioner",
-  Doctor = "doctor",
+function findByEmail(
+  this: ReturnModelType<typeof Provider, QueryHelpers>,
+  email: Provider["email"]
+) {
+  return this.findOne({ email })
 }
 
-registerEnumType(ProviderType, {
-  name: "ProviderType",
-  description: "Represents whether the provider is a practitioner or doctor.",
-})
+function findByEmailToken(
+  this: ReturnModelType<typeof Provider, QueryHelpers>,
+  emailToken: Provider["emailToken"]
+) {
+  return this.findOne({ emailToken })
+}
 
+interface QueryHelpers {
+  findByEmail: AsQueryMethod<typeof findByEmail>
+  findByEmailToken: AsQueryMethod<typeof findByEmailToken>
+}
+@queryMethod(findByEmail)
+@queryMethod(findByEmailToken)
 @ObjectType()
-@index({ akuteId: 1, eaProviderId: 1 }, { unique: true })
+@index({ akuteId: 1, eaProviderId: 1, email: 1 }, { unique: true })
 export class Provider {
   @Field(() => String)
   _id: string
 
   @Field(() => String)
-  @prop({ enum: ProviderType, type: String, required: true })
-  type: ProviderType
+  @prop({ enum: Role, type: String, required: true })
+  type: Role
 
   @Field(() => String)
   @prop({ required: true })
@@ -55,6 +67,18 @@ export class Provider {
   @Field(() => Int, { nullable: true })
   @prop({ required: true, default: 0 })
   numberOfPatients: number
+
+  @Field(() => String, { nullable: true })
+  @prop()
+  password?: string
+
+  @Field(() => String, { nullable: true })
+  @prop()
+  emailToken?: string
+
+  @Field(() => Date)
+  @prop()
+  emailTokenExpiresAt?: Date
 }
 
 export const ProviderModel = getModelForClass<typeof Provider>(Provider, {
@@ -63,8 +87,8 @@ export const ProviderModel = getModelForClass<typeof Provider>(Provider, {
 
 @InputType()
 export class ProviderInput {
-  @Field(() => ProviderType)
-  type: ProviderType
+  @Field(() => Role)
+  type: Role
 
   @Field(() => String)
   akuteId: string

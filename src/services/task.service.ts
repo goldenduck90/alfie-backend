@@ -14,6 +14,9 @@ import EmailService from "./email.service"
 import { UserModel } from "../schema/user.schema"
 import { addDays, isPast } from "date-fns"
 import { ProviderModel } from "../schema/provider.schema"
+import AkuteService from "./akute.service"
+
+const akuteService = new AkuteService()
 class TaskService extends EmailService {
   async createTask(input: CreateTaskInput) {
     const { name, type, interval } = input
@@ -86,6 +89,7 @@ class TaskService extends EmailService {
     if (!userTask) {
       throw new ApolloError(notFound.message, notFound.code)
     }
+
     console.log(userTask, "userTask")
     userTask.completed = true
     userTask.completedAt = new Date()
@@ -104,8 +108,31 @@ class TaskService extends EmailService {
       user.weights.push(weight)
       await user.save()
     }
+    console.log(task.type, "task.type")
     if (task.type === TaskType.NEW_PATIENT_INTAKE_FORM) {
+      console.log("NEW_PATIENT_INTAKE_FORM")
       // If the task type is NEW_PATIENT_INTAKE_FORM and hasRequiredLabs is true, we want to create a new task for the patient to schedule their first appointment
+      // We also want to store the pharmacyLocation from the input onto the user table
+      // We also want to set the akute pharmacy id using this endpoint https://developer.akutehealth.com/?http#post_pharmacy we will want to set the key set_as_primary to true
+      // {
+      //   "patient_id": "string",
+      //    "external_patient_id": "string",
+      //    "pharmacy_id": "string",
+      //    "set_as_primary": "boolean"
+      // }
+      const user = await UserModel.findById(userTask.user)
+
+      const pharmacyId = answers.find((a) => a.key === "pharmacyLocation").value
+      const patientId = user?.akutePatientId
+      await akuteService.createPharmacyListForPatient(
+        pharmacyId,
+        patientId,
+        true
+      )
+      const updatedUser = await UserModel.findByIdAndUpdate(userTask.user, {
+        pharmacyLocation: pharmacyId,
+      })
+      console.log(updatedUser, "updatedUser")
       const hasRequiredLabs = answers.find((a) => a.key === "hasRequiredLabs")
       if (hasRequiredLabs && hasRequiredLabs.value === "true") {
         const newTaskInput: CreateUserTaskInput = {

@@ -20,12 +20,14 @@ class EmailService {
   async sendForgotPasswordEmail({
     email,
     token,
+    provider = false,
   }: {
     email: string
     token: string
+    provider?: boolean
   }) {
     const { path, subject } = config.get("emails.forgotPassword") as any
-    const url = `${this.baseUrl}/${path}/${token}`
+    const url = `${this.baseUrl}/${path}/${token}?provider=${provider}`
 
     const params = {
       Source: this.noReplyEmail,
@@ -55,15 +57,17 @@ class EmailService {
     token,
     manual = false,
     name,
+    provider = false,
   }: {
     email: string
     token: string
     manual?: boolean
     name: string
+    provider?: boolean
   }) {
     try {
       const { path } = config.get("emails.completeRegistration") as any
-      const url = `${this.baseUrl}/${path}/${token}`
+      const url = `${this.baseUrl}/${path}/${token}?provider=${provider}`
       console.log(
         {
           email,
@@ -90,17 +94,20 @@ class EmailService {
       console.log(error)
     }
   }
+
   async sendRegistrationEmail({
     email,
     token,
+    provider = false,
     manual = false,
   }: {
     email: string
     token: string
+    provider?: boolean
     manual?: boolean
   }) {
     const { path, subject } = config.get("emails.completeRegistration") as any
-    const url = `${this.baseUrl}/${path}/${token}`
+    const url = `${this.baseUrl}/${path}/${token}?provider=${provider}`
 
     // TODO: change email content based on manual flag
     console.log(manual)
