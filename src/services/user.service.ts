@@ -622,6 +622,17 @@ class UserService extends EmailService {
       throw new ApolloError(error.message, error.code)
     }
   }
+
+  async getAllUsersByAProvider(providerId: string) {
+    try {
+      const users = await UserModel.find({ provider: providerId })
+        .populate("provider")
+        .lean()
+      return users
+    } catch (error) {
+      throw new ApolloError(error.message, error.code)
+    }
+  }
 }
 
 export default UserService

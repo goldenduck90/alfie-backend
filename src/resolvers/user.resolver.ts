@@ -61,4 +61,10 @@ export default class UserResolver {
   users() {
     return this.userService.getAllUsers()
   }
+
+  @Authorized([Role.Practitioner, Role.Doctor, Role.Admin])
+  @Query(() => [User])
+  getAllPatientsByPractitioner(@Ctx() context: Context) {
+    return this.userService.getAllUsersByAProvider(context.user._id)
+  }
 }
