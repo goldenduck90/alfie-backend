@@ -24,7 +24,7 @@ import ProviderService from "./provider.service"
 import AkuteService from "./akute.service"
 import AppointmentService from "./appointment.service"
 import { ProviderModel } from "../schema/provider.schema"
-
+import * as Sentry from "@sentry/node"
 class UserService extends EmailService {
   private taskService: TaskService
   private providerService: ProviderService
@@ -342,7 +342,7 @@ class UserService extends EmailService {
         message: waitlistMessage,
       }
     } catch (error) {
-      console.log(error)
+      Sentry.captureException(error)
       throw new ApolloError(unknownError.message, unknownError.code)
     }
   }
@@ -625,6 +625,7 @@ class UserService extends EmailService {
       const users = await UserModel.find().populate("provider").lean()
       return users
     } catch (error) {
+      Sentry.captureException(error)
       throw new ApolloError(error.message, error.code)
     }
   }

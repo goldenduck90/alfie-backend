@@ -14,7 +14,7 @@ import {
 import { Role, UserModel } from "../schema/user.schema"
 import { ProviderModel } from "../schema/provider.schema"
 import { zonedTimeToUtc } from "date-fns-tz"
-
+import * as Sentry from "@sentry/node"
 class AppointmentService {
   public baseUrl: string
   public axios: AxiosInstance
@@ -77,7 +77,8 @@ class AppointmentService {
       // return easyappointments customer id
       return data.id
     } catch (error) {
-      console.log(error)
+      Sentry.captureException(error)
+      throw new ApolloError(error.message, "ERROR")
     }
   }
 
@@ -244,7 +245,8 @@ class AppointmentService {
         eaService: response.service,
       }
     } catch (error) {
-      console.log(error)
+      Sentry.captureException(error)
+      throw new ApolloError(error.message, "ERROR")
     }
   }
 

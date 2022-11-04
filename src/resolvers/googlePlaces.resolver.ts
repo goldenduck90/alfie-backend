@@ -13,7 +13,7 @@ import {
   PharmacyLocationInput,
   PharmacyLocationResult,
 } from "../schema/akute.schema"
-
+import * as Sentry from "@sentry/node"
 const akuteService = new AkuteService()
 export async function getLocationsFromGoogleAutoComplete(
   query: string,
@@ -26,7 +26,8 @@ export async function getLocationsFromGoogleAutoComplete(
     const response = await axios.get(url)
     return response.data.predictions
   } catch (error) {
-    console.log(error)
+    Sentry.captureException(error)
+    return []
   }
 }
 
@@ -40,7 +41,8 @@ export async function getReverseGeoCodeFromGoogle(userId: string) {
     const response = await axios.get(url)
     return response.data.results
   } catch (error) {
-    console.log(error)
+    Sentry.captureException(error)
+    return []
   }
 }
 
@@ -52,7 +54,8 @@ export async function getPharmacyLocationsFromAkute(
     const response = await akuteService.getPharmacyLocations(input, userId)
     return response
   } catch (error) {
-    console.log(error)
+    Sentry.captureException(error)
+    return []
   }
 }
 @Resolver()

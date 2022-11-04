@@ -15,7 +15,7 @@ import { UserModel } from "../schema/user.schema"
 import { addDays, isPast } from "date-fns"
 import { ProviderModel } from "../schema/provider.schema"
 import AkuteService from "./akute.service"
-
+import * as Sentry from "@sentry/node"
 const akuteService = new AkuteService()
 class TaskService extends EmailService {
   async createTask(input: CreateTaskInput) {
@@ -270,7 +270,8 @@ class TaskService extends EmailService {
       console.log(tasks)
       return tasks
     } catch (error) {
-      console.log(error)
+      Sentry.captureException(error)
+      throw new ApolloError(error.message, error.code)
     }
   }
   async getAllUserTasks() {
@@ -278,7 +279,8 @@ class TaskService extends EmailService {
       const userTasks = await UserTaskModel.find()
       return userTasks
     } catch (error) {
-      console.log(error)
+      Sentry.captureException(error)
+      throw new ApolloError(error.message, error.code)
     }
   }
   async getAllUserTasksByUserId(userId: string) {
@@ -303,7 +305,8 @@ class TaskService extends EmailService {
       )
       return arrayOfUserTasksWithProviderEmail
     } catch (error) {
-      console.log(error)
+      Sentry.captureException(error)
+      throw new ApolloError(error.message, "ERROR")
     }
   }
   async archiveTask(taskId: string) {
@@ -316,7 +319,8 @@ class TaskService extends EmailService {
       await task.save()
       return task
     } catch (error) {
-      console.log(error)
+      Sentry.captureException(error)
+      throw new ApolloError(error.message, error.code)
     }
   }
   async updateTask(taskId: string, input: UpdateUserTaskInput) {
@@ -330,7 +334,8 @@ class TaskService extends EmailService {
       await task.save()
       return task
     } catch (error) {
-      console.log(error)
+      Sentry.captureException(error)
+      throw new ApolloError(error.message, error.code)
     }
   }
 }
