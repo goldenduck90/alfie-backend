@@ -114,9 +114,15 @@ class UserService extends EmailService {
       }
     }
 
+    console.log(`CREATING NEW USER w/Name: ${name}`)
+
+    const splitName = name.split(" ")
+    const firstName = name.split(" ")[0] || ""
+    const lastName = splitName ? splitName[splitName.length - 1] : ""
+
     const patientId = await this.akuteService.createPatient({
-      firstName: name.split(" ")[0],
-      lastName: name.split(" ")[1],
+      firstName,
+      lastName,
       email,
       phone,
       dateOfBirth,
@@ -132,8 +138,8 @@ class UserService extends EmailService {
 
     const customerId = await this.appointmentService.createCustomer({
       userId: "",
-      firstName: name.split(" ")[0] || "",
-      lastName: name.split(" ")[1] || "",
+      firstName,
+      lastName,
       email,
       phone,
       address: `${address.line1} ${address.line2 || ""}`,
