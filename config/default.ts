@@ -175,7 +175,7 @@ export default {
   paths: {
     checkoutSuccess: "signup/checkout/success",
   },
-  forgotPasswordExpirationInMinutes: 30,
+  forgotPasswordExpirationInMinutes: 360,
   noReplyEmail: "no-reply@joinalfie.com",
   s3: {
     expiresInSeconds: 600, // 10 mins
