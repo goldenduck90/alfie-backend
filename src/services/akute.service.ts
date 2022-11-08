@@ -77,9 +77,8 @@ class AkuteService {
     try {
       const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${addressLine1},${addressCity},${addressState},${addressZipCode}&key=${process.env.GOOGLE_API_KEY}`
       const response = await axios.get(url)
-      console.log(response.data.results[0].geometry.location, "DATA")
       // If geometry is not found, return 0,0
-      if (!response.data.results[0].geometry) {
+      if (!response.data?.results[0].geometry) {
         return { lat: 0, lng: 0 }
       } else {
         return {

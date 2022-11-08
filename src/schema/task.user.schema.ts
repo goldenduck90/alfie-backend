@@ -92,7 +92,7 @@ export class UserTask {
   @prop({ ref: () => User, required: true })
   user: Ref<User>
 
-  @Field(() => [UserAnswer])
+  @Field(() => [UserAnswer], { nullable: true })
   @prop({ type: () => [UserAnswer], required: false })
   answers?: UserAnswer[]
 

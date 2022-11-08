@@ -109,8 +109,17 @@ class TaskService extends EmailService {
       user.weights.push(weight)
       await user.save()
     }
-
-    if (task.type === TaskType.SCHEDULE_APPOINTMENT) {
+    if (task.type === TaskType.NEW_PATIENT_INTAKE_FORM) {
+      console.log("NEW_PATIENT_INTAKE_FORM")
+      // If the task type is NEW_PATIENT_INTAKE_FORM and hasRequiredLabs is true, we want to create a new task for the patient to schedule their first appointment
+      // We also want to store the pharmacyLocation from the input onto the user table
+      // We also want to set the akute pharmacy id using this endpoint https://developer.akutehealth.com/?http#post_pharmacy we will want to set the key set_as_primary to true
+      // {
+      //   "patient_id": "string",
+      //    "external_patient_id": "string",
+      //    "pharmacy_id": "string",
+      //    "set_as_primary": "boolean"
+      // }
       const user = await UserModel.findById(userTask.user)
       const getAppointment = await appointmentsService.getAppointments(
         user._id,
@@ -289,7 +298,7 @@ class TaskService extends EmailService {
         .populate("task")
         .populate("user")
       // console.log(userTasks)
-      const providerId = userTasks[0].user.provider.toHexString()
+      const providerId = userTasks[0]?.user.provider.toHexString()
       const lookUpProviderEmail = await ProviderModel.findOne({
         _id: providerId,
       })
