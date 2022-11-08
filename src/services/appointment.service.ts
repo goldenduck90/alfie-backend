@@ -209,7 +209,11 @@ class AppointmentService {
         serviceId: eaServiceId,
         notes: notes || "",
       })
+      // call complete task for schedule appt
 
+      await UserModel.findByIdAndUpdate(userId, {
+        meetingUrl: meetingData,
+      })
       if (
         providerType === Role.Practitioner &&
         provider.eaProviderId !== eaProviderId
@@ -280,7 +284,9 @@ class AppointmentService {
       serviceId: eaServiceId,
       notes: notes || "",
     })
-
+    await UserModel.findByIdAndUpdate(userId, {
+      meetingUrl: meetingData,
+    })
     if (
       providerType === Role.Practitioner &&
       provider.eaProviderId !== eaProviderId

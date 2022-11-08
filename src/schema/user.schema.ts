@@ -203,7 +203,7 @@ export class User {
   @prop({ nullable: true })
   textOptIn: boolean
 
-  @Field(() => String)
+  @Field(() => String, { nullable: true })
   meetingRoomUrl: string
 
   @Field(() => String)
@@ -292,6 +292,10 @@ export class User {
   @Field(() => String, { nullable: true })
   @prop()
   pharmacyLocation?: string
+
+  @Field(() => String, { nullable: true })
+  @prop()
+  meetingUrl?: string
 }
 
 export const UserModel = getModelForClass<typeof User, QueryHelpers>(User, {

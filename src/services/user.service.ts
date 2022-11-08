@@ -24,6 +24,7 @@ import ProviderService from "./provider.service"
 import AkuteService from "./akute.service"
 import AppointmentService from "./appointment.service"
 import { ProviderModel } from "../schema/provider.schema"
+import { UserTaskModel } from "../schema/task.user.schema"
 
 class UserService extends EmailService {
   private taskService: TaskService
@@ -624,6 +625,27 @@ class UserService extends EmailService {
     try {
       const users = await UserModel.find().populate("provider").lean()
       return users
+    } catch (error) {
+      throw new ApolloError(error.message, error.code)
+    }
+  }
+
+  async getAllUsersByAProvider(providerId: string) {
+    try {
+      const users = await UserModel.find({ provider: providerId })
+        .populate("provider")
+        .lean()
+      return users
+    } catch (error) {
+      throw new ApolloError(error.message, error.code)
+    }
+  }
+  async getAllUserTasksByUser(userId: string) {
+    try {
+      const userTasks = await UserTaskModel.find({ user: userId })
+        .populate("task")
+        .lean()
+      return userTasks
     } catch (error) {
       throw new ApolloError(error.message, error.code)
     }
