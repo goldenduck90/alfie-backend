@@ -13,6 +13,7 @@ import {
 } from "../schema/appointment.schema"
 import { Role, UserModel } from "../schema/user.schema"
 import { ProviderModel } from "../schema/provider.schema"
+import { zonedTimeToUtc } from "date-fns-tz"
 
 class AppointmentService {
   public baseUrl: string
@@ -155,9 +156,13 @@ class AppointmentService {
       timeslots: response.timeslots.map((timeInUtc: string) => {
         const hours = Number(timeInUtc.split(":")[0])
         const minutes = Number(timeInUtc.split(":")[1])
-        const startTimeInUtc = new Date(
-          `${format(selectedDate, "yyyy-MM-dd")} ${hours}:${minutes}:00`
+        const startTimeInUtc = zonedTimeToUtc(
+          new Date(
+            `${format(selectedDate, "yyyy-MM-dd")} ${hours}:${minutes}:00`
+          ),
+          response.eaProvider.timezone
         )
+
         const endTimeInUtc = addMinutes(
           startTimeInUtc,
           response.eaService.durationInMins
@@ -204,7 +209,11 @@ class AppointmentService {
         serviceId: eaServiceId,
         notes: notes || "",
       })
+      // call complete task for schedule appt
 
+      await UserModel.findByIdAndUpdate(userId, {
+        meetingUrl: meetingData,
+      })
       if (
         providerType === Role.Practitioner &&
         provider.eaProviderId !== eaProviderId
@@ -275,7 +284,9 @@ class AppointmentService {
       serviceId: eaServiceId,
       notes: notes || "",
     })
-
+    await UserModel.findByIdAndUpdate(userId, {
+      meetingUrl: meetingData,
+    })
     if (
       providerType === Role.Practitioner &&
       provider.eaProviderId !== eaProviderId

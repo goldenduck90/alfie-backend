@@ -198,11 +198,12 @@ interface QueryHelpers {
 export class User {
   @Field(() => String)
   _id: string
-  @Field(() => Boolean)
-  @prop({ default: false, required: true })
+
+  @Field(() => Boolean, { nullable: true })
+  @prop({ nullable: true })
   textOptIn: boolean
 
-  @Field(() => String)
+  @Field(() => String, { nullable: true })
   meetingRoomUrl: string
 
   @Field(() => String)
@@ -287,6 +288,14 @@ export class User {
   @Field(() => Provider, { nullable: true })
   @prop({ ref: () => Provider, required: false })
   provider: Ref<Provider>
+
+  @Field(() => String, { nullable: true })
+  @prop()
+  pharmacyLocation?: string
+
+  @Field(() => String, { nullable: true })
+  @prop()
+  meetingUrl?: string
 }
 
 export const UserModel = getModelForClass<typeof User, QueryHelpers>(User, {
@@ -296,8 +305,8 @@ export const UserModel = getModelForClass<typeof User, QueryHelpers>(User, {
 export class CreateUserInput {
   @Field(() => String)
   name: string
-  // textOptIn: boolean
-  @Field(() => Boolean)
+
+  @Field(() => Boolean, { nullable: true })
   textOptIn: boolean
 
   @IsEmail({}, { message: emailValidation.message })
@@ -426,6 +435,21 @@ export class LoginInput {
 }
 
 @ObjectType()
+export class PartialUser {
+  @Field(() => String)
+  _id: string
+
+  @Field(() => String)
+  name: string
+
+  @Field(() => String)
+  email: string
+
+  @Field(() => Role)
+  role: Role
+}
+
+@ObjectType()
 export class LoginResponse {
   @Field(() => String, { nullable: true })
   message: string
@@ -433,8 +457,8 @@ export class LoginResponse {
   @Field(() => String)
   token: string
 
-  @Field(() => User)
-  user: User
+  @Field(() => PartialUser)
+  user: PartialUser
 }
 
 @InputType()
@@ -460,6 +484,9 @@ export class ResetPasswordInput {
 
   @Field(() => Boolean)
   registration: boolean
+
+  @Field(() => Boolean, { defaultValue: false })
+  provider: boolean
 }
 
 @ObjectType()

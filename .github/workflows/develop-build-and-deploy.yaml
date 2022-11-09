@@ -50,5 +50,5 @@ jobs:
         application_name: alfie-backend
         environment_name: develop
         region: us-east-1
-        version_label: "${{ steps.timestamp.outputs.date }}"
+        version_label: "develop_${{ steps.timestamp.outputs.date }}"
         deployment_package: package.zip

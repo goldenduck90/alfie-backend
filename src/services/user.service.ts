@@ -1,5 +1,5 @@
+import * as AWS from "aws-sdk"
 import { ApolloError } from "apollo-server-errors"
-import axios from "axios"
 import bcrypt from "bcrypt"
 import config from "config"
 import { addMinutes } from "date-fns"
@@ -23,12 +23,15 @@ import { TaskType } from "../schema/task.schema"
 import ProviderService from "./provider.service"
 import AkuteService from "./akute.service"
 import AppointmentService from "./appointment.service"
+import { ProviderModel } from "../schema/provider.schema"
+import { UserTaskModel } from "../schema/task.user.schema"
 
 class UserService extends EmailService {
   private taskService: TaskService
   private providerService: ProviderService
   private akuteService: AkuteService
   private appointmentService: AppointmentService
+  public awsDynamo: AWS.DynamoDB
 
   constructor() {
     super()
@@ -36,6 +39,11 @@ class UserService extends EmailService {
     this.providerService = new ProviderService()
     this.akuteService = new AkuteService()
     this.appointmentService = new AppointmentService()
+    this.awsDynamo = new AWS.DynamoDB({
+      accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+      secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+      region: process.env.AWS_REGION,
+    })
   }
 
   async assignUserTasks(userId: string, taskTypes: TaskType[]) {
@@ -49,6 +57,9 @@ class UserService extends EmailService {
   async createUser(input: CreateUserInput, manual = false) {
     const { alreadyExists, unknownError, emailSendError } = config.get(
       "errors.createUser"
+    ) as any
+    const { emailSubscribersTable, waitlistTable } = config.get(
+      "dynamoDb"
     ) as any
     const userCreatedMessage = config.get(
       manual
@@ -104,9 +115,15 @@ class UserService extends EmailService {
       }
     }
 
+    console.log(`CREATING NEW USER w/Name: ${name}`)
+
+    const splitName = name.split(" ")
+    const firstName = name.split(" ")[0] || ""
+    const lastName = splitName ? splitName[splitName.length - 1] : ""
+
     const patientId = await this.akuteService.createPatient({
-      firstName: name.split(" ")[0],
-      lastName: name.split(" ")[1],
+      firstName,
+      lastName,
       email,
       phone,
       dateOfBirth,
@@ -122,8 +139,8 @@ class UserService extends EmailService {
 
     const customerId = await this.appointmentService.createCustomer({
       userId: "",
-      firstName: name.split(" ")[0],
-      lastName: name.split(" ")[1],
+      firstName,
+      lastName,
       email,
       phone,
       address: `${address.line1} ${address.line2 || ""}`,
@@ -162,14 +179,42 @@ class UserService extends EmailService {
       throw new ApolloError(unknownError.message, unknownError.code)
     }
 
-    // notify Alex's emailSubscribe flow that user signed up
-    await this.subscribeEmail({
-      email,
-      fullName: name,
-      location: address.state,
-      waitlist: false,
-      currentMember: true,
-    })
+    // delete user from email subscribers table
+    const { $response } = await this.awsDynamo
+      .deleteItem({
+        TableName: emailSubscribersTable,
+        Key: {
+          emailaddress: {
+            S: email,
+          },
+        },
+      })
+      .promise()
+
+    if ($response.error) {
+      console.log(
+        "An error occured deleting user from DynamoDB",
+        $response.error.message
+      )
+    }
+
+    const { $response: $response2 } = await this.awsDynamo
+      .deleteItem({
+        TableName: waitlistTable,
+        Key: {
+          emailaddress: {
+            S: email,
+          },
+        },
+      })
+      .promise()
+
+    if ($response2.error) {
+      console.log(
+        "An error occured deleting user from DynamoDB",
+        $response2.error.message
+      )
+    }
 
     // trigger sendbird flow
     await triggerEntireSendBirdFlow(user._id, user.name, "", "")
@@ -185,6 +230,7 @@ class UserService extends EmailService {
       TaskType.WAIST_LOG,
       TaskType.MP_BLUE_CAPSULE,
       TaskType.MP_ACTIVITY,
+      TaskType.FOOD_LOG,
     ]
     await this.assignUserTasks(user._id, tasks)
 
@@ -227,31 +273,77 @@ class UserService extends EmailService {
     const { email, fullName, location, waitlist, currentMember } = input
     const { unknownError } = config.get("errors.subscribeEmail") as any
     const waitlistMessage = config.get("messages.subscribeEmail")
-    const url = config.get("apiGatewayBaseUrl")
-    const path = config.get("apiGatewayPaths.subscribeEmail")
+    const { emailSubscribersTable, waitlistTable } = config.get(
+      "dynamoDb"
+    ) as any
 
     try {
-      const { data } = await axios.post(
-        `${url}${path}`,
-        {
-          emailAddress: email,
-          name: fullName,
-          location,
-          waitlist,
-          currentMember,
-        },
-        {
-          headers: {
-            "Content-Type": "application/json",
-            "x-api-key": process.env.API_GATEWAY_KEY,
+      const { $response } = await this.awsDynamo
+        .getItem({
+          TableName: !waitlist ? emailSubscribersTable : waitlistTable,
+          Key: {
+            emailaddress: {
+              S: email,
+            },
           },
+        })
+        .promise()
+
+      if ($response.data && $response.data.Item && currentMember) {
+        const { $response: $response2 } = await this.awsDynamo
+          .deleteItem({
+            TableName: !waitlist ? emailSubscribersTable : waitlistTable,
+            Key: {
+              emailaddress: {
+                S: email,
+              },
+            },
+          })
+          .promise()
+
+        if ($response2.error) {
+          console.log(
+            "An error occured deleting user from DynamoDB",
+            $response2.error.message
+          )
+          throw new ApolloError(unknownError.message, unknownError.code)
         }
-      )
+
+        return {
+          message: waitlistMessage,
+        }
+      }
+
+      const { $response: $response3 } = await this.awsDynamo
+        .putItem({
+          TableName: !waitlist ? emailSubscribersTable : waitlistTable,
+          Item: {
+            emailaddress: {
+              S: email,
+            },
+            fullname: {
+              S: fullName,
+            },
+            state: {
+              S: location,
+            },
+          },
+        })
+        .promise()
+
+      if ($response3.error) {
+        console.log(
+          "An error occured adding user to DynamoDB",
+          $response3.error.message
+        )
+        throw new ApolloError(unknownError.message, unknownError.code)
+      }
 
       return {
-        message: waitlist ? waitlistMessage : data,
+        message: waitlistMessage,
       }
     } catch (error) {
+      console.log(error)
       throw new ApolloError(unknownError.message, unknownError.code)
     }
   }
@@ -270,11 +362,32 @@ class UserService extends EmailService {
     const user = await UserModel.find().findByEmail(email).lean()
 
     if (!user) {
-      throw new ApolloError(emailNotFound.message, emailNotFound.code)
+      const provider = await ProviderModel.find().findByEmail(email).lean()
+      if (!provider) {
+        throw new ApolloError(emailNotFound.message, emailNotFound.code)
+      }
+
+      // set resetPasswordToken & resetPasswordTokenExpiresAt
+      provider.emailToken = uuidv4()
+      provider.emailTokenExpiresAt = addMinutes(new Date(), expirationInMinutes)
+
+      await ProviderModel.findByIdAndUpdate(provider._id, provider)
+
+      const sent = await this.sendForgotPasswordEmail({
+        email,
+        token: provider.emailToken,
+        provider: true,
+      })
+
+      if (!sent) {
+        throw new ApolloError(emailSendError.message, emailSendError.code)
+      }
+
+      return { message: forgotPasswordMessage }
     }
 
     // set resetPasswordToken & resetPasswordTokenExpiresAt
-    user.emailToken = Math.random().toString(36).slice(2, 16)
+    user.emailToken = uuidv4()
     user.emailTokenExpiresAt = addMinutes(new Date(), expirationInMinutes)
 
     await UserModel.findByIdAndUpdate(user._id, user)
@@ -296,7 +409,7 @@ class UserService extends EmailService {
   }
 
   async resetPassword(input: ResetPasswordInput) {
-    const { token, password, registration } = input
+    const { token, password, registration, provider } = input
     const { invalidToken, tokenExpired } = config.get(
       "errors.resetPassword"
     ) as any
@@ -305,42 +418,87 @@ class UserService extends EmailService {
       "messages.completedRegistration"
     )
 
-    const user = await UserModel.find().findByEmailToken(token).lean()
-    if (!user) {
-      throw new ApolloError(invalidToken.message, invalidToken.code)
-    }
-
-    if (!registration && user.emailTokenExpiresAt < new Date()) {
-      throw new ApolloError(tokenExpired.message, tokenExpired.code)
-    }
-
-    // set emailToken & emailTokenExpiresAt to null
-    user.emailToken = null
-    user.emailTokenExpiresAt = null
-    user.password = await this.hashPassword(password)
-
-    // update the user
-    await UserModel.findByIdAndUpdate(user._id, user)
-
-    // sign jwt
-    const jwt = signJwt(
-      {
-        _id: user._id,
-        name: user.name,
-        email: user.email,
-        role: user.role,
-      },
-      {
-        expiresIn: config.get("jwtExpiration.normalExp"),
+    if (provider) {
+      const dbProvider = await ProviderModel.find()
+        .findByEmailToken(token)
+        .lean()
+      if (!dbProvider) {
+        throw new ApolloError(invalidToken.message, invalidToken.code)
       }
-    )
 
-    return {
-      message: registration
-        ? completedRegistrationMessage
-        : resetPasswordMessage,
-      token: jwt,
-      user,
+      if (!registration && dbProvider.emailTokenExpiresAt < new Date()) {
+        throw new ApolloError(tokenExpired.message, tokenExpired.code)
+      }
+
+      dbProvider.emailToken = null
+      dbProvider.emailTokenExpiresAt = null
+      dbProvider.password = await this.hashPassword(password)
+
+      await ProviderModel.findByIdAndUpdate(dbProvider._id, dbProvider)
+
+      // sign jwt
+      const jwt = signJwt(
+        {
+          _id: dbProvider._id,
+          name: dbProvider.firstName + " " + dbProvider.lastName,
+          email: dbProvider.email,
+          role: dbProvider.type,
+        },
+        {
+          expiresIn: config.get("jwtExpiration.normalExp"),
+        }
+      )
+
+      return {
+        message: registration
+          ? completedRegistrationMessage
+          : resetPasswordMessage,
+        token: jwt,
+        user: {
+          _id: dbProvider._id,
+          name: dbProvider.firstName + " " + dbProvider.lastName,
+          email: dbProvider.email,
+          role: dbProvider.type,
+        },
+      }
+    } else {
+      const user = await UserModel.find().findByEmailToken(token).lean()
+      if (!user) {
+        throw new ApolloError(invalidToken.message, invalidToken.code)
+      }
+
+      if (!registration && user.emailTokenExpiresAt < new Date()) {
+        throw new ApolloError(tokenExpired.message, tokenExpired.code)
+      }
+
+      // set emailToken & emailTokenExpiresAt to null
+      user.emailToken = null
+      user.emailTokenExpiresAt = null
+      user.password = await this.hashPassword(password)
+
+      // update the user
+      await UserModel.findByIdAndUpdate(user._id, user)
+
+      // sign jwt
+      const jwt = signJwt(
+        {
+          _id: user._id,
+          name: user.name,
+          email: user.email,
+          role: user.role,
+        },
+        {
+          expiresIn: config.get("jwtExpiration.normalExp"),
+        }
+      )
+
+      return {
+        message: registration
+          ? completedRegistrationMessage
+          : resetPasswordMessage,
+        token: jwt,
+        user,
+      }
     }
   }
 
@@ -360,7 +518,58 @@ class UserService extends EmailService {
     // Get our user by email
     const user = (await UserModel.find().findByEmail(email).lean()) as any
     if (!user) {
-      throw new ApolloError(invalidCredentials.message, invalidCredentials.code)
+      const provider = await ProviderModel.find().findByEmail(email).lean()
+      if (!provider) {
+        throw new ApolloError(
+          invalidCredentials.message,
+          invalidCredentials.code
+        )
+      }
+
+      if (!provider.password) {
+        throw new ApolloError(
+          passwordNotCreated.message,
+          passwordNotCreated.code
+        )
+      }
+
+      const validPassword = await bcrypt.compare(password, provider.password)
+      if (!validPassword) {
+        throw new ApolloError(
+          invalidCredentials.message,
+          invalidCredentials.code
+        )
+      }
+
+      if (noExpire && provider.role !== Role.Admin) {
+        throw new ApolloError(
+          invalidCredentials.message,
+          invalidCredentials.code
+        )
+      }
+
+      // sign jwt
+      const jwt = signJwt(
+        {
+          _id: provider._id,
+          name: provider.firstName + " " + provider.lastName,
+          email: provider.email,
+          role: provider.type,
+        },
+        {
+          expiresIn: noExpire ? "1y" : remember ? rememberExp : normalExp,
+        }
+      )
+
+      return {
+        token: jwt,
+        user: {
+          _id: provider._id,
+          name: provider.firstName + " " + provider.lastName,
+          email: provider.email,
+          role: provider.type,
+        },
+      }
     }
 
     if (!user.password) {
@@ -416,6 +625,27 @@ class UserService extends EmailService {
     try {
       const users = await UserModel.find().populate("provider").lean()
       return users
+    } catch (error) {
+      throw new ApolloError(error.message, error.code)
+    }
+  }
+
+  async getAllUsersByAProvider(providerId: string) {
+    try {
+      const users = await UserModel.find({ provider: providerId })
+        .populate("provider")
+        .lean()
+      return users
+    } catch (error) {
+      throw new ApolloError(error.message, error.code)
+    }
+  }
+  async getAllUserTasksByUser(userId: string) {
+    try {
+      const userTasks = await UserTaskModel.find({ user: userId })
+        .populate("task")
+        .lean()
+      return userTasks
     } catch (error) {
       throw new ApolloError(error.message, error.code)
     }

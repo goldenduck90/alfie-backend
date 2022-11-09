@@ -1,3 +1,4 @@
+import { UserTask } from "../schema/task.user.schema"
 import { Arg, Authorized, Ctx, Mutation, Query, Resolver } from "type-graphql"
 import {
   CreateUserInput,
@@ -60,5 +61,17 @@ export default class UserResolver {
   @Query(() => [User])
   users() {
     return this.userService.getAllUsers()
+  }
+
+  @Authorized([Role.Practitioner, Role.Doctor, Role.Admin])
+  // Query returns an array of User and a custom field called tasks
+  @Query(() => [User])
+  getAllPatientsByPractitioner(@Ctx() context: Context) {
+    return this.userService.getAllUsersByAProvider(context.user._id)
+  }
+  @Authorized([Role.Doctor, Role.Admin, Role.Practitioner])
+  @Query(() => [UserTask])
+  getAllUserTasksByUser(@Arg("userId") userId: string) {
+    return this.userService.getAllUserTasksByUser(userId)
   }
 }

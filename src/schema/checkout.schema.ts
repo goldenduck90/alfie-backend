@@ -92,7 +92,7 @@ export class Checkout {
   user?: Ref<User>
 
   @Field(() => Boolean)
-  @prop({ default: false, required: true })
+  @prop({ default: false, required: false })
   textOptIn: boolean
 }
 

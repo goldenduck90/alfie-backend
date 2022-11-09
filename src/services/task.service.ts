@@ -17,6 +17,12 @@ import { ProviderModel } from "../schema/provider.schema"
 import FaxService from "./fax.service"
 import PDFService from "./pdf.service"
 import { LabModel } from "../schema/lab.schema"
+import AkuteService from "./akute.service"
+import AppointmentService from "./appointment.service"
+
+const akuteService = new AkuteService()
+const appointmentsService = new AppointmentService()
+
 class TaskService extends EmailService {
   private pdfService: PDFService
   private faxService: FaxService
@@ -98,7 +104,7 @@ class TaskService extends EmailService {
     if (!userTask) {
       throw new ApolloError(notFound.message, notFound.code)
     }
-    console.log(userTask, "userTask")
+
     userTask.completed = true
     userTask.completedAt = new Date()
     userTask.answers = answers
@@ -117,7 +123,40 @@ class TaskService extends EmailService {
       await user.save()
     }
     if (task.type === TaskType.NEW_PATIENT_INTAKE_FORM) {
+      console.log("NEW_PATIENT_INTAKE_FORM")
       // If the task type is NEW_PATIENT_INTAKE_FORM and hasRequiredLabs is true, we want to create a new task for the patient to schedule their first appointment
+      // We also want to store the pharmacyLocation from the input onto the user table
+      // We also want to set the akute pharmacy id using this endpoint https://developer.akutehealth.com/?http#post_pharmacy we will want to set the key set_as_primary to true
+      // {
+      //   "patient_id": "string",
+      //    "external_patient_id": "string",
+      //    "pharmacy_id": "string",
+      //    "set_as_primary": "boolean"
+      // }
+      const user = await UserModel.findById(userTask.user)
+      const getAppointment = await appointmentsService.getAppointments(
+        user._id,
+        100
+      )
+      console.log(getAppointment, "getAppointment")
+      const appointment = getAppointment.appointments[0]
+
+      user.meetingUrl = appointment.location
+      await user.save()
+    }
+    if (task.type === TaskType.NEW_PATIENT_INTAKE_FORM) {
+      const user = await UserModel.findById(userTask.user)
+      const pharmacyId = answers.find((a) => a.key === "pharmacyLocation").value
+      const patientId = user?.akutePatientId
+      await akuteService.createPharmacyListForPatient(
+        pharmacyId,
+        patientId,
+        true
+      )
+      const updatedUser = await UserModel.findByIdAndUpdate(userTask.user, {
+        pharmacyLocation: pharmacyId,
+      })
+
       const hasRequiredLabs = answers.find((a) => a.key === "hasRequiredLabs")
       if (hasRequiredLabs && hasRequiredLabs.value === "true") {
         const newTaskInput: CreateUserTaskInput = {
@@ -233,7 +272,7 @@ class TaskService extends EmailService {
       "errors.tasks"
     ) as any
     const { userId, taskType } = input
-    console.log({ userId, taskType })
+
     const task = await TaskModel.find().findByType(taskType).lean()
     if (!task) {
       throw new ApolloError(notFound.message, notFound.code)
@@ -307,7 +346,7 @@ class TaskService extends EmailService {
         .populate("task")
         .populate("user")
       // console.log(userTasks)
-      const providerId = userTasks[0].user.provider.toHexString()
+      const providerId = userTasks[0]?.user.provider.toHexString()
       const lookUpProviderEmail = await ProviderModel.findOne({
         _id: providerId,
       })

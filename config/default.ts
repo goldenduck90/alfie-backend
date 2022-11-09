@@ -175,18 +175,13 @@ export default {
   paths: {
     checkoutSuccess: "signup/checkout/success",
   },
-  forgotPasswordExpirationInMinutes: 30,
+  forgotPasswordExpirationInMinutes: 360,
   noReplyEmail: "no-reply@joinalfie.com",
-  apiGatewayBaseUrl: `https://rb99skrfoa.execute-api.us-east-1.amazonaws.com/${
-    process.env.NODE_ENV === "production" ? "PROD" : "DEV"
-  }`,
-  apiGatewayPaths: {
-    subscribeEmail: "/",
-  },
   s3: {
     expiresInSeconds: 600, // 10 mins
     labOrderTemplateKey: "LAB_ORDER_TEMPLATE.pdf",
     labOrderTemplateBucket: "alfie-lab-templates",
   },
   akuteApiUrl: "https://api.akutehealth.com/v1",
+  intercomApiUrl: "https://api.intercom.io",
 }
