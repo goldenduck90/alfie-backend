@@ -91,7 +91,7 @@ export class Checkout {
   @prop({ ref: () => User, type: String, required: false })
   user?: Ref<User>
 
-  @Field(() => Boolean)
+  @Field(() => Boolean, { nullable: true })
   @prop({ default: false, required: false })
   textOptIn: boolean
 }
@@ -130,7 +130,7 @@ export class CreateCheckoutInput {
   @Field(() => Number)
   weightInLbs: number
 
-  @Field(() => Boolean)
+  @Field(() => Boolean, { nullable: true })
   textOptIn: boolean
 }
 
