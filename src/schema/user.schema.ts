@@ -447,6 +447,9 @@ export class PartialUser {
 
   @Field(() => Role)
   role: Role
+
+  @Field(() => String, { nullable: true })
+  eaProviderId?: string
 }
 
 @ObjectType()

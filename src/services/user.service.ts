@@ -562,6 +562,7 @@ class UserService extends EmailService {
           name: provider.firstName + " " + provider.lastName,
           email: provider.email,
           role: provider.type,
+          eaProviderId: provider.eaProviderId,
         },
       }
     }
