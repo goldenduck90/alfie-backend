@@ -14,12 +14,24 @@ import EmailService from "./email.service"
 import { UserModel } from "../schema/user.schema"
 import { addDays, isPast } from "date-fns"
 import { ProviderModel } from "../schema/provider.schema"
+import FaxService from "./fax.service"
+import PDFService from "./pdf.service"
+import { LabModel } from "../schema/lab.schema"
 import AkuteService from "./akute.service"
-import AppointmentService from "./appointment.service"
+import * as Sentry from "@sentry/node"
 
 const akuteService = new AkuteService()
-const appointmentsService = new AppointmentService()
+
 class TaskService extends EmailService {
+  private pdfService: PDFService
+  private faxService: FaxService
+
+  constructor() {
+    super()
+    this.pdfService = new PDFService()
+    this.faxService = new FaxService()
+  }
+
   async createTask(input: CreateTaskInput) {
     const { name, type, interval } = input
 
@@ -121,18 +133,6 @@ class TaskService extends EmailService {
       //    "set_as_primary": "boolean"
       // }
       const user = await UserModel.findById(userTask.user)
-      const getAppointment = await appointmentsService.getAppointments(
-        user._id,
-        100
-      )
-      console.log(getAppointment, "getAppointment")
-      const appointment = getAppointment.appointments[0]
-
-      user.meetingUrl = appointment.location
-      await user.save()
-    }
-    if (task.type === TaskType.NEW_PATIENT_INTAKE_FORM) {
-      const user = await UserModel.findById(userTask.user)
       const pharmacyId = answers.find((a) => a.key === "pharmacyLocation").value
       const patientId = user?.akutePatientId
       await akuteService.createPharmacyListForPatient(
@@ -140,9 +140,8 @@ class TaskService extends EmailService {
         patientId,
         true
       )
-      const updatedUser = await UserModel.findByIdAndUpdate(userTask.user, {
-        pharmacyLocation: pharmacyId,
-      })
+
+      user.pharmacyLocation = pharmacyId
 
       const hasRequiredLabs = answers.find((a) => a.key === "hasRequiredLabs")
       if (hasRequiredLabs && hasRequiredLabs.value === "true") {
@@ -151,7 +150,56 @@ class TaskService extends EmailService {
           userId: userTask.user.toString(),
         }
         await this.assignTaskToUser(newTaskInput)
+      } else {
+        try {
+          // get user provider
+          const provider = await ProviderModel.findById(user.provider)
+
+          // get labcorp location fax number
+          const locationId = answers.find(
+            (a) => a.key === "labCorpLocation"
+          ).value
+          const labCorpLocation = await LabModel.findById(locationId)
+          const faxNumber = labCorpLocation.faxNumber
+
+          // calculate bmi
+          const bmi =
+            (user.weights[0].value /
+              user.heightInInches /
+              user.heightInInches) *
+            703.071720346
+
+          // create pdf
+          const pdfBuffer = await this.pdfService.createLabOrderPdf({
+            patientFullName: user.name,
+            providerFullName: `${provider.firstName} ${provider.lastName}`,
+            providerNpi: provider.npi,
+            patientDob: user.dateOfBirth,
+            icdCode: 27 < bmi && bmi < 30 ? "E66.3" : "E66.9",
+          })
+
+          // send fax to labcorp location
+          const faxResult = await this.faxService.sendFax({
+            faxNumber,
+            pdfBuffer,
+          })
+
+          console.log(faxResult, `faxResult for user: ${user.id}`)
+          Sentry.captureMessage(
+            `faxResult: ${JSON.stringify(faxResult)} for user: ${user.id}`
+          )
+        } catch (error) {
+          console.log(`error with faxResult for user: ${user.id}`, error)
+          Sentry.captureException(error, {
+            tags: {
+              userId: user.id,
+              patientId: user.akutePatientId,
+            },
+          })
+        }
       }
+
+      await user.save()
     }
 
     return {

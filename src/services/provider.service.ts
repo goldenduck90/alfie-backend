@@ -39,6 +39,9 @@ class ProviderService {
 
   async batchCreateOrUpdateProviders(input: BatchCreateOrUpdateProvidersInput) {
     const { providers } = input
+    console.error(input)
+    console.log(providers)
+
     const bulkOps = providers.map((provider) => ({
       updateOne: {
         filter: {
@@ -51,7 +54,6 @@ class ProviderService {
     }))
 
     const result = await ProviderModel.bulkWrite(bulkOps)
-
     const providerIds = result.getUpsertedIds()
 
     const providersCreated = await ProviderModel.find({

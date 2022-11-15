@@ -3,6 +3,7 @@ import { addSeconds, differenceInSeconds, isPast } from "date-fns"
 import FormData from "form-data"
 import config from "config"
 import { AuthorizationTokenModel } from "../schema/authorizationToken.schema"
+import * as Sentry from "@sentry/node"
 
 class FaxService {
   private sdk: SDK
@@ -146,10 +147,16 @@ class FaxService {
         formData
       )
       const data = await resp.json()
+      console.log(resp.status)
 
       return data
     } catch (err) {
       console.error(err)
+      Sentry.captureException(err, {
+        tags: {
+          faxNumber,
+        },
+      })
       // TODO: handle error
     }
   }

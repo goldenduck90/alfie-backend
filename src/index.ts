@@ -13,6 +13,21 @@ import resolvers from "./resolvers"
 import { connectToMongo } from "./utils/mongo"
 import authChecker from "./middleware/authChecker"
 import Context from "./types/context"
+import * as Sentry from "@sentry/node"
+import "@sentry/tracing"
+
+// If you want to use `@sentry/tracing` in your project directly, use a named import instead:
+// import * as SentryTracing from "@sentry/tracing"
+// Unused named imports are not guaranteed to patch the global hub.
+
+Sentry.init({
+  dsn: "https://e99c3274029e405f9e1b6dd50a63fd85@o4504040965603328.ingest.sentry.io/4504040986705920",
+  environment: process.env.NODE_ENV || "development",
+  // Set tracesSampleRate to 1.0 to capture 100%
+  // of transactions for performance monitoring.
+  // We recommend adjusting this value in production
+  tracesSampleRate: 1.0,
+})
 
 async function bootstrap() {
   const path = "/graphql"
