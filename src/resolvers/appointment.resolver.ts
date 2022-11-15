@@ -10,6 +10,7 @@ import {
   CreateAppointmentInput,
   UpdateAppointmentInput,
   EAAppointment,
+  EAAppointmentWithCustomer,
 } from "../schema/appointment.schema"
 
 @Resolver()
@@ -52,6 +53,12 @@ export default class AppointmentResolver {
     @Arg("limit", { defaultValue: 3, nullable: true }) limit?: number
   ) {
     return this.appointmentService.getAppointments(context.user._id, limit)
+  }
+
+  @Authorized([Role.Practitioner, Role.Admin])
+  @Query(() => [EAAppointmentWithCustomer])
+  providerAppointments(@Arg("eaProviderId") eaProviderId: string) {
+    return this.appointmentService.getProviderAppointments(eaProviderId)
   }
 
   @Authorized([Role.Admin])
