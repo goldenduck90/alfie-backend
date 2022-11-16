@@ -1,6 +1,7 @@
 import axios from "axios"
 import { UserModel } from "../schema/user.schema"
 import config from "config"
+import * as Sentry from "@sentry/node"
 const dailyInstance = axios.create({
   baseURL: process.env.DAILY_API_URL,
   headers: {
@@ -20,7 +21,7 @@ const createDailyRoom = async () => {
     })
     return data
   } catch (error) {
-    console.log(error, "error")
+    Sentry.captureException(error)
     throw new Error(error)
   }
 }
@@ -39,7 +40,7 @@ const createDailyMeetingToken = async (roomName: string) => {
     })
     return data
   } catch (error) {
-    console.log(error, "error")
+    Sentry.captureException(error)
     throw new Error(error)
   }
 }
@@ -61,7 +62,7 @@ const createMeetingAndToken = async (user_id: string) => {
     )
     return meetingRoomUrl
   } catch (error) {
-    console.log(error, "error")
+    Sentry.captureException(error)
     throw new Error(error)
   }
 }

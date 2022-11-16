@@ -1,7 +1,8 @@
+import { ApolloError } from "apollo-server"
 import * as AWS from "aws-sdk"
 import config from "config"
 import { format } from "date-fns"
-
+import * as Sentry from "@sentry/node"
 class EmailService {
   noReplyEmail: string
   baseUrl: string
@@ -91,7 +92,8 @@ class EmailService {
       const result = await this.awsSes.sendTemplatedEmail(params).promise()
       return result.MessageId
     } catch (error) {
-      console.log(error)
+      Sentry.captureException(error)
+      throw new ApolloError(error.message, "ERROR")
     }
   }
 

@@ -1,10 +1,9 @@
 import { SDK } from "@ringcentral/sdk"
+import * as Sentry from "@sentry/node"
+import config from "config"
 import { addSeconds, differenceInSeconds, isPast } from "date-fns"
 import FormData from "form-data"
-import config from "config"
 import { AuthorizationTokenModel } from "../schema/authorizationToken.schema"
-import * as Sentry from "@sentry/node"
-
 class FaxService {
   private sdk: SDK
 

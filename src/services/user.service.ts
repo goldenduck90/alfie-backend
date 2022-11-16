@@ -1,10 +1,19 @@
-import * as AWS from "aws-sdk"
+import * as Sentry from "@sentry/node"
 import { ApolloError } from "apollo-server-errors"
+import * as AWS from "aws-sdk"
 import bcrypt from "bcrypt"
 import config from "config"
 import { addMinutes, addMonths } from "date-fns"
-import { triggerEntireSendBirdFlow } from "../utils/sendBird"
+import stripe from "stripe"
 import { v4 as uuidv4 } from "uuid"
+import {
+  CheckoutModel,
+  CreateCheckoutInput,
+  CreateStripeCustomerInput,
+} from "../schema/checkout.schema"
+import { ProviderModel } from "../schema/provider.schema"
+import { TaskType } from "../schema/task.schema"
+import { UserTaskModel } from "../schema/task.user.schema"
 import {
   CreateUserInput,
   ForgotPasswordInput,
@@ -17,21 +26,12 @@ import {
   Weight,
 } from "../schema/user.schema"
 import { signJwt } from "../utils/jwt"
-import EmailService from "./email.service"
-import TaskService from "./task.service"
-import { TaskType } from "../schema/task.schema"
-import ProviderService from "./provider.service"
+import { triggerEntireSendBirdFlow } from "../utils/sendBird"
 import AkuteService from "./akute.service"
 import AppointmentService from "./appointment.service"
-import { ProviderModel } from "../schema/provider.schema"
-import { UserTaskModel } from "../schema/task.user.schema"
-import {
-  CheckoutModel,
-  CreateCheckoutInput,
-  CreateStripeCustomerInput,
-} from "../schema/checkout.schema"
-import stripe from "stripe"
-
+import EmailService from "./email.service"
+import ProviderService from "./provider.service"
+import TaskService from "./task.service"
 class UserService extends EmailService {
   private taskService: TaskService
   private providerService: ProviderService
@@ -365,7 +365,7 @@ class UserService extends EmailService {
         message: waitlistMessage,
       }
     } catch (error) {
-      console.log(error)
+      Sentry.captureException(error)
       throw new ApolloError(unknownError.message, unknownError.code)
     }
   }
@@ -649,6 +649,7 @@ class UserService extends EmailService {
       const users = await UserModel.find().populate("provider").lean()
       return users
     } catch (error) {
+      Sentry.captureException(error)
       throw new ApolloError(error.message, error.code)
     }
   }
