@@ -1,12 +1,10 @@
 import CheckoutService from "../services/checkout.service"
-import { Arg, Authorized, Mutation, Query, Resolver } from "type-graphql"
+import { Arg, Mutation, Query, Resolver } from "type-graphql"
 import {
   CheckoutResponse,
-  CompleteCheckoutInput,
   CreateCheckoutInput,
+  CreateStripeCustomerInput,
 } from "../schema/checkout.schema"
-import { MessageResponse, Role } from "../schema/user.schema"
-
 @Resolver()
 export default class CheckoutResolver {
   constructor(private checkoutService: CheckoutService) {
@@ -18,10 +16,9 @@ export default class CheckoutResolver {
     return this.checkoutService.createOrFindCheckout(input)
   }
 
-  @Authorized([Role.Admin])
-  @Mutation(() => MessageResponse)
-  completeCheckout(@Arg("input") input: CompleteCheckoutInput) {
-    return this.checkoutService.completeCheckout(input)
+  @Mutation(() => CheckoutResponse)
+  createOrUpdateStripeSession(@Arg("input") input: CreateStripeCustomerInput) {
+    return this.checkoutService.createStripeCheckoutSession(input)
   }
 
   @Query(() => CheckoutResponse)

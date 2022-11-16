@@ -25,12 +25,15 @@ import AkuteService from "./akute.service"
 import AppointmentService from "./appointment.service"
 import { ProviderModel } from "../schema/provider.schema"
 import { UserTaskModel } from "../schema/task.user.schema"
+import { CheckoutModel } from "../schema/checkout.schema"
+import CheckoutService from "./checkout.service"
 
 class UserService extends EmailService {
   private taskService: TaskService
   private providerService: ProviderService
   private akuteService: AkuteService
   private appointmentService: AppointmentService
+  private checkoutService: CheckoutService
   public awsDynamo: AWS.DynamoDB
 
   constructor() {
@@ -39,6 +42,7 @@ class UserService extends EmailService {
     this.providerService = new ProviderService()
     this.akuteService = new AkuteService()
     this.appointmentService = new AppointmentService()
+    this.checkoutService = new CheckoutService()
     this.awsDynamo = new AWS.DynamoDB({
       accessKeyId: process.env.AWS_ACCESS_KEY_ID,
       secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
@@ -260,7 +264,19 @@ class UserService extends EmailService {
       .findBySubscriptionId(stripeSubscriptionId)
       .lean()
     if (!user) {
-      throw new ApolloError(notFound.message, notFound.code)
+      const checkout = await CheckoutModel.find()
+        .findByStripeSubscriptionId(stripeSubscriptionId)
+        .count()
+
+      if (checkout) {
+        const message2 = await this.checkoutService.completeCheckout(
+          stripeSubscriptionId,
+          subscriptionExpiresAt
+        )
+        return { message: message2 }
+      } else {
+        throw new ApolloError(notFound.message, notFound.code)
+      }
     }
 
     user.subscriptionExpiresAt = subscriptionExpiresAt

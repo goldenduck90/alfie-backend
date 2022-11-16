@@ -1,8 +1,8 @@
 import { ApolloError } from "apollo-server-errors"
 import {
   CheckoutModel,
-  CompleteCheckoutInput,
   CreateCheckoutInput,
+  CreateStripeCustomerInput,
 } from "../schema/checkout.schema"
 import UserService from "./user.service"
 import config from "config"
@@ -18,22 +18,17 @@ class CheckoutService extends UserService {
     })
   }
 
-  async completeCheckout(input: CompleteCheckoutInput) {
+  async completeCheckout(
+    stripeSubscriptionId: string,
+    subscriptionExpiresAt: Date
+  ) {
     const { checkoutCompleted } = config.get("messages") as any
     const { notFound, alreadyCheckedOut } = config.get("errors.checkout") as any
 
-    const {
-      stripePaymentLinkId,
-      phone,
-      address,
-      stripeCustomerId,
-      subscriptionExpiresAt,
-      stripeCheckoutId,
-      stripeSubscriptionId,
-    } = input
     const checkout = await CheckoutModel.find()
-      .findByStripePaymentLinkId(stripePaymentLinkId)
+      .findByStripeSubscriptionId(stripeSubscriptionId)
       .lean()
+
     if (!checkout) {
       throw new ApolloError(notFound.message, notFound.code)
     }
@@ -52,20 +47,19 @@ class CheckoutService extends UserService {
     const { user } = await this.createUser({
       name: checkout.name,
       email: checkout.email,
-      phone,
+      phone: checkout.phone,
       dateOfBirth: checkout.dateOfBirth,
-      address,
+      address: checkout.shippingAddress,
       gender: checkout.gender,
       weightInLbs: checkout.weightInLbs,
       heightInInches: checkout.heightInInches,
-      stripeCustomerId,
+      stripeCustomerId: checkout.stripeCustomerId,
       subscriptionExpiresAt: expiresAt,
       stripeSubscriptionId,
       textOptIn: checkout.textOptIn,
     })
 
     checkout.checkedOut = true
-    checkout.stripeCheckoutId = stripeCheckoutId
     checkout.user = user._id
     await CheckoutModel.findByIdAndUpdate(checkout._id, checkout)
 
@@ -88,66 +82,124 @@ class CheckoutService extends UserService {
       throw new ApolloError(alreadyCheckedOut.message, alreadyCheckedOut.code)
     }
 
-    const paymentLink = await this.getPaymentLink({
-      paymentLinkId: checkout.stripePaymentLinkId,
-    })
-
     return {
-      checkout: {
-        ...checkout,
-        stripePaymentLinkId: paymentLink.id,
-      },
-      paymentLink: paymentLink.url,
+      checkout,
     }
   }
 
-  async getPaymentLink({
-    paymentLinkId,
-    update = true,
-  }: {
-    paymentLinkId?: string
-    update?: boolean
-  }) {
-    const { defaultPriceId } = config.get("stripe") as any
-    const baseUrl = config.get("baseUrl")
-    const path = config.get("paths.checkoutSuccess")
-    const url = `${baseUrl}/${path}`
+  async createStripeCheckoutSession({
+    _id,
+    shipping,
+    billing,
+    sameAsShipping,
+  }: CreateStripeCustomerInput) {
+    const { checkoutNotFound, alreadyCheckedOut } = config.get(
+      "errors.checkout"
+    ) as any
 
-    if (paymentLinkId) {
-      const existingLink = await this.stripeSdk.paymentLinks.retrieve(
-        paymentLinkId
+    const priceId = config.get("stripePriceId") as any
+
+    const checkout = await CheckoutModel.findById(_id)
+
+    if (!checkout) {
+      throw new ApolloError(checkoutNotFound.message, checkoutNotFound.code)
+    }
+
+    if (checkout.checkedOut) {
+      throw new ApolloError(alreadyCheckedOut.message, alreadyCheckedOut.code)
+    }
+
+    const stripeShipping = {
+      line1: shipping.line1,
+      line2: shipping.line2,
+      city: shipping.city,
+      state: shipping.state,
+      postal_code: shipping.postalCode,
+    }
+
+    if (checkout.stripeCustomerId) {
+      const customer = await this.stripeSdk.customers.retrieve(
+        checkout.stripeCustomerId
       )
 
-      if (existingLink.active) {
-        return {
-          id: existingLink.id,
-          url: existingLink.url,
+      await this.stripeSdk.customers.update(customer.id, {
+        shipping: {
+          name: checkout.name,
+          address: stripeShipping,
+        },
+        address: sameAsShipping
+          ? stripeShipping
+          : {
+              line1: billing.line1,
+              line2: billing.line2,
+              city: billing.city,
+              state: billing.state,
+              postal_code: billing.postalCode,
+            },
+      })
+
+      const subscription = await this.stripeSdk.subscriptions.retrieve(
+        checkout.stripeSubscriptionId,
+        {
+          expand: ["latest_invoice.payment_intent"],
         }
+      )
+
+      const latestInvoice = subscription.latest_invoice as any
+
+      // update checkout with stripe info
+      checkout.stripeClientSecret = latestInvoice.payment_intent.client_secret
+      await checkout.save()
+
+      return {
+        checkout,
       }
     }
 
-    const paymentLink = await this.stripeSdk.paymentLinks.create({
-      line_items: [{ price: defaultPriceId, quantity: 1 }],
-      after_completion: { type: "redirect", redirect: { url } },
-      shipping_address_collection: {
-        allowed_countries: ["US"],
+    // create customer
+    const customer = await this.stripeSdk.customers.create({
+      name: checkout.name,
+      email: checkout.email,
+      phone: checkout.phone,
+      shipping: {
+        name: checkout.name,
+        address: stripeShipping,
       },
-      phone_number_collection: {
-        enabled: true,
-      },
+      address: sameAsShipping
+        ? stripeShipping
+        : {
+            line1: billing.line1,
+            line2: billing.line2,
+            city: billing.city,
+            state: billing.state,
+            postal_code: billing.postalCode,
+          },
     })
 
-    if (paymentLinkId && update) {
-      await CheckoutModel.find()
-        .findByStripePaymentLinkId(paymentLinkId)
-        .updateOne({
-          stripePaymentLinkId: paymentLink.id,
-        })
-    }
+    // create subscription
+    const subscription = await this.stripeSdk.subscriptions.create({
+      customer: customer.id,
+      items: [
+        {
+          price: priceId,
+        },
+      ],
+      payment_behavior: "default_incomplete",
+      payment_settings: { save_default_payment_method: "on_subscription" },
+      expand: ["latest_invoice.payment_intent"],
+    })
+
+    const latestInvoice = subscription.latest_invoice as any
+
+    // update checkout with stripe info
+    checkout.stripeCustomerId = customer.id
+    checkout.stripeSubscriptionId = subscription.id
+    checkout.stripeClientSecret = latestInvoice.payment_intent.client_secret
+
+    await checkout.save()
 
     return {
-      id: paymentLink.id,
-      url: paymentLink.url,
+      checkout,
     }
   }
 
@@ -166,6 +218,7 @@ class CheckoutService extends UserService {
       heightInInches,
       weightInLbs,
       textOptIn,
+      phone,
     } = input
 
     const checkout = await CheckoutModel.find().findByEmail(email).lean()
@@ -184,11 +237,7 @@ class CheckoutService extends UserService {
       checkout.heightInInches = heightInInches
       checkout.weightInLbs = weightInLbs
       checkout.textOptIn = textOptIn
-
-      const { id, url } = await this.getPaymentLink({
-        update: false,
-      })
-      checkout.stripePaymentLinkId = id
+      checkout.phone = phone
 
       // update in db
       await CheckoutModel.findByIdAndUpdate(checkout._id, checkout)
@@ -197,7 +246,6 @@ class CheckoutService extends UserService {
       return {
         message: checkoutFound,
         checkout,
-        paymentLink: url,
       }
     }
 
@@ -220,8 +268,6 @@ class CheckoutService extends UserService {
       )
     }
 
-    const { id, url } = await this.getPaymentLink({})
-
     // create new checkout
     const newCheckout = await CheckoutModel.create({
       name,
@@ -232,15 +278,14 @@ class CheckoutService extends UserService {
       state,
       heightInInches,
       weightInLbs,
-      stripePaymentLinkId: id,
       textOptIn,
+      phone,
     })
 
     // return new checkout
     return {
       message: checkoutCreated,
       checkout: newCheckout,
-      paymentLink: url,
     }
   }
 }
