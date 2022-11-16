@@ -1,3 +1,4 @@
+import { UserTask } from "../schema/task.user.schema"
 import { Arg, Authorized, Ctx, Mutation, Query, Resolver } from "type-graphql"
 import {
   CreateUserInput,
@@ -13,6 +14,11 @@ import {
 } from "../schema/user.schema"
 import UserService from "../services/user.service"
 import Context from "../types/context"
+import {
+  CreateCheckoutInput,
+  CreateStripeCustomerInput,
+  CheckoutResponse,
+} from "../schema/checkout.schema"
 
 @Resolver()
 export default class UserResolver {
@@ -60,5 +66,32 @@ export default class UserResolver {
   @Query(() => [User])
   users() {
     return this.userService.getAllUsers()
+  }
+
+  @Authorized([Role.Practitioner, Role.Doctor, Role.Admin])
+  // Query returns an array of User and a custom field called tasks
+  @Query(() => [User])
+  getAllPatientsByPractitioner(@Ctx() context: Context) {
+    return this.userService.getAllUsersByAProvider(context.user._id)
+  }
+  @Authorized([Role.Doctor, Role.Admin, Role.Practitioner])
+  @Query(() => [UserTask])
+  getAllUserTasksByUser(@Arg("userId") userId: string) {
+    return this.userService.getAllUserTasksByUser(userId)
+  }
+
+  @Mutation(() => CheckoutResponse)
+  createOrFindCheckout(@Arg("input") input: CreateCheckoutInput) {
+    return this.userService.createOrFindCheckout(input)
+  }
+
+  @Mutation(() => CheckoutResponse)
+  createOrUpdateStripeSession(@Arg("input") input: CreateStripeCustomerInput) {
+    return this.userService.createStripeCheckoutSession(input)
+  }
+
+  @Query(() => CheckoutResponse)
+  checkout(@Arg("id") id: string) {
+    return this.userService.getCheckout(id)
   }
 }

@@ -2,6 +2,7 @@ import jwt from "jsonwebtoken"
 import { User } from "../schema/user.schema"
 
 export const signJwt = (
+  // Add eaProviderId from the User.Provider schema
   object: Pick<User, "_id" | "name" | "email" | "role">,
   options?: jwt.SignOptions | undefined
 ) => {

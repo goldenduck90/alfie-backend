@@ -210,7 +210,11 @@ class AppointmentService {
         serviceId: eaServiceId,
         notes: notes || "",
       })
+      // call complete task for schedule appt
 
+      await UserModel.findByIdAndUpdate(userId, {
+        meetingUrl: meetingData,
+      })
       if (
         providerType === Role.Practitioner &&
         provider.eaProviderId !== eaProviderId
@@ -282,7 +286,9 @@ class AppointmentService {
       serviceId: eaServiceId,
       notes: notes || "",
     })
-
+    await UserModel.findByIdAndUpdate(userId, {
+      meetingUrl: meetingData,
+    })
     if (
       providerType === Role.Practitioner &&
       provider.eaProviderId !== eaProviderId
@@ -413,6 +419,46 @@ class AppointmentService {
       },
     }))
 
+    return apps
+  }
+  async getProviderAppointments(eaProviderId: string) {
+    const { data } = await this.axios.get("/appointments", {
+      params: {
+        //add a param for by a specific day
+        with: `id_users_provider=${eaProviderId}`,
+        length: 1000,
+      },
+    })
+
+    const removePastAppointments = data.filter(
+      (appointment: any) => new Date(appointment.start) < new Date()
+    )
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const apps = data.map((app: any) => ({
+      eaAppointmentId: app.id,
+      startTimeInUtc: new Date(app.start),
+      endTimeInUtc: new Date(app.end),
+      location: app.location,
+      notes: app.notes,
+      eaProvider: {
+        id: app.provider.id,
+        name: app.provider.firstName + " " + app.provider.lastName,
+        email: app.provider.email,
+        type: app.provider.type,
+        numberOfPatients: app.provider.numberOfPatients,
+      },
+      eaService: {
+        id: app.service.id,
+        name: app.service.name,
+        durationInMins: app.service.duration,
+        description: app.service.description,
+      },
+      eaCustomer: {
+        id: app.customer.id,
+        name: app.customer.firstName + " " + app.customer.lastName,
+        email: app.customer.email,
+      },
+    }))
     return apps
   }
 }

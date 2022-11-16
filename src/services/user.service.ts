@@ -1,10 +1,19 @@
-import * as AWS from "aws-sdk"
+import * as Sentry from "@sentry/node"
 import { ApolloError } from "apollo-server-errors"
+import * as AWS from "aws-sdk"
 import bcrypt from "bcrypt"
 import config from "config"
-import { addMinutes } from "date-fns"
-import { triggerEntireSendBirdFlow } from "../utils/sendBird"
+import { addMinutes, addMonths } from "date-fns"
+import stripe from "stripe"
 import { v4 as uuidv4 } from "uuid"
+import {
+  CheckoutModel,
+  CreateCheckoutInput,
+  CreateStripeCustomerInput,
+} from "../schema/checkout.schema"
+import { ProviderModel } from "../schema/provider.schema"
+import { TaskType } from "../schema/task.schema"
+import { UserTaskModel } from "../schema/task.user.schema"
 import {
   CreateUserInput,
   ForgotPasswordInput,
@@ -17,20 +26,19 @@ import {
   Weight,
 } from "../schema/user.schema"
 import { signJwt } from "../utils/jwt"
-import EmailService from "./email.service"
-import TaskService from "./task.service"
-import { TaskType } from "../schema/task.schema"
-import ProviderService from "./provider.service"
+import { triggerEntireSendBirdFlow } from "../utils/sendBird"
 import AkuteService from "./akute.service"
 import AppointmentService from "./appointment.service"
-import { ProviderModel } from "../schema/provider.schema"
-import * as Sentry from "@sentry/node"
+import EmailService from "./email.service"
+import ProviderService from "./provider.service"
+import TaskService from "./task.service"
 class UserService extends EmailService {
   private taskService: TaskService
   private providerService: ProviderService
   private akuteService: AkuteService
   private appointmentService: AppointmentService
   public awsDynamo: AWS.DynamoDB
+  private stripeSdk: stripe
 
   constructor() {
     super()
@@ -42,6 +50,9 @@ class UserService extends EmailService {
       accessKeyId: process.env.AWS_ACCESS_KEY_ID,
       secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
       region: process.env.AWS_REGION,
+    })
+    this.stripeSdk = new stripe(process.env.STRIPE_SECRET_KEY, {
+      apiVersion: "2022-08-01",
     })
   }
 
@@ -259,7 +270,19 @@ class UserService extends EmailService {
       .findBySubscriptionId(stripeSubscriptionId)
       .lean()
     if (!user) {
-      throw new ApolloError(notFound.message, notFound.code)
+      const checkout = await CheckoutModel.find()
+        .findByStripeSubscriptionId(stripeSubscriptionId)
+        .count()
+
+      if (checkout) {
+        const message2 = await this.completeCheckout(
+          stripeSubscriptionId,
+          subscriptionExpiresAt
+        )
+        return { message: message2.message }
+      } else {
+        throw new ApolloError(notFound.message, notFound.code)
+      }
     }
 
     user.subscriptionExpiresAt = subscriptionExpiresAt
@@ -567,6 +590,7 @@ class UserService extends EmailService {
           name: provider.firstName + " " + provider.lastName,
           email: provider.email,
           role: provider.type,
+          eaProviderId: provider.eaProviderId,
         },
       }
     }
@@ -627,6 +651,303 @@ class UserService extends EmailService {
     } catch (error) {
       Sentry.captureException(error)
       throw new ApolloError(error.message, error.code)
+    }
+  }
+
+  async getAllUsersByAProvider(providerId: string) {
+    try {
+      const users = await UserModel.find({ provider: providerId })
+        .populate("provider")
+        .lean()
+      return users
+    } catch (error) {
+      throw new ApolloError(error.message, error.code)
+    }
+  }
+  async getAllUserTasksByUser(userId: string) {
+    try {
+      const userTasks = await UserTaskModel.find({ user: userId })
+        .populate("task")
+        .lean()
+      return userTasks
+    } catch (error) {
+      throw new ApolloError(error.message, error.code)
+    }
+  }
+
+  async completeCheckout(
+    stripeSubscriptionId: string,
+    subscriptionExpiresAt: Date
+  ) {
+    const { checkoutCompleted } = config.get("messages") as any
+    const { notFound, alreadyCheckedOut } = config.get("errors.checkout") as any
+
+    const checkout = await CheckoutModel.find()
+      .findByStripeSubscriptionId(stripeSubscriptionId)
+      .lean()
+
+    if (!checkout) {
+      throw new ApolloError(notFound.message, notFound.code)
+    }
+
+    if (checkout.checkedOut) {
+      throw new ApolloError(alreadyCheckedOut.message, alreadyCheckedOut.code)
+    }
+
+    let expiresAt
+    if (subscriptionExpiresAt) {
+      expiresAt = subscriptionExpiresAt
+    } else {
+      expiresAt = addMonths(new Date(), 1)
+    }
+
+    const { user } = await this.createUser({
+      name: checkout.name,
+      email: checkout.email,
+      phone: checkout.phone,
+      dateOfBirth: checkout.dateOfBirth,
+      address: checkout.shippingAddress,
+      gender: checkout.gender,
+      weightInLbs: checkout.weightInLbs,
+      heightInInches: checkout.heightInInches,
+      stripeCustomerId: checkout.stripeCustomerId,
+      subscriptionExpiresAt: expiresAt,
+      stripeSubscriptionId,
+      textOptIn: checkout.textOptIn,
+    })
+
+    checkout.checkedOut = true
+    checkout.user = user._id
+    await CheckoutModel.findByIdAndUpdate(checkout._id, checkout)
+
+    return {
+      message: checkoutCompleted,
+    }
+  }
+
+  async getCheckout(checkoutId: string) {
+    const { checkoutNotFound, alreadyCheckedOut } = config.get(
+      "errors.checkout"
+    ) as any
+
+    const checkout = await CheckoutModel.findById(checkoutId).lean()
+    if (!checkout) {
+      throw new ApolloError(checkoutNotFound.message, checkoutNotFound.code)
+    }
+
+    if (checkout.checkedOut) {
+      throw new ApolloError(alreadyCheckedOut.message, alreadyCheckedOut.code)
+    }
+
+    return {
+      checkout,
+    }
+  }
+
+  async createStripeCheckoutSession({
+    _id,
+    shipping,
+    billing,
+    sameAsShipping,
+  }: CreateStripeCustomerInput) {
+    const { checkoutNotFound, alreadyCheckedOut } = config.get(
+      "errors.checkout"
+    ) as any
+
+    const priceId = config.get("stripePriceId") as any
+
+    const checkout = await CheckoutModel.findById(_id)
+
+    if (!checkout) {
+      throw new ApolloError(checkoutNotFound.message, checkoutNotFound.code)
+    }
+
+    if (checkout.checkedOut) {
+      throw new ApolloError(alreadyCheckedOut.message, alreadyCheckedOut.code)
+    }
+
+    const stripeShipping = {
+      line1: shipping.line1,
+      line2: shipping.line2,
+      city: shipping.city,
+      state: shipping.state,
+      postal_code: shipping.postalCode,
+    }
+
+    if (checkout.stripeCustomerId) {
+      const customer = await this.stripeSdk.customers.retrieve(
+        checkout.stripeCustomerId
+      )
+
+      await this.stripeSdk.customers.update(customer.id, {
+        shipping: {
+          name: checkout.name,
+          address: stripeShipping,
+        },
+        address: sameAsShipping
+          ? stripeShipping
+          : {
+              line1: billing.line1,
+              line2: billing.line2,
+              city: billing.city,
+              state: billing.state,
+              postal_code: billing.postalCode,
+            },
+      })
+
+      const subscription = await this.stripeSdk.subscriptions.retrieve(
+        checkout.stripeSubscriptionId,
+        {
+          expand: ["latest_invoice.payment_intent"],
+        }
+      )
+
+      const latestInvoice = subscription.latest_invoice as any
+
+      // update checkout with stripe info
+      checkout.stripeClientSecret = latestInvoice.payment_intent.client_secret
+      checkout.shippingAddress = shipping
+      checkout.billingAddress = sameAsShipping ? shipping : billing
+
+      await checkout.save()
+
+      return {
+        checkout,
+      }
+    }
+
+    // create customer
+    const customer = await this.stripeSdk.customers.create({
+      name: checkout.name,
+      email: checkout.email,
+      phone: checkout.phone,
+      shipping: {
+        name: checkout.name,
+        address: stripeShipping,
+      },
+      address: sameAsShipping
+        ? stripeShipping
+        : {
+            line1: billing.line1,
+            line2: billing.line2,
+            city: billing.city,
+            state: billing.state,
+            postal_code: billing.postalCode,
+          },
+    })
+
+    // create subscription
+    const subscription = await this.stripeSdk.subscriptions.create({
+      customer: customer.id,
+      items: [
+        {
+          price: priceId,
+        },
+      ],
+      payment_behavior: "default_incomplete",
+      payment_settings: { save_default_payment_method: "on_subscription" },
+      expand: ["latest_invoice.payment_intent"],
+    })
+
+    const latestInvoice = subscription.latest_invoice as any
+
+    // update checkout with stripe info
+    checkout.stripeCustomerId = customer.id
+    checkout.stripeSubscriptionId = subscription.id
+    checkout.stripeClientSecret = latestInvoice.payment_intent.client_secret
+    checkout.shippingAddress = shipping
+    checkout.billingAddress = sameAsShipping ? shipping : billing
+
+    await checkout.save()
+
+    return {
+      checkout,
+    }
+  }
+
+  async createOrFindCheckout(input: CreateCheckoutInput) {
+    const { checkoutFound, checkoutCreated } = config.get("messages") as any
+    const { alreadyCheckedOut } = config.get("errors.checkout") as any
+    const { emailSubscribersTable } = config.get("dynamoDb") as any
+
+    const {
+      name,
+      email,
+      weightLossMotivator,
+      dateOfBirth,
+      gender,
+      state,
+      heightInInches,
+      weightInLbs,
+      textOptIn,
+      phone,
+    } = input
+
+    const checkout = await CheckoutModel.find().findByEmail(email).lean()
+    if (checkout) {
+      // check if already checked out
+      if (checkout.checkedOut) {
+        throw new ApolloError(alreadyCheckedOut.message, alreadyCheckedOut.code)
+      }
+
+      // update values
+      checkout.name = name
+      checkout.weightLossMotivator = weightLossMotivator
+      checkout.dateOfBirth = dateOfBirth
+      checkout.gender = gender
+      checkout.state = state
+      checkout.heightInInches = heightInInches
+      checkout.weightInLbs = weightInLbs
+      checkout.textOptIn = textOptIn
+      checkout.phone = phone
+
+      // update in db
+      await CheckoutModel.findByIdAndUpdate(checkout._id, checkout)
+
+      // return updated checkout
+      return {
+        message: checkoutFound,
+        checkout,
+      }
+    }
+
+    // send to email subscriber lambda
+    const { $response } = await this.awsDynamo
+      .putItem({
+        TableName: emailSubscribersTable,
+        Item: {
+          emailaddress: { S: email },
+          fullname: { S: name },
+          state: { S: state },
+        },
+      })
+      .promise()
+
+    if ($response.error) {
+      console.log(
+        "An error occured creating entry in dynamodb",
+        $response.error.message
+      )
+    }
+
+    // create new checkout
+    const newCheckout = await CheckoutModel.create({
+      name,
+      email,
+      weightLossMotivator,
+      dateOfBirth,
+      gender,
+      state,
+      heightInInches,
+      weightInLbs,
+      textOptIn,
+      phone,
+    })
+
+    // return new checkout
+    return {
+      message: checkoutCreated,
+      checkout: newCheckout,
     }
   }
 }

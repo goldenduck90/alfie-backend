@@ -189,3 +189,19 @@ export class EAAppointment {
   @Field(() => String, { nullable: true })
   notes?: string
 }
+@ObjectType()
+export class EACustomer {
+  @Field(() => String, { nullable: true })
+  name: string
+
+  @Field(() => String)
+  email: string
+
+  @Field(() => String)
+  phone: string
+}
+@ObjectType()
+export class EAAppointmentWithCustomer extends EAAppointment {
+  @Field(() => EACustomer)
+  eaCustomer: EACustomer
+}

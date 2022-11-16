@@ -1,3 +1,10 @@
+import * as Sentry from "@sentry/node"
+import { ApolloError } from "apollo-server"
+import config from "config"
+import { addDays, isPast } from "date-fns"
+import { LabModel } from "../schema/lab.schema"
+import { ProviderModel } from "../schema/provider.schema"
+import { CreateTaskInput, TaskModel, TaskType } from "../schema/task.schema"
 import {
   CompleteUserTaskInput,
   CreateUserTaskInput,
@@ -7,17 +14,23 @@ import {
   UserTask,
   UserTaskModel,
 } from "../schema/task.user.schema"
-import { CreateTaskInput, TaskModel, TaskType } from "../schema/task.schema"
-import { ApolloError } from "apollo-server"
-import config from "config"
-import EmailService from "./email.service"
 import { UserModel } from "../schema/user.schema"
-import { addDays, isPast } from "date-fns"
-import { ProviderModel } from "../schema/provider.schema"
 import AkuteService from "./akute.service"
-import * as Sentry from "@sentry/node"
+import EmailService from "./email.service"
+import FaxService from "./fax.service"
+import PDFService from "./pdf.service"
 const akuteService = new AkuteService()
+
 class TaskService extends EmailService {
+  private pdfService: PDFService
+  private faxService: FaxService
+
+  constructor() {
+    super()
+    this.pdfService = new PDFService()
+    this.faxService = new FaxService()
+  }
+
   async createTask(input: CreateTaskInput) {
     const { name, type, interval } = input
 
@@ -90,7 +103,6 @@ class TaskService extends EmailService {
       throw new ApolloError(notFound.message, notFound.code)
     }
 
-    console.log(userTask, "userTask")
     userTask.completed = true
     userTask.completedAt = new Date()
     userTask.answers = answers
@@ -108,7 +120,6 @@ class TaskService extends EmailService {
       user.weights.push(weight)
       await user.save()
     }
-    console.log(task.type, "task.type")
     if (task.type === TaskType.NEW_PATIENT_INTAKE_FORM) {
       console.log("NEW_PATIENT_INTAKE_FORM")
       // If the task type is NEW_PATIENT_INTAKE_FORM and hasRequiredLabs is true, we want to create a new task for the patient to schedule their first appointment
@@ -121,7 +132,6 @@ class TaskService extends EmailService {
       //    "set_as_primary": "boolean"
       // }
       const user = await UserModel.findById(userTask.user)
-
       const pharmacyId = answers.find((a) => a.key === "pharmacyLocation").value
       const patientId = user?.akutePatientId
       await akuteService.createPharmacyListForPatient(
@@ -129,10 +139,9 @@ class TaskService extends EmailService {
         patientId,
         true
       )
-      const updatedUser = await UserModel.findByIdAndUpdate(userTask.user, {
-        pharmacyLocation: pharmacyId,
-      })
-      console.log(updatedUser, "updatedUser")
+
+      user.pharmacyLocation = pharmacyId
+
       const hasRequiredLabs = answers.find((a) => a.key === "hasRequiredLabs")
       if (hasRequiredLabs && hasRequiredLabs.value === "true") {
         const newTaskInput: CreateUserTaskInput = {
@@ -140,7 +149,56 @@ class TaskService extends EmailService {
           userId: userTask.user.toString(),
         }
         await this.assignTaskToUser(newTaskInput)
+      } else {
+        try {
+          // get user provider
+          const provider = await ProviderModel.findById(user.provider)
+
+          // get labcorp location fax number
+          const locationId = answers.find(
+            (a) => a.key === "labCorpLocation"
+          ).value
+          const labCorpLocation = await LabModel.findById(locationId)
+          const faxNumber = labCorpLocation.faxNumber
+
+          // calculate bmi
+          const bmi =
+            (user.weights[0].value /
+              user.heightInInches /
+              user.heightInInches) *
+            703.071720346
+
+          // create pdf
+          const pdfBuffer = await this.pdfService.createLabOrderPdf({
+            patientFullName: user.name,
+            providerFullName: `${provider.firstName} ${provider.lastName}`,
+            providerNpi: provider.npi,
+            patientDob: user.dateOfBirth,
+            icdCode: 27 < bmi && bmi < 30 ? "E66.3" : "E66.9",
+          })
+
+          // send fax to labcorp location
+          const faxResult = await this.faxService.sendFax({
+            faxNumber,
+            pdfBuffer,
+          })
+
+          console.log(faxResult, `faxResult for user: ${user.id}`)
+          Sentry.captureMessage(
+            `faxResult: ${JSON.stringify(faxResult)} for user: ${user.id}`
+          )
+        } catch (error) {
+          console.log(`error with faxResult for user: ${user.id}`, error)
+          Sentry.captureException(error, {
+            tags: {
+              userId: user.id,
+              patientId: user.akutePatientId,
+            },
+          })
+        }
       }
+
+      await user.save()
     }
 
     return {
@@ -213,7 +271,7 @@ class TaskService extends EmailService {
       "errors.tasks"
     ) as any
     const { userId, taskType } = input
-    console.log({ userId, taskType })
+
     const task = await TaskModel.find().findByType(taskType).lean()
     if (!task) {
       throw new ApolloError(notFound.message, notFound.code)
@@ -289,7 +347,7 @@ class TaskService extends EmailService {
         .populate("task")
         .populate("user")
       // console.log(userTasks)
-      const providerId = userTasks[0].user.provider.toHexString()
+      const providerId = userTasks[0]?.user.provider.toHexString()
       const lookUpProviderEmail = await ProviderModel.findOne({
         _id: providerId,
       })
