@@ -805,6 +805,9 @@ class UserService extends EmailService {
 
       // update checkout with stripe info
       checkout.stripeClientSecret = latestInvoice.payment_intent.client_secret
+      checkout.shippingAddress = shipping
+      checkout.billingAddress = sameAsShipping ? shipping : billing
+
       await checkout.save()
 
       return {
@@ -851,6 +854,8 @@ class UserService extends EmailService {
     checkout.stripeCustomerId = customer.id
     checkout.stripeSubscriptionId = subscription.id
     checkout.stripeClientSecret = latestInvoice.payment_intent.client_secret
+    checkout.shippingAddress = shipping
+    checkout.billingAddress = sameAsShipping ? shipping : billing
 
     await checkout.save()
 
