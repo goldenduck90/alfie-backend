@@ -2,19 +2,19 @@ import { ApolloError } from "apollo-server"
 import axios, { AxiosInstance } from "axios"
 import config from "config"
 import { addMinutes, format } from "date-fns"
-import { createMeetingAndToken } from "../utils/daily"
+import { zonedTimeToUtc } from "date-fns-tz"
+import { IEAProvider } from "../@types/easyAppointmentTypes"
 import {
-  CreateCustomerInput,
   AllTimeslotsInput,
-  ProviderTimeslotsInput,
-  EAProvider,
   CreateAppointmentInput,
+  CreateCustomerInput,
+  EAProvider,
+  ProviderTimeslotsInput,
   UpdateAppointmentInput,
 } from "../schema/appointment.schema"
-import { Role, UserModel } from "../schema/user.schema"
 import { ProviderModel } from "../schema/provider.schema"
-import { zonedTimeToUtc } from "date-fns-tz"
-
+import { Role, UserModel } from "../schema/user.schema"
+import { createMeetingAndToken } from "../utils/daily"
 class AppointmentService {
   public baseUrl: string
   public axios: AxiosInstance
@@ -428,9 +428,9 @@ class AppointmentService {
       },
     })
 
-    const removePastAppointments = data.filter(
-      (appointment: any) => new Date(appointment.start) < new Date()
-    )
+    // const removePastAppointments = data.filter(
+    //   (appointment: any) => new Date(appointment.start) < new Date()
+    // )
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const apps = data.map((app: any) => ({
       eaAppointmentId: app.id,
@@ -458,6 +458,18 @@ class AppointmentService {
       },
     }))
     return apps
+  }
+  async updateProvider(eaProviderId: string, providerData: IEAProvider) {
+    try {
+      const { data } = await this.axios.put(
+        `/providers/${eaProviderId}`,
+        providerData
+      )
+      console.log(data, "data")
+      return data
+    } catch (err) {
+      console.log(err)
+    }
   }
 }
 
