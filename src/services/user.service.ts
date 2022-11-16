@@ -279,7 +279,7 @@ class UserService extends EmailService {
           stripeSubscriptionId,
           subscriptionExpiresAt
         )
-        return { message: message2 }
+        return { message: message2.message }
       } else {
         throw new ApolloError(notFound.message, notFound.code)
       }
