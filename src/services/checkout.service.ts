@@ -8,11 +8,12 @@ import UserService from "./user.service"
 import config from "config"
 import stripe from "stripe"
 import { addMonths } from "date-fns"
-class CheckoutService extends UserService {
+class CheckoutService {
   private stripeSdk: stripe
+  private userService: UserService
 
   constructor() {
-    super()
+    this.userService = new UserService()
     this.stripeSdk = new stripe(process.env.STRIPE_SECRET_KEY, {
       apiVersion: "2022-08-01",
     })
@@ -44,7 +45,7 @@ class CheckoutService extends UserService {
       expiresAt = addMonths(new Date(), 1)
     }
 
-    const { user } = await this.createUser({
+    const { user } = await this.userService.createUser({
       name: checkout.name,
       email: checkout.email,
       phone: checkout.phone,
@@ -250,7 +251,7 @@ class CheckoutService extends UserService {
     }
 
     // send to email subscriber lambda
-    const { $response } = await this.awsDynamo
+    const { $response } = await this.userService.awsDynamo
       .putItem({
         TableName: emailSubscribersTable,
         Item: {
