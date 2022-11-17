@@ -475,7 +475,6 @@ class AppointmentService {
   async getProvider(eaProviderId: string) {
     try {
       const { data } = await this.axios.get(`/providers/${eaProviderId}`)
-      // data?.workingPlan is an object that contains 7 objects 1 for each day of the week I need to turn this into an array of objects where each object is a day of the week
       return data
     } catch (err) {
       console.log(err)

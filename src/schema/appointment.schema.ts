@@ -231,8 +231,8 @@ export class EAWorkingPlanDay implements Day {
   @Field(() => String, { nullable: true })
   end?: string
 
-  @Field(() => EAWorkingPlanBreak, { nullable: true })
-  breaks?: Break[]
+  @Field(() => [EAWorkingPlanBreak], { nullable: true })
+  breaks?: EAWorkingPlanBreak[]
 }
 @ObjectType()
 @InputType("EAProviderProfileWorkingPlanInput")
