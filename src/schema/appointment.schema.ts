@@ -238,39 +238,39 @@ export class EAWorkingPlanDay implements Day {
 @InputType("EAProviderProfileWorkingPlanInput")
 export class EAWorkingPlan implements WorkingPlan {
   @Field(() => EAWorkingPlanDay, { nullable: true })
-  monday: EAWorkingPlanDay
+  monday?: EAWorkingPlanDay
 
   @Field(() => EAWorkingPlanDay, { nullable: true })
-  tuesday: EAWorkingPlanDay
+  tuesday?: EAWorkingPlanDay
 
   @Field(() => EAWorkingPlanDay, { nullable: true })
   wednesday?: EAWorkingPlanDay
 
   @Field(() => EAWorkingPlanDay, { nullable: true })
-  thursday: EAWorkingPlanDay
+  thursday?: EAWorkingPlanDay
 
   @Field(() => EAWorkingPlanDay, { nullable: true })
-  friday: EAWorkingPlanDay
+  friday?: EAWorkingPlanDay
 
   @Field(() => EAWorkingPlanDay, { nullable: true })
-  saturday: EAWorkingPlanDay
+  saturday?: EAWorkingPlanDay
 
   @Field(() => EAWorkingPlanDay, { nullable: true })
-  sunday: EAWorkingPlanDay
+  sunday?: EAWorkingPlanDay
 }
 
 @ObjectType()
 @InputType("EAProviderProfileSettingsInput")
 export class EAProviderSettings implements Settings {
   @Field(() => EAWorkingPlan, { nullable: true })
-  workingPlan: EAWorkingPlan
+  workingPlan?: EAWorkingPlan
 }
 @ObjectType()
 @InputType("EAProviderProfileInput")
 export class EAProviderProfile implements IEAProvider {
-  @Field(() => String)
-  firstName: string
+  @Field(() => String, { nullable: true })
+  firstName?: string
 
   @Field(() => EAProviderSettings, { nullable: true })
-  settings: EAProviderSettings
+  settings?: EAProviderSettings
 }

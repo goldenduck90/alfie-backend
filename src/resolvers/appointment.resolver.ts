@@ -70,6 +70,11 @@ export default class AppointmentResolver {
   ) {
     return this.appointmentService.updateProvider(eaProviderId, input)
   }
+  @Authorized([Role.Practitioner, Role.Admin])
+  @Query(() => EAProviderProfile)
+  getAProvider(@Arg("eaProviderId") eaProviderId: string) {
+    return this.appointmentService.getProvider(eaProviderId)
+  }
 
   @Authorized([Role.Admin])
   @Mutation(() => String)
