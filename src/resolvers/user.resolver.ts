@@ -62,6 +62,12 @@ export default class UserResolver {
   me(@Ctx() context: Context) {
     return this.userService.getUser(context.user._id)
   }
+
+  @Query(() => User)
+  user(@Ctx() context: Context) {
+    return this.userService.getUser(context.user._id)
+  }
+
   @Authorized([Role.Admin])
   @Query(() => [User])
   users() {
