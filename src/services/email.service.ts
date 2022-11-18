@@ -1,7 +1,7 @@
+import * as Sentry from "@sentry/node"
 import * as AWS from "aws-sdk"
 import config from "config"
 import { format } from "date-fns"
-
 class EmailService {
   noReplyEmail: string
   baseUrl: string
@@ -89,8 +89,10 @@ class EmailService {
         Source: "patients@joinalfie.com",
       }
       const result = await this.awsSes.sendTemplatedEmail(params).promise()
+      console.log(result, "result")
       return result.MessageId
     } catch (error) {
+      Sentry.captureException(error)
       console.log(error)
     }
   }
