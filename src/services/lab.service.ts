@@ -1,6 +1,7 @@
 import { BatchCreateOrUpdateLabsInput, LabModel } from "../schema/lab.schema"
 import axios from "axios"
 import { GooglePlacesSearchInput } from "../schema/googlePlaces.schema"
+import * as Sentry from "@sentry/node"
 class LabService {
   async batchCreateOrUpdateLabs(input: BatchCreateOrUpdateLabsInput) {
     const { labs } = input
@@ -28,7 +29,8 @@ class LabService {
       const response = await axios.get(url)
       return response.data.predictions
     } catch (error) {
-      console.log(error)
+      Sentry.captureException(error)
+      return []
     }
   }
   async getAllLabLocations() {
@@ -36,7 +38,8 @@ class LabService {
       const labLocations = await LabModel.find({})
       return labLocations
     } catch (error) {
-      console.log(error)
+      Sentry.captureException(error)
+      return []
     }
   }
 }

@@ -4,7 +4,7 @@ import config from "config"
 import { format } from "date-fns"
 import { PharmacyLocationInput } from "../schema/akute.schema"
 import { CreatePatientInput, UserModel } from "../schema/user.schema"
-
+import * as Sentry from "@sentry/node"
 class AkuteService {
   public baseUrl: string
   public axios: AxiosInstance
@@ -65,7 +65,8 @@ class AkuteService {
 
       return data.data.id
     } catch (error) {
-      console.log(error)
+      Sentry.captureException(error)
+      throw new ApolloError(error.message, "ERROR")
     }
   }
   async convertAddressToLatLng(
@@ -87,7 +88,8 @@ class AkuteService {
         }
       }
     } catch (error) {
-      console.log(error)
+      Sentry.captureException(error)
+      throw new ApolloError(error.message, "ERROR")
     }
   }
   async getPharmacyLocations(input: PharmacyLocationInput, userId: string) {
@@ -112,7 +114,8 @@ class AkuteService {
       )
       return pharmacyLocations
     } catch (error) {
-      console.log(error)
+      Sentry.captureException(error)
+      throw new ApolloError(error.message, "ERROR")
     }
   }
   async createPharmacyListForPatient(
@@ -128,7 +131,8 @@ class AkuteService {
       })
       return data
     } catch (e) {
-      new ApolloError(e.message, "ERROR")
+      Sentry.captureException(e)
+      throw new ApolloError(e.message, "ERROR")
     }
   }
 }

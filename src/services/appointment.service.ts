@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/node"
 import { ApolloError } from "apollo-server"
 import axios, { AxiosInstance } from "axios"
 import config from "config"
@@ -77,7 +78,8 @@ class AppointmentService {
       // return easyappointments customer id
       return data.id
     } catch (error) {
-      console.log(error)
+      Sentry.captureException(error)
+      throw new ApolloError(error.message, "ERROR")
     }
   }
 
@@ -248,7 +250,8 @@ class AppointmentService {
         eaService: response.service,
       }
     } catch (error) {
-      console.log(error)
+      Sentry.captureException(error)
+      throw new ApolloError(error.message, "ERROR")
     }
   }
 
@@ -350,7 +353,6 @@ class AppointmentService {
     if (!user.eaCustomerId) {
       throw new ApolloError(noEaCustomerId.message, noEaCustomerId.code)
     }
-
     const { data } = await this.axios.get(`/appointments/${eaAppointmentId}`)
     return {
       eaAppointmentId: data.id,
@@ -384,19 +386,20 @@ class AppointmentService {
     if (!user.eaCustomerId) {
       throw new ApolloError(noEaCustomerId.message, noEaCustomerId.code)
     }
-
     const { data } = await this.axios.get("/appointments", {
       params: {
-        with: `id_users_customer=${user.eaCustomerId}`,
+        with: `id_users_customer=${Number(user.eaCustomerId)}`,
         length: limit,
       },
     })
-    console.log(data)
-    const removePastAppointments = data.filter(
+    const removePastAppointments: any = data.filter(
       (appointment: any) => new Date(appointment.start) > new Date()
     )
+    const userSpecificAppintments = removePastAppointments.filter(
+      (appointment: any) => appointment.customerId === user.eaCustomerId
+    )
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const apps = removePastAppointments.map((app: any) => ({
+    const apps = userSpecificAppintments.map((app: any) => ({
       eaAppointmentId: app.id,
       startTimeInUtc: new Date(app.start),
       endTimeInUtc: new Date(app.end),

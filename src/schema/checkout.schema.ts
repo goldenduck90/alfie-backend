@@ -22,30 +22,58 @@ function findByEmail(
   return this.findOne({ email })
 }
 
-function findByStripePaymentLinkId(
+function findByStripeCustomerId(
   this: ReturnModelType<typeof Checkout, QueryHelpers>,
-  stripePaymentLinkId: Checkout["stripePaymentLinkId"]
+  stripeCustomerId: Checkout["stripeCustomerId"]
 ) {
-  return this.findOne({ stripePaymentLinkId })
+  return this.findOne({ stripeCustomerId })
+}
+
+function findByStripeSubscriptionId(
+  this: ReturnModelType<typeof Checkout, QueryHelpers>,
+  stripeSubscriptionId: Checkout["stripeSubscriptionId"]
+) {
+  return this.findOne({ stripeSubscriptionId })
 }
 
 interface QueryHelpers {
   findByEmail: AsQueryMethod<typeof findByEmail>
-  findByStripePaymentLinkId: AsQueryMethod<typeof findByStripePaymentLinkId>
+  findByStripeCustomerId: AsQueryMethod<typeof findByStripeCustomerId>
+  findByStripeSubscriptionId: AsQueryMethod<typeof findByStripeSubscriptionId>
 }
 
 @index({ email: 1 })
-@index({ stripePaymentLinkId: 1 })
+@index({ stripeCustomerId: 1 })
 @queryMethod(findByEmail)
-@queryMethod(findByStripePaymentLinkId)
+@queryMethod(findByStripeCustomerId)
+@queryMethod(findByStripeSubscriptionId)
 @ObjectType()
 export class Checkout {
   @Field(() => String)
   _id: string
 
   @Field(() => String)
-  @prop({ required: true })
-  stripePaymentLinkId: string
+  @prop({ required: false })
+  stripeCustomerId?: string
+
+  @Field(() => String)
+  @prop({ required: false })
+  stripeSubscriptionId?: string
+
+  @Field(() => String)
+  @prop({ required: false })
+  stripeClientSecret?: string
+
+  @Field(() => Address)
+  @prop({ required: false })
+  shippingAddress?: Address
+
+  @Field(() => Address)
+  @prop({ required: false })
+  billingAddress?: Address
+
+  @Field(() => Boolean)
+  sameAsShippingAddress?: boolean
 
   @Field(() => String)
   @prop({ required: true })
@@ -94,6 +122,10 @@ export class Checkout {
   @Field(() => Boolean, { nullable: true })
   @prop({ default: false, required: false })
   textOptIn: boolean
+
+  @Field(() => String)
+  @prop({ required: true })
+  phone: string
 }
 
 export const CheckoutModel = getModelForClass<typeof Checkout, QueryHelpers>(
@@ -132,6 +164,10 @@ export class CreateCheckoutInput {
 
   @Field(() => Boolean, { nullable: true })
   textOptIn: boolean
+
+  @IsPhoneNumber("US", { message: phoneValidation.message })
+  @Field(() => String)
+  phone: string
 }
 
 @InputType()
@@ -139,6 +175,22 @@ export class GetCheckoutInput {
   @Field(() => String)
   _id: string
 }
+
+@InputType()
+export class CreateStripeCustomerInput {
+  @Field(() => String)
+  _id: string
+
+  @Field(() => Address)
+  shipping: Address
+
+  @Field(() => Address, { nullable: true })
+  billing?: Address
+
+  @Field(() => Boolean)
+  sameAsShipping: boolean
+}
+
 @InputType()
 export class CompleteCheckoutInput {
   @Field(() => String, { description: "Stripe payment link ID" })
