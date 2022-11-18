@@ -1,10 +1,10 @@
+import * as Sentry from "@sentry/node"
 import { ApolloError } from "apollo-server"
 import axios, { AxiosInstance } from "axios"
 import config from "config"
 import { format } from "date-fns"
 import { PharmacyLocationInput } from "../schema/akute.schema"
 import { CreatePatientInput, UserModel } from "../schema/user.schema"
-import * as Sentry from "@sentry/node"
 class AkuteService {
   public baseUrl: string
   public axios: AxiosInstance
@@ -131,7 +131,13 @@ class AkuteService {
       })
       return data
     } catch (e) {
-      Sentry.captureException(e)
+      Sentry.captureException(new Error(e), {
+        tags: {
+          patientId,
+          function: "createPharmacyListForPatient",
+        },
+      })
+
       throw new ApolloError(e.message, "ERROR")
     }
   }

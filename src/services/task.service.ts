@@ -12,7 +12,7 @@ import {
   GetUserTasksInput,
   UpdateUserTaskInput,
   UserTask,
-  UserTaskModel
+  UserTaskModel,
 } from "../schema/task.user.schema"
 import { UserModel } from "../schema/user.schema"
 import AkuteService from "./akute.service"
@@ -83,7 +83,6 @@ class TaskService extends EmailService {
       .sort({ highPriority: -1, dueAt: -1, createdAt: 1 })
       .populate("task")
       .populate("user")
-    console.log(userTasks, "userTasks")
     return {
       total: userTasksCount,
       limit,
@@ -135,14 +134,16 @@ class TaskService extends EmailService {
       const user = await UserModel.findById(userTask.user)
       const pharmacyId = answers.find((a) => a.key === "pharmacyLocation").value
       const patientId = user?.akutePatientId
-      await akuteService.createPharmacyListForPatient(
-        pharmacyId,
-        patientId,
-        true
-      )
+      // If there is no pharmacyId or patientId, we can't continue without creating a pharmacyListForPatient
+      if (!pharmacyId) {
+        await akuteService.createPharmacyListForPatient(
+          pharmacyId,
+          patientId,
+          true
+        )
 
-      user.pharmacyLocation = pharmacyId
-
+        user.pharmacyLocation = pharmacyId
+      }
       const hasRequiredLabs = answers.find((a) => a.key === "hasRequiredLabs")
       if (hasRequiredLabs && hasRequiredLabs.value === "true") {
         const newTaskInput: CreateUserTaskInput = {

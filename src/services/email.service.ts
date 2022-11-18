@@ -89,7 +89,6 @@ class EmailService {
         Source: "patients@joinalfie.com",
       }
       const result = await this.awsSes.sendTemplatedEmail(params).promise()
-      console.log(result, "result")
       return result.MessageId
     } catch (error) {
       Sentry.captureException(error)

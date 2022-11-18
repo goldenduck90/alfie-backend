@@ -396,7 +396,8 @@ class AppointmentService {
       (appointment: any) => new Date(appointment.start) > new Date()
     )
     const userSpecificAppintments = removePastAppointments.filter(
-      (appointment: any) => appointment.customerId === user.eaCustomerId
+      (appointment: any) =>
+        appointment.customer.id === Number(user.eaCustomerId)
     )
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const apps = userSpecificAppintments.map((app: any) => ({

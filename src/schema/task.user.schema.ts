@@ -1,9 +1,9 @@
 import {
   getModelForClass,
-  prop,
-  ReturnModelType,
-  queryMethod,
   ModelOptions,
+  prop,
+  queryMethod,
+  ReturnModelType,
 } from "@typegoose/typegoose"
 import { AsQueryMethod, Ref } from "@typegoose/typegoose/lib/types"
 import { Field, InputType, ObjectType, registerEnumType } from "type-graphql"
@@ -131,13 +131,13 @@ export class UserTask {
   @prop({ required: false })
   completedAt?: Date
 
-  @Field(() => Date)
+  @Field(() => Date, { nullable: true })
   createdAt?: Date
 
-  @Field(() => Date)
+  @Field(() => Date, { nullable: true })
   updatedAt?: Date
 
-  @Field(() => String)
+  @Field(() => String, { nullable: true })
   providerEmail?: string
 }
 
