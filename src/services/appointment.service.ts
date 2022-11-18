@@ -469,19 +469,17 @@ class AppointmentService {
         `/providers/${eaProviderId}`,
         providerData
       )
-      console.log(data.settings.workingPlan, "data")
       return data
     } catch (err) {
-      console.log(err)
+      Sentry.captureException(err)
     }
   }
   async getProvider(eaProviderId: string) {
     try {
       const { data } = await this.axios.get(`/providers/${eaProviderId}`)
-      console.log(data.settings.workingPlan.monday, "data")
       return data
     } catch (err) {
-      console.log(err)
+      Sentry.captureException(err)
     }
   }
 }
