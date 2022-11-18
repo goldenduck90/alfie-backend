@@ -461,12 +461,12 @@ class AppointmentService {
   }
   async updateProvider(eaProviderId: string, providerData: IEAProvider) {
     try {
-      console.log(providerData, "providerData")
+      console.log(providerData.settings.workingPlan, "providerData")
       const { data } = await this.axios.put(
         `/providers/${eaProviderId}`,
         providerData
       )
-      console.log(data, "data")
+      console.log(data.settings.workingPlan, "data")
       return data
     } catch (err) {
       console.log(err)
@@ -475,6 +475,7 @@ class AppointmentService {
   async getProvider(eaProviderId: string) {
     try {
       const { data } = await this.axios.get(`/providers/${eaProviderId}`)
+      console.log(data.settings.workingPlan.monday, "data")
       return data
     } catch (err) {
       console.log(err)
