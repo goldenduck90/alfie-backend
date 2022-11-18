@@ -12,7 +12,7 @@ import {
   GetUserTasksInput,
   UpdateUserTaskInput,
   UserTask,
-  UserTaskModel,
+  UserTaskModel
 } from "../schema/task.user.schema"
 import { UserModel } from "../schema/user.schema"
 import AkuteService from "./akute.service"
@@ -110,6 +110,16 @@ class TaskService extends EmailService {
 
     const task = await TaskModel.findById(userTask.task)
     // we can add more types here in a switch to save data to different places
+
+    // if the task type is MP_BLUE_CAPSULE we need to assign the user the next task which is MP_BLUE_CAPSULE_2
+
+    if (task.type === TaskType.MP_BLUE_CAPSULE) {
+      const newTaskInput: CreateUserTaskInput = {
+        taskType: TaskType.MP_BLUE_CAPSULE_2,
+        userId: userTask.user.toString(),
+      }
+      await this.assignTaskToUser(newTaskInput)
+    }
     if (task.type === TaskType.DAILY_METRICS_LOG) {
       const weight = {
         date: new Date(),
@@ -122,15 +132,6 @@ class TaskService extends EmailService {
     }
     if (task.type === TaskType.NEW_PATIENT_INTAKE_FORM) {
       console.log("NEW_PATIENT_INTAKE_FORM")
-      // If the task type is NEW_PATIENT_INTAKE_FORM and hasRequiredLabs is true, we want to create a new task for the patient to schedule their first appointment
-      // We also want to store the pharmacyLocation from the input onto the user table
-      // We also want to set the akute pharmacy id using this endpoint https://developer.akutehealth.com/?http#post_pharmacy we will want to set the key set_as_primary to true
-      // {
-      //   "patient_id": "string",
-      //    "external_patient_id": "string",
-      //    "pharmacy_id": "string",
-      //    "set_as_primary": "boolean"
-      // }
       const user = await UserModel.findById(userTask.user)
       const pharmacyId = answers.find((a) => a.key === "pharmacyLocation").value
       const patientId = user?.akutePatientId

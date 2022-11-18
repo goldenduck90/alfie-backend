@@ -184,5 +184,5 @@ export default {
   },
   akuteApiUrl: "https://api.akutehealth.com/v1",
   intercomApiUrl: "https://api.intercom.io",
-  stripePriceId: "price_1KMviXDOjl0X0gOq9Pk7gRFE",
+  defaultPriceId: "price_1KMviXDOjl0X0gOq9Pk7gRFE",
 }

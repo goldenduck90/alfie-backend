@@ -4,9 +4,7 @@ export default {
     "http://develop.platform.joinalfie.com.s3-website-us-east-1.amazonaws.com",
   easyAppointmentsApiUrl:
     "http://develop-ea.us-east-1.elasticbeanstalk.com/index.php/api/v1",
-  stripe: {
-    defaultPriceId: "price_1KMviXDOjl0X0gOq9Pk7gRFE",
-  },
+  defaultPriceId: "price_1KMviXDOjl0X0gOq9Pk7gRFE",
   dynamoDb: {
     emailSubscribersTable: "develop-platform-email-subscribers",
     waitlistTable: "develop-platform-waitlist",

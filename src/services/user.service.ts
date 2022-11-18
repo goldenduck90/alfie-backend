@@ -754,7 +754,7 @@ class UserService extends EmailService {
       "errors.checkout"
     ) as any
 
-    const priceId = config.get("stripePriceId") as any
+    const priceId = config.get("defaultPriceId") as any
 
     const checkout = await CheckoutModel.findById(_id)
 
