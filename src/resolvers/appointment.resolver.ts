@@ -1,17 +1,18 @@
-import AppointmentService from "../services/appointment.service"
 import { Arg, Authorized, Ctx, Mutation, Query, Resolver } from "type-graphql"
-import { MessageResponse, Role } from "../schema/user.schema"
-import Context from "../types/context"
 import {
-  CreateCustomerInput,
   AllTimeslotsInput,
-  ProviderTimeslotsInput,
-  TimeslotsResponse,
   CreateAppointmentInput,
-  UpdateAppointmentInput,
+  CreateCustomerInput,
   EAAppointment,
   EAAppointmentWithCustomer,
+  EAProviderProfile,
+  ProviderTimeslotsInput,
+  TimeslotsResponse,
+  UpdateAppointmentInput,
 } from "../schema/appointment.schema"
+import { MessageResponse, Role } from "../schema/user.schema"
+import AppointmentService from "../services/appointment.service"
+import Context from "../types/context"
 
 @Resolver()
 export default class AppointmentResolver {
@@ -59,6 +60,20 @@ export default class AppointmentResolver {
   @Query(() => [EAAppointmentWithCustomer])
   providerAppointments(@Arg("eaProviderId") eaProviderId: string) {
     return this.appointmentService.getProviderAppointments(eaProviderId)
+  }
+
+  @Authorized([Role.Practitioner, Role.Admin])
+  @Mutation(() => EAProviderProfile)
+  updateProviderProfile(
+    @Arg("eaProviderId") eaProviderId: string,
+    @Arg("input") input: EAProviderProfile
+  ) {
+    return this.appointmentService.updateProvider(eaProviderId, input)
+  }
+  @Authorized([Role.Practitioner, Role.Admin])
+  @Query(() => EAProviderProfile)
+  getAProvider(@Arg("eaProviderId") eaProviderId: string) {
+    return this.appointmentService.getProvider(eaProviderId)
   }
 
   @Authorized([Role.Admin])

@@ -4,6 +4,7 @@ import axios, { AxiosInstance } from "axios"
 import config from "config"
 import { addMinutes, format } from "date-fns"
 import { zonedTimeToUtc } from "date-fns-tz"
+import { IEAProvider } from "../@types/easyAppointmentTypes"
 import {
   AllTimeslotsInput,
   CreateAppointmentInput,
@@ -430,9 +431,9 @@ class AppointmentService {
       },
     })
 
-    const removePastAppointments = data.filter(
-      (appointment: any) => new Date(appointment.start) < new Date()
-    )
+    // const removePastAppointments = data.filter(
+    //   (appointment: any) => new Date(appointment.start) < new Date()
+    // )
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const apps = data.map((app: any) => ({
       eaAppointmentId: app.id,
@@ -460,6 +461,28 @@ class AppointmentService {
       },
     }))
     return apps
+  }
+  async updateProvider(eaProviderId: string, providerData: IEAProvider) {
+    try {
+      console.log(providerData.settings.workingPlan, "providerData")
+      const { data } = await this.axios.put(
+        `/providers/${eaProviderId}`,
+        providerData
+      )
+      console.log(data.settings.workingPlan, "data")
+      return data
+    } catch (err) {
+      console.log(err)
+    }
+  }
+  async getProvider(eaProviderId: string) {
+    try {
+      const { data } = await this.axios.get(`/providers/${eaProviderId}`)
+      console.log(data.settings.workingPlan.monday, "data")
+      return data
+    } catch (err) {
+      console.log(err)
+    }
   }
 }
 

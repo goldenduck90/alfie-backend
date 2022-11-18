@@ -1,4 +1,11 @@
 import { Field, InputType, ObjectType } from "type-graphql"
+import {
+  Break,
+  Day,
+  IEAProvider,
+  Settings,
+  WorkingPlan,
+} from "./../@types/easyAppointmentTypes"
 import { Role } from "./user.schema"
 
 @InputType()
@@ -204,4 +211,66 @@ export class EACustomer {
 export class EAAppointmentWithCustomer extends EAAppointment {
   @Field(() => EACustomer)
   eaCustomer: EACustomer
+}
+
+@ObjectType()
+@InputType("EAProviderProfileWorkingPlanBreakInput")
+export class EAWorkingPlanBreak implements Break {
+  @Field(() => String, { nullable: true })
+  start?: string
+
+  @Field(() => String, { nullable: true })
+  end?: string
+}
+@ObjectType()
+@InputType("EAProviderProfileWorkingPlanDayInput")
+export class EAWorkingPlanDay implements Day {
+  @Field(() => String, { nullable: true })
+  start?: string
+
+  @Field(() => String, { nullable: true })
+  end?: string
+
+  @Field(() => [EAWorkingPlanBreak], { nullable: true })
+  breaks?: EAWorkingPlanBreak[]
+}
+@ObjectType()
+@InputType("EAProviderProfileWorkingPlanInput")
+export class EAWorkingPlan implements WorkingPlan {
+  @Field(() => EAWorkingPlanDay, { nullable: true })
+  monday?: EAWorkingPlanDay
+
+  @Field(() => EAWorkingPlanDay, { nullable: true })
+  tuesday?: EAWorkingPlanDay
+
+  @Field(() => EAWorkingPlanDay, { nullable: true })
+  wednesday?: EAWorkingPlanDay
+
+  @Field(() => EAWorkingPlanDay, { nullable: true })
+  thursday?: EAWorkingPlanDay
+
+  @Field(() => EAWorkingPlanDay, { nullable: true })
+  friday?: EAWorkingPlanDay
+
+  @Field(() => EAWorkingPlanDay, { nullable: true })
+  saturday?: EAWorkingPlanDay
+
+  @Field(() => EAWorkingPlanDay, { nullable: true })
+  sunday?: EAWorkingPlanDay
+}
+
+@ObjectType()
+@InputType("EAProviderProfileSettingsInput")
+export class EAProviderSettings implements Settings {
+  @Field(() => EAWorkingPlan, { nullable: true })
+  workingPlan?: EAWorkingPlan
+}
+@ObjectType()
+@InputType("EAProviderProfileInput")
+export class EAProviderProfile implements IEAProvider {
+  @Field(() => String, { nullable: true })
+  firstName?: string
+
+  @Field(() => EAProviderSettings, { nullable: true })
+  settings?: EAProviderSettings
 }
