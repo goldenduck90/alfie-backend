@@ -11,6 +11,7 @@ import {
   CreateCheckoutInput,
   CreateStripeCustomerInput,
 } from "../schema/checkout.schema"
+import { LabModel } from "../schema/lab.schema"
 import { ProviderModel } from "../schema/provider.schema"
 import { TaskType } from "../schema/task.schema"
 import { UserTaskModel } from "../schema/task.user.schema"
@@ -666,10 +667,28 @@ class UserService extends EmailService {
   }
   async getAllUserTasksByUser(userId: string) {
     try {
-      const userTasks = await UserTaskModel.find({ user: userId })
+      const userTasks: any = await UserTaskModel.find({ user: userId })
         .populate("task")
         .lean()
-      return userTasks
+      // If the task is of type Medical Questionnaire, we need find the answer that the user has given with the key labCorpLocation and find the location name from the LabsModel and populate the value in the userTask
+      const userTasksWithLabCorpLocation = await Promise.all(
+        userTasks.map(async (userTask: any) => {
+          if (userTask.task.type === TaskType.NEW_PATIENT_INTAKE_FORM) {
+            const labCorpLocation = userTask.answers.find(
+              (answer: any) => answer.key === "labCorpLocation"
+            )
+            if (labCorpLocation) {
+              const lab = await LabModel.findById(labCorpLocation.value)
+              if (lab) {
+                labCorpLocation.value = `${lab.name} - ${lab.streetAddress} ${lab.city}, ${lab.state} ${lab.postalCode}`
+              }
+            }
+          }
+          return userTask
+        })
+      )
+      return userTasksWithLabCorpLocation
+      // return userTasks
     } catch (error) {
       throw new ApolloError(error.message, error.code)
     }
