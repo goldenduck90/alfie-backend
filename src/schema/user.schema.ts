@@ -1,13 +1,12 @@
 import {
   getModelForClass,
-  prop,
-  pre,
-  ReturnModelType,
-  queryMethod,
   index,
   ModelOptions,
+  pre,
+  prop,
+  queryMethod,
+  ReturnModelType,
 } from "@typegoose/typegoose"
-import { registerEnumType } from "type-graphql"
 import { AsQueryMethod, Ref } from "@typegoose/typegoose/lib/types"
 import bcrypt from "bcrypt"
 import {
@@ -18,9 +17,9 @@ import {
   MaxLength,
   MinLength,
 } from "class-validator"
-import { Field, InputType, ObjectType } from "type-graphql"
 import config from "config"
 import mongoose from "mongoose"
+import { Field, InputType, ObjectType, registerEnumType } from "type-graphql"
 import { Provider } from "./provider.schema"
 
 const {
@@ -101,6 +100,25 @@ export class Weight {
   @Field(() => Number)
   @prop({ required: true })
   value: number
+
+  @Field(() => Date)
+  @prop({ default: Date.now(), required: true })
+  date: Date
+}
+
+@ObjectType()
+export class Score {
+  @Field(() => Number)
+  @prop({ required: true })
+  score: number
+
+  @Field(() => Number)
+  @prop({ required: true })
+  total: number
+
+  @Field(() => Number)
+  @prop({ required: true })
+  percent: number
 
   @Field(() => Date)
   @prop({ default: Date.now(), required: true })
@@ -248,6 +266,10 @@ export class User {
   @Field(() => [Weight])
   @prop({ default: [], required: true })
   weights: mongoose.Types.Array<Weight>
+
+  @Field(() => [Score])
+  @prop({ default: {}, required: false })
+  score: mongoose.Types.Array<Score>
 
   @Field(() => Gender)
   @prop({ enum: Gender, type: String, required: true })
