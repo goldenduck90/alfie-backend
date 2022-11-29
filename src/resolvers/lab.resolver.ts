@@ -1,15 +1,15 @@
 import { Arg, Authorized, Mutation, Query, Resolver } from "type-graphql"
-import { Role } from "../schema/user.schema"
-import LabService from "../services/lab.service"
+import {
+  GooglePlacesSearchInput,
+  GooglePlacesSearchResult,
+} from "../schema/googlePlaces.schema"
 import {
   BatchCreateOrUpdateLabsInput,
   BatchCreateOrUpdateLabsResponse,
   Lab,
 } from "../schema/lab.schema"
-import {
-  GooglePlacesSearchResult,
-  GooglePlacesSearchInput,
-} from "../schema/googlePlaces.schema"
+import { Role } from "../schema/user.schema"
+import LabService from "../services/lab.service"
 
 @Resolver()
 export default class LabResolver {

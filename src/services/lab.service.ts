@@ -1,7 +1,7 @@
-import { BatchCreateOrUpdateLabsInput, LabModel } from "../schema/lab.schema"
+import * as Sentry from "@sentry/node"
 import axios from "axios"
 import { GooglePlacesSearchInput } from "../schema/googlePlaces.schema"
-import * as Sentry from "@sentry/node"
+import { BatchCreateOrUpdateLabsInput, LabModel } from "../schema/lab.schema"
 class LabService {
   async batchCreateOrUpdateLabs(input: BatchCreateOrUpdateLabsInput) {
     const { labs } = input
