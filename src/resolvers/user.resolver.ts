@@ -1,5 +1,10 @@
-import { UserTask } from "../schema/task.user.schema"
 import { Arg, Authorized, Ctx, Mutation, Query, Resolver } from "type-graphql"
+import {
+  CheckoutResponse,
+  CreateCheckoutInput,
+  CreateStripeCustomerInput,
+} from "../schema/checkout.schema"
+import { UserTask } from "../schema/task.user.schema"
 import {
   CreateUserInput,
   ForgotPasswordInput,
@@ -14,16 +19,12 @@ import {
 } from "../schema/user.schema"
 import UserService from "../services/user.service"
 import Context from "../types/context"
-import {
-  CreateCheckoutInput,
-  CreateStripeCustomerInput,
-  CheckoutResponse,
-} from "../schema/checkout.schema"
 
 @Resolver()
 export default class UserResolver {
   constructor(private userService: UserService) {
     this.userService = new UserService()
+    // this.akuteService = new AkuteService()
   }
 
   @Authorized([Role.Admin])
