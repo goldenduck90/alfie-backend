@@ -134,16 +134,17 @@ class TaskService extends EmailService {
       const user = await UserModel.findById(userTask.user)
       const pharmacyId = answers.find((a) => a.key === "pharmacyLocation").value
       const patientId = user?.akutePatientId
-      // If there is no pharmacyId or patientId, we can't continue without creating a pharmacyListForPatient
-      if (!pharmacyId) {
+      if (pharmacyId) {
         await akuteService.createPharmacyListForPatient(
           pharmacyId,
           patientId,
           true
         )
-
         user.pharmacyLocation = pharmacyId
       }
+      const labId = answers.find((a) => a.key === "labCorpLocation").value
+      user.labLocation = labId
+
       const hasRequiredLabs = answers.find((a) => a.key === "hasRequiredLabs")
       if (hasRequiredLabs && hasRequiredLabs.value === "true") {
         const newTaskInput: CreateUserTaskInput = {
