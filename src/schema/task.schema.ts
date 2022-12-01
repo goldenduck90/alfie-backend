@@ -1,13 +1,12 @@
 import {
   getModelForClass,
-  prop,
   index,
-  ReturnModelType,
+  prop,
   queryMethod,
+  ReturnModelType,
 } from "@typegoose/typegoose"
 import { AsQueryMethod } from "@typegoose/typegoose/lib/types"
-import { registerEnumType } from "type-graphql"
-import { Field, InputType, ObjectType } from "type-graphql"
+import { Field, InputType, ObjectType, registerEnumType } from "type-graphql"
 
 export enum TaskType {
   ID_AND_INSURANCE_UPLOAD = "ID_AND_INSURANCE_UPLOAD",
@@ -24,6 +23,8 @@ export enum TaskType {
   MP_BLUE_CAPSULE_2 = "MP_BLUE_CAPSULE_2",
   SCHEDULE_APPOINTMENT = "SCHEDULE_APPOINTMENT",
   FOOD_LOG = "FOOD_LOG",
+  GSRS = "GSRS",
+  TEFQ = "TEFQ",
 }
 
 registerEnumType(TaskType, {
