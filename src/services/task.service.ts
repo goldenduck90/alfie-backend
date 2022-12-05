@@ -2,7 +2,7 @@ import * as Sentry from "@sentry/node"
 import { ApolloError } from "apollo-server"
 import config from "config"
 import { addDays, isPast } from "date-fns"
-import { calculateScore } from "../../src/PROAnalysis"
+import { calculateScore } from "../PROAnalysis"
 import { LabModel } from "../schema/lab.schema"
 import { ProviderModel } from "../schema/provider.schema"
 import { CreateTaskInput, TaskModel, TaskType } from "../schema/task.schema"
@@ -85,7 +85,6 @@ class TaskService extends EmailService {
       .sort({ highPriority: -1, dueAt: -1, createdAt: 1 })
       .populate("task")
       .populate("user")
-    console.log(userTasks, "?A?SDAS?DA?SD?AD?ASD?")
     return {
       total: userTasksCount,
       limit,
@@ -107,22 +106,30 @@ class TaskService extends EmailService {
       if (!userTask) {
         throw new ApolloError(notFound.message, notFound.code)
       }
-      // Find users most recently completed task of the same type
-      const mostRecentTask = await UserTaskModel.findOne({
+      // Find all tasks that match user and task id
+      console.log("userTask", userTask)
+      const mostRecentTask = await UserTaskModel.find({
         user: userTask.user,
-        task: userTask.task,
-        completed: true,
       })
-        .sort({ completedAt: -1 })
-        .lean()
+      const mostRecentTaskCompletedBasedOnTaskIdAndToday =
+        mostRecentTask.filter((completedUserTask) => {
+          return (
+            completedUserTask.task.toString() === userTask.task.toString() &&
+            completedUserTask.completed
+          )
+        })
 
+      const sortTasksByCompletedDate =
+        mostRecentTaskCompletedBasedOnTaskIdAndToday.sort((a, b) => {
+          return b.completedAt.getTime() - a.completedAt.getTime()
+        })
+      console.log(sortTasksByCompletedDate, "sortTasksByCompletedDate")
+      const mostRecentTaskCompleted = sortTasksByCompletedDate[0] // most recent task completed
       userTask.completed = true
       userTask.completedAt = new Date()
       userTask.answers = answers
       await userTask.save()
-
-      // console.log(userTask, "?????A?A?A?A?")
-      const score = calculateScore(mostRecentTask, userTask, task.type)
+      const score = calculateScore(mostRecentTaskCompleted, userTask, task.type)
       // calculate score returns an object
       // We need to push the new score onto the users scores array
 

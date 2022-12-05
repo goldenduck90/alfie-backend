@@ -1,10 +1,10 @@
 import { ApolloError } from "apollo-server"
+import { v4 as uuidv4 } from "uuid"
 import {
   BatchCreateOrUpdateProvidersInput,
   ProviderModel,
 } from "../schema/provider.schema"
 import EmailService from "./email.service"
-import { v4 as uuidv4 } from "uuid"
 
 class ProviderService {
   private emailService: EmailService
@@ -14,7 +14,10 @@ class ProviderService {
   }
 
   async getNextAvailableProvider(state: string, update = false) {
+    // Only return providers where the type === "Practitioner"
     const provider = await ProviderModel.find()
+      .where("type")
+      .equals("Practitioner")
       .where("licensedStates")
       .in([state])
       .sort({ numberOfPatients: "asc" })

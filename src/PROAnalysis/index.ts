@@ -27,10 +27,13 @@ function calculateScore(
   const currentDate = new Date()
   let percent = 0
   let increased = false
+  let message = ""
   const scoreObj = {
     percent: 0,
     increased: false,
+    message: "",
     date: currentDate,
+    task: taskType,
   }
   // We need to check the type of the task and then calculate the score based on the type
   if (
@@ -63,19 +66,22 @@ function calculateScore(
     // We need to check if the lastTask is null because this is the first time the user is submitting a task
     if (lastTask) {
       // Answers follow this structure: [{"key": "systolic", "value": "120", "type": "NUMBER"}, {"key": "diastolic", "value": "80", "type": "NUMBER"}]
+
+      // If systolic is > 140 or diastolic is > 90, go to next highest category.If above 130 / 80, ask if they are taking htn drugs.
+      // If it ever hit systolic > 140, diastolic >90, must stop phentermine/bupropion, doctor to independantly review if they are taking htn drugs.
+      // For geriatrics, if systolic is >130 and diastolic > 80, cannot be prescribed bupropion or phentermine
+
       const currentSystolic = Number(currentAnswers[0].value)
       const currentDiastolic = Number(currentAnswers[1].value)
-      const lastSystolic = Number(lastAnswers[0].value)
-      const lastDiastolic = Number(lastAnswers[1].value)
-      percent =
-        Math.abs(currentSystolic - lastSystolic) +
-        Math.abs(currentDiastolic - lastDiastolic) / currentSystolic +
-        currentDiastolic * 100
-      increased =
-        currentSystolic > lastSystolic && currentDiastolic > lastDiastolic
-      // Median of both last and curernt and then take the percent difference
-      scoreObj.percent = percent
-      scoreObj.increased = increased
+      if (currentSystolic > 140 || currentDiastolic > 90) {
+        message =
+          "Go to next highest category. If above 130 / 80, ask if they are taking htn drugs. You must stop phentermine/bupropion, doctor to independantly review if they are taking htn drugs."
+      } else if (currentSystolic > 130 && currentDiastolic > 80) {
+        message = "Cannot be prescribed bupropion or phentermine"
+      }
+
+      scoreObj.increased = null
+      scoreObj.message = message
       return scoreObj
     }
   }
@@ -83,6 +89,7 @@ function calculateScore(
   // We need to assign a number to each answer based upon it's key and then add up the total score
   // once we have the total score for each key for the last task and current task we will need to find the perfect difference between the two
   if (taskType === TaskType.MP_FEELING) {
+    // AKA HADS A
     // We need to check if the lastTask is null because this is the first time the user is submitting a task
     if (lastTask) {
       type ObjectType = {

@@ -317,6 +317,10 @@ export class User {
 
   @Field(() => String, { nullable: true })
   @prop()
+  labLocation?: string
+
+  @Field(() => String, { nullable: true })
+  @prop()
   meetingUrl?: string
 }
 
