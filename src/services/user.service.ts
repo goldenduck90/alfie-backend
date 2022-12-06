@@ -306,7 +306,6 @@ class UserService extends EmailService {
         items: [{ price: priceId }],
         default_payment_method: stripePaymentMethodId,
         collection_method: "charge_automatically",
-        payment_behavior: "pending_if_incomplete",
         trial_period_days: 30,
       })
 
@@ -930,11 +929,11 @@ class UserService extends EmailService {
       if (existingPaymentIntent.status === "canceled") {
         const newPaymentIntent = await this.stripeSdk.paymentIntents.create({
           description: "Alfie Subscription - First Payment",
-          amount: 120,
+          amount: 12000,
           currency: "usd",
           setup_future_usage: "off_session",
           metadata: {
-            checkoutId: checkout._id,
+            checkoutId: String(checkout._id),
             email: checkout.email,
           },
           shipping: {
@@ -961,11 +960,11 @@ class UserService extends EmailService {
     // create payment intent
     const paymentIntent = await this.stripeSdk.paymentIntents.create({
       description: "Alfie Subscription - First Payment",
-      amount: 120.0,
+      amount: 12000,
       currency: "usd",
       setup_future_usage: "off_session",
       metadata: {
-        checkoutId: checkout._id,
+        checkoutId: String(checkout._id),
         email: checkout.email,
       },
       shipping: {
