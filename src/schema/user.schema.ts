@@ -530,6 +530,12 @@ export class UpdateSubscriptionInput {
 }
 
 @InputType()
+export class CompletePaymentIntentInput {
+  @Field(() => String)
+  paymentIntentId: string
+}
+
+@InputType()
 export class SignedUrlRequest {
   @Field(() => String)
   key: string

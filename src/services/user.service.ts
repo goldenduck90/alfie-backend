@@ -16,6 +16,7 @@ import { ProviderModel } from "../schema/provider.schema"
 import { TaskType } from "../schema/task.schema"
 import { UserTaskModel } from "../schema/task.user.schema"
 import {
+  CompletePaymentIntentInput,
   CreateUserInput,
   ForgotPasswordInput,
   LoginInput,
@@ -263,6 +264,129 @@ class UserService extends EmailService {
     }
   }
 
+  async completePaymentIntent(input: CompletePaymentIntentInput) {
+    const { paymentIntentId } = input
+    const priceId = config.get("defaultPriceId") as any
+
+    const paymentIntent = await this.stripeSdk.paymentIntents.retrieve(
+      paymentIntentId
+    )
+
+    if (!paymentIntent || paymentIntent.status !== "succeeded") {
+      throw new ApolloError("Payment intent not found", "NOT_FOUND")
+    } else {
+      const stripePaymentMethodId = paymentIntent.payment_method as string
+
+      // create customer
+      const customer = await this.stripeSdk.customers.create({
+        payment_method: stripePaymentMethodId,
+        email: paymentIntent.metadata.email,
+        phone: paymentIntent.shipping.phone,
+        invoice_settings: {
+          default_payment_method: stripePaymentMethodId,
+        },
+        shipping: {
+          name: paymentIntent.shipping.name,
+          address: paymentIntent.shipping.address,
+          phone: paymentIntent.shipping.phone,
+        },
+        metadata: {
+          checkoutId: paymentIntent.metadata.checkoutId,
+        },
+        address: paymentIntent.shipping.address,
+      })
+
+      if (!customer) {
+        throw new ApolloError("Customer not created", "INTERNAL_SERVER_ERROR")
+      }
+
+      // create subscription
+      const subscription = await this.stripeSdk.subscriptions.create({
+        customer: customer.id,
+        items: [{ price: priceId }],
+        default_payment_method: stripePaymentMethodId,
+        collection_method: "charge_automatically",
+        payment_behavior: "pending_if_incomplete",
+        trial_period_days: 30,
+      })
+
+      // update checkout
+      const checkout = await CheckoutModel.findByIdAndUpdate(
+        paymentIntent.metadata.checkoutId,
+        {
+          stripeCustomerId: customer.id,
+          stripeSubscriptionId: subscription.id,
+        }
+      )
+
+      if (!checkout) {
+        throw new ApolloError("Checkout not found", "NOT_FOUND")
+      }
+
+      // create user
+      const { user, message } = await this.completeCheckout(
+        subscription.id,
+        new Date(subscription.current_period_end)
+      )
+
+      if (!user) {
+        throw new ApolloError("User not created", "INTERNAL_SERVER_ERROR")
+      }
+
+      const updatedPaymentIntent = await this.stripeSdk.paymentIntents.update(
+        paymentIntentId,
+        {
+          metadata: {
+            userId: user._id,
+          },
+        }
+      )
+
+      if (!updatedPaymentIntent) {
+        throw new ApolloError(
+          "Stripe Payment intent not updated",
+          "INTERNAL_SERVER_ERROR"
+        )
+      }
+
+      const updatedCustomer = await this.stripeSdk.customers.update(
+        customer.id,
+        {
+          metadata: {
+            userId: user._id,
+          },
+        }
+      )
+
+      if (!updatedCustomer) {
+        throw new ApolloError(
+          "Stripe Customer not updated",
+          "INTERNAL_SERVER_ERROR"
+        )
+      }
+
+      const updatedSubscription = await this.stripeSdk.subscriptions.update(
+        subscription.id,
+        {
+          metadata: {
+            userId: user._id,
+          },
+        }
+      )
+
+      if (!updatedSubscription) {
+        throw new ApolloError(
+          "Stripe Subscription not updated",
+          "INTERNAL_SERVER_ERROR"
+        )
+      }
+
+      return {
+        message,
+      }
+    }
+  }
+
   async updateSubscription(input: UpdateSubscriptionInput) {
     const { stripeSubscriptionId, subscriptionExpiresAt } = input
     const { notFound } = config.get("errors.updateSubscription") as any
@@ -271,26 +395,30 @@ class UserService extends EmailService {
     const user = await UserModel.find()
       .findBySubscriptionId(stripeSubscriptionId)
       .lean()
+
     if (!user) {
-      const checkout = await CheckoutModel.find()
-        .findByStripeSubscriptionId(stripeSubscriptionId)
-        .count()
+      const subscription = await this.stripeSdk.subscriptions.retrieve(
+        stripeSubscriptionId
+      )
 
-      if (checkout) {
-        const message2 = await this.completeCheckout(
-          stripeSubscriptionId,
-          subscriptionExpiresAt
-        )
-        return { message: message2.message }
-      } else {
+      if (!subscription) {
         throw new ApolloError(notFound.message, notFound.code)
+      } else {
+        const checkoutId = subscription.metadata.checkoutId
+        const checkout = await CheckoutModel.findById(checkoutId)
+
+        if (!checkout) {
+          throw new ApolloError(notFound.message, notFound.code)
+        } else {
+          return { message: "User hasn't been created yet, skipping..." }
+        }
       }
+    } else {
+      user.subscriptionExpiresAt = subscriptionExpiresAt
+      await UserModel.findByIdAndUpdate(user._id, user)
+
+      return { message }
     }
-
-    user.subscriptionExpiresAt = subscriptionExpiresAt
-    await UserModel.findByIdAndUpdate(user._id, user)
-
-    return { message }
   }
 
   async subscribeEmail(input: SubscribeEmailInput) {
@@ -742,6 +870,7 @@ class UserService extends EmailService {
 
     return {
       message: checkoutCompleted,
+      user,
     }
   }
 
@@ -774,8 +903,6 @@ class UserService extends EmailService {
       "errors.checkout"
     ) as any
 
-    const priceId = config.get("defaultPriceId") as any
-
     const checkout = await CheckoutModel.findById(_id)
 
     if (!checkout) {
@@ -794,41 +921,36 @@ class UserService extends EmailService {
       postal_code: shipping.postalCode,
     }
 
-    if (checkout.stripeCustomerId) {
-      const customer = await this.stripeSdk.customers.retrieve(
-        checkout.stripeCustomerId
-      )
+    if (checkout.stripePaymentIntentId) {
+      const existingPaymentIntent =
+        await this.stripeSdk.paymentIntents.retrieve(
+          checkout.stripePaymentIntentId
+        )
 
-      await this.stripeSdk.customers.update(customer.id, {
-        shipping: {
-          name: checkout.name,
-          address: stripeShipping,
-        },
-        address: sameAsShipping
-          ? stripeShipping
-          : {
-              line1: billing.line1,
-              line2: billing.line2,
-              city: billing.city,
-              state: billing.state,
-              postal_code: billing.postalCode,
-            },
-      })
+      if (existingPaymentIntent.status === "canceled") {
+        const newPaymentIntent = await this.stripeSdk.paymentIntents.create({
+          description: "Alfie Subscription - First Payment",
+          amount: 120,
+          currency: "usd",
+          setup_future_usage: "off_session",
+          metadata: {
+            checkoutId: checkout._id,
+            email: checkout.email,
+          },
+          shipping: {
+            name: checkout.name,
+            address: stripeShipping,
+            phone: checkout.phone,
+          },
+        })
 
-      const subscription = await this.stripeSdk.subscriptions.retrieve(
-        checkout.stripeSubscriptionId,
-        {
-          expand: ["latest_invoice.payment_intent"],
-        }
-      )
+        checkout.stripePaymentIntentId = newPaymentIntent.id
+        checkout.stripeClientSecret = newPaymentIntent.client_secret
+        await checkout.save()
+      }
 
-      const latestInvoice = subscription.latest_invoice as any
-
-      // update checkout with stripe info
-      checkout.stripeClientSecret = latestInvoice.payment_intent.client_secret
       checkout.shippingAddress = shipping
       checkout.billingAddress = sameAsShipping ? shipping : billing
-
       await checkout.save()
 
       return {
@@ -836,45 +958,26 @@ class UserService extends EmailService {
       }
     }
 
-    // create customer
-    const customer = await this.stripeSdk.customers.create({
-      name: checkout.name,
-      email: checkout.email,
-      phone: checkout.phone,
+    // create payment intent
+    const paymentIntent = await this.stripeSdk.paymentIntents.create({
+      description: "Alfie Subscription - First Payment",
+      amount: 120.0,
+      currency: "usd",
+      setup_future_usage: "off_session",
+      metadata: {
+        checkoutId: checkout._id,
+        email: checkout.email,
+      },
       shipping: {
         name: checkout.name,
         address: stripeShipping,
+        phone: checkout.phone,
       },
-      address: sameAsShipping
-        ? stripeShipping
-        : {
-            line1: billing.line1,
-            line2: billing.line2,
-            city: billing.city,
-            state: billing.state,
-            postal_code: billing.postalCode,
-          },
     })
-
-    // create subscription
-    const subscription = await this.stripeSdk.subscriptions.create({
-      customer: customer.id,
-      items: [
-        {
-          price: priceId,
-        },
-      ],
-      payment_behavior: "default_incomplete",
-      payment_settings: { save_default_payment_method: "on_subscription" },
-      expand: ["latest_invoice.payment_intent"],
-    })
-
-    const latestInvoice = subscription.latest_invoice as any
 
     // update checkout with stripe info
-    checkout.stripeCustomerId = customer.id
-    checkout.stripeSubscriptionId = subscription.id
-    checkout.stripeClientSecret = latestInvoice.payment_intent.client_secret
+    checkout.stripePaymentIntentId = paymentIntent.id
+    checkout.stripeClientSecret = paymentIntent.client_secret
     checkout.shippingAddress = shipping
     checkout.billingAddress = sameAsShipping ? shipping : billing
 
