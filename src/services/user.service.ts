@@ -279,6 +279,7 @@ class UserService extends EmailService {
 
       // create customer
       const customer = await this.stripeSdk.customers.create({
+        name: paymentIntent.shipping.name,
         payment_method: stripePaymentMethodId,
         email: paymentIntent.metadata.email,
         phone: paymentIntent.shipping.phone,
@@ -323,62 +324,10 @@ class UserService extends EmailService {
       }
 
       // create user
-      const { user, message } = await this.completeCheckout(
+      const { message } = await this.completeCheckout(
         subscription.id,
         new Date(subscription.current_period_end)
       )
-
-      if (!user) {
-        throw new ApolloError("User not created", "INTERNAL_SERVER_ERROR")
-      }
-
-      const updatedPaymentIntent = await this.stripeSdk.paymentIntents.update(
-        paymentIntentId,
-        {
-          metadata: {
-            userId: String(user._id),
-          },
-        }
-      )
-
-      if (!updatedPaymentIntent) {
-        throw new ApolloError(
-          "Stripe Payment intent not updated",
-          "INTERNAL_SERVER_ERROR"
-        )
-      }
-
-      const updatedCustomer = await this.stripeSdk.customers.update(
-        customer.id,
-        {
-          metadata: {
-            userId: String(user._id),
-          },
-        }
-      )
-
-      if (!updatedCustomer) {
-        throw new ApolloError(
-          "Stripe Customer not updated",
-          "INTERNAL_SERVER_ERROR"
-        )
-      }
-
-      const updatedSubscription = await this.stripeSdk.subscriptions.update(
-        subscription.id,
-        {
-          metadata: {
-            userId: String(user._id),
-          },
-        }
-      )
-
-      if (!updatedSubscription) {
-        throw new ApolloError(
-          "Stripe Subscription not updated",
-          "INTERNAL_SERVER_ERROR"
-        )
-      }
 
       return {
         message,
