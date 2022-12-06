@@ -336,7 +336,7 @@ class UserService extends EmailService {
         paymentIntentId,
         {
           metadata: {
-            userId: user._id,
+            userId: String(user._id),
           },
         }
       )
@@ -352,7 +352,7 @@ class UserService extends EmailService {
         customer.id,
         {
           metadata: {
-            userId: user._id,
+            userId: String(user._id),
           },
         }
       )
@@ -368,7 +368,7 @@ class UserService extends EmailService {
         subscription.id,
         {
           metadata: {
-            userId: user._id,
+            userId: String(user._id),
           },
         }
       )
