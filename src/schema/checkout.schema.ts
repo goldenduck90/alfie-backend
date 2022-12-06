@@ -223,7 +223,4 @@ export class CheckoutResponse {
 
   @Field(() => Checkout)
   checkout: Checkout
-
-  @Field(() => String)
-  paymentLink: string
 }
