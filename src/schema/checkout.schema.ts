@@ -36,17 +36,25 @@ function findByStripeSubscriptionId(
   return this.findOne({ stripeSubscriptionId })
 }
 
+function findByStripePaymentIntentId(
+  this: ReturnModelType<typeof Checkout, QueryHelpers>,
+  stripePaymentIntentId: Checkout["stripePaymentIntentId"]
+) {
+  return this.findOne({ stripePaymentIntentId })
+}
+
 interface QueryHelpers {
   findByEmail: AsQueryMethod<typeof findByEmail>
   findByStripeCustomerId: AsQueryMethod<typeof findByStripeCustomerId>
   findByStripeSubscriptionId: AsQueryMethod<typeof findByStripeSubscriptionId>
+  findByStripePaymentIntentId: AsQueryMethod<typeof findByStripePaymentIntentId>
 }
 
 @index({ email: 1 })
-@index({ stripeCustomerId: 1 })
 @queryMethod(findByEmail)
 @queryMethod(findByStripeCustomerId)
 @queryMethod(findByStripeSubscriptionId)
+@queryMethod(findByStripePaymentIntentId)
 @ObjectType()
 export class Checkout {
   @Field(() => String)
@@ -59,6 +67,10 @@ export class Checkout {
   @Field(() => String)
   @prop({ required: false })
   stripeSubscriptionId?: string
+
+  @Field(() => String)
+  @prop({ required: false })
+  stripePaymentIntentId?: string
 
   @Field(() => String)
   @prop({ required: false })
@@ -193,24 +205,8 @@ export class CreateStripeCustomerInput {
 
 @InputType()
 export class CompleteCheckoutInput {
-  @Field(() => String, { description: "Stripe payment link ID" })
-  stripePaymentLinkId: string
-
   @Field(() => String, { description: "Stripe subscription ID" })
   stripeSubscriptionId: string
-
-  @Field(() => String, { description: "Stripe customer ID" })
-  stripeCustomerId: string
-
-  @Field(() => String, { description: "Stripe checkout ID" })
-  stripeCheckoutId: string
-
-  @IsPhoneNumber("US", { message: phoneValidation.message })
-  @Field(() => String)
-  phone: string
-
-  @Field(() => Address, { description: "Retrieved from Stripe checkout" })
-  address: Address
 
   @Field(() => Date, {
     nullable: true,
@@ -227,7 +223,4 @@ export class CheckoutResponse {
 
   @Field(() => Checkout)
   checkout: Checkout
-
-  @Field(() => String)
-  paymentLink: string
 }

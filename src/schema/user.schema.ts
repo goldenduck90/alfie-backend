@@ -1,13 +1,12 @@
 import {
   getModelForClass,
-  prop,
-  pre,
-  ReturnModelType,
-  queryMethod,
   index,
   ModelOptions,
+  pre,
+  prop,
+  queryMethod,
+  ReturnModelType,
 } from "@typegoose/typegoose"
-import { registerEnumType } from "type-graphql"
 import { AsQueryMethod, Ref } from "@typegoose/typegoose/lib/types"
 import bcrypt from "bcrypt"
 import {
@@ -18,9 +17,9 @@ import {
   MaxLength,
   MinLength,
 } from "class-validator"
-import { Field, InputType, ObjectType } from "type-graphql"
 import config from "config"
 import mongoose from "mongoose"
+import { Field, InputType, ObjectType, registerEnumType } from "type-graphql"
 import { Provider } from "./provider.schema"
 
 const {
@@ -295,6 +294,10 @@ export class User {
 
   @Field(() => String, { nullable: true })
   @prop()
+  labLocation?: string
+
+  @Field(() => String, { nullable: true })
+  @prop()
   meetingUrl?: string
 }
 
@@ -524,6 +527,12 @@ export class UpdateSubscriptionInput {
 
   @Field(() => Date)
   subscriptionExpiresAt: Date
+}
+
+@InputType()
+export class CompletePaymentIntentInput {
+  @Field(() => String)
+  paymentIntentId: string
 }
 
 @InputType()
