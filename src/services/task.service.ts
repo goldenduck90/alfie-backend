@@ -134,7 +134,6 @@ class TaskService extends EmailService {
       // We need to push the new score onto the users scores array
 
       if (score) {
-        console.log(score, "SCORE")
         user.score.push(score)
         await user.save()
       }

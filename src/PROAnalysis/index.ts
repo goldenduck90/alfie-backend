@@ -1,222 +1,343 @@
-import { TaskType } from "./../schema/task.schema"
-import { UserTask } from "./../schema/task.user.schema"
-// In our database our patients have PRO aka Patient Reported Outcomes. We call these Tasks.
-// Tasks get set to a patient on an interval basis and the patient is asked to complete the task.
-// We get these results and we save them as a UserTask
-// At the time that the task is submitted we will call a calculate function to calculate the score which will be a percent difference between the last PRO and the current PRO
-// We want to take this result and store it on the user as an object where the key is the task name and the value is the score (percent difference) we will also store the date of the scoring so we can graph it
+import { TaskType } from "../schema/task.schema"
+import { UserTask } from "../schema/task.user.schema"
+import { mpFeelingQuestions } from "./questions"
 
-function calculateScore(
+function getPercentageChange(oldNumber: number, newNumber: number) {
+  const decreaseValue = oldNumber - newNumber
+
+  return Math.abs(Math.round((decreaseValue / oldNumber) * 100))
+}
+const hadspercentile: any = {
+  2: "25th",
+  3: "50th",
+  5: "75th",
+  6: "90th",
+  10: "95th",
+}
+const stepsPercentile: any = {
+  3000: "25th",
+  3375: "50th",
+  9000: "75th",
+  11000: "90th",
+  12000: "95th",
+}
+const hungerPercentile: any = {
+  45: "25th",
+  64: "50th",
+  83: "75th",
+  100: "90-95th",
+}
+// We will take the current score and compare it to the median and calculate the percent difference
+// If the score is greater than the median we will calculate the percent difference between the score and the median
+// If the score is less than the median we will calculate the percent difference between the median and the score
+// We will then store this value on the user as an object where the key is the task name and the value is the score (percent difference) we will also store the date of the scoring so we can graph it
+// For example:
+// {
+//   "HADS A": {
+//     "score": 0.5,
+//     "date": "2020-01-01"
+//   }
+// }
+
+// We also need to store if the patient for that task has increased or decreased since the last time they took the task.
+// For example:
+// {
+//   "HADS A": {
+//     "score": 0.5,
+//     "date": "2020-01-01",
+//     "increased": true
+//   }
+// }
+
+// We also need to store the percent difference between the current score and the last score total
+// For example:
+// {
+//   "HADS A": {
+//     "score": 0.5,
+//     "date": "2020-01-01",
+//     "increased": true,
+//     "percentDifference": 0.5
+//     "message": "You scored within the 50th percentile"
+//   }
+// }
+// mpFeelingQuestions is of type:
+// type QuestionType = {
+//     [key: string]: {
+//         [key: string]: number
+//     }
+// }
+function calculateMPFeelingScore(
+  lastTask: UserTask,
+  currentTask: UserTask,
+  task: TaskType
+) {
+  // We first need to create a score for the lastTask and the currentTask
+  // We will create a score for task in it's entirety all the scores added together for each question will equal the score for the task
+
+  const lastTaskScore = Object.keys(lastTask.answers).reduce(
+    (acc, key: any) => {
+      const answer: any = lastTask.answers[key]
+      const score = mpFeelingQuestions[answer.key][answer.value]
+      return acc + score
+    },
+    0
+  )
+
+  const currentTaskScore = Object.keys(currentTask.answers).reduce(
+    (acc, key: any) => {
+      const answer: any = currentTask.answers[key]
+      const score = mpFeelingQuestions[answer.key][answer.value]
+      return acc + score
+    },
+    0
+  )
+
+  const score = currentTaskScore - lastTaskScore
+  const percentDifferenceBetweenLastAndCurrentTaskScore = getPercentageChange(
+    lastTaskScore,
+    currentTaskScore
+  )
+  const increased = score > 0
+  const percentileKey = Object.keys(hadspercentile).reduce((acc, key) => {
+    const value = parseInt(key)
+    if (value < currentTaskScore) {
+      return hadspercentile[value]
+    }
+    return acc
+  }, 0)
+  const message = `You scored within the ${percentileKey} percentile`
+  return {
+    score,
+    date: currentTask.completedAt,
+    increased,
+    percentDifference: percentDifferenceBetweenLastAndCurrentTaskScore,
+    message,
+    task,
+  }
+}
+function calculateActivityScore(
+  lastTask: UserTask,
+  currentTask: UserTask,
+  task: TaskType
+) {
+  // The tasks in this category are all activity based tasks so their values for each task are simple numbers
+  // For Example: [{"key": "weight", "value": "333", "type": "DATE"}]
+  const lastTaskScore = Number(lastTask.answers[0].value)
+  const currentTaskScore = Number(currentTask.answers[0].value)
+  const score = currentTaskScore - lastTaskScore
+  const percentDifferenceBetweenLastAndCurrentTaskScore = getPercentageChange(
+    lastTaskScore,
+    currentTaskScore
+  )
+  const increased = currentTaskScore > lastTaskScore
+  if (task === TaskType.MP_ACTIVITY) {
+    const percentileDifferenceStepsPercentile = Object.keys(
+      stepsPercentile
+    ).reduce((acc, key) => {
+      const value = parseInt(key)
+      if (value < currentTaskScore) {
+        return stepsPercentile[value]
+      } else if (value === currentTaskScore) {
+        return stepsPercentile[value]
+      } else if (value > currentTaskScore) {
+        return acc
+      }
+      return acc
+    }, 0)
+    const message = `You scored within the ${percentileDifferenceStepsPercentile} percentile`
+    return {
+      score,
+      date: currentTask.completedAt,
+      increased,
+      percentDifference: percentDifferenceBetweenLastAndCurrentTaskScore,
+      message,
+      task,
+    }
+  }
+  if (task === TaskType.WEIGHT_LOG) {
+    const message = `Your weight has ${
+      increased ? "increased" : "decreased"
+    } by ${percentDifferenceBetweenLastAndCurrentTaskScore}%`
+    return {
+      score,
+      date: currentTask.completedAt,
+      increased,
+      percentDifference: percentDifferenceBetweenLastAndCurrentTaskScore,
+      message,
+      task,
+    }
+  }
+  if (task === TaskType.WAIST_LOG) {
+    const message = `Your waist has ${
+      increased ? "increased" : "decreased"
+    } by ${percentDifferenceBetweenLastAndCurrentTaskScore}%`
+    return {
+      score,
+      date: currentTask.completedAt,
+      increased,
+      percentDifference: percentDifferenceBetweenLastAndCurrentTaskScore,
+      message,
+      task,
+    }
+  }
+}
+function calculateHungerScore(
+  lastTask: UserTask,
+  currentTask: UserTask,
+  task: TaskType
+) {
+  // [{"key": "foodEaten", "value": "mushrooms and rice", "type": "STRING"}, {"key": "hungerLevel1Hour", "value": "65", "type": "DATE"}, {"key": "hungerLevel30Mins", "value": "32", "type": "DATE"}]
+  const currentHungerLevel1Hour = Number(
+    currentTask.answers.find((answer) => answer.key === "hungerLevel1Hour")
+      .value
+  )
+  const currentHungerLevel30Mins = Number(
+    currentTask.answers.find((answer) => answer.key === "hungerLevel30Mins")
+      .value
+  )
+  const lastHungerLevel1Hour = Number(
+    lastTask.answers.find((answer) => answer.key === "hungerLevel1Hour").value
+  )
+  const lastHungerLevel30Mins = Number(
+    lastTask.answers.find((answer) => answer.key === "hungerLevel30Mins").value
+  )
+  const currentHungerLevel1HourPercentDifference = getPercentageChange(
+    lastHungerLevel1Hour,
+    currentHungerLevel1Hour
+  )
+  const currentHungerLevel30MinsPercentDifference = getPercentageChange(
+    lastHungerLevel30Mins,
+    currentHungerLevel30Mins
+  )
+  const percentileDifferenceHungerPercentile1hour = Object.keys(
+    hungerPercentile
+  ).reduce((acc, key) => {
+    const value = parseInt(key)
+    if (value < currentHungerLevel1Hour) {
+      return hungerPercentile[value]
+    } else if (value === currentHungerLevel1Hour) {
+      return hungerPercentile[value]
+    } else if (value > currentHungerLevel1Hour) {
+      return acc
+    }
+    return acc
+  }, 0)
+  const percentileDifferenceHungerPercentile30mins = Object.keys(
+    hungerPercentile
+  ).reduce((acc, key) => {
+    const value = parseInt(key)
+    if (value < currentHungerLevel30Mins) {
+      return hungerPercentile[value]
+    } else if (value === currentHungerLevel30Mins) {
+      return hungerPercentile[value]
+    } else if (value > currentHungerLevel30Mins) {
+      return acc
+    }
+    return acc
+  }, 0)
+
+  const increased1Hour = currentHungerLevel1Hour > lastHungerLevel1Hour
+  const increased30Mins = currentHungerLevel30Mins > lastHungerLevel30Mins
+  const message = `Your hunger level has ${
+    increased1Hour ? "increased" : "decreased"
+  } by ${currentHungerLevel1HourPercentDifference}% for 1 hour and ${
+    increased30Mins ? "increased" : "decreased"
+  } by ${currentHungerLevel30MinsPercentDifference}% for 30 mins and you scored within the ${percentileDifferenceHungerPercentile1hour} percentile for 1 hour and ${percentileDifferenceHungerPercentile30mins} percentile for 30 mins`
+  return {
+    score1hour: currentHungerLevel1HourPercentDifference,
+    score30mins: currentHungerLevel30MinsPercentDifference,
+    date: currentTask.completedAt,
+    increased1Hour,
+    increased30Mins,
+    percentDifference1Hour: currentHungerLevel1HourPercentDifference,
+    percentDifference30Mins: currentHungerLevel30MinsPercentDifference,
+    message,
+    task,
+  }
+}
+function calculateBPLogScore(
+  lastTask: UserTask,
+  currentTask: UserTask,
+  task: TaskType
+) {
+  // // Answers follow this structure: [{"key": "systolic", "value": "120", "type": "NUMBER"}, {"key": "diastolic", "value": "80", "type": "NUMBER"}]
+  // If systolic is > 140 or diastolic is > 90, go to next highest category. If above 130/80, ask if they are taking htn drugs.
+  // If it ever hit systolic > 140, diastolic >90, must stop phentermine/bupropion, doctor to independantly review if they are taking htn drugs.
+  // For geriatrics, if systolic is >130 and diastolic > 80, cannot be prescribed bupropion or phentermine
+  const currentSystolic = Number(
+    currentTask.answers.find((answer) => answer.key === "systolicBp").value
+  )
+  const currentDiastolic = Number(
+    currentTask.answers.find((answer) => answer.key === "diastolicBp").value
+  )
+  const lastSystolic = Number(
+    lastTask.answers.find((answer) => answer.key === "systolicBp").value
+  )
+  const lastDiastolic = Number(
+    lastTask.answers.find((answer) => answer.key === "diastolicBp").value
+  )
+  const currentSystolicPercentDifference = getPercentageChange(
+    lastSystolic,
+    currentSystolic
+  )
+  const currentDiastolicPercentDifference = getPercentageChange(
+    lastDiastolic,
+    currentDiastolic
+  )
+  const increasedSystolic = currentSystolic > lastSystolic
+  const increasedDiastolic = currentDiastolic > lastDiastolic
+  const message = `Your systolic has ${
+    increasedSystolic ? "increased" : "decreased"
+  } by ${currentSystolicPercentDifference}% and your diastolic has ${
+    increasedDiastolic ? "increased" : "decreased"
+  } by ${currentDiastolicPercentDifference}%`
+  let providerMessage = ""
+  switch (true) {
+    case currentSystolic > 140 || currentDiastolic > 90:
+      providerMessage =
+        "Your systolic is > 140 or diastolic is > 90, go to next highest category. If above 130/80, ask if they are taking htn drugs."
+      break
+    case currentSystolic > 130 && currentDiastolic > 80:
+      providerMessage =
+        "For geriatrics, if systolic is >130 and diastolic > 80, cannot be prescribed bupropion or phentermine"
+      break
+    default:
+      break
+  }
+  // const providerMessage =
+  return {
+    scoreSystolic: currentSystolicPercentDifference,
+    scoreDiastolic: currentDiastolicPercentDifference,
+    date: currentTask.completedAt,
+    increasedSystolic,
+    increasedDiastolic,
+    percentDifferenceSystolic: currentSystolicPercentDifference,
+    percentDifferenceDiastolic: currentDiastolicPercentDifference,
+    message,
+    task,
+    providerMessage,
+  }
+}
+export function calculateScore(
   lastTask: UserTask,
   currentTask: UserTask,
   taskType: TaskType
 ) {
-  // Each UserTask has answers we need to review each answer for each TaskType and calculate the score
-  // Each TaskType has a different scoring method so we need to check the type of the task and then calculate the score based on the type
-
-  // If this is the first time the user is submitting a task then we will just return 0
-
-  console.log(lastTask, "lastTask")
-  console.log(currentTask, "currentTask")
-  console.log(taskType, "taskType")
-  if (!lastTask) {
-    return null
+  if (taskType === TaskType.MP_FEELING) {
+    return calculateMPFeelingScore(lastTask, currentTask, taskType)
   }
-  const lastAnswers = lastTask.answers
-  const currentAnswers = currentTask.answers
-  const currentDate = new Date()
-  let percent = 0
-  let increased = false
-  let message = ""
-  const scoreObj = {
-    percent: 0,
-    increased: false,
-    message: "",
-    date: currentDate,
-    task: taskType,
-  }
-  // We need to check the type of the task and then calculate the score based on the type
   if (
     taskType === TaskType.MP_ACTIVITY ||
     taskType === TaskType.WEIGHT_LOG ||
     taskType === TaskType.WAIST_LOG
   ) {
-    // MP_ACTIVITY is a users recorded steps which is a Number so we can just take the percent difference between the last and current
-    // We need to check if the lastTask is null because this is the first time the user is submitting a task
-    if (lastTask) {
-      // Answers follow this structure: [{"key": "steps", "value": "12000", "type": "DATE"}]
-      percent =
-        Math.abs(
-          (Number(currentAnswers[0].value) - Number(lastAnswers[0].value)) /
-            Number(currentAnswers[0].value)
-        ) * 100
-      increased = Number(currentAnswers[0].value) > Number(lastAnswers[0].value)
-      scoreObj.percent = percent
-      scoreObj.increased = increased
-      return scoreObj
-    } else {
-      // If this is the first time the user is submitting a task then we will just return 0
-      // Alert should go our if the SD changes by 1% or more
-      return scoreObj
-    }
-  }
-
-  if (taskType === TaskType.BP_LOG) {
-    // BP_LOG is a users recorded blood pressure which is a String so we need to parse the string and then take the percent difference between the last and current
-    // We need to check if the lastTask is null because this is the first time the user is submitting a task
-    if (lastTask) {
-      // Answers follow this structure: [{"key": "systolic", "value": "120", "type": "NUMBER"}, {"key": "diastolic", "value": "80", "type": "NUMBER"}]
-
-      // If systolic is > 140 or diastolic is > 90, go to next highest category.If above 130 / 80, ask if they are taking htn drugs.
-      // If it ever hit systolic > 140, diastolic >90, must stop phentermine/bupropion, doctor to independantly review if they are taking htn drugs.
-      // For geriatrics, if systolic is >130 and diastolic > 80, cannot be prescribed bupropion or phentermine
-
-      const currentSystolic = Number(currentAnswers[0].value)
-      const currentDiastolic = Number(currentAnswers[1].value)
-      if (currentSystolic > 140 || currentDiastolic > 90) {
-        message =
-          "Go to next highest category. If above 130 / 80, ask if they are taking htn drugs. You must stop phentermine/bupropion, doctor to independantly review if they are taking htn drugs."
-      } else if (currentSystolic > 130 && currentDiastolic > 80) {
-        message = "Cannot be prescribed bupropion or phentermine"
-      }
-
-      scoreObj.increased = null
-      scoreObj.message = message
-      return scoreObj
-    }
-  }
-  // MP_FEELING gets recorded like this: // [{"key": "tenseLevel", "value": "Most of the time", "type": "STRING"}, {"key": "frightenedLevel", "value": "Yes, but not too badly", "type": "STRING"}, {"key": "easeFrequency", "value": "Not Often", "type": "STRING"}, {"key": "worryAmount", "value": "From time to time, but not too often", "type": "STRING"}, {"key": "frightenedFrequency", "value": "Quite Often", "type": "STRING"}, {"key": "restlessAmount", "value": "Quite a lot", "type": "STRING"}, {"key": "panicFrequency", "value": "Not very often", "type": "STRING"}]
-  // We need to assign a number to each answer based upon it's key and then add up the total score
-  // once we have the total score for each key for the last task and current task we will need to find the perfect difference between the two
-  if (taskType === TaskType.MP_FEELING) {
-    // AKA HADS A
-    // We need to check if the lastTask is null because this is the first time the user is submitting a task
-    if (lastTask) {
-      type ObjectType = {
-        [key: string]: number
-      }
-      const tenseLevel: ObjectType = {
-        "Not at all": 0,
-        "From time to time, occasionally": 1,
-        "Some of the time": 2,
-        "Most of the time": 3,
-      }
-      const frightenedLevel: ObjectType = {
-        "Not at all": 0,
-        "A little, but it doesn't worry me": 1,
-        "Yes, but not too badly": 2,
-        "Very definitely and quite badly": 0,
-      }
-      const easeFrequency: ObjectType = {
-        "Only occasionally": 0,
-        "From time to time, but not too often": 1,
-        "A lot of the time": 2,
-        "A great deal of the time ": 3,
-      }
-      const worryAmount: ObjectType = {
-        "Definitely": 0,
-        "Usually": 1,
-        "Not Often": 2,
-        "Not at all": 3,
-      }
-      const frightenedFrequency: ObjectType = {
-        "Not at all": 0,
-        "Occasionally": 1,
-        "Quite Often": 2,
-        "Very Often": 3,
-      }
-      const restlessAmount: ObjectType = {
-        "Not at all": 0,
-        "Not very much": 1,
-        "Quite a lot": 2,
-        "Very much indeed": 3,
-      }
-      const panicFrequency: ObjectType = {
-        "Not at all": 0,
-        "Not very often": 1,
-        "Quite often": 2,
-        "Very often indeed": 3,
-      }
-      const currentTenseLevel =
-        tenseLevel[
-          currentAnswers.find((answer) => answer.key === "tenseLevel").value
-        ]
-      const currentFrightenedLevel = frightenedLevel[currentAnswers[1].value]
-      const currentEaseFrequency = easeFrequency[currentAnswers[2].value]
-      const currentWorryAmount = worryAmount[currentAnswers[3].value]
-      const currentFrightenedFrequency =
-        frightenedFrequency[currentAnswers[4].value]
-      const currentRestlessAmount = restlessAmount[currentAnswers[5].value]
-      const currentPanicFrequency = panicFrequency[currentAnswers[6].value]
-      const lastTenseLevel = tenseLevel[lastAnswers[0].value]
-      const lastFrightenedLevel = frightenedLevel[lastAnswers[1].value]
-      const lastEaseFrequency = easeFrequency[lastAnswers[2].value]
-      const lastWorryAmount = worryAmount[lastAnswers[3].value]
-      const lastFrightenedFrequency = frightenedFrequency[lastAnswers[4].value]
-      const lastRestlessAmount = restlessAmount[lastAnswers[5].value]
-      const lastPanicFrequency = panicFrequency[lastAnswers[6].value]
-      const score =
-        Math.abs(currentTenseLevel - lastTenseLevel) +
-        Math.abs(currentFrightenedLevel - lastFrightenedLevel) +
-        Math.abs(currentEaseFrequency - lastEaseFrequency) +
-        Math.abs(currentWorryAmount - lastWorryAmount) +
-        Math.abs(currentFrightenedFrequency - lastFrightenedFrequency) +
-        Math.abs(currentRestlessAmount - lastRestlessAmount) +
-        Math.abs(currentPanicFrequency - lastPanicFrequency)
-      const total =
-        currentTenseLevel +
-        currentFrightenedLevel +
-        currentEaseFrequency +
-        currentWorryAmount +
-        currentFrightenedFrequency +
-        currentRestlessAmount +
-        currentPanicFrequency
-      percent = (score / total) * 100
-      increased =
-        currentTenseLevel > lastTenseLevel &&
-        currentFrightenedLevel > lastFrightenedLevel &&
-        currentEaseFrequency > lastEaseFrequency &&
-        currentWorryAmount > lastWorryAmount &&
-        currentFrightenedFrequency > lastFrightenedFrequency &&
-        currentRestlessAmount > lastRestlessAmount &&
-        currentPanicFrequency > lastPanicFrequency
-      scoreObj.percent = percent
-      scoreObj.increased = increased
-      return scoreObj
-    } else {
-      // If this is the first time the user is submitting a task then we will just return 0
-      return scoreObj
-    }
+    return calculateActivityScore(lastTask, currentTask, taskType)
   }
   if (taskType === TaskType.MP_HUNGER) {
-    // [{"key": "foodEaten", "value": "mushrooms and rice", "type": "STRING"}, {"key": "hungerLevel1Hour", "value": "65", "type": "DATE"}, {"key": "hungerLevel30Mins", "value": "32", "type": "DATE"}]
-
-    const currentHungerLevel1Hour = currentAnswers.find(
-      (answer) => answer.key === "hungerLevel1Hour"
-    ).value
-    const lastHungerLevel1Hour = lastAnswers.find(
-      (answer) => answer.key === "hungerLevel1Hour"
-    ).value
-    const currentHungerLevel30Min = currentAnswers.find(
-      (answer) => answer.key === "hungerLevel30Mins"
-    ).value
-    const lastHungerLevel30Min = lastAnswers.find(
-      (answer) => answer.key === "hungerLevel30Mins"
-    ).value
-    percent =
-      Math.abs(Number(currentHungerLevel1Hour) - Number(lastHungerLevel1Hour)) +
-      Math.abs(Number(currentHungerLevel30Min) - Number(lastHungerLevel30Min)) /
-        Number(currentHungerLevel1Hour) +
-      Number(currentHungerLevel30Min) * 100
-    increased =
-      Number(currentHungerLevel1Hour) > Number(lastHungerLevel1Hour) &&
-      Number(currentHungerLevel30Min) > Number(lastHungerLevel30Min)
-    scoreObj.percent = percent
-    scoreObj.increased = increased
-    return scoreObj
+    return calculateHungerScore(lastTask, currentTask, taskType)
   }
-
-  return scoreObj
+  if (taskType === TaskType.BP_LOG) {
+    return calculateBPLogScore(lastTask, currentTask, taskType)
+  }
+  return null
 }
-
-export { calculateScore }

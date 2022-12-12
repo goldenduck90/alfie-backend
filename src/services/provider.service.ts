@@ -2,8 +2,10 @@ import { ApolloError } from "apollo-server"
 import { v4 as uuidv4 } from "uuid"
 import {
   BatchCreateOrUpdateProvidersInput,
+  Provider,
   ProviderModel,
 } from "../schema/provider.schema"
+import { Role } from "./../schema/user.schema"
 import EmailService from "./email.service"
 
 class ProviderService {
@@ -23,7 +25,10 @@ class ProviderService {
       .sort({ numberOfPatients: "asc" })
       .limit(1)
 
-    if (provider.length === 0) {
+    const providers = provider.filter((_provider: Provider) => {
+      return _provider.type === Role.Practitioner
+    })
+    if (providers.length === 0) {
       throw new ApolloError(
         `No providers available for state: ${state}`,
         "NOT_FOUND"
@@ -32,12 +37,12 @@ class ProviderService {
 
     if (update) {
       await ProviderModel.updateOne(
-        { _id: provider[0]._id },
+        { _id: providers[0]._id },
         { $inc: { numberOfPatients: 1 } }
       )
     }
 
-    return provider[0]
+    return providers[0]
   }
 
   async batchCreateOrUpdateProviders(input: BatchCreateOrUpdateProvidersInput) {

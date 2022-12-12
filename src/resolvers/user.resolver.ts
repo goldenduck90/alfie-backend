@@ -6,6 +6,7 @@ import {
 } from "../schema/checkout.schema"
 import { UserTask } from "../schema/task.user.schema"
 import {
+  CompletePaymentIntentInput,
   CreateUserInput,
   ForgotPasswordInput,
   LoginInput,
@@ -51,6 +52,12 @@ export default class UserResolver {
   @Mutation(() => MessageResponse)
   subscribeEmail(@Arg("input") input: SubscribeEmailInput) {
     return this.userService.subscribeEmail(input)
+  }
+
+  @Authorized([Role.Admin])
+  @Mutation(() => MessageResponse)
+  async completePaymentIntent(@Arg("input") input: CompletePaymentIntentInput) {
+    return this.userService.completePaymentIntent(input)
   }
 
   @Authorized([Role.Admin])
