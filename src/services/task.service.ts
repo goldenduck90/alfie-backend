@@ -13,7 +13,7 @@ import {
   GetUserTasksInput,
   UpdateUserTaskInput,
   UserTask,
-  UserTaskModel,
+  UserTaskModel
 } from "../schema/task.user.schema"
 import { UserModel } from "../schema/user.schema"
 import AkuteService from "./akute.service"
@@ -134,6 +134,7 @@ class TaskService extends EmailService {
       // We need to push the new score onto the users scores array
 
       if (score) {
+        console.log(score, "score")
         user.score.push(score)
         await user.save()
       }
