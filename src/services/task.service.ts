@@ -12,7 +12,7 @@ import {
   GetUserTasksInput,
   UpdateUserTaskInput,
   UserTask,
-  UserTaskModel,
+  UserTaskModel
 } from "../schema/task.user.schema"
 import { UserModel } from "../schema/user.schema"
 import AkuteService from "./akute.service"
@@ -210,63 +210,68 @@ class TaskService extends EmailService {
   }
 
   async bulkAssignTasksToUser(input: CreateUserTasksInput) {
-    const { alreadyAssigned, notFound, userNotFound } = config.get(
-      "errors.tasks"
-    ) as any
-    const { userId, taskTypes } = input
-    const user = await UserModel.findById(userId)
-    if (!user) {
-      throw new ApolloError(userNotFound.message, userNotFound.code)
+    try {
+      const { alreadyAssigned, notFound, userNotFound } = config.get(
+        "errors.tasks"
+      ) as any
+      const { userId, taskTypes } = input
+      const user = await UserModel.findById(userId)
+      if (!user) {
+        throw new ApolloError(userNotFound.message, userNotFound.code)
+      }
+
+      const tasks = await TaskModel.find({ type: { $in: taskTypes } })
+        .where({ completed: false })
+        .lean()
+      if (tasks.length !== taskTypes.length) {
+        throw new ApolloError(notFound.message, notFound.code)
+      }
+      const taskIds = tasks.map((task) => task._id)
+
+      const userTasks = await UserTaskModel.find({
+        user: userId,
+        task: { $in: taskIds },
+      })
+
+      const newTasks: Omit<UserTask, "_id" | "completed">[] = tasks.reduce(
+        (filtered: Omit<UserTask, "_id" | "completed">[], task) => {
+          const existingTask = userTasks.find(
+            (userTask) => userTask.task.toString() === task._id.toString()
+          )
+
+          if (!existingTask || (existingTask && task.canHaveMultiple)) {
+            filtered.push({
+              user: userId,
+              task: task._id,
+              ...(task.daysTillDue && {
+                dueAt: addDays(new Date(), task.daysTillDue),
+              }),
+              highPriority: task.highPriority,
+              lastNotifiedUserAt: task.notifyWhenAssigned
+                ? new Date()
+                : undefined,
+              archived: false,
+            })
+          }
+
+          return filtered
+        },
+        []
+      )
+      if (!newTasks.length) {
+        throw new ApolloError(alreadyAssigned.message, alreadyAssigned.code)
+      }
+
+      const newUserTasks = await UserTaskModel.create(newTasks)
+
+      return newUserTasks.map((userTask) => ({
+        ...userTask.toObject(),
+        ...(userTask.dueAt && { pastDue: false }),
+      }))
+    } catch (error) {
+      console.log(error, "error in bulkAssignTasksToUser")
+
     }
-
-    const tasks = await TaskModel.find({ type: { $in: taskTypes } })
-      .where({ completed: false })
-      .lean()
-    if (tasks.length !== taskTypes.length) {
-      throw new ApolloError(notFound.message, notFound.code)
-    }
-    const taskIds = tasks.map((task) => task._id)
-
-    const userTasks = await UserTaskModel.find({
-      user: userId,
-      task: { $in: taskIds },
-    })
-
-    const newTasks: Omit<UserTask, "_id" | "completed">[] = tasks.reduce(
-      (filtered: Omit<UserTask, "_id" | "completed">[], task) => {
-        const existingTask = userTasks.find(
-          (userTask) => userTask.task.toString() === task._id.toString()
-        )
-
-        if (!existingTask || (existingTask && task.canHaveMultiple)) {
-          filtered.push({
-            user: userId,
-            task: task._id,
-            ...(task.daysTillDue && {
-              dueAt: addDays(new Date(), task.daysTillDue),
-            }),
-            highPriority: task.highPriority,
-            lastNotifiedUserAt: task.notifyWhenAssigned
-              ? new Date()
-              : undefined,
-            archived: false,
-          })
-        }
-
-        return filtered
-      },
-      []
-    )
-    if (!newTasks.length) {
-      throw new ApolloError(alreadyAssigned.message, alreadyAssigned.code)
-    }
-
-    const newUserTasks = await UserTaskModel.create(newTasks)
-
-    return newUserTasks.map((userTask) => ({
-      ...userTask.toObject(),
-      ...(userTask.dueAt && { pastDue: false }),
-    }))
   }
 
   async assignTaskToUser(input: CreateUserTaskInput) {

@@ -9,7 +9,7 @@ import { v4 as uuidv4 } from "uuid"
 import {
   CheckoutModel,
   CreateCheckoutInput,
-  CreateStripeCustomerInput,
+  CreateStripeCustomerInput
 } from "../schema/checkout.schema"
 import { LabModel } from "../schema/lab.schema"
 import { ProviderModel } from "../schema/provider.schema"
@@ -25,7 +25,7 @@ import {
   SubscribeEmailInput,
   UpdateSubscriptionInput,
   UserModel,
-  Weight,
+  Weight
 } from "../schema/user.schema"
 import { signJwt } from "../utils/jwt"
 import { triggerEntireSendBirdFlow } from "../utils/sendBird"
@@ -59,11 +59,15 @@ class UserService extends EmailService {
   }
 
   async assignUserTasks(userId: string, taskTypes: TaskType[]) {
-    const input = {
-      userId,
-      taskTypes,
+    try {
+      const input = {
+        userId,
+        taskTypes,
+      }
+      await this.taskService.bulkAssignTasksToUser(input)
+    } catch (error) {
+      console.error(error, "error in assignUserTasks")
     }
-    this.taskService.bulkAssignTasksToUser(input)
   }
 
   async createUser(input: CreateUserInput, manual = false) {
@@ -699,8 +703,8 @@ class UserService extends EmailService {
         ...(!noExpire
           ? { expiresIn: remember ? rememberExp : normalExp }
           : {
-              expiresIn: "6000d",
-            }),
+            expiresIn: "6000d",
+          }),
       }
     )
 
