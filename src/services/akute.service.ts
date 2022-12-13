@@ -57,7 +57,7 @@ class AkuteService {
         address_city,
         address_state,
         address_zipcode: address_zipcode.includes("-")
-          ? address_zipcode.split("-")[1]
+          ? address_zipcode.split("-")[0]
           : address_zipcode,
         email,
         primary_phone_number: primary_phone_number.replace("+1", ""),
