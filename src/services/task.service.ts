@@ -12,7 +12,7 @@ import {
   GetUserTasksInput,
   UpdateUserTaskInput,
   UserTask,
-  UserTaskModel
+  UserTaskModel,
 } from "../schema/task.user.schema"
 import { UserModel } from "../schema/user.schema"
 import AkuteService from "./akute.service"
@@ -130,11 +130,10 @@ class TaskService extends EmailService {
       await user.save()
     }
     if (task.type === TaskType.NEW_PATIENT_INTAKE_FORM) {
-      console.log("NEW_PATIENT_INTAKE_FORM")
       const user = await UserModel.findById(userTask.user)
       const pharmacyId = answers.find((a) => a.key === "pharmacyLocation").value
       const patientId = user?.akutePatientId
-      if (pharmacyId) {
+      if (pharmacyId !== "null") {
         await akuteService.createPharmacyListForPatient(
           pharmacyId,
           patientId,
@@ -144,7 +143,6 @@ class TaskService extends EmailService {
       }
       const labId = answers.find((a) => a.key === "labCorpLocation").value
       user.labLocation = labId
-
       const hasRequiredLabs = answers.find((a) => a.key === "hasRequiredLabs")
       if (hasRequiredLabs && hasRequiredLabs.value === "true") {
         const newTaskInput: CreateUserTaskInput = {
