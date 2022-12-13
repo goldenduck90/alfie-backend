@@ -71,206 +71,200 @@ class UserService extends EmailService {
   }
 
   async createUser(input: CreateUserInput, manual = false) {
-    try {
-      const { alreadyExists, unknownError, emailSendError } = config.get(
-        "errors.createUser"
-      ) as any
-      const { emailSubscribersTable, waitlistTable } = config.get(
-        "dynamoDb"
-      ) as any
-      const userCreatedMessage = config.get(
-        manual
-          ? "messages.userCreatedManually"
-          : "messages.userCreatedViaCheckout"
-      ) as any
-      const {
-        name,
-        email,
-        phone,
-        role,
-        dateOfBirth,
-        address,
-        weightInLbs,
-        gender,
-        heightInInches,
-        stripeCustomerId,
-        subscriptionExpiresAt,
-        stripeSubscriptionId,
-        providerId,
-        textOptIn,
-      } = input
+    const { alreadyExists, unknownError, emailSendError } = config.get(
+      "errors.createUser"
+    ) as any
+    const { emailSubscribersTable, waitlistTable } = config.get(
+      "dynamoDb"
+    ) as any
+    const userCreatedMessage = config.get(
+      manual
+        ? "messages.userCreatedManually"
+        : "messages.userCreatedViaCheckout"
+    ) as any
+    const {
+      name,
+      email,
+      phone,
+      role,
+      dateOfBirth,
+      address,
+      weightInLbs,
+      gender,
+      heightInInches,
+      stripeCustomerId,
+      subscriptionExpiresAt,
+      stripeSubscriptionId,
+      providerId,
+      textOptIn,
+    } = input
 
-      const existingUser = await UserModel.find().findByEmail(email).lean()
-      if (existingUser) {
-        throw new ApolloError(alreadyExists.message, alreadyExists.code)
-      }
+    const existingUser = await UserModel.find().findByEmail(email).lean()
+    if (existingUser) {
+      throw new ApolloError(alreadyExists.message, alreadyExists.code)
+    }
 
-      const emailToken = uuidv4()
+    const emailToken = uuidv4()
 
-      const weights: Weight[] = []
-      if (weightInLbs) {
-        weights.push({
-          date: new Date(),
-          value: weightInLbs,
-        })
-      }
-
-      let provider = {
-        _id: providerId,
-      }
-
-      if (!providerId) {
-        provider = await this.providerService.getNextAvailableProvider(
-          address.state,
-          true
-        )
-        if (!provider) {
-          throw new ApolloError(
-            `Could not select provider for user's state: ${address.state}`,
-            "NOT_FOUND"
-          )
-        }
-      }
-
-      console.log(`CREATING NEW USER w/Name: ${name}`)
-
-      const splitName = name.split(" ")
-      const firstName = name.split(" ")[0] || ""
-      const lastName = splitName ? splitName[splitName.length - 1] : ""
-
-      const patientId = await this.akuteService.createPatient({
-        firstName,
-        lastName,
-        email,
-        phone,
-        dateOfBirth,
-        address,
-        sex: gender,
+    const weights: Weight[] = []
+    if (weightInLbs) {
+      weights.push({
+        date: new Date(),
+        value: weightInLbs,
       })
-      if (!patientId) {
+    }
+
+    let provider = {
+      _id: providerId,
+    }
+
+    if (!providerId) {
+      provider = await this.providerService.getNextAvailableProvider(
+        address.state,
+        true
+      )
+      if (!provider) {
         throw new ApolloError(
-          `An error occured for creating a patient entry in Akute for: ${email}`,
-          "INTERNAL_SERVER_ERROR"
+          `Could not select provider for user's state: ${address.state}`,
+          "NOT_FOUND"
         )
       }
+    }
 
-      const customerId = await this.appointmentService.createCustomer({
-        userId: "",
-        firstName,
-        lastName,
-        email,
-        phone,
-        address: `${address.line1} ${address.line2 || ""}`,
-        city: address.city,
-        zipCode: address.postalCode,
-        state: address.state,
-        updateUser: false,
-      })
-      if (!customerId) {
-        throw new ApolloError(
-          `An error occured for creating a customer entry in Easy Appointments for: ${email}`,
-          "INTERNAL_SERVER_ERROR"
-        )
-      }
+    console.log(`CREATING NEW USER w/Name: ${name}`)
 
-      const user = await UserModel.create({
-        name,
-        email,
-        phone,
-        role,
-        emailToken,
-        dateOfBirth,
-        address,
-        weights,
-        gender,
-        heightInInches,
-        stripeCustomerId,
-        subscriptionExpiresAt,
-        stripeSubscriptionId,
-        eaCustomerId: customerId,
-        akutePatientId: patientId,
-        provider: provider._id,
-        textOptIn,
-      })
-      if (!user) {
-        throw new ApolloError(unknownError.message, unknownError.code)
-      }
+    const splitName = name.split(" ")
+    const firstName = name.split(" ")[0] || ""
+    const lastName = splitName ? splitName[splitName.length - 1] : ""
 
-      // delete user from email subscribers table
-      const { $response } = await this.awsDynamo
-        .deleteItem({
-          TableName: emailSubscribersTable,
-          Key: {
-            emailaddress: {
-              S: email,
-            },
+    const patientId = await this.akuteService.createPatient({
+      firstName,
+      lastName,
+      email,
+      phone,
+      dateOfBirth,
+      address,
+      sex: gender,
+    })
+    if (!patientId) {
+      throw new ApolloError(
+        `An error occured for creating a patient entry in Akute for: ${email}`,
+        "INTERNAL_SERVER_ERROR"
+      )
+    }
+
+    const customerId = await this.appointmentService.createCustomer({
+      userId: "",
+      firstName,
+      lastName,
+      email,
+      phone,
+      address: `${address.line1} ${address.line2 || ""}`,
+      city: address.city,
+      zipCode: address.postalCode,
+      state: address.state,
+      updateUser: false,
+    })
+    if (!customerId) {
+      throw new ApolloError(
+        `An error occured for creating a customer entry in Easy Appointments for: ${email}`,
+        "INTERNAL_SERVER_ERROR"
+      )
+    }
+
+    const user = await UserModel.create({
+      name,
+      email,
+      phone,
+      role,
+      emailToken,
+      dateOfBirth,
+      address,
+      weights,
+      gender,
+      heightInInches,
+      stripeCustomerId,
+      subscriptionExpiresAt,
+      stripeSubscriptionId,
+      eaCustomerId: customerId,
+      akutePatientId: patientId,
+      provider: provider._id,
+      textOptIn,
+    })
+    if (!user) {
+      throw new ApolloError(unknownError.message, unknownError.code)
+    }
+
+    // delete user from email subscribers table
+    const { $response } = await this.awsDynamo
+      .deleteItem({
+        TableName: emailSubscribersTable,
+        Key: {
+          emailaddress: {
+            S: email,
           },
-        })
-        .promise()
-
-      if ($response.error) {
-        console.log(
-          "An error occured deleting user from DynamoDB",
-          $response.error.message
-        )
-      }
-
-      const { $response: $response2 } = await this.awsDynamo
-        .deleteItem({
-          TableName: waitlistTable,
-          Key: {
-            emailaddress: {
-              S: email,
-            },
-          },
-        })
-        .promise()
-
-      if ($response2.error) {
-        console.log(
-          "An error occured deleting user from DynamoDB",
-          $response2.error.message
-        )
-      }
-
-      // trigger sendbird flow
-      await triggerEntireSendBirdFlow(user._id, user.name, "", "")
-
-      // assign initial tasks to user
-      const tasks = [
-        TaskType.ID_AND_INSURANCE_UPLOAD,
-        TaskType.NEW_PATIENT_INTAKE_FORM,
-        TaskType.MP_HUNGER,
-        TaskType.MP_FEELING,
-        TaskType.BP_LOG,
-        TaskType.WEIGHT_LOG,
-        TaskType.WAIST_LOG,
-        TaskType.MP_BLUE_CAPSULE,
-        TaskType.MP_ACTIVITY,
-        TaskType.FOOD_LOG,
-        TaskType.TEFQ,
-      ]
-      await this.assignUserTasks(user._id, tasks)
-
-      // send email with link to set password
-      const sent = await this.sendRegistrationEmailTemplate({
-        email,
-        token: emailToken,
-        manual,
-        name,
+        },
       })
-      if (!sent) {
-        throw new ApolloError(emailSendError.message, emailSendError.code)
-      }
+      .promise()
 
-      return {
-        message: userCreatedMessage,
-        user,
-      }
-    } catch (error) {
-      console.log(error)
-      Sentry.captureException(error)
-      throw new ApolloError("an error occured", "INTERNAL_SERVER_ERROR")
+    if ($response.error) {
+      console.log(
+        "An error occured deleting user from DynamoDB",
+        $response.error.message
+      )
+    }
+
+    const { $response: $response2 } = await this.awsDynamo
+      .deleteItem({
+        TableName: waitlistTable,
+        Key: {
+          emailaddress: {
+            S: email,
+          },
+        },
+      })
+      .promise()
+
+    if ($response2.error) {
+      console.log(
+        "An error occured deleting user from DynamoDB",
+        $response2.error.message
+      )
+    }
+
+    // trigger sendbird flow
+    await triggerEntireSendBirdFlow(user._id, user.name, "", "")
+
+    // assign initial tasks to user
+    const tasks = [
+      TaskType.ID_AND_INSURANCE_UPLOAD,
+      TaskType.NEW_PATIENT_INTAKE_FORM,
+      TaskType.MP_HUNGER,
+      TaskType.MP_FEELING,
+      TaskType.BP_LOG,
+      TaskType.WEIGHT_LOG,
+      TaskType.WAIST_LOG,
+      TaskType.MP_BLUE_CAPSULE,
+      TaskType.MP_ACTIVITY,
+      TaskType.FOOD_LOG,
+      TaskType.TEFQ,
+    ]
+    await this.assignUserTasks(user._id, tasks)
+
+    // send email with link to set password
+    const sent = await this.sendRegistrationEmailTemplate({
+      email,
+      token: emailToken,
+      manual,
+      name,
+    })
+    if (!sent) {
+      throw new ApolloError(emailSendError.message, emailSendError.code)
+    }
+
+    return {
+      message: userCreatedMessage,
+      user,
     }
   }
 

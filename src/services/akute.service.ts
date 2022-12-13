@@ -65,6 +65,7 @@ class AkuteService {
 
       return data.data.id
     } catch (error) {
+      console.log(error)
       Sentry.captureException(error)
       throw new ApolloError(error.message, "ERROR")
     }
