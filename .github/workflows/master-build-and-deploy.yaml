@@ -47,7 +47,7 @@ jobs:
       with:
         aws_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        region: ${{ secrets.AWS_REGION }}
+        region: ${{ env.AWS_REGION }}
         application_name: alfie-backend
         environment_name: production
         version_label: "production_${{ steps.timestamp.outputs.date }}"
