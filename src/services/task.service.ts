@@ -12,7 +12,7 @@ import {
   GetUserTasksInput,
   UpdateUserTaskInput,
   UserTask,
-  UserTaskModel,
+  UserTaskModel
 } from "../schema/task.user.schema"
 import { UserModel } from "../schema/user.schema"
 import AkuteService from "./akute.service"
@@ -360,10 +360,6 @@ class TaskService extends EmailService {
           providerEmail: lookUpProviderEmail.email,
         }
       })
-      console.log(
-        arrayOfUserTasksWithProviderEmail,
-        "arrayOfUserTasksWithProviderEmail"
-      )
       return arrayOfUserTasksWithProviderEmail
     } catch (error) {
       Sentry.captureException(error)
