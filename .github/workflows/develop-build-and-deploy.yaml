@@ -43,11 +43,11 @@ jobs:
       id: timestamp
       run: echo "::set-output name=date::$(date +'%Y-%m-%dT%H-%M-%S-%3NZ')"
     - name: Run beanstalk deploy
-      uses: einaregilsson/beanstalk-deploy@v2
+      uses: einaregilsson/beanstalk-deploy@v21
       with:
         aws_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-        aws_region: ${{ secrets.AWS_REGION }}
+        region: ${{ secrets.AWS_REGION }}
         application_name: alfie-backend
         environment_name: develop
         version_label: "develop_${{ steps.timestamp.outputs.date }}"
