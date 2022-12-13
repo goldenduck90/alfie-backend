@@ -49,6 +49,5 @@ jobs:
         aws_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         application_name: alfie-backend
         environment_name: develop
-        region: us-east-1
         version_label: "develop_${{ steps.timestamp.outputs.date }}"
         deployment_package: package.zip
