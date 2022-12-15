@@ -1,14 +1,15 @@
 import axios from "axios"
+
 const channelMessages = [
   {
     type: "Health Coach",
     message:
-      "Use this channel to speak with your health coach. You’ll be assigned a health coach after meeting with the provider and receiving your prescription.",
+      "Use this channel to speak with your health coach. You'll be assigned a health coach after meeting with the provider and receiving your prescription.",
   },
   {
     type: "Medical",
     message:
-      "Use this channel to message directly with your provider and the medical team regarding medications or other questions. You’ll see a task to schedule with a provider once we have received your lab results. ",
+      "Use this channel to message directly with your provider and the medical team regarding medications or other questions. You'll see a task to schedule with a provider once we have received your lab results. ",
   },
   {
     type: "Customer Support",
@@ -61,42 +62,33 @@ const createSendBirdUser = async (
 
 const createSendBirdChannelForNewUser = async (user_id: string) => {
   try {
-    const healthCoach = await sendBirdInstance.post("/v3/group_channels", {
-      name: "Health Coach",
-      custom_type: "Health Coach",
+    return await sendBirdInstance.post("/v3/group_channels", {
+      name: "Alfie Chat",
+      custom_type: "Alfie Chat",
       is_distinct: false,
       user_ids: [user_id],
     })
-    const medical = await sendBirdInstance.post("/v3/group_channels", {
-      name: "Medical",
-      custom_type: "Medical",
-      is_distinct: false,
-      user_ids: [user_id],
-    })
-    const customerSupport = await sendBirdInstance.post("/v3/group_channels", {
-      name: "Customer Support",
-      custom_type: "Customer Support",
-      is_distinct: false,
-      user_ids: [user_id],
-    })
-    const channels = Promise.all([healthCoach, medical, customerSupport])
-    return channels
   } catch (error) {
     throw new Error(error)
   }
 }
+
 /**
  *
  * @param channel_url
  * @param message
  * @returns a message object and the full response object can be found here: https://sendbird.com/docs/chat/v3/platform-api/message/messaging-basics/send-a-message#2-responses
  */
-const inviteUserToChannel = async (channel_url: string, user_id: string) => {
+const inviteUserToChannel = async (
+  channel_url: string,
+  user_id: string,
+  provider: string
+) => {
   try {
     const { data } = await sendBirdInstance.post(
       `/v3/group_channels/${channel_url}/invite`,
       {
-        user_ids: [user_id, 1, 353665, 2, 3], // iser id 1 is the admin
+        user_ids: [user_id, 1, provider], // User id 1 is the admin
       }
     )
     return data
@@ -127,12 +119,19 @@ const sendMessageToChannel = async (channel_url: string, message: string) => {
  * @param profile_file
  * @returns TBD
  */
-const triggerEntireSendBirdFlow = async (
-  user_id: string,
-  nickname: string,
-  profile_url: string,
+const triggerEntireSendBirdFlow = async ({
+  nickname,
+  profile_file,
+  profile_url,
+  provider,
+  user_id,
+}: {
+  user_id: string
+  nickname: string
+  profile_url: string
   profile_file: string
-) => {
+  provider: string
+}) => {
   try {
     const user = await createSendBirdUser(
       user_id,
@@ -140,20 +139,14 @@ const triggerEntireSendBirdFlow = async (
       profile_url,
       profile_file
     )
-    const channels = await createSendBirdChannelForNewUser(user.user_id)
-    await Promise.all(
-      channels.map((channel) => {
-        return inviteUserToChannel(channel.data.channel_url, user.user_id)
-      })
+    const channel = await createSendBirdChannelForNewUser(user.user_id)
+    await inviteUserToChannel(channel.data.channel_url, user.user_id, provider)
+
+    const message = channelMessages.find(
+      (channelMessage) => channelMessage.type === channel.data.name
     )
-    await Promise.all(
-      channels.map((channel) => {
-        const message = channelMessages.find(
-          (channelMessage) => channelMessage.type === channel.data.name
-        )
-        return sendMessageToChannel(channel.data.channel_url, message.message)
-      })
-    )
+    await sendMessageToChannel(channel.data.channel_url, message.message)
+
     return "Channels created and messages sent!"
   } catch (error) {
     throw new Error(error)
