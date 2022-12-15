@@ -93,6 +93,38 @@ class TaskService extends EmailService {
       })),
     }
   }
+  async checkEligibilityForAppointment(userId: any) {
+    try {
+      // Get all user tasks userId
+      const userTasks = await UserTaskModel.find({ user: userId }).populate(
+        "task"
+      )
+      // once I have all the tasks review and see if the user has completed all the required tasks in this array
+      const requiredTasks = [
+        TaskType.MP_BLUE_CAPSULE,
+        TaskType.MP_BLUE_CAPSULE_2,
+        TaskType.MP_HUNGER,
+        TaskType.MP_FEELING,
+      ]
+      const completedTasks: any = userTasks.filter((task) => task.completed)
+      const completedTaskTypes = completedTasks.map(
+        (task: any) => task.task.type
+      )
+      const hasCompletedRequiredTasks = requiredTasks.every((task) =>
+        completedTaskTypes.includes(task)
+      )
+
+      if (hasCompletedRequiredTasks === true) {
+        const newTaskInput: CreateUserTaskInput = {
+          taskType: TaskType.SCHEDULE_APPOINTMENT,
+          userId: userId.toString(),
+        }
+        await this.assignTaskToUser(newTaskInput)
+      }
+    } catch (error) {
+      Sentry.captureException(error)
+    }
+  }
 
   async completeUserTask(input: CompleteUserTaskInput) {
     const { notFound } = config.get("errors.tasks") as any
@@ -101,6 +133,7 @@ class TaskService extends EmailService {
     if (!userTask) {
       throw new ApolloError(notFound.message, notFound.code)
     }
+    await this.checkEligibilityForAppointment(userTask.user)
 
     userTask.completed = true
     userTask.completedAt = new Date()
