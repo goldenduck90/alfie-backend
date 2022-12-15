@@ -111,7 +111,60 @@ class TaskService extends EmailService {
     // we can add more types here in a switch to save data to different places
 
     // if the task type is MP_BLUE_CAPSULE we need to assign the user the next task which is MP_BLUE_CAPSULE_2
+    if (task.type === TaskType.LAB_SELECTION) {
+      const user = await UserModel.findById(userTask.user)
+      const labId = answers.find((a) => a.key === "labCorpLocation").value
+      user.labLocation = labId
+      const hasRequiredLabs = answers.find((a) => a.key === "hasRequiredLabs")
+      if (hasRequiredLabs && hasRequiredLabs.value === "true")
+        return user.save()
+      try {
+        // get user provider
+        const provider = await ProviderModel.findById(user.provider)
 
+        // get labcorp location fax number
+        const locationId = answers.find(
+          (a) => a.key === "labCorpLocation"
+        ).value
+        const labCorpLocation = await LabModel.findById(locationId)
+        const faxNumber = labCorpLocation.faxNumber
+
+        // calculate bmi
+        const bmi =
+          (user.weights[0].value / user.heightInInches / user.heightInInches) *
+          703.071720346
+
+        // create pdf
+        const pdfBuffer = await this.pdfService.createLabOrderPdf({
+          patientFullName: user.name,
+          providerFullName: `${provider.firstName} ${provider.lastName}`,
+          providerNpi: provider.npi,
+          patientDob: user.dateOfBirth,
+          icdCode: 27 < bmi && bmi < 30 ? "E66.3" : "E66.9",
+        })
+
+        // send fax to labcorp location
+        const faxResult = await this.faxService.sendFax({
+          faxNumber,
+          pdfBuffer,
+        })
+
+        console.log(faxResult, `faxResult for user: ${user.id}`)
+        Sentry.captureMessage(
+          `faxResult: ${JSON.stringify(faxResult)} for user: ${user.id}`
+        )
+      } catch (error) {
+        console.log(`error with faxResult for user: ${user.id}`, error)
+        Sentry.captureException(error, {
+          tags: {
+            userId: user.id,
+            patientId: user.akutePatientId,
+          },
+        })
+      }
+
+      await user.save()
+    }
     if (task.type === TaskType.MP_BLUE_CAPSULE) {
       const newTaskInput: CreateUserTaskInput = {
         taskType: TaskType.MP_BLUE_CAPSULE_2,
@@ -268,7 +321,6 @@ class TaskService extends EmailService {
       }))
     } catch (error) {
       console.log(error, "error in bulkAssignTasksToUser")
-
     }
   }
 
