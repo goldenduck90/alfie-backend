@@ -281,85 +281,59 @@ class UserService extends EmailService {
         throw new ApolloError("Payment intent not found", "NOT_FOUND")
       } else {
         const stripePaymentMethodId = paymentIntent.payment_method as string
-        const existingCheckout = await CheckoutModel.findById(
-          paymentIntent.metadata.checkoutId
+
+        const customer = await this.stripeSdk.customers.create({
+          name: paymentIntent.shipping.name,
+          payment_method: stripePaymentMethodId,
+          email: paymentIntent.metadata.email,
+          phone: paymentIntent.shipping.phone,
+          invoice_settings: {
+            default_payment_method: stripePaymentMethodId,
+          },
+          shipping: {
+            name: paymentIntent.shipping.name,
+            address: paymentIntent.shipping.address,
+            phone: paymentIntent.shipping.phone,
+          },
+          metadata: {
+            checkoutId: paymentIntent.metadata.checkoutId,
+          },
+          address: paymentIntent.shipping.address,
+        })
+
+        if (!customer) {
+          throw new ApolloError("Customer not created", "INTERNAL_SERVER_ERROR")
+        }
+
+        // create subscription
+        const subscription = await this.stripeSdk.subscriptions.create({
+          customer: customer.id,
+          items: [{ price: priceId }],
+          default_payment_method: stripePaymentMethodId,
+          collection_method: "charge_automatically",
+          trial_period_days: 30,
+        })
+
+        // update checkout
+        const checkout = await CheckoutModel.findByIdAndUpdate(
+          paymentIntent.metadata.checkoutId,
+          {
+            stripeCustomerId: customer.id,
+            stripeSubscriptionId: subscription.id,
+          }
         )
 
-        // create customer
-        if (!existingCheckout) {
-          const customer = await this.stripeSdk.customers.create({
-            name: paymentIntent.shipping.name,
-            payment_method: stripePaymentMethodId,
-            email: paymentIntent.metadata.email,
-            phone: paymentIntent.shipping.phone,
-            invoice_settings: {
-              default_payment_method: stripePaymentMethodId,
-            },
-            shipping: {
-              name: paymentIntent.shipping.name,
-              address: paymentIntent.shipping.address,
-              phone: paymentIntent.shipping.phone,
-            },
-            metadata: {
-              checkoutId: paymentIntent.metadata.checkoutId,
-            },
-            address: paymentIntent.shipping.address,
-          })
-
-          if (!customer) {
-            throw new ApolloError(
-              "Customer not created",
-              "INTERNAL_SERVER_ERROR"
-            )
-          }
-
-          // create subscription
-          const subscription = await this.stripeSdk.subscriptions.create({
-            customer: customer.id,
-            items: [{ price: priceId }],
-            default_payment_method: stripePaymentMethodId,
-            collection_method: "charge_automatically",
-            trial_period_days: 30,
-          })
-
-          // update checkout
-          const checkout = await CheckoutModel.findByIdAndUpdate(
-            paymentIntent.metadata.checkoutId,
-            {
-              stripeCustomerId: customer.id,
-              stripeSubscriptionId: subscription.id,
-            }
-          )
-
-          if (!checkout) {
-            throw new ApolloError("Checkout not found", "NOT_FOUND")
-          }
-
-          // create user
-          const { message } = await this.completeCheckout(
-            subscription.id,
-            new Date(subscription.current_period_end)
-          )
-
-          return { message }
-        } else {
-          // get subscription
-          const subscription = await this.stripeSdk.subscriptions.retrieve(
-            existingCheckout.stripeSubscriptionId
-          )
-
-          if (!subscription) {
-            throw new ApolloError("Subscription not found", "NOT_FOUND")
-          }
-
-          // create user
-          const { message } = await this.completeCheckout(
-            existingCheckout.stripeSubscriptionId,
-            new Date(subscription.current_period_end)
-          )
-
-          return { message }
+        if (!checkout) {
+          throw new ApolloError("Checkout not found", "NOT_FOUND")
         }
+
+        // create user
+        const { message } = await this.completeCheckout(
+          subscription.id,
+          new Date(subscription.current_period_end)
+        )
+
+        return { message }
       }
     } catch (error) {
       console.log(error)
