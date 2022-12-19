@@ -56,7 +56,9 @@ class AkuteService {
         ...(address_line_2 && { address_line_2 }),
         address_city,
         address_state,
-        address_zipcode,
+        address_zipcode: address_zipcode.includes("-")
+          ? address_zipcode.split("-")[0]
+          : address_zipcode,
         email,
         primary_phone_number: primary_phone_number.replace("+1", ""),
         primary_phone_type: "mobile",
@@ -65,6 +67,7 @@ class AkuteService {
 
       return data.data.id
     } catch (error) {
+      console.log(error)
       Sentry.captureException(error)
       throw new ApolloError(error.message, "ERROR")
     }

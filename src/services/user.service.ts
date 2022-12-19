@@ -59,11 +59,15 @@ class UserService extends EmailService {
   }
 
   async assignUserTasks(userId: string, taskTypes: TaskType[]) {
-    const input = {
-      userId,
-      taskTypes,
+    try {
+      const input = {
+        userId,
+        taskTypes,
+      }
+      await this.taskService.bulkAssignTasksToUser(input)
+    } catch (error) {
+      console.error(error, "error in assignUserTasks")
     }
-    this.taskService.bulkAssignTasksToUser(input)
   }
 
   async createUser(input: CreateUserInput, manual = false) {
@@ -229,7 +233,13 @@ class UserService extends EmailService {
     }
 
     // trigger sendbird flow
-    await triggerEntireSendBirdFlow(user._id, user.name, "", "")
+    await triggerEntireSendBirdFlow({
+      user_id: user._id,
+      nickname: user.name,
+      profile_file: "",
+      profile_url: "",
+      provider: provider._id,
+    })
 
     // assign initial tasks to user
     const tasks = [
@@ -244,6 +254,7 @@ class UserService extends EmailService {
       TaskType.MP_ACTIVITY,
       TaskType.FOOD_LOG,
       TaskType.TEFQ,
+      TaskType.AD_LIBITUM,
     ]
     await this.assignUserTasks(user._id, tasks)
 
@@ -265,73 +276,102 @@ class UserService extends EmailService {
   }
 
   async completePaymentIntent(input: CompletePaymentIntentInput) {
-    const { paymentIntentId } = input
-    const priceId = config.get("defaultPriceId") as any
+    try {
+      const { paymentIntentId } = input
+      const priceId = config.get("defaultPriceId") as any
 
-    const paymentIntent = await this.stripeSdk.paymentIntents.retrieve(
-      paymentIntentId
-    )
+      const paymentIntent = await this.stripeSdk.paymentIntents.retrieve(
+        paymentIntentId
+      )
 
-    if (!paymentIntent || paymentIntent.status !== "succeeded") {
-      throw new ApolloError("Payment intent not found", "NOT_FOUND")
-    } else {
-      const stripePaymentMethodId = paymentIntent.payment_method as string
+      if (!paymentIntent || paymentIntent.status !== "succeeded") {
+        throw new ApolloError("Payment intent not found", "NOT_FOUND")
+      } else {
+        const stripePaymentMethodId = paymentIntent.payment_method as string
+        const existingCheckout = await CheckoutModel.findById(
+          paymentIntent.metadata.checkoutId
+        )
 
-      // create customer
-      const customer = await this.stripeSdk.customers.create({
-        name: paymentIntent.shipping.name,
-        payment_method: stripePaymentMethodId,
-        email: paymentIntent.metadata.email,
-        phone: paymentIntent.shipping.phone,
-        invoice_settings: {
-          default_payment_method: stripePaymentMethodId,
-        },
-        shipping: {
-          name: paymentIntent.shipping.name,
-          address: paymentIntent.shipping.address,
-          phone: paymentIntent.shipping.phone,
-        },
-        metadata: {
-          checkoutId: paymentIntent.metadata.checkoutId,
-        },
-        address: paymentIntent.shipping.address,
-      })
+        // create customer
+        if (!existingCheckout) {
+          const customer = await this.stripeSdk.customers.create({
+            name: paymentIntent?.shipping?.name,
+            payment_method: stripePaymentMethodId,
+            email: paymentIntent?.metadata?.email,
+            phone: paymentIntent?.shipping?.phone,
+            invoice_settings: {
+              default_payment_method: stripePaymentMethodId,
+            },
+            shipping: {
+              name: paymentIntent?.shipping?.name,
+              address: paymentIntent?.shipping?.address,
+              phone: paymentIntent?.shipping?.phone,
+            },
+            metadata: {
+              checkoutId: paymentIntent?.metadata?.checkoutId,
+            },
+            address: paymentIntent?.shipping?.address,
+          })
 
-      if (!customer) {
-        throw new ApolloError("Customer not created", "INTERNAL_SERVER_ERROR")
-      }
+          if (!customer) {
+            throw new ApolloError(
+              "Customer not created",
+              "INTERNAL_SERVER_ERROR"
+            )
+          }
 
-      // create subscription
-      const subscription = await this.stripeSdk.subscriptions.create({
-        customer: customer.id,
-        items: [{ price: priceId }],
-        default_payment_method: stripePaymentMethodId,
-        collection_method: "charge_automatically",
-        trial_period_days: 30,
-      })
+          // create subscription
+          const subscription = await this.stripeSdk.subscriptions.create({
+            customer: customer.id,
+            items: [{ price: priceId }],
+            default_payment_method: stripePaymentMethodId,
+            collection_method: "charge_automatically",
+            trial_period_days: 30,
+          })
 
-      // update checkout
-      const checkout = await CheckoutModel.findByIdAndUpdate(
-        paymentIntent.metadata.checkoutId,
-        {
-          stripeCustomerId: customer.id,
-          stripeSubscriptionId: subscription.id,
+          // update checkout
+          const checkout = await CheckoutModel.findByIdAndUpdate(
+            paymentIntent.metadata.checkoutId,
+            {
+              stripeCustomerId: customer.id,
+              stripeSubscriptionId: subscription.id,
+            }
+          )
+
+          if (!checkout) {
+            throw new ApolloError("Checkout not found", "NOT_FOUND")
+          }
+
+          // create user
+          const { message } = await this.completeCheckout(
+            subscription.id,
+            new Date(subscription.current_period_end)
+          )
+
+          return { message }
+        } else {
+          // get subscription
+          const subscription = await this.stripeSdk.subscriptions.retrieve(
+            existingCheckout.stripeSubscriptionId
+          )
+
+          if (!subscription) {
+            throw new ApolloError("Subscription not found", "NOT_FOUND")
+          }
+
+          // create user
+          const { message } = await this.completeCheckout(
+            existingCheckout.stripeSubscriptionId,
+            new Date(subscription.current_period_end)
+          )
+
+          return { message }
         }
-      )
-
-      if (!checkout) {
-        throw new ApolloError("Checkout not found", "NOT_FOUND")
       }
-
-      // create user
-      const { message } = await this.completeCheckout(
-        subscription.id,
-        new Date(subscription.current_period_end)
-      )
-
-      return {
-        message,
-      }
+    } catch (error) {
+      console.log(error)
+      Sentry.captureException(error)
+      throw new ApolloError("An error occured", "INTERNAL_SERVER_ERROR")
     }
   }
 
@@ -754,7 +794,7 @@ class UserService extends EmailService {
             const labCorpLocation = userTask.answers.find(
               (answer: any) => answer.key === "labCorpLocation"
             )
-            if (labCorpLocation) {
+            if (labCorpLocation?.value !== "null") {
               const lab = await LabModel.findById(labCorpLocation.value)
               if (lab) {
                 labCorpLocation.value = `${lab.name} - ${lab.streetAddress} ${lab.city}, ${lab.state} ${lab.postalCode}`

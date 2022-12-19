@@ -34,7 +34,7 @@ export class UserAnswer {
 
   @Field(() => String)
   @prop({ required: true })
-  value: string
+  value: any // TODO: make this more specific
 
   @Field(() => AnswerType)
   @prop({

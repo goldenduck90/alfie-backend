@@ -25,6 +25,8 @@ export enum TaskType {
   FOOD_LOG = "FOOD_LOG",
   GSRS = "GSRS",
   TEFQ = "TEFQ",
+  LAB_SELECTION = "LAB_SELECTION",
+  AD_LIBITUM = "AD_LIBITUM",
 }
 
 registerEnumType(TaskType, {

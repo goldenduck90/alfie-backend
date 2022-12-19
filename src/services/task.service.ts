@@ -2,7 +2,6 @@ import * as Sentry from "@sentry/node"
 import { ApolloError } from "apollo-server"
 import config from "config"
 import { addDays, isPast } from "date-fns"
-import { calculateScore } from "../PROAnalysis"
 import { LabModel } from "../schema/lab.schema"
 import { ProviderModel } from "../schema/provider.schema"
 import { CreateTaskInput, TaskModel, TaskType } from "../schema/task.schema"
@@ -13,7 +12,7 @@ import {
   GetUserTasksInput,
   UpdateUserTaskInput,
   UserTask,
-  UserTaskModel
+  UserTaskModel,
 } from "../schema/task.user.schema"
 import { UserModel } from "../schema/user.schema"
 import AkuteService from "./akute.service"
@@ -73,7 +72,6 @@ class TaskService extends EmailService {
     })
       .where(where)
       .countDocuments()
-
     if (userTasksCount === 0) {
       throw new ApolloError(noTasks.message, noTasks.code)
     }
@@ -95,210 +93,275 @@ class TaskService extends EmailService {
       })),
     }
   }
-
-  async completeUserTask(input: CompleteUserTaskInput) {
+  async checkEligibilityForAppointment(userId: any) {
     try {
-      const { notFound } = config.get("errors.tasks") as any
-      const { _id, answers } = input
-      const userTask = await UserTaskModel.findById(_id)
-      const task = await TaskModel.findById(userTask.task)
-      const user = await UserModel.findById(userTask.user)
-      if (!userTask) {
-        throw new ApolloError(notFound.message, notFound.code)
-      }
-      // Find all tasks that match user and task id
-      console.log("userTask", userTask)
-      const mostRecentTask = await UserTaskModel.find({
-        user: userTask.user,
-      })
-      const mostRecentTaskCompletedBasedOnTaskIdAndToday =
-        mostRecentTask.filter((completedUserTask) => {
-          return (
-            completedUserTask.task.toString() === userTask.task.toString() &&
-            completedUserTask.completed
-          )
-        })
+      // Get all user tasks userId
+      const userTasks = await UserTaskModel.find({ user: userId }).populate(
+        "task"
+      )
+      // once I have all the tasks review and see if the user has completed all the required tasks in this array
+      const requiredTasks = [
+        TaskType.MP_BLUE_CAPSULE,
+        TaskType.MP_BLUE_CAPSULE_2,
+        TaskType.MP_HUNGER,
+        TaskType.MP_FEELING,
+        TaskType.AD_LIBITUM,
+      ]
+      const completedTasks: any = userTasks.filter((task) => task.completed)
+      const completedTaskTypes = completedTasks.map(
+        (task: any) => task.task.type
+      )
+      const hasCompletedRequiredTasks = requiredTasks.every((task) =>
+        completedTaskTypes.includes(task)
+      )
 
-      const sortTasksByCompletedDate =
-        mostRecentTaskCompletedBasedOnTaskIdAndToday.sort((a, b) => {
-          return b.completedAt.getTime() - a.completedAt.getTime()
-        })
-      console.log(sortTasksByCompletedDate, "sortTasksByCompletedDate")
-      const mostRecentTaskCompleted = sortTasksByCompletedDate[0] // most recent task completed
-      userTask.completed = true
-      userTask.completedAt = new Date()
-      userTask.answers = answers
-      await userTask.save()
-      const score = calculateScore(mostRecentTaskCompleted, userTask, task.type)
-      // calculate score returns an object
-      // We need to push the new score onto the users scores array
-
-      if (score) {
-        console.log(score, "score")
-        user.score.push(score)
-        await user.save()
-      }
-
-      // we can add more types here in a switch to save data to different places
-
-      // if the task type is MP_BLUE_CAPSULE we need to assign the user the next task which is MP_BLUE_CAPSULE_2
-
-      if (task.type === TaskType.MP_BLUE_CAPSULE) {
+      if (hasCompletedRequiredTasks === true) {
         const newTaskInput: CreateUserTaskInput = {
-          taskType: TaskType.MP_BLUE_CAPSULE_2,
-          userId: userTask.user.toString(),
+          taskType: TaskType.SCHEDULE_APPOINTMENT,
+          userId: userId.toString(),
         }
         await this.assignTaskToUser(newTaskInput)
       }
-      if (task.type === TaskType.DAILY_METRICS_LOG) {
-        const weight = {
-          date: new Date(),
-          value: answers.find((a) => a.key === "weightInLbs").value,
-        }
-        user.weights.push(weight)
-        await user.save()
-      }
-      if (task.type === TaskType.NEW_PATIENT_INTAKE_FORM) {
-        console.log("NEW_PATIENT_INTAKE_FORM")
-        const pharmacyId = answers.find(
-          (a) => a.key === "pharmacyLocation"
-        ).value
-        const patientId = user?.akutePatientId
-        // If there is no pharmacyId or patientId, we can't continue without creating a pharmacyListForPatient
-        if (!pharmacyId) {
-          await akuteService.createPharmacyListForPatient(
-            pharmacyId,
-            patientId,
-            true
-          )
-
-          user.pharmacyLocation = pharmacyId
-        }
-        const hasRequiredLabs = answers.find((a) => a.key === "hasRequiredLabs")
-        if (hasRequiredLabs && hasRequiredLabs.value === "true") {
-          const newTaskInput: CreateUserTaskInput = {
-            taskType: TaskType.SCHEDULE_APPOINTMENT,
-            userId: userTask.user.toString(),
-          }
-          await this.assignTaskToUser(newTaskInput)
-        } else {
-          try {
-            // get user provider
-            const provider = await ProviderModel.findById(user.provider)
-
-            // get labcorp location fax number
-            const locationId = answers.find(
-              (a) => a.key === "labCorpLocation"
-            ).value
-            const labCorpLocation = await LabModel.findById(locationId)
-            const faxNumber = labCorpLocation.faxNumber
-
-            // calculate bmi
-            const bmi =
-              (user.weights[0].value /
-                user.heightInInches /
-                user.heightInInches) *
-              703.071720346
-
-            // create pdf
-            const pdfBuffer = await this.pdfService.createLabOrderPdf({
-              patientFullName: user.name,
-              providerFullName: `${provider.firstName} ${provider.lastName}`,
-              providerNpi: provider.npi,
-              patientDob: user.dateOfBirth,
-              icdCode: 27 < bmi && bmi < 30 ? "E66.3" : "E66.9",
-            })
-
-            // send fax to labcorp location
-            const faxResult = await this.faxService.sendFax({
-              faxNumber,
-              pdfBuffer,
-            })
-
-            console.log(faxResult, `faxResult for user: ${user.id}`)
-            Sentry.captureMessage(
-              `faxResult: ${JSON.stringify(faxResult)} for user: ${user.id}`
-            )
-          } catch (error) {
-            console.log(`error with faxResult for user: ${user.id}`, error)
-            Sentry.captureException(error, {
-              tags: {
-                userId: user.id,
-                patientId: user.akutePatientId,
-              },
-            })
-          }
-        }
-
-        await user.save()
-      }
-
-      return {
-        ...userTask.toObject(),
-      }
     } catch (error) {
-      console.log(error)
+      Sentry.captureException(error)
+    }
+  }
+
+  async completeUserTask(input: CompleteUserTaskInput) {
+    const { notFound } = config.get("errors.tasks") as any
+    const { _id, answers } = input
+    const userTask = await UserTaskModel.findById(_id)
+    if (!userTask) {
+      throw new ApolloError(notFound.message, notFound.code)
+    }
+    await this.checkEligibilityForAppointment(userTask.user)
+
+    userTask.completed = true
+    userTask.completedAt = new Date()
+    userTask.answers = answers
+    await userTask.save()
+
+    const task = await TaskModel.findById(userTask.task)
+    // we can add more types here in a switch to save data to different places
+
+    // if the task type is MP_BLUE_CAPSULE we need to assign the user the next task which is MP_BLUE_CAPSULE_2
+    if (task.type === TaskType.LAB_SELECTION) {
+      const user = await UserModel.findById(userTask.user)
+      const labId = answers.find((a) => a.key === "labCorpLocation").value
+      user.labLocation = labId
+      const hasRequiredLabs = answers.find((a) => a.key === "hasRequiredLabs")
+      if (hasRequiredLabs && hasRequiredLabs.value === "true") {
+        const newTaskInput: CreateUserTaskInput = {
+          taskType: TaskType.SCHEDULE_APPOINTMENT,
+          userId: userTask.user.toString(),
+        }
+        await this.assignTaskToUser(newTaskInput)
+      } else {
+        try {
+          // get user provider
+          const provider = await ProviderModel.findById(user.provider)
+
+          // get labcorp location fax number
+          const locationId = answers.find(
+            (a) => a.key === "labCorpLocation"
+          ).value
+          const labCorpLocation = await LabModel.findById(locationId)
+          const faxNumber = labCorpLocation.faxNumber
+
+          // calculate bmi
+          const bmi =
+            (user.weights[0].value /
+              user.heightInInches /
+              user.heightInInches) *
+            703.071720346
+
+          // create pdf
+          const pdfBuffer = await this.pdfService.createLabOrderPdf({
+            patientFullName: user.name,
+            providerFullName: `${provider.firstName} ${provider.lastName}`,
+            providerNpi: provider.npi,
+            patientDob: user.dateOfBirth,
+            icdCode: 27 < bmi && bmi < 30 ? "E66.3" : "E66.9",
+          })
+
+          // send fax to labcorp location
+          const faxResult = await this.faxService.sendFax({
+            faxNumber,
+            pdfBuffer,
+          })
+          console.log(faxResult, `faxResult for user: ${user.id}`)
+          Sentry.captureMessage(
+            `faxResult: ${JSON.stringify(faxResult)} for user: ${user.id}`
+          )
+        } catch (error) {
+          console.log(`error with faxResult for user: ${user.id}`, error)
+          Sentry.captureException(error, {
+            tags: {
+              userId: user.id,
+              patientId: user.akutePatientId,
+            },
+          })
+        }
+        await user.save()
+      }
+    }
+    if (task.type === TaskType.MP_BLUE_CAPSULE) {
+      const newTaskInput: CreateUserTaskInput = {
+        taskType: TaskType.MP_BLUE_CAPSULE_2,
+        userId: userTask.user.toString(),
+      }
+      await this.assignTaskToUser(newTaskInput)
+    }
+    if (task.type === TaskType.DAILY_METRICS_LOG) {
+      const weight = {
+        date: new Date(),
+        value: answers.find((a) => a.key === "weightInLbs").value,
+      }
+
+      const user = await UserModel.findById(userTask.user)
+      user.weights.push(weight)
+      await user.save()
+    }
+    if (task.type === TaskType.NEW_PATIENT_INTAKE_FORM) {
+      const user = await UserModel.findById(userTask.user)
+      const pharmacyId = answers.find((a) => a.key === "pharmacyLocation").value
+      const patientId = user?.akutePatientId
+      if (pharmacyId !== "null") {
+        await akuteService.createPharmacyListForPatient(
+          pharmacyId,
+          patientId,
+          true
+        )
+        user.pharmacyLocation = pharmacyId
+      }
+      const labId = answers.find((a) => a.key === "labCorpLocation").value
+      user.labLocation = labId
+      const hasRequiredLabs = answers.find((a) => a.key === "hasRequiredLabs")
+      if (hasRequiredLabs && hasRequiredLabs.value === "true") {
+        const newTaskInput: CreateUserTaskInput = {
+          taskType: TaskType.SCHEDULE_APPOINTMENT,
+          userId: userTask.user.toString(),
+        }
+        await this.assignTaskToUser(newTaskInput)
+      } else {
+        try {
+          // get user provider
+          const provider = await ProviderModel.findById(user.provider)
+
+          // get labcorp location fax number
+          const locationId = answers.find(
+            (a) => a.key === "labCorpLocation"
+          ).value
+          const labCorpLocation = await LabModel.findById(locationId)
+          const faxNumber = labCorpLocation.faxNumber
+
+          // calculate bmi
+          const bmi =
+            (user.weights[0].value /
+              user.heightInInches /
+              user.heightInInches) *
+            703.071720346
+
+          // create pdf
+          const pdfBuffer = await this.pdfService.createLabOrderPdf({
+            patientFullName: user.name,
+            providerFullName: `${provider.firstName} ${provider.lastName}`,
+            providerNpi: provider.npi,
+            patientDob: user.dateOfBirth,
+            icdCode: 27 < bmi && bmi < 30 ? "E66.3" : "E66.9",
+          })
+
+          // send fax to labcorp location
+          const faxResult = await this.faxService.sendFax({
+            faxNumber,
+            pdfBuffer,
+          })
+
+          console.log(faxResult, `faxResult for user: ${user.id}`)
+          Sentry.captureMessage(
+            `faxResult: ${JSON.stringify(faxResult)} for user: ${user.id}`
+          )
+        } catch (error) {
+          console.log(`error with faxResult for user: ${user.id}`, error)
+          Sentry.captureException(error, {
+            tags: {
+              userId: user.id,
+              patientId: user.akutePatientId,
+            },
+          })
+        }
+      }
+
+      await user.save()
+    }
+
+    return {
+      ...userTask.toObject(),
     }
   }
 
   async bulkAssignTasksToUser(input: CreateUserTasksInput) {
-    const { alreadyAssigned, notFound, userNotFound } = config.get(
-      "errors.tasks"
-    ) as any
-    const { userId, taskTypes } = input
-    const user = await UserModel.findById(userId)
-    if (!user) {
-      throw new ApolloError(userNotFound.message, userNotFound.code)
+    try {
+      const { alreadyAssigned, notFound, userNotFound } = config.get(
+        "errors.tasks"
+      ) as any
+      const { userId, taskTypes } = input
+      const user = await UserModel.findById(userId)
+      if (!user) {
+        throw new ApolloError(userNotFound.message, userNotFound.code)
+      }
+
+      const tasks = await TaskModel.find({ type: { $in: taskTypes } })
+        .where({ completed: false })
+        .lean()
+      if (tasks.length !== taskTypes.length) {
+        throw new ApolloError(notFound.message, notFound.code)
+      }
+      const taskIds = tasks.map((task) => task._id)
+
+      const userTasks = await UserTaskModel.find({
+        user: userId,
+        task: { $in: taskIds },
+      })
+
+      const newTasks: Omit<UserTask, "_id" | "completed">[] = tasks.reduce(
+        (filtered: Omit<UserTask, "_id" | "completed">[], task) => {
+          const existingTask = userTasks.find(
+            (userTask) => userTask.task.toString() === task._id.toString()
+          )
+
+          if (!existingTask || (existingTask && task.canHaveMultiple)) {
+            filtered.push({
+              user: userId,
+              task: task._id,
+              ...(task.daysTillDue && {
+                dueAt: addDays(new Date(), task.daysTillDue),
+              }),
+              highPriority: task.highPriority,
+              lastNotifiedUserAt: task.notifyWhenAssigned
+                ? new Date()
+                : undefined,
+              archived: false,
+            })
+          }
+
+          return filtered
+        },
+        []
+      )
+      if (!newTasks.length) {
+        throw new ApolloError(alreadyAssigned.message, alreadyAssigned.code)
+      }
+
+      const newUserTasks = await UserTaskModel.create(newTasks)
+
+      return newUserTasks.map((userTask) => ({
+        ...userTask.toObject(),
+        ...(userTask.dueAt && { pastDue: false }),
+      }))
+    } catch (error) {
+      console.log(error, "error in bulkAssignTasksToUser")
     }
-
-    const tasks = await TaskModel.find({ type: { $in: taskTypes } })
-      .where({ completed: false })
-      .lean()
-    if (tasks.length !== taskTypes.length) {
-      throw new ApolloError(notFound.message, notFound.code)
-    }
-    const taskIds = tasks.map((task) => task._id)
-
-    const userTasks = await UserTaskModel.find({
-      user: userId,
-      task: { $in: taskIds },
-    })
-
-    const newTasks: Omit<UserTask, "_id" | "completed">[] = tasks.reduce(
-      (filtered: Omit<UserTask, "_id" | "completed">[], task) => {
-        const existingTask = userTasks.find(
-          (userTask) => userTask.task.toString() === task._id.toString()
-        )
-
-        if (!existingTask || (existingTask && task.canHaveMultiple)) {
-          filtered.push({
-            user: userId,
-            task: task._id,
-            ...(task.daysTillDue && {
-              dueAt: addDays(new Date(), task.daysTillDue),
-            }),
-            highPriority: task.highPriority,
-            lastNotifiedUserAt: task.notifyWhenAssigned
-              ? new Date()
-              : undefined,
-            archived: false,
-          })
-        }
-
-        return filtered
-      },
-      []
-    )
-    if (!newTasks.length) {
-      throw new ApolloError(alreadyAssigned.message, alreadyAssigned.code)
-    }
-
-    const newUserTasks = await UserTaskModel.create(newTasks)
-
-    return newUserTasks.map((userTask) => ({
-      ...userTask.toObject(),
-      ...(userTask.dueAt && { pastDue: false }),
-    }))
   }
 
   async assignTaskToUser(input: CreateUserTaskInput) {
@@ -392,10 +455,6 @@ class TaskService extends EmailService {
           providerEmail: lookUpProviderEmail.email,
         }
       })
-      console.log(
-        arrayOfUserTasksWithProviderEmail,
-        "arrayOfUserTasksWithProviderEmail"
-      )
       return arrayOfUserTasksWithProviderEmail
     } catch (error) {
       Sentry.captureException(error)
