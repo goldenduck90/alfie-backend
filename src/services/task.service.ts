@@ -105,6 +105,7 @@ class TaskService extends EmailService {
         TaskType.MP_BLUE_CAPSULE_2,
         TaskType.MP_HUNGER,
         TaskType.MP_FEELING,
+        TaskType.AD_LIBITUM,
       ]
       const completedTasks: any = userTasks.filter((task) => task.completed)
       const completedTaskTypes = completedTasks.map(
