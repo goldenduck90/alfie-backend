@@ -9,7 +9,7 @@ import { v4 as uuidv4 } from "uuid"
 import {
   CheckoutModel,
   CreateCheckoutInput,
-  CreateStripeCustomerInput
+  CreateStripeCustomerInput,
 } from "../schema/checkout.schema"
 import { LabModel } from "../schema/lab.schema"
 import { ProviderModel } from "../schema/provider.schema"
@@ -25,7 +25,7 @@ import {
   SubscribeEmailInput,
   UpdateSubscriptionInput,
   UserModel,
-  Weight
+  Weight,
 } from "../schema/user.schema"
 import { signJwt } from "../utils/jwt"
 import { triggerEntireSendBirdFlow } from "../utils/sendBird"
@@ -294,22 +294,22 @@ class UserService extends EmailService {
         // create customer
         if (!existingCheckout) {
           const customer = await this.stripeSdk.customers.create({
-            name: paymentIntent.shipping.name,
+            name: paymentIntent?.shipping?.name,
             payment_method: stripePaymentMethodId,
-            email: paymentIntent.metadata.email,
-            phone: paymentIntent.shipping.phone,
+            email: paymentIntent?.metadata?.email,
+            phone: paymentIntent?.shipping?.phone,
             invoice_settings: {
               default_payment_method: stripePaymentMethodId,
             },
             shipping: {
-              name: paymentIntent.shipping.name,
-              address: paymentIntent.shipping.address,
-              phone: paymentIntent.shipping.phone,
+              name: paymentIntent?.shipping?.name,
+              address: paymentIntent?.shipping?.address,
+              phone: paymentIntent?.shipping?.phone,
             },
             metadata: {
-              checkoutId: paymentIntent.metadata.checkoutId,
+              checkoutId: paymentIntent?.metadata?.checkoutId,
             },
-            address: paymentIntent.shipping.address,
+            address: paymentIntent?.shipping?.address,
           })
 
           if (!customer) {
@@ -738,8 +738,8 @@ class UserService extends EmailService {
         ...(!noExpire
           ? { expiresIn: remember ? rememberExp : normalExp }
           : {
-            expiresIn: "6000d",
-          }),
+              expiresIn: "6000d",
+            }),
       }
     )
 
@@ -793,7 +793,7 @@ class UserService extends EmailService {
             const labCorpLocation = userTask.answers.find(
               (answer: any) => answer.key === "labCorpLocation"
             )
-            if (labCorpLocation) {
+            if (labCorpLocation?.value !== "null") {
               const lab = await LabModel.findById(labCorpLocation.value)
               if (lab) {
                 labCorpLocation.value = `${lab.name} - ${lab.streetAddress} ${lab.city}, ${lab.state} ${lab.postalCode}`

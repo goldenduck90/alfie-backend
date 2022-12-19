@@ -2,7 +2,6 @@ import { ApolloError } from "apollo-server"
 import { v4 as uuidv4 } from "uuid"
 import {
   BatchCreateOrUpdateProvidersInput,
-  Provider,
   ProviderModel,
 } from "../schema/provider.schema"
 import { Role } from "./../schema/user.schema"
@@ -17,15 +16,15 @@ class ProviderService {
 
   async getNextAvailableProvider(state: string, update = false) {
     const provider = await ProviderModel.find()
+      .where({
+        type: Role.Practitioner,
+      })
       .where("licensedStates")
       .in([state])
       .sort({ numberOfPatients: "asc" })
       .limit(1)
 
-    const providers = provider.filter((_provider: Provider) => {
-      return _provider.type === Role.Practitioner
-    })
-    if (providers.length === 0) {
+    if (provider.length === 0) {
       throw new ApolloError(
         `No providers available for state: ${state}`,
         "NOT_FOUND"
@@ -34,12 +33,12 @@ class ProviderService {
 
     if (update) {
       await ProviderModel.updateOne(
-        { _id: providers[0]._id },
+        { _id: provider[0]._id },
         { $inc: { numberOfPatients: 1 } }
       )
     }
 
-    return providers[0]
+    return provider[0]
   }
 
   async batchCreateOrUpdateProviders(input: BatchCreateOrUpdateProvidersInput) {
