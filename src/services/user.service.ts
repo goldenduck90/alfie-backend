@@ -294,7 +294,7 @@ class UserService extends EmailService {
         )
 
         // create customer
-        if (!existingCheckout) {
+        if (!existingCheckout.stripeSubscriptionId) {
           const customer = await this.stripeSdk.customers.create({
             name: paymentIntent?.shipping?.name,
             payment_method: stripePaymentMethodId,
