@@ -144,6 +144,37 @@ class AkuteService {
       throw new ApolloError(e.message, "ERROR")
     }
   }
+  async getPatientMedications() {
+    try {
+      // get all patients from akute by calling /patients?status=active
+      // get all medications for each patient by calling /medications?patient_id=patient_id
+      // Only show patients with medications where the generic_name = "tirzepatide"
+
+      const { data: patients } = await this.axios.get("/patients?status=active")
+      const patientMedications = await Promise.all(
+        patients.map(async (patient: any) => {
+          const { data: medications } = await this.axios.get(
+            `/medications?patient_id=${patient.id}`
+          )
+          return {
+            patient,
+            medications: medications.filter(
+              (medication: any) => medication.generic_name === "tirzepatide"
+            ),
+          }
+        })
+      )
+      return patientMedications
+    } catch (e) {
+      Sentry.captureException(new Error(e), {
+        tags: {
+          function: "getPatientMedications",
+        },
+      })
+
+      throw new ApolloError(e.message, "ERROR")
+    }
+  }
 }
 
 export default AkuteService
