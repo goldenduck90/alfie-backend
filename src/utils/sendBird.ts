@@ -149,10 +149,7 @@ const triggerEntireSendBirdFlow = async ({
     console.log(channel, "channel")
     await inviteUserToChannel(channel.data.channel_url, user.user_id, provider)
 
-    const message = channelMessages.find(
-      (channelMessage) => channelMessage.type === channel.data.name
-    )
-    await sendMessageToChannel(channel.data.channel_url, message.message)
+    await sendMessageToChannel(channel.data.channel_url, "Welcome to Alfie Chat!")
 
     return "Channels created and messages sent!"
   } catch (error) {
