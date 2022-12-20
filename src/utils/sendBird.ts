@@ -144,7 +144,9 @@ const triggerEntireSendBirdFlow = async ({
       profile_url,
       profile_file
     )
+    console.log(user, "user")
     const channel = await createSendBirdChannelForNewUser(user.user_id)
+    console.log(channel, "channel")
     await inviteUserToChannel(channel.data.channel_url, user.user_id, provider)
 
     const message = channelMessages.find(
