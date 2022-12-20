@@ -1,3 +1,4 @@
+import * as Sentry from "@sentry/node"
 import axios from "axios"
 
 const channelMessages = [
@@ -51,7 +52,8 @@ const createSendBirdUser = async (
     })
     return data
   } catch (error) {
-    throw new Error(error)
+    console.log(error, "error in createSendBirdUser")
+    Sentry.captureException(error)
   }
 }
 /**
@@ -69,7 +71,8 @@ const createSendBirdChannelForNewUser = async (user_id: string) => {
       user_ids: [user_id],
     })
   } catch (error) {
-    throw new Error(error)
+    console.log(error, "error in createSendBirdChannelForNewUser")
+    Sentry.captureException(error)
   }
 }
 
@@ -93,7 +96,8 @@ const inviteUserToChannel = async (
     )
     return data
   } catch (error) {
-    throw new Error(error)
+    console.log(error, "error in inviteUserToChannel")
+    Sentry.captureException(error)
   }
 }
 const sendMessageToChannel = async (channel_url: string, message: string) => {
@@ -108,7 +112,8 @@ const sendMessageToChannel = async (channel_url: string, message: string) => {
     )
     return data
   } catch (error) {
-    throw new Error(error)
+    console.log(error, "error in sendMessageToChannel")
+    Sentry.captureException(error)
   }
 }
 /**
@@ -149,6 +154,8 @@ const triggerEntireSendBirdFlow = async ({
 
     return "Channels created and messages sent!"
   } catch (error) {
+    console.log(error, "error in triggerEntireSendBirdFlow")
+    Sentry.captureException(error)
     throw new Error(error)
   }
 }
