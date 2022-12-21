@@ -1,23 +1,6 @@
 import * as Sentry from "@sentry/node"
 import axios from "axios"
 
-const channelMessages = [
-  {
-    type: "Health Coach",
-    message:
-      "Use this channel to speak with your health coach. You'll be assigned a health coach after meeting with the provider and receiving your prescription.",
-  },
-  {
-    type: "Medical",
-    message:
-      "Use this channel to message directly with your provider and the medical team regarding medications or other questions. You'll see a task to schedule with a provider once we have received your lab results. ",
-  },
-  {
-    type: "Customer Support",
-    message:
-      "Use this channel to speak with a customer support representative. If you need help getting medication approval, working with the pharmacy, or other questions.",
-  },
-]
 const sendBirdInstance = axios.create({
   baseURL: process.env.SEND_BIRD_API_URL,
   headers: {
@@ -27,6 +10,15 @@ const sendBirdInstance = axios.create({
 })
 // TODO: This whole file needs proper typing...
 
+const findSendBirdUser = async (user_id: string) => {
+  try {
+    const { data } = await sendBirdInstance.get(`/v3/users/${user_id}`)
+    return data
+  } catch (error) {
+    console.log(error, "error in findSendBirdUser")
+    Sentry.captureException(error)
+  }
+}
 /**
  *
  * @param user_id
@@ -141,7 +133,11 @@ const triggerEntireSendBirdFlow = async ({
   provider: string
 }) => {
   try {
-    const user = await createSendBirdUser(
+    const currentSendBirdProvider = await findSendBirdUser(provider)
+    if (!currentSendBirdProvider) {
+      await createSendBirdUser(provider, provider, "", "")
+    }
+    await createSendBirdUser(
       user_id,
       nickname,
       profile_url,
