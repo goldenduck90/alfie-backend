@@ -9,7 +9,7 @@ import { v4 as uuidv4 } from "uuid"
 import {
   CheckoutModel,
   CreateCheckoutInput,
-  CreateStripeCustomerInput
+  CreateStripeCustomerInput,
 } from "../schema/checkout.schema"
 import { LabModel } from "../schema/lab.schema"
 import { ProviderModel } from "../schema/provider.schema"
@@ -25,7 +25,7 @@ import {
   SubscribeEmailInput,
   UpdateSubscriptionInput,
   UserModel,
-  Weight
+  Weight,
 } from "../schema/user.schema"
 import { signJwt } from "../utils/jwt"
 import { triggerEntireSendBirdFlow } from "../utils/sendBird"
@@ -741,8 +741,8 @@ class UserService extends EmailService {
         ...(!noExpire
           ? { expiresIn: remember ? rememberExp : normalExp }
           : {
-            expiresIn: "6000d",
-          }),
+              expiresIn: "6000d",
+            }),
       }
     )
 
@@ -796,7 +796,7 @@ class UserService extends EmailService {
             const labCorpLocation = userTask.answers.find(
               (answer: any) => answer.key === "labCorpLocation"
             )
-            if (labCorpLocation?.value !== "null") {
+            if (labCorpLocation) {
               const lab = await LabModel.findById(labCorpLocation.value)
               if (lab) {
                 labCorpLocation.value = `${lab.name} - ${lab.streetAddress} ${lab.city}, ${lab.state} ${lab.postalCode}`
@@ -806,6 +806,7 @@ class UserService extends EmailService {
           return userTask
         })
       )
+      console.log("userTasksWithLabCorpLocation", userTasksWithLabCorpLocation)
       return userTasksWithLabCorpLocation
       // return userTasks
     } catch (error) {
