@@ -95,7 +95,7 @@ const sendMessageToChannel = async (channel_url: string, message: string) => {
       `/v3/group_channels/${channel_url}/messages`,
       {
         message_type: "MESG",
-        user_id: "1",
+        user_id: "639ba07cb937527a0c43484e",
         message,
       }
     )
