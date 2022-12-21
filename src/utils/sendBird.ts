@@ -81,7 +81,7 @@ const inviteUserToChannel = async (
     const { data } = await sendBirdInstance.post(
       `/v3/group_channels/${channel_url}/invite`,
       {
-        user_ids: [user_id, provider, "634f85f8ed227ada5a4c140b", "639ba07cb937527a0c43484e"], // User id 140b is hasan's admin id, and 484e is Alexs.
+        user_ids: [user_id, provider, "639b9a70b937527a0c43484c", "639ba055b937527a0c43484d", "639ba07cb937527a0c43484e"],
       }
     )
     return data
@@ -99,7 +99,6 @@ const sendMessageToChannel = async (channel_url: string, message: string) => {
         message,
       }
     )
-    console.log(data, "data in sendMessageToChannel")
     return data
   } catch (error) {
     console.log(error, "error in sendMessageToChannel")
