@@ -336,7 +336,7 @@ class TaskService extends EmailService {
       const task = await TaskModel.findById(userTask.task)
 
       // Mark the user task as completed and save it
-      userTask.completed = false
+      userTask.completed = true
       userTask.completedAt = new Date()
       userTask.answers = answers
       await userTask.save()
