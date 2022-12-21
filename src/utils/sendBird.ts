@@ -89,7 +89,7 @@ const inviteUserToChannel = async (
 ) => {
   try {
     console.log(user_id, "user_id")
-    console.log(provider, "provider")
+    console.log(provider, "provider info")
     const { data } = await sendBirdInstance.post(
       `/v3/group_channels/${channel_url}/invite`,
       {
