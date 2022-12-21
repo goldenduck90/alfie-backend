@@ -107,6 +107,25 @@ export class Weight {
 }
 
 @ObjectType()
+export class Score {
+  @Field(() => Number)
+  @prop({ required: true })
+  score: number
+
+  @Field(() => Number)
+  @prop({ required: true })
+  total: number
+
+  @Field(() => Number)
+  @prop({ required: true })
+  percent: number
+
+  @Field(() => Date)
+  @prop({ default: Date.now(), required: true })
+  date: Date
+}
+
+@ObjectType()
 @InputType("FileMetadataInput")
 export class FileMetadata {
   @Field(() => String)
@@ -247,6 +266,10 @@ export class User {
   @Field(() => [Weight])
   @prop({ default: [], required: true })
   weights: mongoose.Types.Array<Weight>
+
+  @Field(() => [Score])
+  @prop({ default: {}, required: false })
+  score: mongoose.Types.Array<Score>
 
   @Field(() => Gender)
   @prop({ enum: Gender, type: String, required: true })

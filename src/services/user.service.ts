@@ -231,7 +231,7 @@ class UserService extends EmailService {
         $response2.error.message
       )
     }
-
+    const selectedProvider = await ProviderModel.findById(provider._id).lean()
     // trigger sendbird flow
     await triggerEntireSendBirdFlow({
       user_id: user._id,
@@ -239,6 +239,7 @@ class UserService extends EmailService {
       profile_file: "",
       profile_url: "",
       provider: provider._id,
+      providerName: `${selectedProvider.firstName} ${selectedProvider.lastName}`,
     })
 
     // assign initial tasks to user
@@ -250,10 +251,12 @@ class UserService extends EmailService {
       TaskType.BP_LOG,
       TaskType.WEIGHT_LOG,
       TaskType.WAIST_LOG,
-      TaskType.MP_BLUE_CAPSULE,
+      // TaskType.MP_BLUE_CAPSULE,
       TaskType.MP_ACTIVITY,
       TaskType.FOOD_LOG,
       TaskType.TEFQ,
+      TaskType.AD_LIBITUM,
+      TaskType.GSRS,
     ]
     await this.assignUserTasks(user._id, tasks)
 
@@ -292,7 +295,7 @@ class UserService extends EmailService {
         )
 
         // create customer
-        if (!existingCheckout) {
+        if (!existingCheckout.stripeSubscriptionId) {
           const customer = await this.stripeSdk.customers.create({
             name: paymentIntent?.shipping?.name,
             payment_method: stripePaymentMethodId,
@@ -793,7 +796,7 @@ class UserService extends EmailService {
             const labCorpLocation = userTask.answers.find(
               (answer: any) => answer.key === "labCorpLocation"
             )
-            if (labCorpLocation?.value !== "null") {
+            if (labCorpLocation) {
               const lab = await LabModel.findById(labCorpLocation.value)
               if (lab) {
                 labCorpLocation.value = `${lab.name} - ${lab.streetAddress} ${lab.city}, ${lab.state} ${lab.postalCode}`
@@ -803,6 +806,7 @@ class UserService extends EmailService {
           return userTask
         })
       )
+      console.log("userTasksWithLabCorpLocation", userTasksWithLabCorpLocation)
       return userTasksWithLabCorpLocation
       // return userTasks
     } catch (error) {

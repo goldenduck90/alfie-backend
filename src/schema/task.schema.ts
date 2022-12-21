@@ -26,6 +26,7 @@ export enum TaskType {
   GSRS = "GSRS",
   TEFQ = "TEFQ",
   LAB_SELECTION = "LAB_SELECTION",
+  AD_LIBITUM = "AD_LIBITUM",
 }
 
 registerEnumType(TaskType, {

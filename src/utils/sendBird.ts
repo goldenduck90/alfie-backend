@@ -1,22 +1,6 @@
+import * as Sentry from "@sentry/node"
 import axios from "axios"
 
-const channelMessages = [
-  {
-    type: "Health Coach",
-    message:
-      "Use this channel to speak with your health coach. You'll be assigned a health coach after meeting with the provider and receiving your prescription.",
-  },
-  {
-    type: "Medical",
-    message:
-      "Use this channel to message directly with your provider and the medical team regarding medications or other questions. You'll see a task to schedule with a provider once we have received your lab results. ",
-  },
-  {
-    type: "Customer Support",
-    message:
-      "Use this channel to speak with a customer support representative. If you need help getting medication approval, working with the pharmacy, or other questions.",
-  },
-]
 const sendBirdInstance = axios.create({
   baseURL: process.env.SEND_BIRD_API_URL,
   headers: {
@@ -26,6 +10,14 @@ const sendBirdInstance = axios.create({
 })
 // TODO: This whole file needs proper typing...
 
+const findSendBirdUser = async (user_id: string) => {
+  try {
+    const { data } = await sendBirdInstance.get(`/v3/users/${user_id}`)
+    return data
+  } catch (error) {
+    Sentry.captureException(error)
+  }
+}
 /**
  *
  * @param user_id
@@ -51,7 +43,7 @@ const createSendBirdUser = async (
     })
     return data
   } catch (error) {
-    throw new Error(error)
+    Sentry.captureException(error)
   }
 }
 /**
@@ -69,7 +61,8 @@ const createSendBirdChannelForNewUser = async (user_id: string) => {
       user_ids: [user_id],
     })
   } catch (error) {
-    throw new Error(error)
+    // console.log(error, "error in createSendBirdChannelForNewUser")
+    Sentry.captureException(error)
   }
 }
 
@@ -88,12 +81,12 @@ const inviteUserToChannel = async (
     const { data } = await sendBirdInstance.post(
       `/v3/group_channels/${channel_url}/invite`,
       {
-        user_ids: [user_id, 1, provider], // User id 1 is the admin
+        user_ids: [user_id, provider, "639b9a70b937527a0c43484c", "639ba055b937527a0c43484d", "639ba07cb937527a0c43484e"],
       }
     )
     return data
   } catch (error) {
-    throw new Error(error)
+    Sentry.captureException(error)
   }
 }
 const sendMessageToChannel = async (channel_url: string, message: string) => {
@@ -102,13 +95,14 @@ const sendMessageToChannel = async (channel_url: string, message: string) => {
       `/v3/group_channels/${channel_url}/messages`,
       {
         message_type: "MESG",
-        user_id: "1",
+        user_id: "639ba07cb937527a0c43484e",
         message,
       }
     )
     return data
   } catch (error) {
-    throw new Error(error)
+    console.log(error, "error in sendMessageToChannel")
+    Sentry.captureException(error)
   }
 }
 /**
@@ -125,30 +119,34 @@ const triggerEntireSendBirdFlow = async ({
   profile_url,
   provider,
   user_id,
+  providerName,
 }: {
   user_id: string
   nickname: string
   profile_url: string
   profile_file: string
   provider: string
+  providerName: string
 }) => {
   try {
-    const user = await createSendBirdUser(
+    const currentSendBirdProvider = await findSendBirdUser(provider)
+    if (!currentSendBirdProvider) {
+      await createSendBirdUser(provider, providerName, "", "")
+    }
+    await createSendBirdUser(
       user_id,
       nickname,
       profile_url,
       profile_file
     )
-    const channel = await createSendBirdChannelForNewUser(user.user_id)
-    await inviteUserToChannel(channel.data.channel_url, user.user_id, provider)
+    const channel = await createSendBirdChannelForNewUser(user_id)
+    await inviteUserToChannel(channel.data.channel_url, user_id, provider)
 
-    const message = channelMessages.find(
-      (channelMessage) => channelMessage.type === channel.data.name
-    )
-    await sendMessageToChannel(channel.data.channel_url, message.message)
+    await sendMessageToChannel(channel.data.channel_url, "Welcome to Alfie Chat!")
 
     return "Channels created and messages sent!"
   } catch (error) {
+    Sentry.captureException(error)
     throw new Error(error)
   }
 }

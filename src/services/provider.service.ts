@@ -15,6 +15,7 @@ class ProviderService {
   }
 
   async getNextAvailableProvider(state: string, update = false) {
+    // Only return providers where the type === "Practitioner"
     const provider = await ProviderModel.find()
       .where({
         type: Role.Practitioner,
