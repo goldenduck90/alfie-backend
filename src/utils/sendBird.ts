@@ -15,7 +15,6 @@ const findSendBirdUser = async (user_id: string) => {
     const { data } = await sendBirdInstance.get(`/v3/users/${user_id}`)
     return data
   } catch (error) {
-    console.log(error, "error in findSendBirdUser")
     Sentry.captureException(error)
   }
 }
@@ -44,7 +43,6 @@ const createSendBirdUser = async (
     })
     return data
   } catch (error) {
-    console.log(error, "error in createSendBirdUser")
     Sentry.captureException(error)
   }
 }
@@ -80,18 +78,14 @@ const inviteUserToChannel = async (
   provider: string
 ) => {
   try {
-    console.log(user_id, "user_id")
-    console.log(provider, "provider info")
     const { data } = await sendBirdInstance.post(
       `/v3/group_channels/${channel_url}/invite`,
       {
         user_ids: [user_id, provider, "634f85f8ed227ada5a4c140b", "639ba07cb937527a0c43484e"], // User id 140b is hasan's admin id, and 484e is Alexs.
       }
     )
-    console.log(data, "data")
     return data
   } catch (error) {
-    console.log(error, "error in inviteUserToChannel")
     Sentry.captureException(error)
   }
 }
@@ -105,9 +99,10 @@ const sendMessageToChannel = async (channel_url: string, message: string) => {
         message,
       }
     )
+    console.log(data, "data in sendMessageToChannel")
     return data
   } catch (error) {
-    // console.log(error, "error in sendMessageToChannel")
+    console.log(error, "error in sendMessageToChannel")
     Sentry.captureException(error)
   }
 }
@@ -125,17 +120,19 @@ const triggerEntireSendBirdFlow = async ({
   profile_url,
   provider,
   user_id,
+  providerName,
 }: {
   user_id: string
   nickname: string
   profile_url: string
   profile_file: string
   provider: string
+  providerName: string
 }) => {
   try {
     const currentSendBirdProvider = await findSendBirdUser(provider)
     if (!currentSendBirdProvider) {
-      await createSendBirdUser(provider, provider, "", "")
+      await createSendBirdUser(provider, providerName, "", "")
     }
     await createSendBirdUser(
       user_id,
@@ -143,16 +140,13 @@ const triggerEntireSendBirdFlow = async ({
       profile_url,
       profile_file
     )
-    // console.log(user, "user")
     const channel = await createSendBirdChannelForNewUser(user_id)
-    // console.log(channel, "channel")
     await inviteUserToChannel(channel.data.channel_url, user_id, provider)
 
     await sendMessageToChannel(channel.data.channel_url, "Welcome to Alfie Chat!")
 
     return "Channels created and messages sent!"
   } catch (error) {
-    // console.log(error, "error in triggerEntireSendBirdFlow")
     Sentry.captureException(error)
     throw new Error(error)
   }

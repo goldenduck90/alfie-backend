@@ -231,7 +231,7 @@ class UserService extends EmailService {
         $response2.error.message
       )
     }
-
+    const selectedProvider = await ProviderModel.findById(provider._id).lean()
     // trigger sendbird flow
     await triggerEntireSendBirdFlow({
       user_id: user._id,
@@ -239,6 +239,7 @@ class UserService extends EmailService {
       profile_file: "",
       profile_url: "",
       provider: provider._id,
+      providerName: `${selectedProvider.firstName} ${selectedProvider.lastName}`,
     })
 
     // assign initial tasks to user
