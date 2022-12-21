@@ -88,15 +88,18 @@ const inviteUserToChannel = async (
   provider: string
 ) => {
   try {
+    console.log(user_id, "user_id")
+    console.log(provider, "provider")
     const { data } = await sendBirdInstance.post(
       `/v3/group_channels/${channel_url}/invite`,
       {
-        user_ids: [user_id, 1, provider], // User id 1 is the admin
+        user_ids: [user_id, provider, "634f85f8ed227ada5a4c140b", "639ba07cb937527a0c43484e"], // User id 140b is hasan's admin id, and 484e is Alexs.
       }
     )
+    console.log(data, "data")
     return data
   } catch (error) {
-    // console.log(error, "error in inviteUserToChannel")
+    console.log(error, "error in inviteUserToChannel")
     Sentry.captureException(error)
   }
 }
@@ -144,10 +147,10 @@ const triggerEntireSendBirdFlow = async ({
       profile_url,
       profile_file
     )
-    console.log(user, "user")
-    const channel = await createSendBirdChannelForNewUser(user.user_id)
-    console.log(channel, "channel")
-    await inviteUserToChannel(channel.data.channel_url, user.user_id, provider)
+    // console.log(user, "user")
+    const channel = await createSendBirdChannelForNewUser(user_id)
+    // console.log(channel, "channel")
+    await inviteUserToChannel(channel.data.channel_url, user_id, provider)
 
     await sendMessageToChannel(channel.data.channel_url, "Welcome to Alfie Chat!")
 
