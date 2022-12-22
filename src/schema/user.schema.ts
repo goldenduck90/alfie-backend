@@ -5,7 +5,7 @@ import {
   pre,
   prop,
   queryMethod,
-  ReturnModelType,
+  ReturnModelType
 } from "@typegoose/typegoose"
 import { AsQueryMethod, Ref } from "@typegoose/typegoose/lib/types"
 import bcrypt from "bcrypt"
@@ -15,7 +15,7 @@ import {
   IsPhoneNumber,
   MaxDate,
   MaxLength,
-  MinLength,
+  MinLength
 } from "class-validator"
 import config from "config"
 import mongoose from "mongoose"
@@ -108,21 +108,85 @@ export class Weight {
 
 @ObjectType()
 export class Score {
-  @Field(() => Number)
+  @Field(() => Number, { nullable: true })
   @prop({ required: true })
-  score: number
+  score?: number
 
-  @Field(() => Number)
+  @Field(() => Number, { nullable: true })
   @prop({ required: true })
-  total: number
+  total?: number
 
-  @Field(() => Number)
+  @Field(() => Number, { nullable: true })
   @prop({ required: true })
-  percent: number
+  percent?: number
 
-  @Field(() => Date)
+  @Field(() => Number, { nullable: true })
+  @prop({ required: true })
+  percentDifference?: number
+
+  @Field(() => Boolean, { nullable: true })
+  @prop({ required: true })
+  increased?: boolean
+
+  @Field(() => String, { nullable: true })
+  @prop({ required: true })
+  message?: string
+
+  @Field(() => String, { nullable: true })
+  @prop({ required: true })
+  task?: string
+
+  @Field(() => Date, { nullable: true })
   @prop({ default: Date.now(), required: true })
-  date: Date
+  date?: Date
+
+  @Field(() => String, { nullable: true })
+  @prop({ required: false })
+  score1hour?: string
+
+  @Field(() => String, { nullable: true })
+  @prop({ required: false })
+  score30mins?: string
+
+  @Field(() => Boolean, { nullable: true })
+  @prop({ required: false })
+  increased1hour?: boolean
+
+  @Field(() => Number, { nullable: true })
+  @prop({ required: false })
+  percentDifference1Hour?: number
+
+  @Field(() => Number, { nullable: true })
+  @prop({ required: false })
+  percentDifference30Mins?: number
+
+  @Field(() => Number, { nullable: true })
+  @prop({ required: false })
+  scoreSystolic?: number
+
+  @Field(() => Number, { nullable: true })
+  @prop({ required: false })
+  scoreDiastolic?: number
+
+  @Field(() => Boolean, { nullable: true })
+  @prop({ required: false })
+  increasedSystolic?: boolean
+
+  @Field(() => Boolean, { nullable: true })
+  @prop({ required: false })
+  increasedDiastolic?: boolean
+
+  @Field(() => Number, { nullable: true })
+  @prop({ required: false })
+  percentDifferenceSystolic?: number
+
+  @Field(() => Number, { nullable: true })
+  @prop({ required: false })
+  percentDifferenceDiastolic?: number
+
+  @Field(() => String, { nullable: true })
+  @prop({ required: false })
+  providerMessage?: string
 }
 
 @ObjectType()
@@ -267,7 +331,7 @@ export class User {
   @prop({ default: [], required: true })
   weights: mongoose.Types.Array<Weight>
 
-  @Field(() => [Score])
+  @Field(() => [Score], { nullable: true })
   @prop({ default: {}, required: false })
   score: mongoose.Types.Array<Score>
 
