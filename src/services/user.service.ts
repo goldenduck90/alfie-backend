@@ -797,7 +797,7 @@ class UserService extends EmailService {
             const labCorpLocation = userTask.answers.find(
               (answer: any) => answer.key === "labCorpLocation"
             )
-            if (labCorpLocation && labCorpLocation.value !== "") {
+            if (labCorpLocation && labCorpLocation.value !== "null") {
               const lab = await LabModel.findById(labCorpLocation.value)
               if (lab) {
                 labCorpLocation.value = `${lab.name} - ${lab.streetAddress} ${lab.city}, ${lab.state} ${lab.postalCode}`
@@ -807,10 +807,10 @@ class UserService extends EmailService {
           return userTask
         })
       )
-      console.log("userTasksWithLabCorpLocation", userTasksWithLabCorpLocation)
       return userTasksWithLabCorpLocation
       // return userTasks
     } catch (error) {
+      Sentry.captureException(error)
       throw new ApolloError(error.message, error.code)
     }
   }
