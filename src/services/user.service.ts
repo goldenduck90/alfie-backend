@@ -811,7 +811,6 @@ class UserService extends EmailService {
       // return userTasks
     } catch (error) {
       Sentry.captureException(error)
-      throw new ApolloError(error.message, error.code)
     }
   }
 
