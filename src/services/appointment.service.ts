@@ -109,7 +109,7 @@ class AppointmentService {
       },
     })
 
-    const response = JSON.parse(data)
+    const response = data
 
     return {
       ...response,
