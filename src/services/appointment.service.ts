@@ -126,13 +126,14 @@ class AppointmentService {
             new Date(
               `${format(selectedDate, "yyyy-MM-dd")} ${hours}:${minutes}:00`
             ),
-            response.eaProvider.timezone
+            eaProvider.timezone
           )
-  
+
           const endTimeInUtc = addMinutes(
             startTimeInUtc,
             response.eaService.durationInMins
           )
+
 
           return {
             startTimeInUtc,

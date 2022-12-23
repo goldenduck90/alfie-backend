@@ -66,6 +66,9 @@ export class EAProvider {
 
   @Field(() => Number, { nullable: true })
   numberOfPatients?: number
+
+  @Field(() => String, { nullable: true })
+  timezone?: string
 }
 
 @ObjectType()
