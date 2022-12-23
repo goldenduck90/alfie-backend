@@ -121,9 +121,14 @@ class AppointmentService {
           const { timeInUtc, eaProvider } = timeslot
           const hours = Number(timeInUtc.split(":")[0])
           const minutes = Number(timeInUtc.split(":")[1])
-          const startTimeInUtc = new Date(
-            `${format(selectedDate, "yyyy-MM-dd")} ${hours}:${minutes}:00`
+
+          const startTimeInUtc = zonedTimeToUtc(
+            new Date(
+              `${format(selectedDate, "yyyy-MM-dd")} ${hours}:${minutes}:00`
+            ),
+            response.eaProvider.timezone
           )
+  
           const endTimeInUtc = addMinutes(
             startTimeInUtc,
             response.eaService.durationInMins
