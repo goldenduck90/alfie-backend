@@ -438,59 +438,51 @@ class TaskService extends EmailService {
           const hasRequiredLabs = answers.find(
             (a) => a.key === "hasRequiredLabs"
           )
-          if (hasRequiredLabs && hasRequiredLabs.value === "true") {
-            const newTaskInput: CreateUserTaskInput = {
-              taskType: TaskType.SCHEDULE_APPOINTMENT,
-              userId: userTask.user.toString(),
-            }
-            await this.assignTaskToUser(newTaskInput)
-          } else {
-            try {
-              // get user provider
-              const provider = await ProviderModel.findById(user.provider)
+          try {
+            // get user provider
+            const provider = await ProviderModel.findById(user.provider)
 
-              // get labcorp location fax number
-              const locationId = answers.find(
-                (a) => a.key === "labCorpLocation"
-              ).value
-              const labCorpLocation = await LabModel.findById(locationId)
-              const faxNumber = labCorpLocation.faxNumber
+            // get labcorp location fax number
+            const locationId = answers.find(
+              (a) => a.key === "labCorpLocation"
+            ).value
+            const labCorpLocation = await LabModel.findById(locationId)
+            const faxNumber = labCorpLocation.faxNumber
 
-              // calculate bmi
-              const bmi =
-                (user.weights[0].value /
-                  user.heightInInches /
-                  user.heightInInches) *
-                703.071720346
+            // calculate bmi
+            const bmi =
+              (user.weights[0].value /
+                user.heightInInches /
+                user.heightInInches) *
+              703.071720346
 
-              // create pdf
-              const pdfBuffer = await this.pdfService.createLabOrderPdf({
-                patientFullName: user.name,
-                providerFullName: `${provider.firstName} ${provider.lastName}`,
-                providerNpi: provider.npi,
-                patientDob: user.dateOfBirth,
-                icdCode: 27 < bmi && bmi < 30 ? "E66.3" : "E66.9",
-              })
+            // create pdf
+            const pdfBuffer = await this.pdfService.createLabOrderPdf({
+              patientFullName: user.name,
+              providerFullName: `${provider.firstName} ${provider.lastName}`,
+              providerNpi: provider.npi,
+              patientDob: user.dateOfBirth,
+              icdCode: 27 < bmi && bmi < 30 ? "E66.3" : "E66.9",
+            })
 
-              // send fax to labcorp location
-              const faxResult = await this.faxService.sendFax({
-                faxNumber,
-                pdfBuffer,
-              })
+            // send fax to labcorp location
+            const faxResult = await this.faxService.sendFax({
+              faxNumber,
+              pdfBuffer,
+            })
 
-              console.log(faxResult, `faxResult for user: ${user.id}`)
-              Sentry.captureMessage(
-                `faxResult: ${JSON.stringify(faxResult)} for user: ${user.id}`
-              )
-            } catch (error) {
-              console.log(`error with faxResult for user: ${user.id}`, error)
-              Sentry.captureException(error, {
-                tags: {
-                  userId: user.id,
-                  patientId: user.akutePatientId,
-                },
-              })
-            }
+            console.log(faxResult, `faxResult for user: ${user.id}`)
+            Sentry.captureMessage(
+              `faxResult: ${JSON.stringify(faxResult)} for user: ${user.id}`
+            )
+          } catch (error) {
+            console.log(`error with faxResult for user: ${user.id}`, error)
+            Sentry.captureException(error, {
+              tags: {
+                userId: user.id,
+                patientId: user.akutePatientId,
+              },
+            })
           }
 
           await user.save()
