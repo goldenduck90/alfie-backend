@@ -14,6 +14,7 @@ import {
   UpdateAppointmentInput,
 } from "../schema/appointment.schema"
 import { ProviderModel } from "../schema/provider.schema"
+import { UserTaskModel } from "../schema/task.user.schema"
 import { Role, UserModel } from "../schema/user.schema"
 import { createMeetingAndToken } from "../utils/daily"
 class AppointmentService {
@@ -134,7 +135,6 @@ class AppointmentService {
             response.eaService.durationInMins
           )
 
-
           return {
             startTimeInUtc,
             endTimeInUtc,
@@ -189,6 +189,7 @@ class AppointmentService {
     try {
       const { notFound, noEaCustomerId } = config.get("errors.user") as any
       const user = await UserModel.findById(userId).populate("provider")
+      const userTask = await UserTaskModel.findById(input.userTaskId)
       if (!user) {
         throw new ApolloError(notFound.message, notFound.code)
       }
@@ -198,7 +199,6 @@ class AppointmentService {
       if (!user.eaCustomerId) {
         throw new ApolloError(noEaCustomerId.message, noEaCustomerId.code)
       }
-
       const {
         providerType,
         eaServiceId,
@@ -218,7 +218,8 @@ class AppointmentService {
         notes: notes || "",
       })
       // call complete task for schedule appt
-
+      userTask.completed = true
+      await userTask.save()
       await UserModel.findByIdAndUpdate(userId, {
         meetingUrl: meetingData,
       })
@@ -399,7 +400,9 @@ class AppointmentService {
       },
     })
     const removePastAppointments: any = data.filter(
-      (appointment: any) => new Date(appointment.start) > new Date()
+      (appointment: any) =>
+        new Date(appointment.start).getTime() >
+        new Date().getTime() + 24 * 60 * 60 * 1000
     )
     const userSpecificAppintments = removePastAppointments.filter(
       (appointment: any) =>

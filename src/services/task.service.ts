@@ -334,11 +334,13 @@ class TaskService extends EmailService {
       // Get the user and task documents
       const user = await UserModel.findById(userTask.user)
       const task = await TaskModel.findById(userTask.task)
-
+      console.log(userTask)
       // Mark the user task as completed and save it
       userTask.completed = true
       userTask.completedAt = new Date()
+      userTask.answers = []
       userTask.answers = answers
+      console.log(userTask)
       await userTask.save()
 
       // Calculate the score for the user based on their previous and current tasks

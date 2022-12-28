@@ -150,6 +150,9 @@ export class CreateAppointmentInput {
 
   @Field(() => String, { nullable: true })
   notes?: string
+
+  @Field(() => String)
+  userTaskId: string
 }
 
 @InputType()
