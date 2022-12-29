@@ -362,6 +362,7 @@ class TaskService extends EmailService {
           // Update the user's lab location and assign them the next task if needed
           const labId = answers.find((a) => a.key === "labCorpLocation").value
           user.labLocation = labId
+          await user.save()
           const hasRequiredLabs = answers.find(
             (a) => a.key === "hasRequiredLabs"
           )
