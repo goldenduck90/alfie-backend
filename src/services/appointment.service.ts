@@ -402,10 +402,11 @@ class AppointmentService {
     // console.log(data, "data")
     // filter appointments to only include those that are scheduled for the user with the specified ID
     // and are new (start time is later than the current time) and not expired by 24 hours
-    const upcomingAppointments: any = data.filter(
+    const userSpecificAppointments: any = data.filter(
       (appointment: any) =>
-        new Date(appointment.start).getTime() > new Date().getTime() - 24 * 60 * 60 * 1000
-    );
+        new Date(appointment.start).getTime() > new Date().getTime() - 24 * 60 * 60 * 1000 &&
+        appointment.customer.id === Number(user.eaCustomerId)
+    )
     console.log(user.eaCustomerId, "user.eaCustomerId")
     console.log(userSpecificAppointments, "userSpecificAppointments")
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
