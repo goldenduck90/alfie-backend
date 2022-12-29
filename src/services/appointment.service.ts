@@ -11,7 +11,7 @@ import {
   CreateCustomerInput,
   EAProvider,
   ProviderTimeslotsInput,
-  UpdateAppointmentInput,
+  UpdateAppointmentInput
 } from "../schema/appointment.schema"
 import { ProviderModel } from "../schema/provider.schema"
 import { UserTaskModel } from "../schema/task.user.schema"
@@ -396,20 +396,20 @@ class AppointmentService {
     const { data } = await this.axios.get("/appointments", {
       params: {
         with: `id_users_customer=${Number(user.eaCustomerId)}`,
-        length: limit,
+        length: 9999,
       },
     })
-    const removePastAppointments: any = data.filter(
+    // console.log(data, "data")
+    // filter appointments to only include those that are scheduled for the user with the specified ID
+    // and are new (start time is later than the current time) and not expired by 24 hours
+    const userSpecificAppointments: any = data.filter(
       (appointment: any) =>
-        new Date(appointment.start).getTime() >
-        new Date().getTime() + 24 * 60 * 60 * 1000
-    )
-    const userSpecificAppintments = removePastAppointments.filter(
-      (appointment: any) =>
-        appointment.customer.id === Number(user.eaCustomerId)
+        appointment.customer.id === Number(user.eaCustomerId) &&
+        new Date(appointment.start).getTime() > new Date().getTime() &&
+        new Date(appointment.start).getTime() < new Date().getTime() + 24 * 60 * 60 * 1000
     )
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const apps = userSpecificAppintments.map((app: any) => ({
+    const apps = userSpecificAppointments.map((app: any) => ({
       eaAppointmentId: app.id,
       startTimeInUtc: new Date(app.start),
       endTimeInUtc: new Date(app.end),
@@ -432,12 +432,13 @@ class AppointmentService {
 
     return apps
   }
+
   async getProviderAppointments(eaProviderId: string) {
     const { data } = await this.axios.get("/appointments", {
       params: {
         //add a param for by a specific day
         with: `id_users_provider=${eaProviderId}`,
-        length: 1000,
+        length: 2000,
       },
     })
 

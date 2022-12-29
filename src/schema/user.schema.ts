@@ -5,7 +5,7 @@ import {
   pre,
   prop,
   queryMethod,
-  ReturnModelType
+  ReturnModelType,
 } from "@typegoose/typegoose"
 import { AsQueryMethod, Ref } from "@typegoose/typegoose/lib/types"
 import bcrypt from "bcrypt"
@@ -15,7 +15,7 @@ import {
   IsPhoneNumber,
   MaxDate,
   MaxLength,
-  MinLength
+  MinLength,
 } from "class-validator"
 import config from "config"
 import mongoose from "mongoose"
@@ -109,35 +109,35 @@ export class Weight {
 @ObjectType()
 export class Score {
   @Field(() => Number, { nullable: true })
-  @prop({ required: true })
+  @prop({ required: false })
   score?: number
 
   @Field(() => Number, { nullable: true })
-  @prop({ required: true })
+  @prop({ required: false })
   total?: number
 
   @Field(() => Number, { nullable: true })
-  @prop({ required: true })
+  @prop({ required: false })
   percent?: number
 
   @Field(() => Number, { nullable: true })
-  @prop({ required: true })
+  @prop({ required: false })
   percentDifference?: number
 
   @Field(() => Boolean, { nullable: true })
-  @prop({ required: true })
+  @prop({ required: false })
   increased?: boolean
 
   @Field(() => String, { nullable: true })
-  @prop({ required: true })
+  @prop({ required: false })
   message?: string
 
   @Field(() => String, { nullable: true })
-  @prop({ required: true })
+  @prop({ required: false })
   task?: string
 
   @Field(() => Date, { nullable: true })
-  @prop({ default: Date.now(), required: true })
+  @prop({ default: Date.now(), required: false })
   date?: Date
 
   @Field(() => String, { nullable: true })
@@ -332,8 +332,8 @@ export class User {
   weights: mongoose.Types.Array<Weight>
 
   @Field(() => [Score], { nullable: true })
-  @prop({ default: {}, required: false })
-  score: mongoose.Types.Array<Score>
+  @prop()
+  score?: mongoose.Types.Array<Score>
 
   @Field(() => Gender)
   @prop({ enum: Gender, type: String, required: true })
