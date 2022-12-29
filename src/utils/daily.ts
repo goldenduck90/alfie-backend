@@ -1,7 +1,7 @@
-import axios from "axios"
-import { UserModel } from "../schema/user.schema"
-import config from "config"
 import * as Sentry from "@sentry/node"
+import axios from "axios"
+import config from "config"
+import { UserModel } from "../schema/user.schema"
 const dailyInstance = axios.create({
   baseURL: process.env.DAILY_API_URL,
   headers: {
@@ -53,9 +53,7 @@ const createMeetingAndToken = async (user_id: string) => {
   try {
     const room = await createDailyRoom()
     await createDailyMeetingToken(room.data.name)
-    const meetingRoomUrl = `${config.get("baseUrl")}/appointments/call/${
-      room.data.name
-    }`
+    const meetingRoomUrl = `${config.get("baseUrl")}/call/${room.data.name}`
     await UserModel.updateOne(
       { _id: user_id },
       { meetingRoomUrl: meetingRoomUrl }
