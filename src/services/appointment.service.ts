@@ -27,7 +27,7 @@ class AppointmentService {
       baseURL: this.baseUrl,
       headers: {
         "Content-Type": "application/json",
-        "Authorization": `Bearer ${process.env.EASY_APPOINTMENTS_API_KEY}`,
+        "Authorization": "Bearer letmein1",
       },
     })
   }
@@ -51,10 +51,25 @@ class AppointmentService {
     try {
       if (updateUser) {
         const user = await UserModel.findById(userId).countDocuments()
+        console.log("yellow")
         if (!user) {
           throw new ApolloError(notFound.message, notFound.code)
         }
       }
+
+      const { data: eaCustomer } = await this.axios.get(
+        `/customers?q=${encodeURIComponent(email)}`
+      )
+      if (eaCustomer.length) {
+        console.log(eaCustomer)
+        if (updateUser) {
+          await UserModel.findByIdAndUpdate(userId, {
+            eaCustomerId: eaCustomer[0].id,
+          })
+        }
+        return eaCustomer[0].id
+      }
+      console.log("USER", eaCustomer)
 
       const { data } = await this.axios.post("/customers", {
         firstName,
@@ -70,6 +85,8 @@ class AppointmentService {
         notes,
       })
 
+      console.log("DATA", data)
+
       if (updateUser) {
         await UserModel.findByIdAndUpdate(userId, {
           eaCustomerId: data.id,
@@ -79,6 +96,7 @@ class AppointmentService {
       // return easyappointments customer id
       return data.id
     } catch (error) {
+      console.log(error, "error")
       Sentry.captureException(error)
       throw new ApolloError(error.message, "ERROR")
     }
