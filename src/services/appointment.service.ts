@@ -435,13 +435,7 @@ class AppointmentService {
   }
 
   async getProviderAppointments(eaProviderId: string) {
-    const { data } = await this.axios.get("/appointments", {
-      params: {
-        //add a param for by a specific day
-        with: `id_users_provider=${eaProviderId}`,
-        length: 2000,
-      },
-    })
+    const { data } = await this.axios.get(`/appointments/all/${eaProviderId}`)
 
     // const removePastAppointments = data.filter(
     //   (appointment: any) => new Date(appointment.start) < new Date()
