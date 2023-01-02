@@ -13,7 +13,7 @@ import {
   GetUserTasksInput,
   UpdateUserTaskInput,
   UserTask,
-  UserTaskModel,
+  UserTaskModel
 } from "../schema/task.user.schema"
 import { UserModel } from "../schema/user.schema"
 import AkuteService from "./akute.service"
@@ -126,13 +126,13 @@ class TaskService extends EmailService {
         TaskType.SCHEDULE_APPOINTMENT
       )
 
-      // if (hasCompletedRequiredTasks === true && !hasScheduledAppointmentTask) {
-      //   const newTaskInput: CreateUserTaskInput = {
-      //     taskType: TaskType.SCHEDULE_APPOINTMENT,
-      //     userId: userId.toString(),
-      //   }
-      //   await this.assignTaskToUser(newTaskInput)
-      // }
+      if (hasCompletedRequiredTasks === true && !hasScheduledAppointmentTask) {
+        const newTaskInput: CreateUserTaskInput = {
+          taskType: TaskType.SCHEDULE_APPOINTMENT,
+          userId: userId.toString(),
+        }
+        await this.assignTaskToUser(newTaskInput)
+      }
     } catch (error) {
       Sentry.captureException(error)
     }
