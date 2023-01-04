@@ -9,7 +9,7 @@ import { v4 as uuidv4 } from "uuid"
 import {
   CheckoutModel,
   CreateCheckoutInput,
-  CreateStripeCustomerInput
+  CreateStripeCustomerInput,
 } from "../schema/checkout.schema"
 import { LabModel } from "../schema/lab.schema"
 import { ProviderModel } from "../schema/provider.schema"
@@ -25,7 +25,7 @@ import {
   SubscribeEmailInput,
   UpdateSubscriptionInput,
   UserModel,
-  Weight
+  Weight,
 } from "../schema/user.schema"
 import { signJwt } from "../utils/jwt"
 import { triggerEntireSendBirdFlow } from "../utils/sendBird"
@@ -741,8 +741,8 @@ class UserService extends EmailService {
         ...(!noExpire
           ? { expiresIn: remember ? rememberExp : normalExp }
           : {
-            expiresIn: "6000d",
-          }),
+              expiresIn: "6000d",
+            }),
       }
     )
 
@@ -770,7 +770,7 @@ class UserService extends EmailService {
       const users = await UserModel.find().populate("provider").lean()
 
       // Iterate over the users and set the "score" field to an empty array if it is undefined
-      users.forEach(user => {
+      users.forEach((user) => {
         if (user.score === undefined) {
           user.score = []
         }
@@ -784,10 +784,29 @@ class UserService extends EmailService {
     }
   }
 
-
   async getAllUsersByAProvider(providerId: string) {
     try {
       const users = await UserModel.find({ provider: providerId })
+        .populate("provider")
+        .lean()
+      return users
+    } catch (error) {
+      throw new ApolloError(error.message, error.code)
+    }
+  }
+  async getAllUsersByAHealthCoach(providerId: string) {
+    console.log(providerId, "providerId")
+    try {
+      const findEaHealthCoachId = await UserModel.find({
+        _id: providerId,
+      }).lean()
+      console.log(findEaHealthCoachId[0], "findEaHealthCoachId")
+      if (!findEaHealthCoachId[0].eaHealthCoachId) {
+        throw new ApolloError("No Health Coach Id found", "404")
+      }
+      const users = await UserModel.find({
+        eaHealthCoachId: findEaHealthCoachId[0].eaHealthCoachId,
+      })
         .populate("provider")
         .lean()
       return users

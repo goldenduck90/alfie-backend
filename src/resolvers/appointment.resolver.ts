@@ -56,13 +56,13 @@ export default class AppointmentResolver {
     return this.appointmentService.getAppointments(context.user._id, limit)
   }
 
-  @Authorized([Role.Practitioner, Role.Admin])
+  @Authorized([Role.Practitioner, Role.Admin, Role.HealthCoach])
   @Query(() => [EAAppointmentWithCustomer])
   providerAppointments(@Arg("eaProviderId") eaProviderId: string) {
     return this.appointmentService.getProviderAppointments(eaProviderId)
   }
 
-  @Authorized([Role.Practitioner, Role.Admin])
+  @Authorized([Role.Practitioner, Role.Admin, Role.HealthCoach])
   @Mutation(() => EAProviderProfile)
   updateProviderProfile(
     @Arg("eaProviderId") eaProviderId: string,
@@ -70,7 +70,7 @@ export default class AppointmentResolver {
   ) {
     return this.appointmentService.updateProvider(eaProviderId, input)
   }
-  @Authorized([Role.Practitioner, Role.Admin])
+  @Authorized([Role.Practitioner, Role.Admin, Role.HealthCoach])
   @Query(() => EAProviderProfile)
   getAProvider(@Arg("eaProviderId") eaProviderId: string) {
     return this.appointmentService.getProvider(eaProviderId)
