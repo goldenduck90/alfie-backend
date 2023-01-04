@@ -766,7 +766,16 @@ class UserService extends EmailService {
 
   async getAllUsers() {
     try {
+      // Find all users and populate the "provider" field
       const users = await UserModel.find().populate("provider").lean()
+
+      // Iterate over the users and set the "score" field to an empty array if it is undefined
+      users.forEach(user => {
+        if (user.score === undefined) {
+          user.score = []
+        }
+      })
+
       return users
     } catch (error) {
       console.log(error, "error")
@@ -774,6 +783,7 @@ class UserService extends EmailService {
       throw new ApolloError(error.message, error.code)
     }
   }
+
 
   async getAllUsersByAProvider(providerId: string) {
     try {

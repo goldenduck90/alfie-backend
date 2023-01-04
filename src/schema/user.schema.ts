@@ -5,7 +5,7 @@ import {
   pre,
   prop,
   queryMethod,
-  ReturnModelType,
+  ReturnModelType
 } from "@typegoose/typegoose"
 import { AsQueryMethod, Ref } from "@typegoose/typegoose/lib/types"
 import bcrypt from "bcrypt"
@@ -15,7 +15,7 @@ import {
   IsPhoneNumber,
   MaxDate,
   MaxLength,
-  MinLength,
+  MinLength
 } from "class-validator"
 import config from "config"
 import mongoose from "mongoose"
@@ -331,9 +331,9 @@ export class User {
   @prop({ default: [], required: true })
   weights: mongoose.Types.Array<Weight>
 
-  @Field(() => [Score], { nullable: true })
-  @prop()
-  score?: mongoose.Types.Array<Score>
+  @Field(() => [Score], { defaultValue: [], nullable: true })
+  @prop({ default: [], required: true })
+  score: mongoose.Types.Array<Score>
 
   @Field(() => Gender)
   @prop({ enum: Gender, type: String, required: true })
