@@ -22,7 +22,7 @@ class AppointmentService {
   public axios: AxiosInstance
 
   constructor() {
-    this.baseUrl = "https://ea.joinalfie.com/index.php/api/v1"
+    this.baseUrl = config.get("easyAppointmentsApiUrl")
     this.axios = axios.create({
       baseURL: this.baseUrl,
       headers: {
@@ -408,8 +408,6 @@ class AppointmentService {
         new Date().getTime() - 24 * 60 * 60 * 1000 &&
         appointment.customer.id === Number(user.eaCustomerId)
     )
-    console.log(user.eaCustomerId, "user.eaCustomerId")
-    console.log(userSpecificAppointments, "userSpecificAppointments")
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const apps = userSpecificAppointments.map((app: any) => ({
       eaAppointmentId: app.id,
