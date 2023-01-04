@@ -331,9 +331,9 @@ export class User {
   @prop({ default: [], required: true })
   weights: mongoose.Types.Array<Weight>
 
-  @Field(() => [Score], { nullable: true })
-  @prop()
-  score?: mongoose.Types.Array<Score>
+  @Field(() => [Score], { defaultValue: [], nullable: true })
+  @prop({ default: [], required: true })
+  score: mongoose.Types.Array<Score>
 
   @Field(() => Gender)
   @prop({ enum: Gender, type: String, required: true })
@@ -540,6 +540,8 @@ export class PartialUser {
 
   @Field(() => String, { nullable: true })
   eaProviderId?: string
+  @Field(() => String, { nullable: true })
+  eaHealthCoachId?: string
 }
 
 @ObjectType()
