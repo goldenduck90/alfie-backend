@@ -11,7 +11,7 @@ import {
   CreateCustomerInput,
   EAProvider,
   ProviderTimeslotsInput,
-  UpdateAppointmentInput
+  UpdateAppointmentInput,
 } from "../schema/appointment.schema"
 import { ProviderModel } from "../schema/provider.schema"
 import { UserTaskModel } from "../schema/task.user.schema"
@@ -422,7 +422,8 @@ class AppointmentService {
     // and are new (start time is later than the current time) and not expired by 24 hours
     const userSpecificAppointments: any = data.filter(
       (appointment: any) =>
-        new Date(appointment.start).getTime() > new Date().getTime() - 24 * 60 * 60 * 1000 &&
+        new Date(appointment.start).getTime() >
+          new Date().getTime() - 24 * 60 * 60 * 1000 &&
         appointment.customer.id === Number(user.eaCustomerId)
     )
     console.log(user.eaCustomerId, "user.eaCustomerId")
@@ -459,10 +460,11 @@ class AppointmentService {
     //   (appointment: any) => new Date(appointment.start) < new Date()
     // )
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
+
     const apps = data.map((app: any) => ({
       eaAppointmentId: app.id,
-      startTimeInUtc: new Date(app.start),
-      endTimeInUtc: new Date(app.end),
+      startTimeInUtc: zonedTimeToUtc(new Date(app.start), "UTC"),
+      endTimeInUtc: zonedTimeToUtc(new Date(app.end), "UTC"),
       location: app.location,
       notes: app.notes,
       eaProvider: {
