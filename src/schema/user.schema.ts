@@ -5,7 +5,7 @@ import {
   pre,
   prop,
   queryMethod,
-  ReturnModelType
+  ReturnModelType,
 } from "@typegoose/typegoose"
 import { AsQueryMethod, Ref } from "@typegoose/typegoose/lib/types"
 import bcrypt from "bcrypt"
@@ -15,7 +15,7 @@ import {
   IsPhoneNumber,
   MaxDate,
   MaxLength,
-  MinLength
+  MinLength,
 } from "class-validator"
 import config from "config"
 import mongoose from "mongoose"
@@ -540,6 +540,8 @@ export class PartialUser {
 
   @Field(() => String, { nullable: true })
   eaProviderId?: string
+  @Field(() => String, { nullable: true })
+  eaHealthCoachId?: string
 }
 
 @ObjectType()

@@ -11,7 +11,7 @@ import {
   CreateCustomerInput,
   EAProvider,
   ProviderTimeslotsInput,
-  UpdateAppointmentInput,
+  UpdateAppointmentInput
 } from "../schema/appointment.schema"
 import { ProviderModel } from "../schema/provider.schema"
 import { UserTaskModel } from "../schema/task.user.schema"
@@ -22,7 +22,7 @@ class AppointmentService {
   public axios: AxiosInstance
 
   constructor() {
-    this.baseUrl = "https://ea.joinalfie.com/index.php/api/v1"
+    this.baseUrl = config.get("easyAppointmentsApiUrl")
     this.axios = axios.create({
       baseURL: this.baseUrl,
       headers: {
@@ -423,11 +423,9 @@ class AppointmentService {
     const userSpecificAppointments: any = data.filter(
       (appointment: any) =>
         new Date(appointment.start).getTime() >
-          new Date().getTime() - 24 * 60 * 60 * 1000 &&
+        new Date().getTime() - 24 * 60 * 60 * 1000 &&
         appointment.customer.id === Number(user.eaCustomerId)
     )
-    console.log(user.eaCustomerId, "user.eaCustomerId")
-    console.log(userSpecificAppointments, "userSpecificAppointments")
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const apps = userSpecificAppointments.map((app: any) => ({
       eaAppointmentId: app.id,
@@ -454,39 +452,39 @@ class AppointmentService {
   }
 
   async getProviderAppointments(eaProviderId: string) {
-    const { data } = await this.axios.get(`/appointments/all/${eaProviderId}`)
-
-    // const removePastAppointments = data.filter(
-    //   (appointment: any) => new Date(appointment.start) < new Date()
-    // )
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-
-    const apps = data.map((app: any) => ({
-      eaAppointmentId: app.id,
-      startTimeInUtc: zonedTimeToUtc(new Date(app.start), "UTC"),
-      endTimeInUtc: zonedTimeToUtc(new Date(app.end), "UTC"),
-      location: app.location,
-      notes: app.notes,
-      eaProvider: {
-        id: app.provider.id,
-        name: app.provider.firstName + " " + app.provider.lastName,
-        email: app.provider.email,
-        type: app.provider.type,
-        numberOfPatients: app.provider.numberOfPatients,
-      },
-      eaService: {
-        id: app.service.id,
-        name: app.service.name,
-        durationInMins: app.service.duration,
-        description: app.service.description,
-      },
-      eaCustomer: {
-        id: app.customer.id,
-        name: app.customer.firstName + " " + app.customer.lastName,
-        email: app.customer.email,
-      },
-    }))
-    return apps
+    try {
+      const { data } = await this.axios.get(`/appointments/all/${eaProviderId}`)
+      console.log(data, "data")
+      const apps = data.map((app: any) => ({
+        eaAppointmentId: app.id,
+        startTimeInUtc: new Date(app.start),
+        endTimeInUtc: new Date(app.end),
+        location: app.location,
+        notes: app.notes,
+        eaProvider: {
+          id: app.provider.id,
+          name: app.provider.firstName + " " + app.provider.lastName,
+          email: app.provider.email,
+          type: app.provider.type,
+          numberOfPatients: app.provider.numberOfPatients,
+        },
+        eaService: {
+          id: app.service.id,
+          name: app.service.name,
+          durationInMins: app.service.duration,
+          description: app.service.description,
+        },
+        eaCustomer: {
+          id: app.customer.id,
+          name: app.customer.firstName + " " + app.customer.lastName,
+          email: app.customer.email,
+        },
+      }))
+      return apps
+    } catch (err) {
+      console.log(err, "err")
+      Sentry.captureException(err)
+    }
   }
   async updateProvider(eaProviderId: string, providerData: IEAProvider) {
     try {
