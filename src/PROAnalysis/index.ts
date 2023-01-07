@@ -162,9 +162,8 @@ function calculateActivityScore(
     }
   }
   if (task === TaskType.WEIGHT_LOG) {
-    const message = `Your weight has ${
-      increased ? "increased" : "decreased"
-    } by ${percentDifferenceBetweenLastAndCurrentTaskScore}%`
+    const message = `Your weight has ${increased ? "increased" : "decreased"
+      } by ${percentDifferenceBetweenLastAndCurrentTaskScore}%`
     return {
       score,
       date: currentTask.completedAt,
@@ -175,9 +174,8 @@ function calculateActivityScore(
     }
   }
   if (task === TaskType.WAIST_LOG) {
-    const message = `Your waist has ${
-      increased ? "increased" : "decreased"
-    } by ${percentDifferenceBetweenLastAndCurrentTaskScore}%`
+    const message = `Your waist has ${increased ? "increased" : "decreased"
+      } by ${percentDifferenceBetweenLastAndCurrentTaskScore}%`
     return {
       score,
       date: currentTask.completedAt,
@@ -245,19 +243,30 @@ function calculateHungerScore(
 
   const increased1Hour = currentHungerLevel1Hour > lastHungerLevel1Hour
   const increased30Mins = currentHungerLevel30Mins > lastHungerLevel30Mins
-  const message = `Your hunger level has ${
-    increased1Hour ? "increased" : "decreased"
-  } by ${currentHungerLevel1HourPercentDifference}% for 1 hour and ${
-    increased30Mins ? "increased" : "decreased"
-  } by ${currentHungerLevel30MinsPercentDifference}% for 30 mins and you scored within the ${percentileDifferenceHungerPercentile1hour} percentile for 1 hour and ${percentileDifferenceHungerPercentile30mins} percentile for 30 mins`
+  const message = `Your hunger level has ${increased1Hour ? "increased" : "decreased"
+    } by ${currentHungerLevel1HourPercentDifference}% for 1 hour and ${increased30Mins ? "increased" : "decreased"
+    } by ${currentHungerLevel30MinsPercentDifference}% for 30 mins and you scored within the ${percentileDifferenceHungerPercentile1hour} percentile for 1 hour and ${percentileDifferenceHungerPercentile30mins} percentile for 30 mins`
+  const score1hourIsFinite = isFinite(currentHungerLevel1HourPercentDifference)
+    ? currentHungerLevel1HourPercentDifference
+    : 0
+  const score30minsIsFinite = isFinite(currentHungerLevel30MinsPercentDifference)
+    ? currentHungerLevel30MinsPercentDifference
+    : 0
+  const percentDifference1HourIsFinite = isFinite(currentHungerLevel1HourPercentDifference)
+    ? currentHungerLevel1HourPercentDifference
+    : 0
+  const percentDifference30MinsIsFinite = isFinite(currentHungerLevel30MinsPercentDifference)
+    ? currentHungerLevel30MinsPercentDifference
+    : 0
+
   return {
-    score1hour: currentHungerLevel1HourPercentDifference,
-    score30mins: currentHungerLevel30MinsPercentDifference,
+    score1hour: score1hourIsFinite,
+    score30mins: score30minsIsFinite,
     date: currentTask.completedAt,
     increased1Hour,
     increased30Mins,
-    percentDifference1Hour: currentHungerLevel1HourPercentDifference,
-    percentDifference30Mins: currentHungerLevel30MinsPercentDifference,
+    percentDifference1Hour: percentDifference1HourIsFinite,
+    percentDifference30Mins: percentDifference30MinsIsFinite,
     message,
     task,
   }
@@ -293,11 +302,9 @@ function calculateBPLogScore(
   )
   const increasedSystolic = currentSystolic > lastSystolic
   const increasedDiastolic = currentDiastolic > lastDiastolic
-  const message = `Your systolic has ${
-    increasedSystolic ? "increased" : "decreased"
-  } by ${currentSystolicPercentDifference}% and your diastolic has ${
-    increasedDiastolic ? "increased" : "decreased"
-  } by ${currentDiastolicPercentDifference}%`
+  const message = `Your systolic has ${increasedSystolic ? "increased" : "decreased"
+    } by ${currentSystolicPercentDifference}% and your diastolic has ${increasedDiastolic ? "increased" : "decreased"
+    } by ${currentDiastolicPercentDifference}%`
   let providerMessage = ""
   switch (true) {
     case currentSystolic > 140 || currentDiastolic > 90:
@@ -350,9 +357,8 @@ function calculateGsrs(
     currentGsrs
   )
   const increased = currentGsrs > lastGsrs
-  const message = `Your GSRS has ${
-    increased ? "increased" : "decreased"
-  } by ${currentGsrsPercentDifference}%`
+  const message = `Your GSRS has ${increased ? "increased" : "decreased"
+    } by ${currentGsrsPercentDifference}%`
   return {
     // score should be the difference between the two
     score: lastGsrs - currentGsrs,
@@ -400,9 +406,8 @@ function calculateTefq(
     currentTefq
   )
   const increased = currentTefq > lastTefq
-  const message = `Your TEFQ has ${
-    increased ? "increased" : "decreased"
-  } by ${currentTefqPercentDifference}% and your percentile is ${percentileKey}`
+  const message = `Your TEFQ has ${increased ? "increased" : "decreased"
+    } by ${currentTefqPercentDifference}% and your percentile is ${percentileKey}`
   return {
     score: currentTefqPercentDifference,
     date: currentTask.completedAt,

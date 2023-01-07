@@ -5,7 +5,7 @@ import {
   pre,
   prop,
   queryMethod,
-  ReturnModelType,
+  ReturnModelType
 } from "@typegoose/typegoose"
 import { AsQueryMethod, Ref } from "@typegoose/typegoose/lib/types"
 import bcrypt from "bcrypt"
@@ -15,7 +15,7 @@ import {
   IsPhoneNumber,
   MaxDate,
   MaxLength,
-  MinLength,
+  MinLength
 } from "class-validator"
 import config from "config"
 import mongoose from "mongoose"
@@ -136,9 +136,10 @@ export class Score {
   @prop({ required: false })
   task?: string
 
-  @Field(() => Date, { nullable: true })
-  @prop({ default: Date.now(), required: false })
-  date?: Date
+
+  @Field(() => Date)
+  @prop({ default: Date.now(), required: true })
+  date: Date
 
   @Field(() => String, { nullable: true })
   @prop({ required: false })
@@ -331,8 +332,8 @@ export class User {
   @prop({ default: [], required: true })
   weights: mongoose.Types.Array<Weight>
 
-  @Field(() => [Score], { defaultValue: [], nullable: true })
-  @prop({ default: [], required: true })
+  @Field(() => [Score])
+  @prop({ default: [], required: false })
   score: mongoose.Types.Array<Score>
 
   @Field(() => Gender)

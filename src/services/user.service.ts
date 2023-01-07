@@ -763,22 +763,20 @@ class UserService extends EmailService {
 
     return user
   }
-
   async getAllUsers() {
     try {
       // Find all users and populate the "provider" field
       const users = await UserModel.find().populate("provider").lean()
 
-      // Iterate over the users and set the "score" field to an empty array if it is undefined
-      users.forEach((user) => {
-        if (user.score === undefined) {
-          user.score = []
+      users.forEach((u) => {
+        if (u.score.some((el: any) => el === null)) {
+          // remove the value in the array that is null 
+          // console.log(u._id)
+          u.score = u.score.filter((el: any) => el !== null)
         }
       })
-
       return users
     } catch (error) {
-      console.log(error, "error")
       Sentry.captureException(error)
       throw new ApolloError(error.message, error.code)
     }
@@ -786,7 +784,6 @@ class UserService extends EmailService {
 
   async getAllUsersByAProvider(providerId: string) {
     try {
-      console.log(providerId, "providerId")
       const users = await UserModel.find({ provider: providerId })
         .populate("provider")
         .lean()
