@@ -22,9 +22,8 @@ class AppointmentService {
   public axios: AxiosInstance
 
   constructor() {
-    this.baseUrl = "https://ea.joinalfie.com/index.php/api/v1"
-    // "https://ea.joinalfie.com/index.php/api/v1"    
-    // config.get("easyAppointmentsApiUrl")
+    this.baseUrl = config.get("easyAppointmentsApiUrl")
+
     this.axios = axios.create({
       baseURL: this.baseUrl,
       headers: {
