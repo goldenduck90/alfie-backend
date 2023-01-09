@@ -13,7 +13,7 @@ import {
   GetUserTasksInput,
   UpdateUserTaskInput,
   UserTask,
-  UserTaskModel
+  UserTaskModel,
 } from "../schema/task.user.schema"
 import { UserModel } from "../schema/user.schema"
 import AkuteService from "./akute.service"
@@ -438,9 +438,9 @@ class TaskService extends EmailService {
           }
           const labId = answers.find((a) => a.key === "labCorpLocation").value
           user.labLocation = labId
-          const hasRequiredLabs = answers.find(
-            (a) => a.key === "hasRequiredLabs"
-          )
+          // const hasRequiredLabs = answers.find(
+          //   (a) => a.key === "hasRequiredLabs"
+          // )
           try {
             // get user provider
             const provider = await ProviderModel.findById(user.provider)
