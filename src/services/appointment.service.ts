@@ -23,6 +23,7 @@ class AppointmentService {
 
   constructor() {
     this.baseUrl = config.get("easyAppointmentsApiUrl")
+
     this.axios = axios.create({
       baseURL: this.baseUrl,
       headers: {
@@ -225,7 +226,15 @@ class AppointmentService {
         endTimeInUtc,
         notes,
       } = input
-      const meetingData = await createMeetingAndToken(userId)
+
+      // Check if the desired time slot is available
+      const availabilityResponse = await this.axios.get(`/availabilities?providerId=${eaProviderId}&serviceId=${eaServiceId}&date=${format(startTimeInUtc, "yyyy-MM-dd")}`)
+      const availableTimes = availabilityResponse.data
+      if (!availableTimes.includes(format(startTimeInUtc, "HH:mm"))) {
+        throw new ApolloError("The selected time slot is not available. Please select a different time.", "TIME_NOT_AVAILABLE")
+      }
+      const meetingData =
+        await createMeetingAndToken(userId)
       const { data: response } = await this.axios.post("/appointments", {
         start: format(startTimeInUtc, "yyyy-MM-dd HH:mm:ss"),
         end: format(endTimeInUtc, "yyyy-MM-dd HH:mm:ss"),
@@ -417,6 +426,7 @@ class AppointmentService {
         length: 9999,
       },
     })
+    console.log(data, "data")
     // console.log(data, "data")
     // filter appointments to only include those that are scheduled for the user with the specified ID
     // and are new (start time is later than the current time) and not expired by 24 hours

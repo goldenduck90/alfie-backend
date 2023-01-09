@@ -353,8 +353,10 @@ class TaskService extends EmailService {
       if (lastTask) {
         const score = calculateScore(lastTask, userTask, task.type)
         // push score to user score array
-        user.score.push(score)
-        await user.save()
+        if (score !== null) {
+          user.score.push(score)
+          await user.save()
+        }
       }
       // Handle different task types
       switch (task.type) {
