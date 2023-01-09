@@ -51,7 +51,6 @@ class AppointmentService {
     try {
       if (updateUser) {
         const user = await UserModel.findById(userId).countDocuments()
-        console.log("yellow")
         if (!user) {
           throw new ApolloError(notFound.message, notFound.code)
         }
@@ -228,23 +227,6 @@ class AppointmentService {
       } = input
 
       console.log("startTimeInUtc", format(startTimeInUtc, "yyyy-MM-dd"))
-
-      // Check if the desired time slot is available
-      const availabilityResponse = await this.axios.get(
-        `/availabilities?eaProviderId=${eaProviderId}&eaServiceId=${eaServiceId}&selectedDate=${format(
-          startTimeInUtc,
-          "yyyy-MM-dd"
-        )}`
-      )
-      const availableTimes = availabilityResponse.data
-      if (!availableTimes.includes(format(startTimeInUtc, "HH:mm"))) {
-        console.log("availableTimes", availableTimes)
-        console.log("error occured for available times")
-        throw new ApolloError(
-          "The selected time slot is not available. Please select a different time.",
-          "TIME_NOT_AVAILABLE"
-        )
-      }
 
       const meetingData = await createMeetingAndToken(userId)
       const { data: response } = await this.axios.post("/appointments", {
