@@ -227,14 +227,26 @@ class AppointmentService {
         notes,
       } = input
 
+      console.log("startTimeInUtc", format(startTimeInUtc, "yyyy-MM-dd"))
+
       // Check if the desired time slot is available
-      const availabilityResponse = await this.axios.get(`/availabilities?providerId=${eaProviderId}&serviceId=${eaServiceId}&date=${format(startTimeInUtc, "yyyy-MM-dd")}`)
+      const availabilityResponse = await this.axios.get(
+        `/availabilities?providerId=${eaProviderId}&serviceId=${eaServiceId}&date=${format(
+          startTimeInUtc,
+          "yyyy-MM-dd"
+        )}`
+      )
       const availableTimes = availabilityResponse.data
       if (!availableTimes.includes(format(startTimeInUtc, "HH:mm"))) {
-        throw new ApolloError("The selected time slot is not available. Please select a different time.", "TIME_NOT_AVAILABLE")
+        console.log("availableTimes", availableTimes)
+        console.log("error occured for available times")
+        throw new ApolloError(
+          "The selected time slot is not available. Please select a different time.",
+          "TIME_NOT_AVAILABLE"
+        )
       }
-      const meetingData =
-        await createMeetingAndToken(userId)
+
+      const meetingData = await createMeetingAndToken(userId)
       const { data: response } = await this.axios.post("/appointments", {
         start: format(startTimeInUtc, "yyyy-MM-dd HH:mm:ss"),
         end: format(endTimeInUtc, "yyyy-MM-dd HH:mm:ss"),
@@ -244,6 +256,8 @@ class AppointmentService {
         serviceId: eaServiceId,
         notes: notes || "",
       })
+
+      console.log("response", response)
       // call complete task for schedule appt
       userTask.completed = true
       await userTask.save()
@@ -284,6 +298,7 @@ class AppointmentService {
         eaService: response.service,
       }
     } catch (error) {
+      console.log(error)
       Sentry.captureException(error)
       throw new ApolloError(error.message, "ERROR")
     }
