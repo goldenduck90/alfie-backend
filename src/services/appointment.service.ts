@@ -231,7 +231,7 @@ class AppointmentService {
 
       // Check if the desired time slot is available
       const availabilityResponse = await this.axios.get(
-        `/availabilities?providerId=${eaProviderId}&serviceId=${eaServiceId}&date=${format(
+        `/availabilities?eaProviderId=${eaProviderId}&eaServiceId=${eaServiceId}&selectedDate=${format(
           startTimeInUtc,
           "yyyy-MM-dd"
         )}`
