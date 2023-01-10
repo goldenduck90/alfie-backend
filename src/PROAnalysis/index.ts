@@ -27,13 +27,13 @@ const hungerPercentile: any = {
   83: "75th",
   100: "90-95th",
 }
-const tefqPercentile: any = {
-  3: "25th",
-  5: "50th",
-  7: "75th",
-  9: "90th",
-  10: "95th",
-}
+// const tefqPercentile: any = {
+//   3: "25th",
+//   5: "50th",
+//   7: "75th",
+//   9: "90th",
+//   10: "95th",
+// }
 // We will take the current score and compare it to the median and calculate the percent difference
 // If the score is greater than the median we will calculate the percent difference between the score and the median
 // If the score is less than the median we will calculate the percent difference between the median and the score

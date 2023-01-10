@@ -3,7 +3,6 @@ import { ApolloError } from "apollo-server"
 import axios, { AxiosInstance } from "axios"
 import config from "config"
 import { addMinutes, format } from "date-fns"
-import { zonedTimeToUtc } from "date-fns-tz"
 import { IEAProvider } from "../@types/easyAppointmentTypes"
 import {
   AllTimeslotsInput,
@@ -11,7 +10,7 @@ import {
   CreateCustomerInput,
   EAProvider,
   ProviderTimeslotsInput,
-  UpdateAppointmentInput,
+  UpdateAppointmentInput
 } from "../schema/appointment.schema"
 import { ProviderModel } from "../schema/provider.schema"
 import { UserTaskModel } from "../schema/task.user.schema"
@@ -52,7 +51,6 @@ class AppointmentService {
     try {
       if (updateUser) {
         const user = await UserModel.findById(userId).countDocuments()
-        console.log("yellow")
         if (!user) {
           throw new ApolloError(notFound.message, notFound.code)
         }
@@ -142,13 +140,9 @@ class AppointmentService {
           const hours = Number(timeInUtc.split(":")[0])
           const minutes = Number(timeInUtc.split(":")[1])
 
-          const startTimeInUtc = zonedTimeToUtc(
-            new Date(
-              `${format(selectedDate, "yyyy-MM-dd")} ${hours}:${minutes}:00`
-            ),
-            eaProvider.timezone
+          const startTimeInUtc = new Date(
+            `${format(selectedDate, "yyyy-MM-dd")} ${hours}:${minutes}:00`
           )
-
           const endTimeInUtc = addMinutes(
             startTimeInUtc,
             response.eaService.durationInMins
@@ -183,17 +177,22 @@ class AppointmentService {
       timeslots: response.timeslots.map((timeInUtc: string) => {
         const hours = Number(timeInUtc.split(":")[0])
         const minutes = Number(timeInUtc.split(":")[1])
-        const startTimeInUtc = zonedTimeToUtc(
-          new Date(
-            `${format(selectedDate, "yyyy-MM-dd")} ${hours}:${minutes}:00`
-          ),
-          response.eaProvider.timezone
+        const startTimeInUtc = new Date(
+          `${format(selectedDate, "yyyy-MM-dd")} ${hours}:${minutes}:00`
         )
-
         const endTimeInUtc = addMinutes(
           startTimeInUtc,
           response.eaService.durationInMins
         )
+
+        console.log("selectedDate", selectedDate)
+        console.log(
+          "selectedDate formatted",
+          format(selectedDate, "yyyy-MM-dd")
+        )
+        console.log("timeInUtc", timeInUtc)
+        console.log("startTimeInUtc", startTimeInUtc)
+        console.log("endTimeInUtc", endTimeInUtc)
 
         return {
           startTimeInUtc,
@@ -226,6 +225,7 @@ class AppointmentService {
         endTimeInUtc,
         notes,
       } = input
+
       const meetingData = await createMeetingAndToken(userId)
       const { data: response } = await this.axios.post("/appointments", {
         start: format(startTimeInUtc, "yyyy-MM-dd HH:mm:ss"),
@@ -236,6 +236,8 @@ class AppointmentService {
         serviceId: eaServiceId,
         notes: notes || "",
       })
+
+      console.log("response", response)
       // call complete task for schedule appt
       userTask.completed = true
       await userTask.save()
@@ -276,6 +278,7 @@ class AppointmentService {
         eaService: response.service,
       }
     } catch (error) {
+      console.log(error)
       Sentry.captureException(error)
       throw new ApolloError(error.message, "ERROR")
     }
@@ -409,6 +412,8 @@ class AppointmentService {
       throw new ApolloError(notFound.message, notFound.code)
     }
 
+    console.log(limit)
+
     if (!user.eaCustomerId) {
       throw new ApolloError(noEaCustomerId.message, noEaCustomerId.code)
     }
@@ -425,7 +430,7 @@ class AppointmentService {
     const userSpecificAppointments: any = data.filter(
       (appointment: any) =>
         new Date(appointment.start).getTime() >
-          new Date().getTime() - 24 * 60 * 60 * 1000 &&
+        new Date().getTime() - 24 * 60 * 60 * 1000 &&
         appointment.customer.id === Number(user.eaCustomerId)
     )
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

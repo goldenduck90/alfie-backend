@@ -1,6 +1,6 @@
 import axios from "axios"
 import csv from "csv-writer"
-import fs from "fs"
+
 const instance = axios.create({
   baseURL: "https://api.akutehealth.com/v1",
   headers: {
