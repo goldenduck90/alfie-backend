@@ -358,6 +358,14 @@ class TaskService extends EmailService {
           await user.save()
         }
       }
+      if (!lastTask) {
+        const score = calculateScore(lastTask, userTask, task.type)
+        // push score to user score array
+        if (score !== null) {
+          user.score.push(score)
+          await user.save()
+        }
+      }
       // Handle different task types
       switch (task.type) {
         case TaskType.LAB_SELECTION: {

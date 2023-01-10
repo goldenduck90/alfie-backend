@@ -112,6 +112,10 @@ export class Score {
   @prop({ required: false })
   score?: number
 
+  @Field(() => String, { nullable: true })
+  @prop({ required: false })
+  latest?: string
+
   @Field(() => Number, { nullable: true })
   @prop({ required: false })
   total?: number
