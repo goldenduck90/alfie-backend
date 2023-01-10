@@ -11,7 +11,7 @@ import {
   CreateCustomerInput,
   EAProvider,
   ProviderTimeslotsInput,
-  UpdateAppointmentInput
+  UpdateAppointmentInput,
 } from "../schema/appointment.schema"
 import { ProviderModel } from "../schema/provider.schema"
 import { UserTaskModel } from "../schema/task.user.schema"
@@ -226,15 +226,7 @@ class AppointmentService {
         endTimeInUtc,
         notes,
       } = input
-
-      // Check if the desired time slot is available
-      const availabilityResponse = await this.axios.get(`/availabilities?providerId=${eaProviderId}&serviceId=${eaServiceId}&date=${format(startTimeInUtc, "yyyy-MM-dd")}`)
-      const availableTimes = availabilityResponse.data
-      if (!availableTimes.includes(format(startTimeInUtc, "HH:mm"))) {
-        throw new ApolloError("The selected time slot is not available. Please select a different time.", "TIME_NOT_AVAILABLE")
-      }
-      const meetingData =
-        await createMeetingAndToken(userId)
+      const meetingData = await createMeetingAndToken(userId)
       const { data: response } = await this.axios.post("/appointments", {
         start: format(startTimeInUtc, "yyyy-MM-dd HH:mm:ss"),
         end: format(endTimeInUtc, "yyyy-MM-dd HH:mm:ss"),
@@ -433,7 +425,7 @@ class AppointmentService {
     const userSpecificAppointments: any = data.filter(
       (appointment: any) =>
         new Date(appointment.start).getTime() >
-        new Date().getTime() - 24 * 60 * 60 * 1000 &&
+          new Date().getTime() - 24 * 60 * 60 * 1000 &&
         appointment.customer.id === Number(user.eaCustomerId)
     )
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
