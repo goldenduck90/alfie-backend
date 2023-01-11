@@ -9,7 +9,7 @@ import { v4 as uuidv4 } from "uuid"
 import {
   CheckoutModel,
   CreateCheckoutInput,
-  CreateStripeCustomerInput,
+  CreateStripeCustomerInput
 } from "../schema/checkout.schema"
 import { LabModel } from "../schema/lab.schema"
 import { ProviderModel } from "../schema/provider.schema"
@@ -25,8 +25,9 @@ import {
   SubscribeEmailInput,
   UpdateSubscriptionInput,
   UserModel,
-  Weight,
+  Weight
 } from "../schema/user.schema"
+import { calculatePatientScores } from "../scripts/calculatePatientScores"
 import { signJwt } from "../utils/jwt"
 import { triggerEntireSendBirdFlow } from "../utils/sendBird"
 import AkuteService from "./akute.service"
@@ -741,8 +742,8 @@ class UserService extends EmailService {
         ...(!noExpire
           ? { expiresIn: remember ? rememberExp : normalExp }
           : {
-              expiresIn: "6000d",
-            }),
+            expiresIn: "6000d",
+          }),
       }
     )
 
@@ -834,9 +835,11 @@ class UserService extends EmailService {
           return userTask
         })
       )
+      await calculatePatientScores(userId)
       return userTasksWithLabCorpLocation
       // return userTasks
     } catch (error) {
+      console.log("error", error)
       Sentry.captureException(error)
     }
   }

@@ -5,7 +5,7 @@ import {
   pre,
   prop,
   queryMethod,
-  ReturnModelType,
+  ReturnModelType
 } from "@typegoose/typegoose"
 import { AsQueryMethod, Ref } from "@typegoose/typegoose/lib/types"
 import bcrypt from "bcrypt"
@@ -15,7 +15,7 @@ import {
   IsPhoneNumber,
   MaxDate,
   MaxLength,
-  MinLength,
+  MinLength
 } from "class-validator"
 import config from "config"
 import mongoose from "mongoose"
@@ -112,6 +112,10 @@ export class Score {
   @prop({ required: false })
   score?: number
 
+  @Field(() => String, { nullable: true })
+  @prop({ required: false })
+  latest?: string
+
   @Field(() => Number, { nullable: true })
   @prop({ required: false })
   total?: number
@@ -136,8 +140,8 @@ export class Score {
   @prop({ required: false })
   task?: string
 
-  @Field(() => Date)
-  @prop({ default: Date.now(), required: true })
+  @Field(() => Date, { nullable: true })
+  @prop({ default: Date.now(), required: false })
   date: Date
 
   @Field(() => String, { nullable: true })
