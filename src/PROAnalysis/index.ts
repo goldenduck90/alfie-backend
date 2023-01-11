@@ -27,13 +27,13 @@ const hungerPercentile: any = {
   83: "75th",
   100: "90-95th",
 }
-const tefqPercentile: any = {
-  3: "25th",
-  5: "50th",
-  7: "75th",
-  9: "90th",
-  10: "95th",
-}
+// const tefqPercentile: any = {
+//   3: "25th",
+//   5: "50th",
+//   7: "75th",
+//   9: "90th",
+//   10: "95th",
+// }
 // We will take the current score and compare it to the median and calculate the percent difference
 // If the score is greater than the median we will calculate the percent difference between the score and the median
 // If the score is less than the median we will calculate the percent difference between the median and the score
@@ -114,10 +114,38 @@ function calculateMPFeelingScore(
   }, 0)
   const message = `You scored within the ${percentileKey} percentile`
   return {
+    latest: String(currentTaskScore),
     score,
     date: currentTask.completedAt,
     increased,
     percentDifference: percentDifferenceBetweenLastAndCurrentTaskScore,
+    message,
+    task,
+  }
+}
+function calculateSingleMPFeeling(
+  currentTask: UserTask,
+  task: TaskType
+) {
+  const currentTaskScore = Object.keys(currentTask.answers).reduce(
+    (acc, key: any) => {
+      const answer: any = currentTask.answers[key]
+      const score = mpFeelingQuestions[answer.key][answer.value]
+      return acc + score
+    },
+    0
+  )
+  const percentileKey = Object.keys(hadspercentile).reduce((acc, key) => {
+    const value = parseInt(key)
+    if (value < currentTaskScore) {
+      return hadspercentile[value]
+    }
+    return acc
+  }, 0)
+  const message = `You scored within the ${percentileKey} percentile`
+  return {
+    latest: String(currentTaskScore),
+    date: currentTask.completedAt,
     message,
     task,
   }
@@ -153,6 +181,7 @@ function calculateActivityScore(
     }, 0)
     const message = `You scored within the ${percentileDifferenceStepsPercentile} percentile`
     return {
+      latest: String(currentTaskScore),
       score,
       date: currentTask.completedAt,
       increased,
@@ -165,6 +194,7 @@ function calculateActivityScore(
     const message = `Your weight has ${increased ? "increased" : "decreased"
       } by ${percentDifferenceBetweenLastAndCurrentTaskScore}%`
     return {
+      latest: String(currentTaskScore),
       score,
       date: currentTask.completedAt,
       increased,
@@ -177,6 +207,7 @@ function calculateActivityScore(
     const message = `Your waist has ${increased ? "increased" : "decreased"
       } by ${percentDifferenceBetweenLastAndCurrentTaskScore}%`
     return {
+      latest: currentTaskScore,
       score,
       date: currentTask.completedAt,
       increased,
@@ -249,17 +280,24 @@ function calculateHungerScore(
   const score1hourIsFinite = isFinite(currentHungerLevel1HourPercentDifference)
     ? currentHungerLevel1HourPercentDifference
     : 0
-  const score30minsIsFinite = isFinite(currentHungerLevel30MinsPercentDifference)
+  const score30minsIsFinite = isFinite(
+    currentHungerLevel30MinsPercentDifference
+  )
     ? currentHungerLevel30MinsPercentDifference
     : 0
-  const percentDifference1HourIsFinite = isFinite(currentHungerLevel1HourPercentDifference)
+  const percentDifference1HourIsFinite = isFinite(
+    currentHungerLevel1HourPercentDifference
+  )
     ? currentHungerLevel1HourPercentDifference
     : 0
-  const percentDifference30MinsIsFinite = isFinite(currentHungerLevel30MinsPercentDifference)
+  const percentDifference30MinsIsFinite = isFinite(
+    currentHungerLevel30MinsPercentDifference
+  )
     ? currentHungerLevel30MinsPercentDifference
     : 0
 
   return {
+    latest: `1 hour: ${currentHungerLevel1Hour}, 30 mins: ${currentHungerLevel30Mins}`,
     score1hour: score1hourIsFinite,
     score30mins: score30minsIsFinite,
     date: currentTask.completedAt,
@@ -280,6 +318,9 @@ function calculateBPLogScore(
   // If systolic is > 140 or diastolic is > 90, go to next highest category. If above 130/80, ask if they are taking htn drugs.
   // If it ever hit systolic > 140, diastolic >90, must stop phentermine/bupropion, doctor to independantly review if they are taking htn drugs.
   // For geriatrics, if systolic is >130 and diastolic > 80, cannot be prescribed bupropion or phentermine
+  console.log("lastTask", lastTask)
+  console.log("currentTask", currentTask)
+
   const currentSystolic = Number(
     currentTask.answers.find((answer) => answer.key === "systolicBp").value
   )
@@ -300,6 +341,15 @@ function calculateBPLogScore(
     lastDiastolic,
     currentDiastolic
   )
+  console.log({
+    currentSystolic,
+    currentDiastolic,
+    lastSystolic,
+    lastDiastolic,
+    currentSystolicPercentDifference,
+    currentDiastolicPercentDifference,
+
+  })
   const increasedSystolic = currentSystolic > lastSystolic
   const increasedDiastolic = currentDiastolic > lastDiastolic
   const message = `Your systolic has ${increasedSystolic ? "increased" : "decreased"
@@ -320,6 +370,7 @@ function calculateBPLogScore(
   }
   // const providerMessage =
   return {
+    latest: `${currentSystolic}/${currentDiastolic}`,
     scoreSystolic: currentSystolicPercentDifference,
     scoreDiastolic: currentDiastolicPercentDifference,
     date: currentTask.completedAt,
@@ -361,11 +412,36 @@ function calculateGsrs(
     } by ${currentGsrsPercentDifference}%`
   return {
     // score should be the difference between the two
+    latest: String(currentGsrs),
     score: lastGsrs - currentGsrs,
     currentScore: currentGsrs,
     date: currentTask.completedAt,
     increased,
     percentDifference: currentGsrsPercentDifference,
+    message,
+    task,
+  }
+}
+function calculateSingleGsrs(
+  currentTask: UserTask,
+  task: TaskType
+) {
+  // lastTask.answers is an array of objects and each object has a key and value
+  const currentGsrs = Object.keys(currentTask.answers).reduce(
+    (acc, key: any) => {
+      const answer: any = currentTask.answers[key]
+      const score = gsrsQuestions[answer.key][answer.value]
+      return acc + score
+    },
+    0
+  )
+  const message = `Your GSRS is ${currentGsrs}`
+  return {
+    // score should be the difference between the two
+    latest: String(currentGsrs),
+    score: currentGsrs,
+    currentScore: currentGsrs,
+    date: currentTask.completedAt,
     message,
     task,
   }
@@ -409,10 +485,42 @@ function calculateTefq(
   const message = `Your TEFQ has ${increased ? "increased" : "decreased"
     } by ${currentTefqPercentDifference}% and your percentile is ${percentileKey}`
   return {
+    latest: String(currentTefq),
     score: currentTefqPercentDifference,
     date: currentTask.completedAt,
     increased,
     percentDifference: currentTefqPercentDifference,
+    message,
+    task,
+  }
+}
+function calculateSingleTefq(
+  currentTask: UserTask,
+  task: TaskType
+) {
+  const currentTefq = Object.keys(currentTask.answers).reduce(
+    (acc, key: any) => {
+      const answer: any = currentTask.answers[key]
+      if (answer.key === "restraint") {
+        return acc + Number(answer.value)
+      }
+      const score = tefqQuestions[answer.key][answer.value]
+      return acc + score
+    },
+    0
+  )
+  const percentileKey = Object.keys(hadspercentile).reduce((acc, key) => {
+    const value = parseInt(key)
+    if (value < currentTefq) {
+      return hadspercentile[value]
+    }
+    return acc
+  }, 0)
+  const message = `Your TEFQ is ${currentTefq} and your percentile is ${percentileKey}`
+  return {
+    latest: String(currentTefq),
+    score: currentTefq,
+    date: currentTask.completedAt,
     message,
     task,
   }
@@ -423,6 +531,9 @@ export function calculateScore(
   taskType: TaskType
 ) {
   if (taskType === TaskType.MP_FEELING) {
+    if (!lastTask) {
+      calculateSingleMPFeeling(currentTask, taskType)
+    }
     return calculateMPFeelingScore(lastTask, currentTask, taskType)
   }
   if (
@@ -439,9 +550,15 @@ export function calculateScore(
     return calculateBPLogScore(lastTask, currentTask, taskType)
   }
   if (taskType === TaskType.GSRS) {
+    if (!lastTask) {
+      calculateSingleGsrs(currentTask, taskType)
+    }
     return calculateGsrs(lastTask, currentTask, taskType)
   }
   if (taskType === TaskType.TEFQ) {
+    if (!lastTask) {
+      calculateSingleTefq(currentTask, taskType)
+    }
     return calculateTefq(lastTask, currentTask, taskType)
   }
   return null

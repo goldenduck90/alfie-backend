@@ -27,6 +27,7 @@ import {
   UserModel,
   Weight
 } from "../schema/user.schema"
+import { calculatePatientScores } from "../scripts/calculatePatientScores"
 import { signJwt } from "../utils/jwt"
 import { triggerEntireSendBirdFlow } from "../utils/sendBird"
 import AkuteService from "./akute.service"
@@ -834,9 +835,11 @@ class UserService extends EmailService {
           return userTask
         })
       )
+      await calculatePatientScores(userId)
       return userTasksWithLabCorpLocation
       // return userTasks
     } catch (error) {
+      console.log("error", error)
       Sentry.captureException(error)
     }
   }

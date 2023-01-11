@@ -1,19 +1,19 @@
-import { Resolver, Query, Arg, Ctx } from "type-graphql"
+import * as Sentry from "@sentry/node"
+import { ApolloError } from "apollo-server"
+import axios from "axios"
+import { Arg, Ctx, Query, Resolver } from "type-graphql"
+import {
+  PharmacyLocationInput,
+  PharmacyLocationResult,
+} from "../schema/akute.schema"
 import {
   GooglePlacesSearchInput,
   GooglePlacesSearchResult,
   GoogleReverseGeoCodeResult,
 } from "../schema/googlePlaces.schema"
-import axios from "axios"
-import Context from "../types/context"
 import { UserModel } from "../schema/user.schema"
-import { ApolloError } from "apollo-server"
 import AkuteService from "../services/akute.service"
-import {
-  PharmacyLocationInput,
-  PharmacyLocationResult,
-} from "../schema/akute.schema"
-import * as Sentry from "@sentry/node"
+import Context from "../types/context"
 const akuteService = new AkuteService()
 export async function getLocationsFromGoogleAutoComplete(
   query: string,
@@ -54,6 +54,7 @@ export async function getPharmacyLocationsFromAkute(
     const response = await akuteService.getPharmacyLocations(input, userId)
     return response
   } catch (error) {
+    console.log(error)
     Sentry.captureException(error)
     return []
   }
