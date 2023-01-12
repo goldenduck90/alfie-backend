@@ -13,7 +13,7 @@ import {
   GetUserTasksInput,
   UpdateUserTaskInput,
   UserTask,
-  UserTaskModel,
+  UserTaskModel
 } from "../schema/task.user.schema"
 import { UserModel } from "../schema/user.schema"
 import AkuteService from "./akute.service"
@@ -96,228 +96,37 @@ class TaskService extends EmailService {
   }
   async checkEligibilityForAppointment(userId: any) {
     try {
-      // Get all user tasks userId
-      const userTasks = await UserTaskModel.find({ user: userId }).populate(
-        "task"
-      )
-      // once I have all the tasks review and see if the user has completed all the required tasks in this array
-      const requiredTasks = [
-        // TaskType.MP_BLUE_CAPSULE,
-        // TaskType.MP_BLUE_CAPSULE_2,
+      const userTasks = await UserTaskModel.find({ user: userId }).populate("task")
+      const requiredTaskTypes = [
         TaskType.MP_HUNGER,
         TaskType.MP_FEELING,
         TaskType.AD_LIBITUM,
         TaskType.GSRS,
         TaskType.TEFQ,
       ]
-      const completedTasks: any = userTasks.filter((task) => task.completed)
-      const completedTaskTypes = completedTasks.map(
-        (task: any) => task.task.type
-      )
-      const hasCompletedRequiredTasks = requiredTasks.every((task) =>
-        completedTaskTypes.includes(task)
-      )
-      // If the user already has a schedule appointment task, do not create a new one
-      const unCompletedTasks = userTasks.filter((task) => !task.completed)
-      const unCompletedTaskTypes = unCompletedTasks.map(
-        (task: any) => task.task.type
-      )
-      const hasScheduledAppointmentTask = unCompletedTaskTypes.includes(
-        TaskType.SCHEDULE_APPOINTMENT
-      )
+      const completedTasks = userTasks.filter((task) => task.completed)
+      const completedTaskTypes = completedTasks.map((task) => task.task)
 
-      if (hasCompletedRequiredTasks === true && !hasScheduledAppointmentTask) {
-        const newTaskInput: CreateUserTaskInput = {
+      const hasCompletedRequiredTasks = requiredTaskTypes.every((taskType) =>
+        completedTaskTypes.includes(taskType)
+      )
+      const hasScheduledAppointmentTask = userTasks.some((task) =>
+        task.task === TaskType.SCHEDULE_APPOINTMENT && !task.completed
+      )
+      if (hasCompletedRequiredTasks && !hasScheduledAppointmentTask) {
+        const newTaskInput = {
           taskType: TaskType.SCHEDULE_APPOINTMENT,
           userId: userId.toString(),
         }
-        await this.assignTaskToUser(newTaskInput)
+        await this.assignTaskToUser(newTaskInput);
       }
     } catch (error) {
       Sentry.captureException(error)
     }
   }
 
-  // async completeUserTask(input: CompleteUserTaskInput) {
-  //   const { notFound } = config.get("errors.tasks") as any
-  //   const { _id, answers } = input
-  //   const userTask = await UserTaskModel.findById(_id)
-  //   if (!userTask) {
-  //     throw new ApolloError(notFound.message, notFound.code)
-  //   }
-  //   await this.checkEligibilityForAppointment(userTask.user)
-  //   const user = await UserModel.findById(userTask.user)
-  //   const task = await TaskModel.findById(userTask.task)
-  //   userTask.completed = true
-  //   userTask.completedAt = new Date()
-  //   userTask.answers = answers
-  //   const lastTask = await UserTaskModel.findOne({
-  //     user: userTask.user,
-  //     task: userTask.task,
-  //   })
-  //     .sort({ createdAt: -1 })
-  //     .skip(1)
-  //   const score = calculateScore(
-  //     lastTask,
-  //     userTask,
-  //     task.type
-  //   )
-  //   user.score.push(score)
-  //   await userTask.save()
-  //   // we can add more types here in a switch to save data to different places
 
-  //   // if the task type is MP_BLUE_CAPSULE we need to assign the user the next task which is MP_BLUE_CAPSULE_2
-  //   if (task.type === TaskType.LAB_SELECTION) {
-  //     const labId = answers.find((a) => a.key === "labCorpLocation").value
-  //     user.labLocation = labId
-  //     const hasRequiredLabs = answers.find((a) => a.key === "hasRequiredLabs")
-  //     if (hasRequiredLabs && hasRequiredLabs.value === "true") {
-  //       const newTaskInput: CreateUserTaskInput = {
-  //         taskType: TaskType.SCHEDULE_APPOINTMENT,
-  //         userId: userTask.user.toString(),
-  //       }
-  //       await this.assignTaskToUser(newTaskInput)
-  //     } else {
-  //       try {
-  //         // get user provider
-  //         const provider = await ProviderModel.findById(user.provider)
 
-  //         // get labcorp location fax number
-  //         const locationId = answers.find(
-  //           (a) => a.key === "labCorpLocation"
-  //         ).value
-  //         const labCorpLocation = await LabModel.findById(locationId)
-  //         const faxNumber = labCorpLocation.faxNumber
-
-  //         // calculate bmi
-  //         const bmi =
-  //           (user.weights[0].value /
-  //             user.heightInInches /
-  //             user.heightInInches) *
-  //           703.071720346
-
-  //         // create pdf
-  //         const pdfBuffer = await this.pdfService.createLabOrderPdf({
-  //           patientFullName: user.name,
-  //           providerFullName: `${provider.firstName} ${provider.lastName}`,
-  //           providerNpi: provider.npi,
-  //           patientDob: user.dateOfBirth,
-  //           icdCode: 27 < bmi && bmi < 30 ? "E66.3" : "E66.9",
-  //         })
-
-  //         // send fax to labcorp location
-  //         const faxResult = await this.faxService.sendFax({
-  //           faxNumber,
-  //           pdfBuffer,
-  //         })
-  //         console.log(faxResult, `faxResult for user: ${user.id}`)
-  //         Sentry.captureMessage(
-  //           `faxResult: ${JSON.stringify(faxResult)} for user: ${user.id}`
-  //         )
-  //       } catch (error) {
-  //         console.log(`error with faxResult for user: ${user.id}`, error)
-  //         Sentry.captureException(error, {
-  //           tags: {
-  //             userId: user.id,
-  //             patientId: user.akutePatientId,
-  //           },
-  //         })
-  //       }
-  //       await user.save()
-  //     }
-  //   }
-  //   // if (task.type === TaskType.MP_BLUE_CAPSULE) {
-  //   //   const newTaskInput: CreateUserTaskInput = {
-  //   //     taskType: TaskType.MP_BLUE_CAPSULE_2,
-  //   //     userId: userTask.user.toString(),
-  //   //   }
-  //   //   await this.assignTaskToUser(newTaskInput)
-  //   // }
-  //   if (task.type === TaskType.DAILY_METRICS_LOG) {
-  //     const weight = {
-  //       date: new Date(),
-  //       value: answers.find((a) => a.key === "weightInLbs").value,
-  //     }
-
-  //     user.weights.push(weight)
-  //     await user.save()
-  //   }
-  //   if (task.type === TaskType.NEW_PATIENT_INTAKE_FORM) {
-  //     const pharmacyId = answers.find((a) => a.key === "pharmacyLocation").value
-  //     const patientId = user?.akutePatientId
-  //     if (pharmacyId !== "null") {
-  //       await akuteService.createPharmacyListForPatient(
-  //         pharmacyId,
-  //         patientId,
-  //         true
-  //       )
-  //       user.pharmacyLocation = pharmacyId
-  //     }
-  //     const labId = answers.find((a) => a.key === "labCorpLocation").value
-  //     user.labLocation = labId
-  //     const hasRequiredLabs = answers.find((a) => a.key === "hasRequiredLabs")
-  //     if (hasRequiredLabs && hasRequiredLabs.value === "true") {
-  //       const newTaskInput: CreateUserTaskInput = {
-  //         taskType: TaskType.SCHEDULE_APPOINTMENT,
-  //         userId: userTask.user.toString(),
-  //       }
-  //       await this.assignTaskToUser(newTaskInput)
-  //     } else {
-  //       try {
-  //         // get user provider
-  //         const provider = await ProviderModel.findById(user.provider)
-
-  //         // get labcorp location fax number
-  //         const locationId = answers.find(
-  //           (a) => a.key === "labCorpLocation"
-  //         ).value
-  //         const labCorpLocation = await LabModel.findById(locationId)
-  //         const faxNumber = labCorpLocation.faxNumber
-
-  //         // calculate bmi
-  //         const bmi =
-  //           (user.weights[0].value /
-  //             user.heightInInches /
-  //             user.heightInInches) *
-  //           703.071720346
-
-  //         // create pdf
-  //         const pdfBuffer = await this.pdfService.createLabOrderPdf({
-  //           patientFullName: user.name,
-  //           providerFullName: `${provider.firstName} ${provider.lastName}`,
-  //           providerNpi: provider.npi,
-  //           patientDob: user.dateOfBirth,
-  //           icdCode: 27 < bmi && bmi < 30 ? "E66.3" : "E66.9",
-  //         })
-
-  //         // send fax to labcorp location
-  //         const faxResult = await this.faxService.sendFax({
-  //           faxNumber,
-  //           pdfBuffer,
-  //         })
-
-  //         console.log(faxResult, `faxResult for user: ${user.id}`)
-  //         Sentry.captureMessage(
-  //           `faxResult: ${JSON.stringify(faxResult)} for user: ${user.id}`
-  //         )
-  //       } catch (error) {
-  //         console.log(`error with faxResult for user: ${user.id}`, error)
-  //         Sentry.captureException(error, {
-  //           tags: {
-  //             userId: user.id,
-  //             patientId: user.akutePatientId,
-  //           },
-  //         })
-  //       }
-  //     }
-
-  //     await user.save()
-  //   }
-
-  //   return {
-  //     ...userTask.toObject(),
-  //   }
-  // }
   async completeUserTask(input: CompleteUserTaskInput) {
     try {
       // Get the user task, throw an error if it is not found
@@ -358,14 +167,14 @@ class TaskService extends EmailService {
           await user.save()
         }
       }
-      if (!lastTask) {
-        const score = calculateScore(lastTask, userTask, task.type)
-        // push score to user score array
-        if (score !== null) {
-          user.score.push(score)
-          await user.save()
-        }
-      }
+      // if (!lastTask) {
+      //   const score = calculateScore(lastTask, userTask, task.type)
+      //   // push score to user score array
+      //   if (score !== null) {
+      //     user.score.push(score)
+      //     await user.save()
+      //   }
+      // }
       // Handle different task types
       switch (task.type) {
         case TaskType.LAB_SELECTION: {
