@@ -59,13 +59,19 @@ class AkuteService {
           ? address_zipcode.split("-")[0]
           : address_zipcode,
         email,
-        primary_phone_number: primary_phone_number.replace("+1", ""),
+        primary_phone_number: primary_phone_number
+          .replace("+1", "")
+          .replace(/-/g, "")
+          .replace(" ", "")
+          .replace(")", "")
+          .replace("(", ""),
         primary_phone_type: "mobile",
         appointment_state: address_state,
       })
 
       return data.data.id
     } catch (error) {
+      console.log(error)
       Sentry.captureException(error)
       throw new ApolloError(error.message, "ERROR")
     }
