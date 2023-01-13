@@ -96,7 +96,7 @@ class TaskService extends EmailService {
   }
   async checkEligibilityForAppointment(userId: any) {
     try {
-      const userTasks = await UserTaskModel.find({ user: userId }).populate("task")
+      const userTasks: any = await UserTaskModel.find({ user: userId }).populate("task")
       const requiredTaskTypes = [
         TaskType.MP_HUNGER,
         TaskType.MP_FEELING,
@@ -104,13 +104,13 @@ class TaskService extends EmailService {
         TaskType.GSRS,
         TaskType.TEFQ,
       ]
-      const completedTasks = userTasks.filter((task) => task.completed)
-      const completedTaskTypes = completedTasks.map((task) => task.task)
+      const completedTasks: any = userTasks.filter((task: any) => task.completed)
+      const completedTaskTypes = completedTasks.map((task: any) => task.task.type)
 
       const hasCompletedRequiredTasks = requiredTaskTypes.every((taskType) =>
         completedTaskTypes.includes(taskType)
       )
-      const hasScheduledAppointmentTask = userTasks.some((task) =>
+      const hasScheduledAppointmentTask = userTasks.some((task: any) =>
         task.task === TaskType.SCHEDULE_APPOINTMENT && !task.completed
       )
       if (hasCompletedRequiredTasks && !hasScheduledAppointmentTask) {
@@ -137,20 +137,18 @@ class TaskService extends EmailService {
         throw new ApolloError(notFound.message, notFound.code)
       }
 
-      // Check the user's eligibility for an appointment
-      await this.checkEligibilityForAppointment(userTask.user)
-
       // Get the user and task documents
       const user = await UserModel.findById(userTask.user)
       const task = await TaskModel.findById(userTask.task)
-      console.log(userTask)
       // Mark the user task as completed and save it
       userTask.completed = true
       userTask.completedAt = new Date()
       userTask.answers = []
       userTask.answers = answers
-      console.log(userTask)
       await userTask.save()
+
+      // Check the user's eligibility for an appointment
+      await this.checkEligibilityForAppointment(userTask.user)
 
       // Calculate the score for the user based on their previous and current tasks
       const lastTask = await UserTaskModel.findOne({
@@ -167,14 +165,6 @@ class TaskService extends EmailService {
           await user.save()
         }
       }
-      // if (!lastTask) {
-      //   const score = calculateScore(lastTask, userTask, task.type)
-      //   // push score to user score array
-      //   if (score !== null) {
-      //     user.score.push(score)
-      //     await user.save()
-      //   }
-      // }
       // Handle different task types
       switch (task.type) {
         case TaskType.LAB_SELECTION: {
@@ -215,7 +205,6 @@ class TaskService extends EmailService {
               faxNumber,
               pdfBuffer,
             })
-            console.log(faxResult, `faxResult for user: ${user.id}`)
             Sentry.captureMessage(
               `faxResult: ${JSON.stringify(faxResult)} for user: ${user.id}`
             )
@@ -291,12 +280,10 @@ class TaskService extends EmailService {
               pdfBuffer,
             })
 
-            console.log(faxResult, `faxResult for user: ${user.id}`)
             Sentry.captureMessage(
               `faxResult: ${JSON.stringify(faxResult)} for user: ${user.id}`
             )
           } catch (error) {
-            console.log(`error with faxResult for user: ${user.id}`, error)
             Sentry.captureException(error, {
               tags: {
                 userId: user.id,
@@ -446,7 +433,6 @@ class TaskService extends EmailService {
   async getAllTasks() {
     try {
       const tasks = await TaskModel.find()
-      console.log(tasks)
       return tasks
     } catch (error) {
       Sentry.captureException(error)
@@ -467,7 +453,6 @@ class TaskService extends EmailService {
       const userTasks: any = await UserTaskModel.find({ user: userId })
         .populate("task")
         .populate("user")
-      // console.log(userTasks)
       const providerId = userTasks[0]?.user.provider.toHexString()
       const lookUpProviderEmail = await ProviderModel.findOne({
         _id: providerId,

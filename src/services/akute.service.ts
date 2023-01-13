@@ -42,7 +42,6 @@ class AkuteService {
         `/patients?email=${email}`
       )
       if (status === 200) {
-        console.log(patientData[0].id)
         return patientData[0].id
       }
 
@@ -67,7 +66,6 @@ class AkuteService {
 
       return data.data.id
     } catch (error) {
-      console.log(error)
       Sentry.captureException(error)
       throw new ApolloError(error.message, "ERROR")
     }
@@ -79,7 +77,6 @@ class AkuteService {
     addressZipCode: string
   ): Promise<{ lat: number, lng: number }> {
     try {
-      console.log(addressLine1, addressCity, addressState, addressZipCode)
       const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${addressLine1},${addressCity},${addressState},${addressZipCode}&key=${process.env.GOOGLE_API_KEY}`
       const response = await axios.get(url)
       // If geometry is not found, return 0,0
@@ -92,7 +89,6 @@ class AkuteService {
         }
       }
     } catch (error) {
-      console.log(error, "error in convertAddressToLatLng")
       Sentry.captureException(error)
       throw new ApolloError(error.message, "ERROR")
     }
@@ -106,7 +102,6 @@ class AkuteService {
       const data = await this.axios.get(
         `/pharmacy?name=${input.name}&zip=${user.address.postalCode}`
       )
-      console.log(data, "data")
       const pharmacyLocations = await Promise.all(
         data.data.map(async (pharmacy: any) => {
           const { lat, lng } = (await this.convertAddressToLatLng(

@@ -4,12 +4,12 @@ import axios from "axios"
 import { Arg, Ctx, Query, Resolver } from "type-graphql"
 import {
   PharmacyLocationInput,
-  PharmacyLocationResult,
+  PharmacyLocationResult
 } from "../schema/akute.schema"
 import {
   GooglePlacesSearchInput,
   GooglePlacesSearchResult,
-  GoogleReverseGeoCodeResult,
+  GoogleReverseGeoCodeResult
 } from "../schema/googlePlaces.schema"
 import { UserModel } from "../schema/user.schema"
 import AkuteService from "../services/akute.service"
@@ -54,7 +54,6 @@ export async function getPharmacyLocationsFromAkute(
     const response = await akuteService.getPharmacyLocations(input, userId)
     return response
   } catch (error) {
-    console.log(error)
     Sentry.captureException(error)
     return []
   }

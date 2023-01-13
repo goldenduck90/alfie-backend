@@ -60,7 +60,6 @@ class AppointmentService {
         `/customers?q=${encodeURIComponent(email)}`
       )
       if (eaCustomer.length) {
-        console.log(eaCustomer)
         if (updateUser) {
           await UserModel.findByIdAndUpdate(userId, {
             eaCustomerId: eaCustomer[0].id,
@@ -68,7 +67,6 @@ class AppointmentService {
         }
         return eaCustomer[0].id
       }
-      console.log("USER", eaCustomer)
 
       const { data } = await this.axios.post("/customers", {
         firstName,
@@ -84,7 +82,6 @@ class AppointmentService {
         notes,
       })
 
-      console.log("DATA", data)
 
       if (updateUser) {
         await UserModel.findByIdAndUpdate(userId, {
@@ -95,7 +92,6 @@ class AppointmentService {
       // return easyappointments customer id
       return data.id
     } catch (error) {
-      console.log(error, "error")
       Sentry.captureException(error)
       throw new ApolloError(error.message, "ERROR")
     }
@@ -185,14 +181,6 @@ class AppointmentService {
           response.eaService.durationInMins
         )
 
-        console.log("selectedDate", selectedDate)
-        console.log(
-          "selectedDate formatted",
-          format(selectedDate, "yyyy-MM-dd")
-        )
-        console.log("timeInUtc", timeInUtc)
-        console.log("startTimeInUtc", startTimeInUtc)
-        console.log("endTimeInUtc", endTimeInUtc)
 
         return {
           startTimeInUtc,
@@ -237,7 +225,6 @@ class AppointmentService {
         notes: notes || "",
       })
 
-      console.log("response", response)
       // call complete task for schedule appt
       userTask.completed = true
       await userTask.save()
@@ -278,7 +265,6 @@ class AppointmentService {
         eaService: response.service,
       }
     } catch (error) {
-      console.log(error)
       Sentry.captureException(error)
       throw new ApolloError(error.message, "ERROR")
     }
@@ -412,7 +398,6 @@ class AppointmentService {
       throw new ApolloError(notFound.message, notFound.code)
     }
 
-    console.log(limit)
 
     if (!user.eaCustomerId) {
       throw new ApolloError(noEaCustomerId.message, noEaCustomerId.code)
@@ -423,8 +408,6 @@ class AppointmentService {
         length: 9999,
       },
     })
-    console.log(data, "data")
-    // console.log(data, "data")
     // filter appointments to only include those that are scheduled for the user with the specified ID
     // and are new (start time is later than the current time) and not expired by 24 hours
     const userSpecificAppointments: any = data.filter(
@@ -461,7 +444,6 @@ class AppointmentService {
   async getProviderAppointments(eaProviderId: string) {
     try {
       const { data } = await this.axios.get(`/appointments/all/${eaProviderId}`)
-      console.log(data, "data")
       const apps = data.map((app: any) => ({
         eaAppointmentId: app.id,
         startTimeInUtc: new Date(app.start),
@@ -489,13 +471,11 @@ class AppointmentService {
       }))
       return apps
     } catch (err) {
-      console.log(err, "err")
       Sentry.captureException(err)
     }
   }
   async updateProvider(eaProviderId: string, providerData: IEAProvider) {
     try {
-      console.log(providerData.settings.workingPlan, "providerData")
       const { data } = await this.axios.put(
         `/providers/${eaProviderId}`,
         providerData
