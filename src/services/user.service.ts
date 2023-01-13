@@ -793,12 +793,10 @@ class UserService extends EmailService {
     }
   }
   async getAllUsersByAHealthCoach(providerId: string) {
-    console.log(providerId, "providerId")
     try {
       const findEaHealthCoachId = await UserModel.find({
         _id: providerId,
       }).lean()
-      console.log(findEaHealthCoachId[0], "findEaHealthCoachId")
       if (!findEaHealthCoachId[0].eaHealthCoachId) {
         throw new ApolloError("No Health Coach Id found", "404")
       }

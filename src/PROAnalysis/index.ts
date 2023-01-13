@@ -318,8 +318,6 @@ function calculateBPLogScore(
   // If systolic is > 140 or diastolic is > 90, go to next highest category. If above 130/80, ask if they are taking htn drugs.
   // If it ever hit systolic > 140, diastolic >90, must stop phentermine/bupropion, doctor to independantly review if they are taking htn drugs.
   // For geriatrics, if systolic is >130 and diastolic > 80, cannot be prescribed bupropion or phentermine
-  console.log("lastTask", lastTask)
-  console.log("currentTask", currentTask)
 
   const currentSystolic = Number(
     currentTask.answers.find((answer) => answer.key === "systolicBp").value
@@ -341,15 +339,6 @@ function calculateBPLogScore(
     lastDiastolic,
     currentDiastolic
   )
-  console.log({
-    currentSystolic,
-    currentDiastolic,
-    lastSystolic,
-    lastDiastolic,
-    currentSystolicPercentDifference,
-    currentDiastolicPercentDifference,
-
-  })
   const increasedSystolic = currentSystolic > lastSystolic
   const increasedDiastolic = currentDiastolic > lastDiastolic
   const message = `Your systolic has ${increasedSystolic ? "increased" : "decreased"
