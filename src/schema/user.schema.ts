@@ -5,7 +5,7 @@ import {
   pre,
   prop,
   queryMethod,
-  ReturnModelType
+  ReturnModelType,
 } from "@typegoose/typegoose"
 import { AsQueryMethod, Ref } from "@typegoose/typegoose/lib/types"
 import bcrypt from "bcrypt"
@@ -15,7 +15,7 @@ import {
   IsPhoneNumber,
   MaxDate,
   MaxLength,
-  MinLength
+  MinLength,
 } from "class-validator"
 import config from "config"
 import mongoose from "mongoose"
@@ -385,11 +385,11 @@ export class User {
 
   @Field(() => String, { nullable: true })
   @prop()
-  labLocation?: string
-
-  @Field(() => String, { nullable: true })
-  @prop()
   meetingUrl?: string
+
+  @Field(() => Boolean, { defaultValue: false })
+  @prop({ default: false, required: true })
+  labOrderSent: boolean
 }
 
 export const UserModel = getModelForClass<typeof User, QueryHelpers>(User, {

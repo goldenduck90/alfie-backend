@@ -11,7 +11,6 @@ import {
   CreateCheckoutInput,
   CreateStripeCustomerInput,
 } from "../schema/checkout.schema"
-import { LabModel } from "../schema/lab.schema"
 import { ProviderModel } from "../schema/provider.schema"
 import { TaskType } from "../schema/task.schema"
 import { UserTaskModel } from "../schema/task.user.schema"
@@ -270,6 +269,20 @@ class UserService extends EmailService {
     if (!sent) {
       throw new ApolloError(emailSendError.message, emailSendError.code)
     }
+
+    // send lab order
+    const labOrder = this.akuteService.createLabOrder(user._id)
+    if (!labOrder) {
+      console.log(
+        `An error occured for creating a lab order in Akute for: ${email}`
+      )
+      throw new ApolloError(
+        `An error occured for creating a lab order in Akute for: ${email}`,
+        "INTERNAL_SERVER_ERROR"
+      )
+    }
+
+    console.log(`USER CREATED: ${user._id}`)
 
     return {
       message: userCreatedMessage,
@@ -815,26 +828,8 @@ class UserService extends EmailService {
       const userTasks: any = await UserTaskModel.find({ user: userId })
         .populate("task")
         .lean()
-      // If the task is of type Medical Questionnaire, we need find the answer that the user has given with the key labCorpLocation and find the location name from the LabsModel and populate the value in the userTask
-      const userTasksWithLabCorpLocation = await Promise.all(
-        userTasks.map(async (userTask: any) => {
-          if (userTask.task.type === TaskType.NEW_PATIENT_INTAKE_FORM) {
-            const labCorpLocation = userTask.answers.find(
-              (answer: any) => answer.key === "labCorpLocation"
-            )
-            if (labCorpLocation && labCorpLocation.value !== "null") {
-              const lab = await LabModel.findById(labCorpLocation.value)
-              if (lab) {
-                labCorpLocation.value = `${lab.name} - ${lab.streetAddress} ${lab.city}, ${lab.state} ${lab.postalCode}`
-              }
-            }
-          }
-          return userTask
-        })
-      )
       // await calculatePatientScores(userId)
-      return userTasksWithLabCorpLocation
-      // return userTasks
+      return userTasks
     } catch (error) {
       console.log("error", error)
       Sentry.captureException(error)

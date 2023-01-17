@@ -59,3 +59,9 @@ export class PharmacyLocationResult {
   @Field(() => Number, { nullable: true })
   lng: number
 }
+
+@ObjectType()
+export class CreateLabOrderResponse {
+  @Field(() => String)
+  labOrderId: string
+}

@@ -3,7 +3,10 @@ import { ApolloError } from "apollo-server"
 import axios, { AxiosInstance } from "axios"
 import config from "config"
 import { format } from "date-fns"
-import { PharmacyLocationInput } from "../schema/akute.schema"
+import {
+  PharmacyLocationInput,
+  CreateLabOrderResponse,
+} from "../schema/akute.schema"
 import { CreatePatientInput, UserModel } from "../schema/user.schema"
 class AkuteService {
   public baseUrl: string
@@ -18,6 +21,8 @@ class AkuteService {
         "X-API-Key": process.env.AKUTE_API_KEY,
       },
     })
+
+    console.log(process.env.AKUTE_API_KEY)
   }
 
   async createPatient(input: CreatePatientInput) {
@@ -184,7 +189,7 @@ class AkuteService {
     }
   }
 
-  async createLabOrder(userId: string) {
+  async createLabOrder(userId: string): Promise<CreateLabOrderResponse> {
     const labCorpAccountNumber = config.get("akute.labCorpAccountNumber") as any
     const labCorpOrganizationId = config.get(
       "akute.labCorpOrganizationId"
@@ -213,7 +218,7 @@ class AkuteService {
 
       const icdCode = 27 < bmi && bmi < 30 ? "E66.3" : "E66.9"
 
-      const { data } = await this.axios.post("/lab_orders", {
+      const { data } = await this.axios.post("/orders", {
         patient_id: user.akutePatientId,
         procedures: [
           {
@@ -256,10 +261,20 @@ class AkuteService {
         }
       )
 
+      if (!data.id) {
+        console.log("Lab order not created", JSON.stringify(data))
+        throw new ApolloError("Lab order not created", "ERROR")
+      }
+
+      await UserModel.findByIdAndUpdate(userId, {
+        labOrderSent: true,
+      })
+
       return {
         labOrderId: data.id,
       }
     } catch (e) {
+      console.log(e)
       Sentry.captureException(new Error(e), {
         tags: {
           userId,
