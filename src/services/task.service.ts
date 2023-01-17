@@ -13,7 +13,7 @@ import {
   GetUserTasksInput,
   UpdateUserTaskInput,
   UserTask,
-  UserTaskModel
+  UserTaskModel,
 } from "../schema/task.user.schema"
 import { UserModel } from "../schema/user.schema"
 import AkuteService from "./akute.service"
@@ -96,7 +96,9 @@ class TaskService extends EmailService {
   }
   async checkEligibilityForAppointment(userId: any) {
     try {
-      const userTasks: any = await UserTaskModel.find({ user: userId }).populate("task")
+      const userTasks: any = await UserTaskModel.find({
+        user: userId,
+      }).populate("task")
       const requiredTaskTypes = [
         TaskType.MP_HUNGER,
         TaskType.MP_FEELING,
@@ -104,28 +106,31 @@ class TaskService extends EmailService {
         TaskType.GSRS,
         TaskType.TEFQ,
       ]
-      const completedTasks: any = userTasks.filter((task: any) => task.completed)
-      const completedTaskTypes = completedTasks.map((task: any) => task.task.type)
+      const completedTasks: any = userTasks.filter(
+        (task: any) => task.completed
+      )
+      const completedTaskTypes = completedTasks.map(
+        (task: any) => task.task.type
+      )
 
       const hasCompletedRequiredTasks = requiredTaskTypes.every((taskType) =>
         completedTaskTypes.includes(taskType)
       )
-      const hasScheduledAppointmentTask = userTasks.some((task: any) =>
-        task.task === TaskType.SCHEDULE_APPOINTMENT && !task.completed
+      const hasScheduledAppointmentTask = userTasks.some(
+        (task: any) =>
+          task.task === TaskType.SCHEDULE_APPOINTMENT && !task.completed
       )
       if (hasCompletedRequiredTasks && !hasScheduledAppointmentTask) {
         const newTaskInput = {
           taskType: TaskType.SCHEDULE_APPOINTMENT,
           userId: userId.toString(),
         }
-        await this.assignTaskToUser(newTaskInput);
+        await this.assignTaskToUser(newTaskInput)
       }
     } catch (error) {
       Sentry.captureException(error)
     }
   }
-
-
 
   async completeUserTask(input: CompleteUserTaskInput) {
     try {

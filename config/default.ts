@@ -185,4 +185,8 @@ export default {
   akuteApiUrl: "https://api.akutehealth.com/v1",
   intercomApiUrl: "https://api.intercom.io",
   defaultPriceId: "price_1KMviXDOjl0X0gOq9Pk7gRFE",
+  akute: {
+    labCorpAccountNumber: "31196710",
+    labCorpOrganizationId: "f-e20f61500ba128d340068ff6",
+  },
 }

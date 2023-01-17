@@ -9,7 +9,7 @@ import { v4 as uuidv4 } from "uuid"
 import {
   CheckoutModel,
   CreateCheckoutInput,
-  CreateStripeCustomerInput
+  CreateStripeCustomerInput,
 } from "../schema/checkout.schema"
 import { LabModel } from "../schema/lab.schema"
 import { ProviderModel } from "../schema/provider.schema"
@@ -25,7 +25,7 @@ import {
   SubscribeEmailInput,
   UpdateSubscriptionInput,
   UserModel,
-  Weight
+  Weight,
 } from "../schema/user.schema"
 import { signJwt } from "../utils/jwt"
 import { triggerEntireSendBirdFlow } from "../utils/sendBird"
@@ -741,8 +741,8 @@ class UserService extends EmailService {
         ...(!noExpire
           ? { expiresIn: remember ? rememberExp : normalExp }
           : {
-            expiresIn: "6000d",
-          }),
+              expiresIn: "6000d",
+            }),
       }
     )
 
@@ -770,7 +770,7 @@ class UserService extends EmailService {
 
       users.forEach((u) => {
         if (u.score.some((el: any) => el === null)) {
-          // remove the value in the array that is null 
+          // remove the value in the array that is null
           // console.log(u._id)
           u.score = u.score.filter((el: any) => el !== null)
         }
