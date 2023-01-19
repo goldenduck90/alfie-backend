@@ -10,7 +10,7 @@ import {
   CreateCustomerInput,
   EAProvider,
   ProviderTimeslotsInput,
-  UpdateAppointmentInput,
+  UpdateAppointmentInput
 } from "../schema/appointment.schema"
 import { ProviderModel } from "../schema/provider.schema"
 import { UserTaskModel } from "../schema/task.user.schema"
@@ -21,8 +21,7 @@ class AppointmentService {
   public axios: AxiosInstance
 
   constructor() {
-    this.baseUrl = "https://ea.joinalfie.com/index.php/api/v1"
-    // config.get("easyAppointmentsApiUrl")
+    this.baseUrl = config.get("easyAppointmentsApiUrl")
     this.axios = axios.create({
       baseURL: this.baseUrl,
       headers: {
@@ -410,7 +409,7 @@ class AppointmentService {
     const userSpecificAppointments: any = data.filter(
       (appointment: any) =>
         new Date(appointment.start).getTime() >
-          new Date().getTime() - 24 * 60 * 60 * 1000 &&
+        new Date().getTime() - 24 * 60 * 60 * 1000 &&
         appointment.customer.id === Number(user.eaCustomerId)
     )
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
