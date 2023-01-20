@@ -15,4 +15,5 @@ export default {
     number: "+19178934212",
     extension: "101",
   },
+  akuteApiUrl: "https://api.akutehealth.com/v1",
 }

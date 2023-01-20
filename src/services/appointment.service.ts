@@ -10,7 +10,7 @@ import {
   CreateCustomerInput,
   EAProvider,
   ProviderTimeslotsInput,
-  UpdateAppointmentInput
+  UpdateAppointmentInput,
 } from "../schema/appointment.schema"
 import { ProviderModel } from "../schema/provider.schema"
 import { UserTaskModel } from "../schema/task.user.schema"
@@ -389,6 +389,7 @@ class AppointmentService {
   }
 
   async getAppointments(userId: string, limit: number) {
+    console.log(limit)
     const { notFound, noEaCustomerId } = config.get("errors.user") as any
     const user = await UserModel.findById(userId).lean()
     if (!user) {
@@ -409,7 +410,7 @@ class AppointmentService {
     const userSpecificAppointments: any = data.filter(
       (appointment: any) =>
         new Date(appointment.start).getTime() >
-        new Date().getTime() - 24 * 60 * 60 * 1000 &&
+          new Date().getTime() - 24 * 60 * 60 * 1000 &&
         appointment.customer.id === Number(user.eaCustomerId)
     )
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

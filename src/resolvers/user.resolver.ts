@@ -19,13 +19,18 @@ import {
   User,
 } from "../schema/user.schema"
 import UserService from "../services/user.service"
+import AkuteService from "../services/akute.service"
 import Context from "../types/context"
+import { CreateLabOrderResponse } from "../schema/akute.schema"
 
 @Resolver()
 export default class UserResolver {
-  constructor(private userService: UserService) {
+  constructor(
+    private userService: UserService,
+    private akuteService: AkuteService
+  ) {
     this.userService = new UserService()
-    // this.akuteService = new AkuteService()
+    this.akuteService = new AkuteService()
   }
 
   @Authorized([Role.Admin])
@@ -113,5 +118,10 @@ export default class UserResolver {
   @Query(() => CheckoutResponse)
   checkout(@Arg("id") id: string) {
     return this.userService.getCheckout(id)
+  }
+
+  @Mutation(() => CreateLabOrderResponse)
+  createLabOrder(@Arg("userId") userId: string) {
+    return this.akuteService.createLabOrder(userId)
   }
 }
