@@ -22,7 +22,6 @@ class AppointmentService {
 
   constructor() {
     this.baseUrl = config.get("easyAppointmentsApiUrl")
-
     this.axios = axios.create({
       baseURL: this.baseUrl,
       headers: {
@@ -81,7 +80,6 @@ class AppointmentService {
         language: "english",
         notes,
       })
-
 
       if (updateUser) {
         await UserModel.findByIdAndUpdate(userId, {
@@ -180,7 +178,6 @@ class AppointmentService {
           startTimeInUtc,
           response.eaService.durationInMins
         )
-
 
         return {
           startTimeInUtc,
@@ -397,7 +394,6 @@ class AppointmentService {
     if (!user) {
       throw new ApolloError(notFound.message, notFound.code)
     }
-
 
     if (!user.eaCustomerId) {
       throw new ApolloError(noEaCustomerId.message, noEaCustomerId.code)
