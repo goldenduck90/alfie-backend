@@ -205,7 +205,19 @@ class TaskService extends EmailService {
           await user.save()
           break
         }
-        // Add more cases here as needed
+        case TaskType.WEIGHT_LOG: {
+          const weight = {
+            date: new Date(),
+            value: answers.find((a) => a.key === "weightInLbs").value,
+          }
+          const bmi =
+            (weight.value / user.heightInInches / user.heightInInches) *
+            703.071720346
+          // Add more cases here as needed
+          user.bmi = bmi
+          await user.save()
+          break
+        }
         default: {
           // Do nothing
           break

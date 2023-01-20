@@ -22,7 +22,6 @@ class AppointmentService {
 
   constructor() {
     this.baseUrl = config.get("easyAppointmentsApiUrl")
-
     this.axios = axios.create({
       baseURL: this.baseUrl,
       headers: {
