@@ -241,6 +241,21 @@ class AkuteService {
             code: "004259",
             display: "TSH",
           },
+          {
+            system: "urn:uuid:f:e20f61500ba128d340068ff6",
+            code: "120766",
+            display: "C-Reactive Protein, Cardiac",
+          },
+          {
+            system: "urn:uuid:f:e20f61500ba128d340068ff6",
+            code: "081950",
+            display: "Vitamin D, 25-Hydroxy",
+          },
+          {
+            system: "urn:uuid:f:e20f61500ba128d340068ff6",
+            code: "004333",
+            display: "Insulin",
+          },
         ],
         billing_type: "patient",
         delivery_option: "electronic",
