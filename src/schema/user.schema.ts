@@ -394,7 +394,6 @@ export class User {
   @Field(() => Number, { nullable: true })
   @prop()
   bmi?: number
-
 }
 
 export const UserModel = getModelForClass<typeof User, QueryHelpers>(User, {
