@@ -3,7 +3,10 @@ import { ApolloError } from "apollo-server"
 import axios, { AxiosInstance } from "axios"
 import config from "config"
 import { format } from "date-fns"
-import { PharmacyLocationInput } from "../schema/akute.schema"
+import {
+  PharmacyLocationInput,
+  CreateLabOrderResponse,
+} from "../schema/akute.schema"
 import { CreatePatientInput, UserModel } from "../schema/user.schema"
 class AkuteService {
   public baseUrl: string
@@ -18,6 +21,8 @@ class AkuteService {
         "X-API-Key": process.env.AKUTE_API_KEY,
       },
     })
+
+    console.log(process.env.AKUTE_API_KEY)
   }
 
   async createPatient(input: CreatePatientInput) {
@@ -76,6 +81,7 @@ class AkuteService {
       throw new ApolloError(error.message, "ERROR")
     }
   }
+
   async convertAddressToLatLng(
     addressLine1: string,
     addressCity: string,
@@ -99,6 +105,7 @@ class AkuteService {
       throw new ApolloError(error.message, "ERROR")
     }
   }
+
   async getPharmacyLocations(input: PharmacyLocationInput, userId: string) {
     try {
       const user = await UserModel.findById(userId)
@@ -125,6 +132,7 @@ class AkuteService {
       throw new ApolloError(error.message, "ERROR")
     }
   }
+
   async createPharmacyListForPatient(
     pharmacyId: string,
     patientId: string,
@@ -148,6 +156,7 @@ class AkuteService {
       throw new ApolloError(e.message, "ERROR")
     }
   }
+
   async getPatientMedications() {
     try {
       // get all patients from akute by calling /patients?status=active
@@ -173,6 +182,118 @@ class AkuteService {
       Sentry.captureException(new Error(e), {
         tags: {
           function: "getPatientMedications",
+        },
+      })
+
+      throw new ApolloError(e.message, "ERROR")
+    }
+  }
+
+  async createLabOrder(userId: string): Promise<CreateLabOrderResponse> {
+    const labCorpAccountNumber = config.get("akute.labCorpAccountNumber") as any
+    const labCorpOrganizationId = config.get(
+      "akute.labCorpOrganizationId"
+    ) as any
+
+    try {
+      const user = await UserModel.findById(userId).populate("provider")
+      if (!user) {
+        throw new ApolloError("User not found", "NOT_FOUND")
+      }
+
+      const provider = user.provider as any
+
+      const providerAkuteId =
+        process.env.NODE_ENV === "production"
+          ? provider?.akuteId
+          : "63be0bb0999a7f4e76f1159d" // staging provider from Akute
+
+      if (!providerAkuteId) {
+        throw new ApolloError("Provider not found", "NOT_FOUND")
+      }
+
+      const bmi =
+        (user.weights[0].value / user.heightInInches / user.heightInInches) *
+        703.071720346
+
+      const icdCode = 27 < bmi && bmi < 30 ? "E66.3" : "E66.9"
+
+      const { data } = await this.axios.post("/orders", {
+        patient_id: user.akutePatientId,
+        procedures: [
+          {
+            system: "urn:uuid:f:e20f61500ba128d340068ff6",
+            code: "322000",
+            display: "Comp. Metabolic Panel (14)",
+          },
+          {
+            system: "urn:uuid:f:e20f61500ba128d340068ff6",
+            code: "001453",
+            display: "Hemoglobin A1c",
+          },
+          {
+            system: "urn:uuid:f:e20f61500ba128d340068ff6",
+            code: "303756",
+            display: "Lipid Panel",
+          },
+          {
+            system: "urn:uuid:f:e20f61500ba128d340068ff6",
+            code: "004259",
+            display: "TSH",
+          },
+          {
+            system: "urn:uuid:f:e20f61500ba128d340068ff6",
+            code: "120766",
+            display: "C-Reactive Protein, Cardiac",
+          },
+          {
+            system: "urn:uuid:f:e20f61500ba128d340068ff6",
+            code: "081950",
+            display: "Vitamin D, 25-Hydroxy",
+          },
+          {
+            system: "urn:uuid:f:e20f61500ba128d340068ff6",
+            code: "004333",
+            display: "Insulin",
+          },
+        ],
+        billing_type: "patient",
+        delivery_option: "electronic",
+        ordering_user_id: providerAkuteId,
+        performer_organization_id: labCorpOrganizationId,
+        account_number: labCorpAccountNumber,
+        diagnoses: [...icdCode],
+      })
+
+      console.log(data)
+      Sentry.captureMessage(
+        `Lab order created: ${data.id} for user id: ${user._id}`,
+        {
+          tags: {
+            userId,
+            function: "createLabOrder",
+          },
+        }
+      )
+
+      if (!data.id) {
+        console.log("Lab order not created", JSON.stringify(data))
+        throw new ApolloError("Lab order not created", "ERROR")
+      }
+
+      await UserModel.findByIdAndUpdate(userId, {
+        labOrderSent: true,
+      })
+
+      return {
+        labOrderId: data.id,
+      }
+    } catch (e) {
+      console.log(e)
+      Sentry.captureException(new Error(e), {
+        tags: {
+          userId,
+          function: "createLabOrder",
         },
       })
 

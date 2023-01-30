@@ -3,7 +3,6 @@ import { ApolloError } from "apollo-server"
 import config from "config"
 import { addDays, isPast } from "date-fns"
 import { calculateScore } from "../PROAnalysis"
-import { LabModel } from "../schema/lab.schema"
 import { ProviderModel } from "../schema/provider.schema"
 import { CreateTaskInput, TaskModel, TaskType } from "../schema/task.schema"
 import {
@@ -18,18 +17,13 @@ import {
 import { UserModel } from "../schema/user.schema"
 import AkuteService from "./akute.service"
 import EmailService from "./email.service"
-import FaxService from "./fax.service"
-import PDFService from "./pdf.service"
-const akuteService = new AkuteService()
 
 class TaskService extends EmailService {
-  private pdfService: PDFService
-  private faxService: FaxService
+  private akuteService: AkuteService
 
   constructor() {
     super()
-    this.pdfService = new PDFService()
-    this.faxService = new FaxService()
+    this.akuteService = new AkuteService()
   }
 
   async createTask(input: CreateTaskInput) {
@@ -172,50 +166,6 @@ class TaskService extends EmailService {
       }
       // Handle different task types
       switch (task.type) {
-        case TaskType.LAB_SELECTION: {
-          // Update the user's lab location and assign them the next task if needed
-          const labId = answers.find((a) => a.key === "labCorpLocation").value
-          user.labLocation = labId
-          await user.save()
-          const hasRequiredLabs = answers.find(
-            (a) => a.key === "hasRequiredLabs"
-          )
-          if (hasRequiredLabs && hasRequiredLabs.value === "true") {
-            const newTaskInput: CreateUserTaskInput = {
-              taskType: TaskType.SCHEDULE_APPOINTMENT,
-              userId: userTask.user.toString(),
-            }
-            await this.assignTaskToUser(newTaskInput)
-          } else {
-            // Create a lab order PDF and send it to the lab
-            const provider = await ProviderModel.findById(user.provider)
-            const locationId = answers.find(
-              (a) => a.key === "labCorpLocation"
-            ).value
-            const labCorpLocation = await LabModel.findById(locationId)
-            const faxNumber = labCorpLocation.faxNumber
-            const bmi =
-              (user.weights[0].value /
-                user.heightInInches /
-                user.heightInInches) *
-              703.071720346
-            const pdfBuffer = await this.pdfService.createLabOrderPdf({
-              patientFullName: user.name,
-              providerFullName: `${provider.firstName} ${provider.lastName}`,
-              providerNpi: provider.npi,
-              patientDob: user.dateOfBirth,
-              icdCode: 27 < bmi && bmi < 30 ? "E66.3" : "E66.9",
-            })
-            const faxResult = await this.faxService.sendFax({
-              faxNumber,
-              pdfBuffer,
-            })
-            Sentry.captureMessage(
-              `faxResult: ${JSON.stringify(faxResult)} for user: ${user.id}`
-            )
-          }
-          break
-        }
         case TaskType.MP_BLUE_CAPSULE: {
           // Assign the next task to the user
           const newTaskInput: CreateUserTaskInput = {
@@ -240,62 +190,17 @@ class TaskService extends EmailService {
           ).value
           const patientId = user?.akutePatientId
           if (pharmacyId !== "null") {
-            await akuteService.createPharmacyListForPatient(
+            await this.akuteService.createPharmacyListForPatient(
               pharmacyId,
               patientId,
               true
             )
             user.pharmacyLocation = pharmacyId
           }
-          const labId = answers.find((a) => a.key === "labCorpLocation").value
-          user.labLocation = labId
+
           // const hasRequiredLabs = answers.find(
           //   (a) => a.key === "hasRequiredLabs"
           // )
-          try {
-            // get user provider
-            const provider = await ProviderModel.findById(user.provider)
-
-            // get labcorp location fax number
-            const locationId = answers.find(
-              (a) => a.key === "labCorpLocation"
-            ).value
-            const labCorpLocation = await LabModel.findById(locationId)
-            const faxNumber = labCorpLocation.faxNumber
-
-            // calculate bmi
-            const bmi =
-              (user.weights[0].value /
-                user.heightInInches /
-                user.heightInInches) *
-              703.071720346
-
-            // create pdf
-            const pdfBuffer = await this.pdfService.createLabOrderPdf({
-              patientFullName: user.name,
-              providerFullName: `${provider.firstName} ${provider.lastName}`,
-              providerNpi: provider.npi,
-              patientDob: user.dateOfBirth,
-              icdCode: 27 < bmi && bmi < 30 ? "E66.3" : "E66.9",
-            })
-
-            // send fax to labcorp location
-            const faxResult = await this.faxService.sendFax({
-              faxNumber,
-              pdfBuffer,
-            })
-
-            Sentry.captureMessage(
-              `faxResult: ${JSON.stringify(faxResult)} for user: ${user.id}`
-            )
-          } catch (error) {
-            Sentry.captureException(error, {
-              tags: {
-                userId: user.id,
-                patientId: user.akutePatientId,
-              },
-            })
-          }
 
           await user.save()
           break

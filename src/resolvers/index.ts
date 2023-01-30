@@ -4,7 +4,6 @@ import UploadResolver from "./upload.resolver"
 import AppointmentResolver from "./appointment.resolver"
 import GooglePlacesResolver from "./googlePlaces.resolver"
 import ProviderResolver from "./provider.resolver"
-import LabResolver from "./lab.resolver"
 
 export default [
   UserResolver,
@@ -13,5 +12,4 @@ export default [
   AppointmentResolver,
   GooglePlacesResolver,
   ProviderResolver,
-  LabResolver,
 ] as const

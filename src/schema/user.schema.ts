@@ -385,11 +385,11 @@ export class User {
 
   @Field(() => String, { nullable: true })
   @prop()
-  labLocation?: string
-
-  @Field(() => String, { nullable: true })
-  @prop()
   meetingUrl?: string
+
+  @Field(() => Boolean, { defaultValue: false })
+  @prop({ default: false, required: true })
+  labOrderSent: boolean
 
   @Field(() => Number, { nullable: true })
   @prop()
