@@ -802,10 +802,10 @@ class UserService extends EmailService {
         .lean()
       
       users.forEach((u) => {
-        if (u.score.some((el: any) => el === null)) {
+        if (u.score.some((el: any) => el === null || isNaN(el))) {
           // remove the value in the array that is null
           // console.log(u._id)
-          u.score = u.score.filter((el: any) => el !== null)
+          u.score = u.score.filter((el: any) => el !== null && !isNaN(el))
         }
       })
       return users
