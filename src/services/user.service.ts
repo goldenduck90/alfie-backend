@@ -781,11 +781,6 @@ class UserService extends EmailService {
       // Find all users and populate the "provider" field
       const users = await UserModel.find().populate("provider").lean()
 
-      users.forEach((u) => {
-        u.score = u.score.filter((s) => !isNaN(s.score))
-        u.score = u.score.filter((s) => !isNaN(s.percentDifference))
-      })
-  
       return users
     } catch (error) {
       Sentry.captureException(error)
@@ -803,7 +798,8 @@ class UserService extends EmailService {
         if (u.score.length === 0) return u
         
         u.score = u.score.filter((s) => s !== null))
-        u.score = u.score.filter((s) => !isNaN(s.score) || !isNaN(s.percentDifference))
+        u.score = u.score.filter((s) => !isNaN(s.score))
+        u.score = u.score.filter((s) => !isNaN(s.percentDifference))
         
         return u
       })
