@@ -781,6 +781,13 @@ class UserService extends EmailService {
       // Find all users and populate the "provider" field
       const users = await UserModel.find().populate("provider").lean()
 
+      users.forEach((u) => {
+        if (u.score.some((el: any) => el === null)) {
+          // remove the value in the array that is null
+          // console.log(u._id)
+          u.score = u.score.filter((el: any) => el !== null)
+        }
+      })
       return users
     } catch (error) {
       Sentry.captureException(error)
@@ -797,9 +804,8 @@ class UserService extends EmailService {
       const users = _users.map((u) => {
         if (u.score.length === 0) return u
         
-        u.score = u.score.filter((s) => s !== null))
-        u.score = u.score.filter((s) => !isNaN(s.score))
-        u.score = u.score.filter((s) => !isNaN(s.percentDifference))
+        u.score = u.score.filter((s) => s !== null)
+        u.score = u.score.filter((s) => !isNaN(s.score) || !isNaN(s.percentDifference))
         
         return u
       })
@@ -823,7 +829,6 @@ class UserService extends EmailService {
       })
         .populate("provider")
         .lean()
-      
       return users
     } catch (error) {
       throw new ApolloError(error.message, error.code)
