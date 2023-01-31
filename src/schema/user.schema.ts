@@ -19,7 +19,7 @@ import {
 } from "class-validator"
 import config from "config"
 import mongoose from "mongoose"
-import { Field, InputType, ObjectType, registerEnumType } from "type-graphql"
+import { Field, Float, InputType, ObjectType, registerEnumType } from "type-graphql"
 import { Provider } from "./provider.schema"
 
 const {
@@ -108,7 +108,7 @@ export class Weight {
 
 @ObjectType()
 export class Score {
-  @Field(() => Number, { nullable: true })
+  @Field(() => Float, { nullable: true })
   @prop({ required: false })
   score?: number
 
@@ -116,15 +116,15 @@ export class Score {
   @prop({ required: false })
   latest?: string
 
-  @Field(() => Number, { nullable: true })
+  @Field(() => Float, { nullable: true })
   @prop({ required: false })
   total?: number
 
-  @Field(() => Number, { nullable: true })
+  @Field(() => Float, { nullable: true })
   @prop({ required: false })
   percent?: number
 
-  @Field(() => Number, { nullable: true })
+  @Field(() => Float, { nullable: true })
   @prop({ required: false })
   percentDifference?: number
 
@@ -156,19 +156,19 @@ export class Score {
   @prop({ required: false })
   increased1hour?: boolean
 
-  @Field(() => Number, { nullable: true })
+  @Field(() => Float, { nullable: true })
   @prop({ required: false })
   percentDifference1Hour?: number
 
-  @Field(() => Number, { nullable: true })
+  @Field(() => Float, { nullable: true })
   @prop({ required: false })
   percentDifference30Mins?: number
 
-  @Field(() => Number, { nullable: true })
+  @Field(() => Float, { nullable: true })
   @prop({ required: false })
   scoreSystolic?: number
 
-  @Field(() => Number, { nullable: true })
+  @Field(() => Float, { nullable: true })
   @prop({ required: false })
   scoreDiastolic?: number
 
@@ -180,11 +180,11 @@ export class Score {
   @prop({ required: false })
   increasedDiastolic?: boolean
 
-  @Field(() => Number, { nullable: true })
+  @Field(() => Float, { nullable: true })
   @prop({ required: false })
   percentDifferenceSystolic?: number
 
-  @Field(() => Number, { nullable: true })
+  @Field(() => Float, { nullable: true })
   @prop({ required: false })
   percentDifferenceDiastolic?: number
 
