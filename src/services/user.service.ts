@@ -802,6 +802,11 @@ class UserService extends EmailService {
         .lean()
       
       const users = _users.map((u) => {
+        if (!u.score) return {
+          ...u,
+          score: [],
+        }
+
         if (u.score.length === 0) return u
         
         u.score = u.score.filter((s) => s !== null)
