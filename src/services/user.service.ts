@@ -800,8 +800,8 @@ class UserService extends EmailService {
         .lean()
       
       users.forEach((u) => {
-        u.score = u.score.filter((s) => !isNaN(s.score))
-        u.score = u.score.filter((s) => !isNaN(s.percentDifference))
+        u.score = u.score.filter((s) => s !== null))
+          .filter((s) => !isNaN(s.score) || !isNaN(s.percentDifference))
       })
       return users
     } catch (error) {
