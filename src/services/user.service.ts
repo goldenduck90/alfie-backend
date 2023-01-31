@@ -779,15 +779,15 @@ class UserService extends EmailService {
   async getAllUsers() {
     try {
       // Find all users and populate the "provider" field
-      const users = await UserModel.find().populate("provider").lean()
+      const _users = await UserModel.find().populate("provider").lean()
 
-      users.forEach((u) => {
-        if (u.score.some((el: any) => el === null)) {
-          // remove the value in the array that is null
-          // console.log(u._id)
-          u.score = u.score.filter((el: any) => el !== null)
+      const users = _users.map((u) => {
+        return {
+          ...u,
+          score: [],
         }
       })
+      
       return users
     } catch (error) {
       Sentry.captureException(error)
@@ -802,17 +802,10 @@ class UserService extends EmailService {
         .lean()
       
       const users = _users.map((u) => {
-        if (!u.score) return {
+        return {
           ...u,
           score: [],
         }
-
-        if (u.score.length === 0) return u
-        
-        u.score = u.score.filter((s) => s !== null)
-        u.score = u.score.filter((s) => !isNaN(s.score) || !isNaN(s.percentDifference))
-        
-        return u
       })
  
       return users
