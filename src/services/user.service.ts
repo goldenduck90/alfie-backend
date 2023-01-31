@@ -800,8 +800,17 @@ class UserService extends EmailService {
       const users = await UserModel.find({ provider: providerId })
         .populate("provider")
         .lean()
+      
+      users.forEach((u) => {
+        if (u.score.some((el: any) => el === null)) {
+          // remove the value in the array that is null
+          // console.log(u._id)
+          u.score = u.score.filter((el: any) => el !== null)
+        }
+      })
       return users
     } catch (error) {
+      Sentry.captureException(error)
       throw new ApolloError(error.message, error.code)
     }
   }
