@@ -795,14 +795,19 @@ class UserService extends EmailService {
 
   async getAllUsersByAProvider(providerId: string) {
     try {
-      const users = await UserModel.find({ provider: providerId })
+      const _users = await UserModel.find({ provider: providerId })
         .populate("provider")
         .lean()
       
-      users.forEach((u) => {
+      const users = _users.map((u) => {
+        if (u.score.length === 0) return u
+        
         u.score = u.score.filter((s) => s !== null))
-          .filter((s) => !isNaN(s.score) || !isNaN(s.percentDifference))
+        u.score = u.score.filter((s) => !isNaN(s.score) || !isNaN(s.percentDifference))
+        
+        return u
       })
+ 
       return users
     } catch (error) {
       Sentry.captureException(error)
