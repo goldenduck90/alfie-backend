@@ -128,27 +128,29 @@ class AppointmentService {
       selectedDateInUtc: new Date(response.selectedDateInUtc),
       total: response.total,
       eaService: response.eaService,
-      timeslots: response.timeslots.map(
-        (timeslot: { timeInUtc: string, eaProvider: EAProvider }) => {
-          const { timeInUtc, eaProvider } = timeslot
-          const hours = Number(timeInUtc.split(":")[0])
-          const minutes = Number(timeInUtc.split(":")[1])
+      timeslots: response.timeslots
+        ? response.timeslots.map(
+            (timeslot: { timeInUtc: string, eaProvider: EAProvider }) => {
+              const { timeInUtc, eaProvider } = timeslot
+              const hours = Number(timeInUtc.split(":")[0])
+              const minutes = Number(timeInUtc.split(":")[1])
 
-          const startTimeInUtc = new Date(
-            `${format(selectedDate, "yyyy-MM-dd")} ${hours}:${minutes}:00`
-          )
-          const endTimeInUtc = addMinutes(
-            startTimeInUtc,
-            response.eaService.durationInMins
-          )
+              const startTimeInUtc = new Date(
+                `${format(selectedDate, "yyyy-MM-dd")} ${hours}:${minutes}:00`
+              )
+              const endTimeInUtc = addMinutes(
+                startTimeInUtc,
+                response.eaService.durationInMins
+              )
 
-          return {
-            startTimeInUtc,
-            endTimeInUtc,
-            eaProvider,
-          }
-        }
-      ),
+              return {
+                startTimeInUtc,
+                endTimeInUtc,
+                eaProvider,
+              }
+            }
+          )
+        : [],
     }
   }
 
