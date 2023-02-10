@@ -6,6 +6,7 @@ import config from "config"
 import { addMinutes, addMonths } from "date-fns"
 import stripe from "stripe"
 import { v4 as uuidv4 } from "uuid"
+import { classifyUser } from "../PROAnalysis/classification"
 import {
   CheckoutModel,
   CreateCheckoutInput,
@@ -23,16 +24,17 @@ import {
   Role,
   SubscribeEmailInput,
   UpdateSubscriptionInput,
-  UserModel,
   Weight,
 } from "../schema/user.schema"
 import { signJwt } from "../utils/jwt"
 import { triggerEntireSendBirdFlow } from "../utils/sendBird"
+import { UserModel } from "./../schema/user.schema"
 import AkuteService from "./akute.service"
 import AppointmentService from "./appointment.service"
 import EmailService from "./email.service"
 import ProviderService from "./provider.service"
 import TaskService from "./task.service"
+
 class UserService extends EmailService {
   private taskService: TaskService
   private providerService: ProviderService
@@ -780,7 +782,7 @@ class UserService extends EmailService {
     try {
       // Find all users and populate the "provider" field
       const users = await UserModel.find().populate("provider").lean()
-
+      console.log(users, "HERE")
       users.forEach((u) => {
         if (u.score.some((el: any) => el === null)) {
           // remove the value in the array that is null
@@ -828,14 +830,50 @@ class UserService extends EmailService {
       const userTasks: any = await UserTaskModel.find({ user: userId })
         .populate("task")
         .lean()
-      // await calculatePatientScores(userId)
       return userTasks
     } catch (error) {
       console.log("error", error)
       Sentry.captureException(error)
     }
   }
+  async classifyPatient(userId: string) {
+    try {
+      const user: any = await UserModel.findById(userId)
+      if (user.score.length > 0 && user.score[0] !== null) {
+        // If there are two tasks where the score.task is the same, remove all of the ones where the score.date is not the most recent to today
+        const userScores = user.score
+        const userScoresSorted = userScores.sort((a: any, b: any) => {
+          return new Date(b.date).getTime() - new Date(a.date).getTime()
+        })
+        const userScoresSortedFiltered = userScoresSorted.filter(
+          (el: any, i: any) => {
+            return (
+              userScoresSorted.findIndex((el2: any) => el2.task === el.task) ===
+              i
+            )
+          }
+        )
 
+        const classifications = classifyUser(userScoresSortedFiltered)
+        // map over each classification and push it onto the user if it doesn't already exist by checking if the date is the same
+        classifications.forEach((classification: any) => {
+          const classificationExists = user.classifications.find(
+            (el: any) => el.date === classification.date
+          )
+          if (!classificationExists) {
+            user.classifications.push(classification)
+          }
+        })
+
+        // save the user
+        await user.save()
+        return user
+      }
+    } catch (error) {
+      console.log("error", error)
+      Sentry.captureException(error)
+    }
+  }
   async completeCheckout(
     stripeSubscriptionId: string,
     subscriptionExpiresAt: Date

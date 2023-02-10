@@ -114,6 +114,18 @@ export class Score {
 
   @Field(() => String, { nullable: true })
   @prop({ required: false })
+  percentile1hour?: string
+
+  @Field(() => String, { nullable: true })
+  @prop({ required: false })
+  percentile?: string
+
+  @Field(() => String, { nullable: true })
+  @prop({ required: false })
+  percentile30mins?: string
+
+  @Field(() => String, { nullable: true })
+  @prop({ required: false })
   latest?: string
 
   @Field(() => Number, { nullable: true })
@@ -192,7 +204,20 @@ export class Score {
   @prop({ required: false })
   providerMessage?: string
 }
+@ObjectType()
+export class Classification {
+  @Field(() => String)
+  @prop({ required: true })
+  classification: string
 
+  @Field(() => String)
+  @prop({ required: true })
+  percentile: string
+
+  @Field(() => Date)
+  @prop({ required: true })
+  date: Date
+}
 @ObjectType()
 @InputType("FileMetadataInput")
 export class FileMetadata {
@@ -288,6 +313,10 @@ export class User {
   @Field(() => Boolean, { nullable: true })
   @prop({ nullable: true })
   textOptIn: boolean
+
+  @Field(() => [Classification], { nullable: true })
+  @prop({ default: [] })
+  classifications: Classification[]
 
   @Field(() => String, { nullable: true })
   meetingRoomUrl: string

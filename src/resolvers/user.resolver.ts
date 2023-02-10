@@ -1,4 +1,5 @@
 import { Arg, Authorized, Ctx, Mutation, Query, Resolver } from "type-graphql"
+import { CreateLabOrderResponse } from "../schema/akute.schema"
 import {
   CheckoutResponse,
   CreateCheckoutInput,
@@ -18,10 +19,9 @@ import {
   UpdateSubscriptionInput,
   User,
 } from "../schema/user.schema"
-import UserService from "../services/user.service"
 import AkuteService from "../services/akute.service"
+import UserService from "../services/user.service"
 import Context from "../types/context"
-import { CreateLabOrderResponse } from "../schema/akute.schema"
 
 @Resolver()
 export default class UserResolver {
@@ -103,6 +103,12 @@ export default class UserResolver {
   @Query(() => [UserTask])
   getAllUserTasksByUser(@Arg("userId") userId: string) {
     return this.userService.getAllUserTasksByUser(userId)
+  }
+
+  @Authorized([Role.Admin, Role.Doctor, Role.Practitioner, Role.HealthCoach])
+  @Mutation(() => User)
+  classifyPatients(@Arg("userId") userId: string) {
+    return this.userService.classifyPatient(userId)
   }
 
   @Mutation(() => CheckoutResponse)
