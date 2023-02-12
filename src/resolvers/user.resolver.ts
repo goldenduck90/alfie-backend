@@ -15,6 +15,7 @@ import {
   MessageResponse,
   ResetPasswordInput,
   Role,
+  Score,
   SubscribeEmailInput,
   UpdateSubscriptionInput,
   User,
@@ -111,6 +112,11 @@ export default class UserResolver {
     return this.userService.classifyPatient(userId)
   }
 
+  @Authorized([Role.Admin, Role.Doctor, Role.Practitioner, Role.HealthCoach])
+  @Mutation(() => Score)
+  scorePatients(@Arg("userId") userId: string) {
+    return this.userService.scorePatient(userId)
+  }
   @Mutation(() => CheckoutResponse)
   createOrFindCheckout(@Arg("input") input: CreateCheckoutInput) {
     return this.userService.createOrFindCheckout(input)

@@ -214,6 +214,10 @@ export class Classification {
   @prop({ required: true })
   percentile: string
 
+  @Field(() => String, { nullable: true })
+  @prop({ required: false })
+  displayPercentile?: string
+
   @Field(() => Date)
   @prop({ required: true })
   date: Date

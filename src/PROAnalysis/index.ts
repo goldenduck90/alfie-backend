@@ -439,7 +439,10 @@ function calculateGsrs(
     currentScore: currentGsrs,
     date: currentTask.completedAt,
     increased,
-    percentDifference: currentGsrsPercentDifference,
+    // make sure currentGsrsPercentDifference is a number and not NaN
+    percentDifference: currentGsrsPercentDifference
+      ? currentGsrsPercentDifference
+      : 0,
     message,
     task,
   }

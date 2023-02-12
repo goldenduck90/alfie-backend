@@ -26,6 +26,7 @@ import {
   UpdateSubscriptionInput,
   Weight,
 } from "../schema/user.schema"
+import { calculatePatientScores } from "../scripts/calculatePatientScores"
 import { signJwt } from "../utils/jwt"
 import { triggerEntireSendBirdFlow } from "../utils/sendBird"
 import { UserModel } from "./../schema/user.schema"
@@ -836,6 +837,18 @@ class UserService extends EmailService {
       Sentry.captureException(error)
     }
   }
+  async scorePatient(userId: string) {
+    console.log("HERE", userId)
+    try {
+      console.log("HERE")
+      const scores = await calculatePatientScores(userId)
+      console.log(scores, "scores")
+      return scores
+    } catch (error) {
+      console.log("error", error)
+      Sentry.captureException(error)
+    }
+  }
   async classifyPatient(userId: string) {
     try {
       const user: any = await UserModel.findById(userId)
@@ -854,8 +867,9 @@ class UserService extends EmailService {
           }
         )
 
-        const classifications = classifyUser(userScoresSortedFiltered)
+        const classifications = classifyUser(userScores)
         // map over each classification and push it onto the user if it doesn't already exist by checking if the date is the same
+        console.log("classifications", classifications)
         classifications.forEach((classification: any) => {
           const classificationExists = user.classifications.find(
             (el: any) => el.date === classification.date
@@ -864,7 +878,6 @@ class UserService extends EmailService {
             user.classifications.push(classification)
           }
         })
-
         // save the user
         await user.save()
         return user
