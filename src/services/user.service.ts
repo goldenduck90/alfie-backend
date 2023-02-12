@@ -783,11 +783,8 @@ class UserService extends EmailService {
     try {
       // Find all users and populate the "provider" field
       const users = await UserModel.find().populate("provider").lean()
-      console.log(users, "HERE")
       users.forEach((u) => {
         if (u.score.some((el: any) => el === null)) {
-          // remove the value in the array that is null
-          // console.log(u._id)
           u.score = u.score.filter((el: any) => el !== null)
         }
       })
@@ -838,14 +835,10 @@ class UserService extends EmailService {
     }
   }
   async scorePatient(userId: string) {
-    console.log("HERE", userId)
     try {
-      console.log("HERE")
       const scores = await calculatePatientScores(userId)
-      console.log(scores, "scores")
       return scores
     } catch (error) {
-      console.log("error", error)
       Sentry.captureException(error)
     }
   }
@@ -869,7 +862,7 @@ class UserService extends EmailService {
 
         const classifications = classifyUser(userScores)
         // map over each classification and push it onto the user if it doesn't already exist by checking if the date is the same
-        console.log("classifications", classifications)
+
         classifications.forEach((classification: any) => {
           const classificationExists = user.classifications.find(
             (el: any) => el.date === classification.date
@@ -883,7 +876,6 @@ class UserService extends EmailService {
         return user
       }
     } catch (error) {
-      console.log("error", error)
       Sentry.captureException(error)
     }
   }
