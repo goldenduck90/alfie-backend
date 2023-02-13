@@ -27,52 +27,6 @@ const hungerPercentile: any = {
   83: "75th",
   100: "90-95th",
 }
-// const tefqPercentile: any = {
-//   3: "25th",
-//   5: "50th",
-//   7: "75th",
-//   9: "90th",
-//   10: "95th",
-// }
-// We will take the current score and compare it to the median and calculate the percent difference
-// If the score is greater than the median we will calculate the percent difference between the score and the median
-// If the score is less than the median we will calculate the percent difference between the median and the score
-// We will then store this value on the user as an object where the key is the task name and the value is the score (percent difference) we will also store the date of the scoring so we can graph it
-// For example:
-// {
-//   "HADS A": {
-//     "score": 0.5,
-//     "date": "2020-01-01"
-//   }
-// }
-
-// We also need to store if the patient for that task has increased or decreased since the last time they took the task.
-// For example:
-// {
-//   "HADS A": {
-//     "score": 0.5,
-//     "date": "2020-01-01",
-//     "increased": true
-//   }
-// }
-
-// We also need to store the percent difference between the current score and the last score total
-// For example:
-// {
-//   "HADS A": {
-//     "score": 0.5,
-//     "date": "2020-01-01",
-//     "increased": true,
-//     "percentDifference": 0.5
-//     "message": "You scored within the 50th percentile"
-//   }
-// }
-// mpFeelingQuestions is of type:
-// type QuestionType = {
-//     [key: string]: {
-//         [key: string]: number
-//     }
-// }
 function calculateMPFeelingScore(
   lastTask: UserTask,
   currentTask: UserTask,
@@ -219,6 +173,77 @@ function calculateActivityScore(
     }
   }
 }
+function calculateSingleMPActivity(currentTask: UserTask, task: TaskType) {
+  const currentTaskScore = Number(currentTask.answers[0].value)
+  const percentileDifferenceStepsPercentile = Object.keys(
+    stepsPercentile
+  ).reduce((acc, key) => {
+    const value = parseInt(key)
+    if (value < currentTaskScore) {
+      return stepsPercentile[value]
+    } else if (value === currentTaskScore) {
+      return stepsPercentile[value]
+    } else if (value > currentTaskScore) {
+      return acc
+    }
+    return acc
+  }, 0)
+  const message = `You scored within the ${percentileDifferenceStepsPercentile} percentile`
+  return {
+    latest: String(currentTaskScore),
+    date: currentTask.completedAt,
+    message,
+    task,
+    percentile: String(percentileDifferenceStepsPercentile),
+  }
+}
+
+function calculateSingleMPHunger(currentTask: UserTask, task: TaskType) {
+  const currentHungerLevel1Hour = Number(
+    currentTask.answers.find((answer) => answer.key === "hungerLevel1Hour")
+      .value
+  )
+  const currentHungerLevel30Mins = Number(
+    currentTask.answers.find((answer) => answer.key === "hungerLevel30Mins")
+      .value
+  )
+  const score = currentHungerLevel1Hour - currentHungerLevel30Mins
+  const increased = score > 0
+  const message = `Your hunger level has ${
+    increased ? "increased" : "decreased"
+  } by ${score}`
+  const percentile1hour =
+    currentHungerLevel1Hour <= 45
+      ? "25"
+      : currentHungerLevel1Hour <= 64
+      ? "50"
+      : currentHungerLevel1Hour <= 83
+      ? "75"
+      : currentHungerLevel1Hour <= 100
+      ? "90"
+      : "95"
+  const percentile30mins =
+    currentHungerLevel30Mins <= 45
+      ? "25"
+      : currentHungerLevel30Mins <= 64
+      ? "50"
+      : currentHungerLevel30Mins <= 83
+      ? "75"
+      : currentHungerLevel30Mins <= 100
+      ? "90"
+      : "95"
+  return {
+    percentile1hour: String(percentile1hour),
+    percentile30mins: String(percentile30mins),
+    latest: String(currentHungerLevel1Hour),
+    score,
+    date: currentTask.completedAt,
+    increased,
+    message,
+    task,
+  }
+}
+
 function calculateHungerScore(
   lastTask: UserTask,
   currentTask: UserTask,
@@ -339,6 +364,7 @@ function calculateHungerScore(
     task,
   }
 }
+
 function calculateBPLogScore(
   lastTask: UserTask,
   currentTask: UserTask,
@@ -404,6 +430,35 @@ function calculateBPLogScore(
     providerMessage,
   }
 }
+function calculateSingleBPLog(currentTask: UserTask, task: TaskType) {
+  const currentSystolic = Number(
+    currentTask.answers.find((answer) => answer.key === "systolicBp").value
+  )
+  const currentDiastolic = Number(
+    currentTask.answers.find((answer) => answer.key === "diastolicBp").value
+  )
+  const message = `Your systolic is ${currentSystolic} and your diastolic is ${currentDiastolic}`
+  let providerMessage = ""
+  switch (true) {
+    case currentSystolic > 140 || currentDiastolic > 90:
+      providerMessage =
+        "Your systolic is > 140 or diastolic is > 90, go to next highest category. If above 130/80, ask if they are taking htn drugs."
+      break
+    case currentSystolic > 130 && currentDiastolic > 80:
+      providerMessage =
+        "For geriatrics, if systolic is >130 and diastolic > 80, cannot be prescribed bupropion or phentermine"
+      break
+    default:
+      break
+  }
+  return {
+    latest: `${currentSystolic}/${currentDiastolic}`,
+    date: currentTask.completedAt,
+    message,
+    task,
+    providerMessage,
+  }
+}
 function calculateGsrs(
   lastTask: UserTask,
   currentTask: UserTask,
@@ -458,6 +513,7 @@ function calculateSingleGsrs(currentTask: UserTask, task: TaskType) {
     0
   )
   const message = `Your GSRS is ${currentGsrs}`
+
   return {
     // score should be the difference between the two
     latest: String(currentGsrs),
@@ -592,45 +648,74 @@ function calculateAdLibitumScore(
     task,
   }
 }
-
+function calculateSingleAdLibitum(currentTask: UserTask, task: TaskType) {
+  const currentCalories = Number(currentTask.answers[0].value)
+  const message = `Your calories is ${currentCalories}`
+  return {
+    latest: String(currentCalories),
+    score: currentCalories,
+    date: currentTask.completedAt,
+    message,
+    task,
+  }
+}
 export function calculateScore(
   lastTask: UserTask,
   currentTask: UserTask,
   taskType: TaskType
 ) {
   if (taskType === TaskType.MP_FEELING) {
-    if (!lastTask) {
-      calculateSingleMPFeeling(currentTask, taskType)
+    if (lastTask) {
+      return calculateMPFeelingScore(lastTask, currentTask, taskType)
+    } else {
+      return calculateSingleMPFeeling(currentTask, taskType)
     }
-    return calculateMPFeelingScore(lastTask, currentTask, taskType)
   }
   if (
     taskType === TaskType.MP_ACTIVITY ||
     taskType === TaskType.WEIGHT_LOG ||
     taskType === TaskType.WAIST_LOG
   ) {
-    return calculateActivityScore(lastTask, currentTask, taskType)
+    if (lastTask) {
+      return calculateActivityScore(lastTask, currentTask, taskType)
+    } else {
+      return calculateSingleMPActivity(currentTask, taskType)
+    }
   }
   if (taskType === TaskType.MP_HUNGER) {
-    return calculateHungerScore(lastTask, currentTask, taskType)
+    if (lastTask) {
+      return calculateHungerScore(lastTask, currentTask, taskType)
+    } else {
+      return calculateSingleMPHunger(currentTask, taskType)
+    }
   }
   if (taskType === TaskType.BP_LOG) {
-    return calculateBPLogScore(lastTask, currentTask, taskType)
+    if (lastTask) {
+      return calculateBPLogScore(lastTask, currentTask, taskType)
+    } else {
+      return calculateSingleBPLog(currentTask, taskType)
+    }
   }
   if (taskType === TaskType.GSRS) {
-    if (!lastTask) {
-      calculateSingleGsrs(currentTask, taskType)
+    if (lastTask) {
+      return calculateGsrs(lastTask, currentTask, taskType)
+    } else {
+      return calculateSingleGsrs(currentTask, taskType)
     }
-    return calculateGsrs(lastTask, currentTask, taskType)
   }
   if (taskType === TaskType.TEFQ) {
-    if (!lastTask) {
-      calculateSingleTefq(currentTask, taskType)
+    if (lastTask) {
+      return calculateTefq(lastTask, currentTask, taskType)
+    } else {
+      return calculateSingleTefq(currentTask, taskType)
     }
-    return calculateTefq(lastTask, currentTask, taskType)
   }
   if (taskType === TaskType.AD_LIBITUM) {
-    return calculateAdLibitumScore(lastTask, currentTask, taskType)
+    if (lastTask) {
+      return calculateAdLibitumScore(lastTask, currentTask, taskType)
+    } else {
+      return calculateSingleAdLibitum(currentTask, taskType)
+    }
   }
   return null
 }

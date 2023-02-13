@@ -12,7 +12,6 @@ export async function calculatePatientScores(patient: string) {
     })
 
     const user = await UserModel.findById(patient)
-    console.log("user: ", user)
     // For each completed tasks group tasks by task
     const groupedTasks = userTasks.reduce((acc: any, task: any) => {
       const taskGroup = acc[task.task] || []
@@ -28,7 +27,6 @@ export async function calculatePatientScores(patient: string) {
           new Date(b.completedAt).getTime() - new Date(a.completedAt).getTime()
         )
       })
-
       const lastTask = sortedTasks[0]
       const secondLastTask = sortedTasks[1]
       return {
@@ -42,7 +40,7 @@ export async function calculatePatientScores(patient: string) {
 
     const scorePromises = tasks.map(async (task: any) => {
       const taskType = await TaskModel.findById(task.currentTask.task)
-      if (taskType && task.previousTask) {
+      if (taskType) {
         return calculateScore(
           task.previousTask,
           task.currentTask,
