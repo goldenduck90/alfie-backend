@@ -208,7 +208,7 @@ class TaskService extends EmailService {
         case TaskType.WEIGHT_LOG: {
           const weight = {
             date: new Date(),
-            value: answers.find((a) => a.key === "weightInLbs").value,
+            value: answers.find((a) => a.key === "weight").value,
           }
           const bmi =
             (weight.value / user.heightInInches / user.heightInInches) *

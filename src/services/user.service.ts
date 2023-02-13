@@ -10,7 +10,7 @@ import { classifyUser } from "../PROAnalysis/classification"
 import {
   CheckoutModel,
   CreateCheckoutInput,
-  CreateStripeCustomerInput,
+  CreateStripeCustomerInput
 } from "../schema/checkout.schema"
 import { ProviderModel } from "../schema/provider.schema"
 import { TaskType } from "../schema/task.schema"
@@ -24,7 +24,7 @@ import {
   Role,
   SubscribeEmailInput,
   UpdateSubscriptionInput,
-  Weight,
+  Weight
 } from "../schema/user.schema"
 import { calculatePatientScores } from "../scripts/calculatePatientScores"
 import { signJwt } from "../utils/jwt"
@@ -757,8 +757,8 @@ class UserService extends EmailService {
         ...(!noExpire
           ? { expiresIn: remember ? rememberExp : normalExp }
           : {
-              expiresIn: "6000d",
-            }),
+            expiresIn: "6000d",
+          }),
       }
     )
 
@@ -788,6 +788,7 @@ class UserService extends EmailService {
           u.score = u.score.filter((el: any) => el !== null)
         }
       })
+
       return users
     } catch (error) {
       Sentry.captureException(error)
@@ -797,11 +798,20 @@ class UserService extends EmailService {
 
   async getAllUsersByAProvider(providerId: string) {
     try {
-      const users = await UserModel.find({ provider: providerId })
+      const _users = await UserModel.find({ provider: providerId })
         .populate("provider")
         .lean()
+
+      const users = _users.map((u) => {
+        return {
+          ...u,
+          score: [],
+        }
+      })
+
       return users
     } catch (error) {
+      Sentry.captureException(error)
       throw new ApolloError(error.message, error.code)
     }
   }
