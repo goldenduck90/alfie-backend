@@ -6,10 +6,11 @@ import config from "config"
 import { addMinutes, addMonths } from "date-fns"
 import stripe from "stripe"
 import { v4 as uuidv4 } from "uuid"
+import { classifyUser } from "../PROAnalysis/classification"
 import {
   CheckoutModel,
   CreateCheckoutInput,
-  CreateStripeCustomerInput,
+  CreateStripeCustomerInput
 } from "../schema/checkout.schema"
 import { ProviderModel } from "../schema/provider.schema"
 import { TaskType } from "../schema/task.schema"
@@ -23,16 +24,18 @@ import {
   Role,
   SubscribeEmailInput,
   UpdateSubscriptionInput,
-  UserModel,
-  Weight,
+  Weight
 } from "../schema/user.schema"
+import { calculatePatientScores } from "../scripts/calculatePatientScores"
 import { signJwt } from "../utils/jwt"
 import { triggerEntireSendBirdFlow } from "../utils/sendBird"
+import { UserModel } from "./../schema/user.schema"
 import AkuteService from "./akute.service"
 import AppointmentService from "./appointment.service"
 import EmailService from "./email.service"
 import ProviderService from "./provider.service"
 import TaskService from "./task.service"
+
 class UserService extends EmailService {
   private taskService: TaskService
   private providerService: ProviderService
@@ -754,8 +757,8 @@ class UserService extends EmailService {
         ...(!noExpire
           ? { expiresIn: remember ? rememberExp : normalExp }
           : {
-              expiresIn: "6000d",
-            }),
+            expiresIn: "6000d",
+          }),
       }
     )
 
@@ -779,15 +782,13 @@ class UserService extends EmailService {
   async getAllUsers() {
     try {
       // Find all users and populate the "provider" field
-      const _users = await UserModel.find().populate("provider").lean()
-
-      const users = _users.map((u) => {
-        return {
-          ...u,
-          score: [],
+      const users = await UserModel.find().populate("provider").lean()
+      users.forEach((u) => {
+        if (u.score.some((el: any) => el === null)) {
+          u.score = u.score.filter((el: any) => el !== null)
         }
       })
-      
+
       return users
     } catch (error) {
       Sentry.captureException(error)
@@ -800,14 +801,14 @@ class UserService extends EmailService {
       const _users = await UserModel.find({ provider: providerId })
         .populate("provider")
         .lean()
-      
+
       const users = _users.map((u) => {
         return {
           ...u,
           score: [],
         }
       })
- 
+
       return users
     } catch (error) {
       Sentry.captureException(error)
@@ -837,14 +838,57 @@ class UserService extends EmailService {
       const userTasks: any = await UserTaskModel.find({ user: userId })
         .populate("task")
         .lean()
-      // await calculatePatientScores(userId)
       return userTasks
     } catch (error) {
       console.log("error", error)
       Sentry.captureException(error)
     }
   }
+  async scorePatient(userId: string) {
+    try {
+      const scores = await calculatePatientScores(userId)
+      return scores
+    } catch (error) {
+      Sentry.captureException(error)
+    }
+  }
+  async classifyPatient(userId: string) {
+    try {
+      const user: any = await UserModel.findById(userId)
+      if (user.score.length > 0 && user.score[0] !== null) {
+        // If there are two tasks where the score.task is the same, remove all of the ones where the score.date is not the most recent to today
+        const userScores = user.score
+        const userScoresSorted = userScores.sort((a: any, b: any) => {
+          return new Date(b.date).getTime() - new Date(a.date).getTime()
+        })
+        const userScoresSortedFiltered = userScoresSorted.filter(
+          (el: any, i: any) => {
+            return (
+              userScoresSorted.findIndex((el2: any) => el2.task === el.task) ===
+              i
+            )
+          }
+        )
 
+        const classifications = classifyUser(userScores)
+        // map over each classification and push it onto the user if it doesn't already exist by checking if the date is the same
+
+        classifications.forEach((classification: any) => {
+          const classificationExists = user.classifications.find(
+            (el: any) => el.date === classification.date
+          )
+          if (!classificationExists) {
+            user.classifications.push(classification)
+          }
+        })
+        // save the user
+        await user.save()
+        return user
+      }
+    } catch (error) {
+      Sentry.captureException(error)
+    }
+  }
   async completeCheckout(
     stripeSubscriptionId: string,
     subscriptionExpiresAt: Date

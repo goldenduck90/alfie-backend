@@ -10,7 +10,9 @@ export async function calculatePatientScores(patient: string) {
       user: patient,
       completed: true,
     })
+
     const user = await UserModel.findById(patient)
+    console.log("user: ", user)
     // For each completed tasks group tasks by task
     const groupedTasks = userTasks.reduce((acc: any, task: any) => {
       const taskGroup = acc[task.task] || []
