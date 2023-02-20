@@ -12,7 +12,7 @@ import {
   GetUserTasksInput,
   UpdateUserTaskInput,
   UserTask,
-  UserTaskModel,
+  UserTaskModel
 } from "../schema/task.user.schema"
 import { UserModel } from "../schema/user.schema"
 import AkuteService from "./akute.service"
@@ -97,8 +97,7 @@ class TaskService extends EmailService {
         TaskType.MP_HUNGER,
         TaskType.MP_FEELING,
         TaskType.AD_LIBITUM,
-        TaskType.GSRS,
-        TaskType.TEFQ,
+        TaskType.MP_ACTIVITY,
       ]
       const completedTasks: any = userTasks.filter(
         (task: any) => task.completed

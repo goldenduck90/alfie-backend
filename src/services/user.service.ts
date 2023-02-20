@@ -1,3 +1,4 @@
+
 import * as Sentry from "@sentry/node"
 import { ApolloError } from "apollo-server-errors"
 import * as AWS from "aws-sdk"
@@ -10,7 +11,7 @@ import { classifyUser } from "../PROAnalysis/classification"
 import {
   CheckoutModel,
   CreateCheckoutInput,
-  CreateStripeCustomerInput,
+  CreateStripeCustomerInput
 } from "../schema/checkout.schema"
 import { ProviderModel } from "../schema/provider.schema"
 import { TaskType } from "../schema/task.schema"
@@ -24,7 +25,7 @@ import {
   Role,
   SubscribeEmailInput,
   UpdateSubscriptionInput,
-  Weight,
+  Weight
 } from "../schema/user.schema"
 import { calculatePatientScores } from "../scripts/calculatePatientScores"
 import { signJwt } from "../utils/jwt"
@@ -757,8 +758,8 @@ class UserService extends EmailService {
         ...(!noExpire
           ? { expiresIn: remember ? rememberExp : normalExp }
           : {
-              expiresIn: "6000d",
-            }),
+            expiresIn: "6000d",
+          }),
       }
     )
 
@@ -842,6 +843,15 @@ class UserService extends EmailService {
       const userTasks: any = await UserTaskModel.find({ user: userId })
         .populate("task")
         .lean()
+      // const users = await UserModel.find()
+      // users.forEach(async (u) => {
+      //   const classify = await this.classifyPatient(u._id)
+      //   console.log(classify, "score")
+      // })
+      // const scores = await calculatePatientScores(userId)
+      // console.log(scores, "scores")
+      // const scores = await calculateAllScores()
+      // console.log(scores, "scores")
       return userTasks
     } catch (error) {
       console.log("error", error)
@@ -865,30 +875,26 @@ class UserService extends EmailService {
         const userScoresSorted = userScores.sort((a: any, b: any) => {
           return new Date(b.date).getTime() - new Date(a.date).getTime()
         })
-        const userScoresSortedFiltered = userScoresSorted.filter(
-          (el: any, i: any) => {
-            return (
-              userScoresSorted.findIndex((el2: any) => el2.task === el.task) ===
-              i
-            )
-          }
-        )
+
+        console.log(userScores, "userScores")
+        // remove duplicate userScores by task and date match if the date is exactly the same then only use one
+
 
         const classifications = classifyUser(userScores)
-        // map over each classification and push it onto the user if it doesn't already exist by checking if the date is the same
-
-        classifications.forEach((classification: any) => {
-          const classificationExists = user.classifications.find(
-            (el: any) => el.date === classification.date
+        classifications.forEach((c: any) => {
+          const classificationExists = user.classifications.some(
+            (el: any) => el.date === c.date
           )
           if (!classificationExists) {
-            user.classifications.push(classification)
+            user.classifications.push(c)
           }
         })
+        console.log(classifications, "classifications")
         // save the user
         await user.save()
         return user
       }
+
     } catch (error) {
       Sentry.captureException(error)
     }
