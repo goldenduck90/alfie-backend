@@ -5,7 +5,7 @@ import {
   pre,
   prop,
   queryMethod,
-  ReturnModelType,
+  ReturnModelType
 } from "@typegoose/typegoose"
 import { AsQueryMethod, Ref } from "@typegoose/typegoose/lib/types"
 import bcrypt from "bcrypt"
@@ -15,7 +15,7 @@ import {
   IsPhoneNumber,
   MaxDate,
   MaxLength,
-  MinLength,
+  MinLength
 } from "class-validator"
 import config from "config"
 import mongoose from "mongoose"
@@ -120,6 +120,18 @@ export class Score {
   @prop({ required: false })
   percentile?: string
 
+  @Field(() => Float, { nullable: true })
+  @prop({ required: false })
+  calculatedPercentile?: number
+
+  @Field(() => Float, { nullable: true })
+  @prop({ required: false })
+  calculated1hourPercent?: number
+
+  @Field(() => Float, { nullable: true })
+  @prop({ required: false })
+  calculated30minsPercent?: number
+
   @Field(() => String, { nullable: true })
   @prop({ required: false })
   percentile30mins?: string
@@ -213,6 +225,18 @@ export class Classification {
   @Field(() => String)
   @prop({ required: true })
   percentile: string
+
+  @Field(() => Float, { nullable: true })
+  @prop({ required: false })
+  calculatedPercentile?: number
+
+  @Field(() => Float, { nullable: true })
+  @prop({ required: false })
+  calculated1hourPercent?: number
+
+  @Field(() => Float, { nullable: true })
+  @prop({ required: false })
+  calculated30minsPercent?: number
 
   @Field(() => String, { nullable: true })
   @prop({ required: false })

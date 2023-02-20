@@ -10,7 +10,7 @@ import {
   CreateCustomerInput,
   EAProvider,
   ProviderTimeslotsInput,
-  UpdateAppointmentInput,
+  UpdateAppointmentInput
 } from "../schema/appointment.schema"
 import { ProviderModel } from "../schema/provider.schema"
 import { UserTaskModel } from "../schema/task.user.schema"
@@ -21,7 +21,7 @@ class AppointmentService {
   public axios: AxiosInstance
 
   constructor() {
-    this.baseUrl = config.get("easyAppointmentsApiUrl")
+    this.baseUrl = "https://ea.joinalfie.com/index.php/api/v1"
     this.axios = axios.create({
       baseURL: this.baseUrl,
       headers: {
@@ -130,26 +130,26 @@ class AppointmentService {
       eaService: response.eaService,
       timeslots: response.timeslots
         ? response.timeslots.map(
-            (timeslot: { timeInUtc: string, eaProvider: EAProvider }) => {
-              const { timeInUtc, eaProvider } = timeslot
-              const hours = Number(timeInUtc.split(":")[0])
-              const minutes = Number(timeInUtc.split(":")[1])
+          (timeslot: { timeInUtc: string, eaProvider: EAProvider }) => {
+            const { timeInUtc, eaProvider } = timeslot
+            const hours = Number(timeInUtc.split(":")[0])
+            const minutes = Number(timeInUtc.split(":")[1])
 
-              const startTimeInUtc = new Date(
-                `${format(selectedDate, "yyyy-MM-dd")} ${hours}:${minutes}:00`
-              )
-              const endTimeInUtc = addMinutes(
-                startTimeInUtc,
-                response.eaService.durationInMins
-              )
+            const startTimeInUtc = new Date(
+              `${format(selectedDate, "yyyy-MM-dd")} ${hours}:${minutes}:00`
+            )
+            const endTimeInUtc = addMinutes(
+              startTimeInUtc,
+              response.eaService.durationInMins
+            )
 
-              return {
-                startTimeInUtc,
-                endTimeInUtc,
-                eaProvider,
-              }
+            return {
+              startTimeInUtc,
+              endTimeInUtc,
+              eaProvider,
             }
-          )
+          }
+        )
         : [],
     }
   }
@@ -412,7 +412,7 @@ class AppointmentService {
     const userSpecificAppointments: any = data.filter(
       (appointment: any) =>
         new Date(appointment.start).getTime() >
-          new Date().getTime() - 24 * 60 * 60 * 1000 &&
+        new Date().getTime() - 24 * 60 * 60 * 1000 &&
         appointment.customer.id === Number(user.eaCustomerId)
     )
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
