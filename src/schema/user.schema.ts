@@ -442,6 +442,11 @@ export class User {
 
   @Field(() => String, { nullable: true })
   @prop()
+  timezone?: string
+
+
+  @Field(() => String, { nullable: true })
+  @prop()
   meetingUrl?: string
 
   @Field(() => Boolean, { defaultValue: false })
