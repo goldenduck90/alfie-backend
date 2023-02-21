@@ -13,7 +13,7 @@ export async function calculatePatientScores(patient: string) {
 
     const user = await UserModel.findById(patient)
     // For each completed tasks group tasks by task
-    const groupedTasks = userTasks.reduce((acc: any, task: any) => {
+    const groupedTasks: any = userTasks.reduce((acc: any, task: any) => {
       const taskGroup = acc[task.task] || []
       taskGroup.push(task)
       acc[task.task] = taskGroup
@@ -51,8 +51,21 @@ export async function calculatePatientScores(patient: string) {
 
     try {
       const scores = await Promise.all(scorePromises)
-      user.score.push(...scores.filter((score) => score))
+      // remove duplicate scores by date match using date-fns however somes score won't have anything to compare to so we need to filter out undefined
+      const uniqueScores = scores.filter((score) => score).filter(
+        (score, index, self) =>
+          index ===
+          self.findIndex(
+            (s) =>
+              s.date.getTime() === score.date.getTime() &&
+              s.task === score.task
+          )
+      )
+
+      // add new scores to user score array
+      user.score.push(...uniqueScores.filter((score) => score))
       await user.save()
+      return uniqueScores
     } catch (err) {
       console.log("error calculating score: ", err)
     }
