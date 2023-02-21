@@ -603,8 +603,8 @@ export class LoginResponse {
   @Field(() => String)
   token: string
 
-  @Field(() => User)
-  user: User
+  @Field(() => PartialUser)
+  user: PartialUser
 }
 
 @InputType()
