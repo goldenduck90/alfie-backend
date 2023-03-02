@@ -1,5 +1,6 @@
-import * as Sentry from "@sentry/node"
-import axios from "axios"
+import * as Sentry from "@sentry/node";
+import axios from "axios";
+import { UserModel } from './../schema/user.schema';
 
 const sendBirdInstance = axios.create({
   baseURL: process.env.SEND_BIRD_API_URL,
@@ -81,7 +82,7 @@ const inviteUserToChannel = async (
     const { data } = await sendBirdInstance.post(
       `/v3/group_channels/${channel_url}/invite`,
       {
-        user_ids: [user_id, provider, "639b9a70b937527a0c43484c", "639ba055b937527a0c43484d", "639ba07cb937527a0c43484e"],
+        user_ids: [user_id, provider, "63b85fa8ab80d27bb1af6d43", "639ba07cb937527a0c43484e", "639b9a70b937527a0c43484c"], // Gabrielle H is the first ID then Alex then rohit
       }
     )
     return data
@@ -119,20 +120,18 @@ const triggerEntireSendBirdFlow = async ({
   profile_url,
   provider,
   user_id,
-  providerName,
+
 }: {
   user_id: string
   nickname: string
   profile_url: string
   profile_file: string
   provider: string
-  providerName: string
+
 }) => {
   try {
-    const currentSendBirdProvider = await findSendBirdUser(provider)
-    if (!currentSendBirdProvider) {
-      await createSendBirdUser(provider, providerName, "", "")
-    }
+
+    // Batch these in groups of 5 with an interval being every 10 seconds
     await createSendBirdUser(
       user_id,
       nickname,
@@ -140,20 +139,53 @@ const triggerEntireSendBirdFlow = async ({
       profile_file
     )
     const channel = await createSendBirdChannelForNewUser(user_id)
-    await inviteUserToChannel(channel.data.channel_url, user_id, provider)
+    await inviteUserToChannel(channel?.data?.channel_url, user_id, provider)
 
-    await sendMessageToChannel(channel.data.channel_url, "Welcome to Alfie Chat!")
+    await sendMessageToChannel(channel?.data?.channel_url, "Welcome to Alfie Chat!")
 
     return "Channels created and messages sent!"
   } catch (error) {
+    console.log(error, "error")
     Sentry.captureException(error)
     throw new Error(error)
   }
 }
+
+const findAndTriggerEntireSendBirdFlowForAllUSersAndProvider = async () => {
+  try {
+    // const providers: any = await ProviderModel.find()
+    const allUsersAndProvider: any = await UserModel.find().populate("provider")
+    // console.log(allUsersAndProvider, "allUsersAndProvider")
+    for (let i = 0; i < allUsersAndProvider.length; i += 5) {
+      const batch = allUsersAndProvider.slice(i, i + 5)
+      console.log(batch.length, "batch length")
+      console.log(batch[0]?.name, "batch[0].name")
+
+      await Promise.all(batch.map(async (user: any) => {
+        if (user?.provider?._id) {
+          await triggerEntireSendBirdFlow({
+            nickname: user?.name,
+            profile_file: "",
+            profile_url: "",
+            provider: user?.provider?._id,
+            user_id: user?._id,
+          })
+        }
+      }))
+      await new Promise(resolve => setTimeout(resolve, 10000))
+    }
+    return "All channels created and messages sent!"
+  } catch (e) {
+    console.log(e, "Error")
+  }
+}
+
+
 export {
   sendBirdInstance,
   createSendBirdUser,
   createSendBirdChannelForNewUser,
   inviteUserToChannel,
   triggerEntireSendBirdFlow,
-}
+  findAndTriggerEntireSendBirdFlowForAllUSersAndProvider
+};
