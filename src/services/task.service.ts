@@ -212,7 +212,7 @@ class TaskService extends EmailService {
           const bmi =
             (weight.value / user.heightInInches / user.heightInInches) *
             703.071720346
-          // Add more cases here as needed
+          user.weights.push(weight)
           user.bmi = bmi
           await user.save()
           break
