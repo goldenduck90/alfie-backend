@@ -5,7 +5,7 @@ import {
   pre,
   prop,
   queryMethod,
-  ReturnModelType
+  ReturnModelType,
 } from "@typegoose/typegoose"
 import { AsQueryMethod, Ref } from "@typegoose/typegoose/lib/types"
 import bcrypt from "bcrypt"
@@ -15,11 +15,17 @@ import {
   IsPhoneNumber,
   MaxDate,
   MaxLength,
-  MinLength
+  MinLength,
 } from "class-validator"
 import config from "config"
 import mongoose from "mongoose"
-import { Field, Float, InputType, ObjectType, registerEnumType } from "type-graphql"
+import {
+  Field,
+  Float,
+  InputType,
+  ObjectType,
+  registerEnumType,
+} from "type-graphql"
 import { Provider } from "./provider.schema"
 
 const {
@@ -410,6 +416,10 @@ export class User {
 
   @Field(() => String)
   @prop()
+  calId?: string
+
+  @Field(() => String)
+  @prop()
   stripeCustomerId?: string
 
   @Field(() => String)
@@ -443,7 +453,6 @@ export class User {
   @Field(() => String, { nullable: true })
   @prop()
   timezone?: string
-
 
   @Field(() => String, { nullable: true })
   @prop()
