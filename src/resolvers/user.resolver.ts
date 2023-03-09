@@ -82,6 +82,11 @@ export default class UserResolver {
     return this.userService.getUser(context.user._id)
   }
 
+  @Query(() => User)
+  getUserById(@Arg("userId") userId: string) {
+    return this.userService.getUser(userId)
+  }
+
   @Authorized([Role.Admin])
   @Query(() => [User])
   users() {

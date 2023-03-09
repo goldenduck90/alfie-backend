@@ -19,7 +19,13 @@ import {
 } from "class-validator"
 import config from "config"
 import mongoose from "mongoose"
-import { Field, Float, InputType, ObjectType, registerEnumType } from "type-graphql"
+import {
+  Field,
+  Float,
+  InputType,
+  ObjectType,
+  registerEnumType,
+} from "type-graphql"
 import { Provider } from "./provider.schema"
 
 const {
@@ -387,6 +393,10 @@ export class User {
   @Field(() => Address)
   @prop()
   address: Address
+
+  @Field(() => Number, { nullable: true })
+  @prop()
+  weightGoal: number
 
   @Field(() => [Weight])
   @prop({ default: [], required: true })

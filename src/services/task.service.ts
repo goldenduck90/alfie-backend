@@ -45,7 +45,7 @@ class TaskService extends EmailService {
 
   async getUserTask(id: string, userId?: string) {
     const { notFound, notPermitted } = config.get("errors.tasks") as any
-    const userTask = await UserTaskModel.findById(id)
+    const userTask = await UserTaskModel.findById(id).populate("task")
     if (!userTask) {
       throw new ApolloError(notFound.message, notFound.code)
     }
