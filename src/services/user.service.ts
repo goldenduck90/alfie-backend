@@ -10,7 +10,7 @@ import { classifyUser } from "../PROAnalysis/classification"
 import {
   CheckoutModel,
   CreateCheckoutInput,
-  CreateStripeCustomerInput,
+  CreateStripeCustomerInput
 } from "../schema/checkout.schema"
 import { ProviderModel } from "../schema/provider.schema"
 import { TaskType } from "../schema/task.schema"
@@ -24,7 +24,7 @@ import {
   Role,
   SubscribeEmailInput,
   UpdateSubscriptionInput,
-  Weight,
+  Weight
 } from "../schema/user.schema"
 import { calculatePatientScores } from "../scripts/calculatePatientScores"
 import { signJwt } from "../utils/jwt"
@@ -757,8 +757,8 @@ class UserService extends EmailService {
         ...(!noExpire
           ? { expiresIn: remember ? rememberExp : normalExp }
           : {
-              expiresIn: "6000d",
-            }),
+            expiresIn: "6000d",
+          }),
       }
     )
 
