@@ -1,7 +1,7 @@
-import { Field, InputType, ObjectType } from "type-graphql"
+import { Field, ObjectType } from "type-graphql"
 
 @ObjectType()
 export class CalAvailability {
   @Field(() => String)
-  data: any
+  availability: string
 }
