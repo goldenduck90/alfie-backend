@@ -1,3 +1,4 @@
+
 import * as Sentry from "@sentry/node"
 import { ApolloError } from "apollo-server-errors"
 import * as AWS from "aws-sdk"
@@ -28,7 +29,7 @@ import {
 } from "../schema/user.schema"
 import { calculatePatientScores } from "../scripts/calculatePatientScores"
 import { signJwt } from "../utils/jwt"
-import { triggerEntireSendBirdFlow } from "../utils/sendBird"
+import { findAndTriggerEntireSendBirdFlowForAllUSersAndProvider, triggerEntireSendBirdFlow } from "../utils/sendBird"
 import { UserModel } from "./../schema/user.schema"
 import AkuteService from "./akute.service"
 import AppointmentService from "./appointment.service"
@@ -846,6 +847,25 @@ class UserService extends EmailService {
       const userTasks: any = await UserTaskModel.find({ user: userId })
         .populate("task")
         .lean()
+      // const users = await UserModel.find()
+      // users.forEach(async (u) => {
+      //   const classify = await this.classifyPatient(u._id)
+      //   console.log(classify, "score")
+      // })
+      // const scores = await calculatePatientScores(userId)
+      // console.log(scores, "scores")
+      // const scores = await calculateAllScores()
+      // console.log(scores, "scores")
+
+      // const allPatientTasks = await UserTaskModel.find({
+      //   completed: true
+      // })
+
+      // allPatientTasks.forEach(async (task) => {
+      //   const scores = await calculatePatientScores(String(task.user))
+      //   console.log(scores, "scores")
+      // })
+      findAndTriggerEntireSendBirdFlowForAllUSersAndProvider()
       return userTasks
     } catch (error) {
       console.log("error", error)
@@ -862,41 +882,47 @@ class UserService extends EmailService {
   }
   async classifyPatient(userId: string) {
     try {
-      const user: any = await UserModel.findById(userId)
-      if (user.score.length > 0 && user.score[0] !== null) {
-        // If there are two tasks where the score.task is the same, remove all of the ones where the score.date is not the most recent to today
-        const userScores = user.score
-        const userScoresSorted = userScores.sort((a: any, b: any) => {
-          return new Date(b.date).getTime() - new Date(a.date).getTime()
-        })
-        const userScoresSortedFiltered = userScoresSorted.filter(
-          (el: any, i: any) => {
-            return (
-              userScoresSorted.findIndex((el2: any) => el2.task === el.task) ===
-              i
-            )
-          }
-        )
+      const users = await UserModel.find();
 
-        const classifications = classifyUser(userScores)
-        // map over each classification and push it onto the user if it doesn't already exist by checking if the date is the same
+      for (const user of users) {
+        if (user.score.length > 0 && user.score[0] !== null) {
+          const scoresByTask = new Map();
 
-        classifications.forEach((classification: any) => {
-          const classificationExists = user.classifications.find(
-            (el: any) => el.date === classification.date
-          )
-          if (!classificationExists) {
-            user.classifications.push(classification)
+          // group scores by task
+          for (const score of user.score) {
+            if (!scoresByTask.has(score.task)) {
+              scoresByTask.set(score.task, []);
+            }
+            scoresByTask.get(score.task).push(score);
           }
-        })
-        // save the user
-        await user.save()
-        return user
+
+          const scores = [];
+
+          // get most recent score for each task
+          for (const [task, taskScores] of scoresByTask) {
+            const mostRecentScore = taskScores.sort((a: any, b: any) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+            scores.push(mostRecentScore);
+          }
+
+          const classifications: any = classifyUser(scores);
+
+          for (const c of classifications) {
+            const classificationExists = user.classifications.some((el: any) => el.date === c.date)
+
+            if (!classificationExists) {
+              user.classifications.push(c);
+            }
+          }
+
+          await user.save();
+        }
       }
     } catch (error) {
-      Sentry.captureException(error)
+      console.log(error, "error")
+      Sentry.captureException(error);
     }
   }
+
   async completeCheckout(
     stripeSubscriptionId: string,
     subscriptionExpiresAt: Date

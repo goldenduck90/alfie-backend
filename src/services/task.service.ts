@@ -12,7 +12,7 @@ import {
   GetUserTasksInput,
   UpdateUserTaskInput,
   UserTask,
-  UserTaskModel,
+  UserTaskModel
 } from "../schema/task.user.schema"
 import { UserModel } from "../schema/user.schema"
 import AkuteService from "./akute.service"
@@ -97,8 +97,7 @@ class TaskService extends EmailService {
         TaskType.MP_HUNGER,
         TaskType.MP_FEELING,
         TaskType.AD_LIBITUM,
-        TaskType.GSRS,
-        TaskType.TEFQ,
+        TaskType.MP_ACTIVITY,
       ]
       const completedTasks: any = userTasks.filter(
         (task: any) => task.completed
@@ -213,7 +212,7 @@ class TaskService extends EmailService {
           const bmi =
             (weight.value / user.heightInInches / user.heightInInches) *
             703.071720346
-          // Add more cases here as needed
+          user.weights.push(weight)
           user.bmi = bmi
           await user.save()
           break

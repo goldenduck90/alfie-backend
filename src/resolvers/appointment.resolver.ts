@@ -8,7 +8,7 @@ import {
   EAProviderProfile,
   ProviderTimeslotsInput,
   TimeslotsResponse,
-  UpdateAppointmentInput,
+  UpdateAppointmentInput
 } from "../schema/appointment.schema"
 import { MessageResponse, Role } from "../schema/user.schema"
 import AppointmentService from "../services/appointment.service"
