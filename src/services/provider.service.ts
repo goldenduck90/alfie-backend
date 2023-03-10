@@ -14,22 +14,6 @@ class ProviderService {
     this.emailService = new EmailService()
   }
 
-  async getProvider(email: string) {
-    // const user = await UserModel.find().findByEmail(email).lean()
-
-    // if (!user) {
-    const provider = await ProviderModel.find().findByEmail(email).lean()
-    if (!provider) {
-      throw new ApolloError("Provider not found.", "NOT_FOUND")
-    }
-    // }
-    if (!provider.calId) {
-      throw new ApolloError("Provider cal id not found.", "NOT_FOUND")
-    }
-
-    return provider[0]
-  }
-
   async getNextAvailableProvider(state: string, update = false) {
     // Only return providers where the type === "Practitioner"
     const provider = await ProviderModel.find()
