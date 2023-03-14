@@ -13,6 +13,6 @@ export default class SchedulerResolver {
   @Authorized([Role.Practitioner, Role.Admin, Role.HealthCoach])
   @Query(() => CalAvailability)
   availability(@Ctx() context: Context) {
-    return this.calSchedulerService.getProviderAvailability(context.user.email)
+    return this.calSchedulerService.getAvailability(context.user.email)
   }
 }

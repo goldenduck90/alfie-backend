@@ -7,10 +7,10 @@ import { ProviderModel } from "../schema/provider.schema"
 import dayjs from "dayjs"
 
 type CreateAvailability = {
-  scheduleId: number;
-  days: number[];
-  startTime: string;
-  endTime: string;
+  scheduleId: number
+  days: number[]
+  startTime: string
+  endTime: string
 }
 
 class SchedulerService {
@@ -28,9 +28,17 @@ class SchedulerService {
     })
   }
 
-  async createAvailability({ scheduleId, days, startTime, endTime }: CreateAvailability): Promise<any> {
+  async createAvailability({
+    scheduleId,
+    days,
+    startTime,
+    endTime,
+  }: CreateAvailability): Promise<any> {
     const payload = {
+      scheduleId,
       days,
+      startTime,
+      endTime,
     }
     const { data } = await this.axios.post(
       `/v1//availabilities?apiKey=${process.env.CAL_API_KEY}`,
@@ -53,21 +61,17 @@ class SchedulerService {
     return data
   }
 
-
   async getAvailability(
     email: string,
     dateFrom?: string,
     dateTo?: string,
     timeZone?: string
   ): Promise<CalAvailability> {
-    let response: CalAvailability
     const { notFound, calIdNotFound } = config.get("errors.provider") as any
     const provider = await ProviderModel.find().findByEmail(email).lean()
-
     if (!provider) {
       throw new ApolloError(notFound.message, notFound.code)
     }
-
     if (!provider.calId) {
       throw new ApolloError(calIdNotFound.message, calIdNotFound.code)
     }
@@ -86,8 +90,10 @@ class SchedulerService {
       const tomorrowString = tomorrow.format("YYYY-MM-DD")
 
       const { data } = await this.axios.get(
-        `/availability?userId=${provider.calId || 1}&dateFrom=${dateFrom || todayString
-        }&eventTypeId=1&timeZone=${timeZone}&dateTo=${dateTo || tomorrowString
+        `/availability?userId=${provider.calId || 1}&dateFrom=${
+          dateFrom || todayString
+        }&eventTypeId=1&timeZone=${timeZone}&dateTo=${
+          dateTo || tomorrowString
         }?apiKey=${process.env.CAL_API_KEY}`
       )
 
