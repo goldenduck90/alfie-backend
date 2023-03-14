@@ -23,7 +23,7 @@ export class Attendee {
 }
 
 @ObjectType()
-export class Timeslot {
+export class CalTimeslot {
   @Field(() => Number, { nullable: true })
   day: number
   @Field(() => String)
@@ -106,8 +106,8 @@ export class EventBusyDetails {
 
 @ObjectType()
 export class CalAvailability {
-  @Field(() => [Timeslot], { nullable: true })
-  availabilities: Timeslot[]
+  @Field(() => [CalTimeslot], { nullable: true })
+  availabilities: CalTimeslot[]
   @Field(() => [EventBusyDetails], { nullable: true })
   busy: EventBusyDetails[]
   @Field(() => String, { nullable: true })

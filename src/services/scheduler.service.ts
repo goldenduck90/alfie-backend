@@ -6,6 +6,13 @@ import { CalAvailability, CalUser } from "../schema/scheduler.schema"
 import { ProviderModel } from "../schema/provider.schema"
 import dayjs from "dayjs"
 
+type CreateAvailability = {
+  scheduleId: number;
+  days: number[];
+  startTime: string;
+  endTime: string;
+}
+
 class SchedulerService {
   public baseUrl: string
   public eaBaseUrl: string
@@ -21,28 +28,33 @@ class SchedulerService {
     })
   }
 
-  async createCalUser({ email, username }: CalUser): Promise<any> {
+  async createAvailability({ scheduleId, days, startTime, endTime }: CreateAvailability): Promise<any> {
     const payload = {
-      email,
-      username,
-      timeFormat: "TWELVE",
+      days,
     }
     const { data } = await this.axios.post(
-      `/v1/users?apiKey=${process.env.CAL_API_KEY}`,
+      `/v1//availabilities?apiKey=${process.env.CAL_API_KEY}`,
       payload
     )
-
-    console.log(data)
     return data
-    // const provider = await ProviderModel.find().findByEmail(email).lean()
-    // const updated = await ProviderModel.findByIdAndUpdate(provider._id, {
-    //   ...provider, calId: data.userId
-    // })
-
-    // provider.calId = createdUserData.id
   }
 
-  async getProviderAvailability(
+  async getAvailabilityById(id: number): Promise<any> {
+    const { data } = await this.axios.post(
+      `/v1/availabilities/${id}?apiKey=${process.env.CAL_API_KEY}`
+    )
+    return data
+  }
+
+  async updateAvailability(id: number): Promise<any> {
+    const { data } = await this.axios.post(
+      `/v1/availabilities/${id}?apiKey=${process.env.CAL_API_KEY}`
+    )
+    return data
+  }
+
+
+  async getAvailability(
     email: string,
     dateFrom?: string,
     dateTo?: string,
@@ -74,10 +86,8 @@ class SchedulerService {
       const tomorrowString = tomorrow.format("YYYY-MM-DD")
 
       const { data } = await this.axios.get(
-        `/availability?userId=${provider.calId || 1}&dateFrom=${
-          dateFrom || todayString
-        }&eventTypeId=1&timeZone=${timeZone}&dateTo=${
-          dateTo || tomorrowString
+        `/availability?userId=${provider.calId || 1}&dateFrom=${dateFrom || todayString
+        }&eventTypeId=1&timeZone=${timeZone}&dateTo=${dateTo || tomorrowString
         }?apiKey=${process.env.CAL_API_KEY}`
       )
 
