@@ -2,8 +2,9 @@ import * as Sentry from "@sentry/node"
 import { ApolloError } from "apollo-server"
 import axios, { AxiosInstance } from "axios"
 import config from "config"
-import { Booking, CalAvailability } from "../schema/scheduler.schema"
+import { CalAvailability, CalUser } from "../schema/scheduler.schema"
 import { ProviderModel } from "../schema/provider.schema"
+import dayjs from "dayjs"
 
 class SchedulerService {
   public baseUrl: string
@@ -20,9 +21,32 @@ class SchedulerService {
     })
   }
 
+  async createCalUser({ email, username }: CalUser): Promise<any> {
+    const payload = {
+      email,
+      username,
+      timeFormat: "TWELVE",
+    }
+    const { data } = await this.axios.post(
+      `/v1/users?apiKey=${process.env.CAL_API_KEY}`,
+      payload
+    )
+
+    console.log(data)
+    return data
+    // const provider = await ProviderModel.find().findByEmail(email).lean()
+    // const updated = await ProviderModel.findByIdAndUpdate(provider._id, {
+    //   ...provider, calId: data.userId
+    // })
+
+    // provider.calId = createdUserData.id
+  }
+
   async getProviderAvailability(
     email: string,
-    eventId = 1
+    dateFrom?: string,
+    dateTo?: string,
+    timeZone?: string
   ): Promise<CalAvailability> {
     let response: CalAvailability
     const { notFound, calIdNotFound } = config.get("errors.provider") as any
@@ -32,82 +56,40 @@ class SchedulerService {
       throw new ApolloError(notFound.message, notFound.code)
     }
 
-    // if (!provider.calId) {
-    //   throw new ApolloError(calIdNotFound.message, calIdNotFound.code)
-    // }
+    if (!provider.calId) {
+      throw new ApolloError(calIdNotFound.message, calIdNotFound.code)
+    }
 
     try {
       const { data: userData } = await this.axios.get(
-        `/v1/users/${provider.calId || 1}?apiKey=${process.env.CAL_API_KEY}`
+        `/v1/users${provider.calId}?apiKey=${process.env.CAL_API_KEY}`
       )
 
-      // if (!userData?.defaultScheduleId) {
-      //   throw new ApolloError("Default schedule id not found", "NOT_FOUND")
-      // }
-
-      const schedulePromise = this.axios.get(
-        `/schedules/${userData?.defaultScheduleId || 1}?apiKey=${
-          process.env.CAL_API_KEY
-        }`
-      )
-      const eventTypePromise = this.axios.get(
-        `/event-types/1?apiKey=${process.env.CAL_API_KEY}`
-      )
-      // const bookingsPromise = this.axios.get(
-      //   `/bookings/?apiKey=${process.env.CAL_API_KEY}`
-      // )
-
-      const [
-        scheduleResponse,
-        eventTypeResponse,
-        // bookingsResponse
-      ] = await Promise.all([
-        schedulePromise,
-        eventTypePromise,
-        // bookingsPromise
-      ])
-
-      // provider schedule
-      const schedule = scheduleResponse.data.schedule
-      // event info
-      const length = eventTypeResponse.data.event_type.length
-      const beforeEventBuffer =
-        eventTypeResponse.data.event_type.beforeEventBuffer
-      const afterEventBuffer =
-        eventTypeResponse.data.event_type.afterEventBuffer
-      const minimumBookingNotice =
-        eventTypeResponse.data.event_type.minimumBookingNotice
-
-      // const bookings =
-      //   bookingsResponse.data.bookings?.length > 0
-      //     ? bookingsResponse.data.bookings.filter(
-      //         (booking: any) => booking.userId === userData.id
-      //       )
-      //     : []
-
-      response = {
-        schedule,
-        eventType: {
-          length,
-          beforeEventBuffer,
-          afterEventBuffer,
-          minimumBookingNotice,
-        },
-        // bookings,
+      if (!userData?.defaultScheduleId) {
+        throw new ApolloError("Default schedule id not found", "NOT_FOUND")
       }
-      return response
-    } catch (err) {
-      Sentry.captureException(err)
-      throw new ApolloError(err.message, "ERROR")
-    }
-  }
+      const today = dayjs()
+      const tomorrow = today.add(1, "day")
+      const todayString = today.format("YYYY-MM-DD")
+      const tomorrowString = tomorrow.format("YYYY-MM-DD")
 
-  async getBookings(): Promise<Booking[]> {
-    try {
       const { data } = await this.axios.get(
-        `/bookings/?apiKey=${process.env.CAL_API_KEY}`
+        `/availability?userId=${provider.calId || 1}&dateFrom=${
+          dateFrom || todayString
+        }&eventTypeId=1&timeZone=${timeZone}&dateTo=${
+          dateTo || tomorrowString
+        }?apiKey=${process.env.CAL_API_KEY}`
       )
-      return data.bookings
+
+      // provider availability
+      const availabilities = data.availabilities
+      const busy = data.busy
+      const minimumBookingNotice = data.minimumBookingNotice
+      return {
+        availabilities,
+        busy,
+        minimumBookingNotice,
+      }
     } catch (err) {
       Sentry.captureException(err)
       throw new ApolloError(err.message, "ERROR")

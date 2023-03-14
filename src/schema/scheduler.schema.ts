@@ -23,6 +23,16 @@ export class Attendee {
 }
 
 @ObjectType()
+export class Timeslot {
+  @Field(() => Number, { nullable: true })
+  day: number
+  @Field(() => String)
+  start: string
+  @Field(() => String)
+  end: string
+}
+
+@ObjectType()
 export class Availability {
   @Field(() => Number, { nullable: true })
   id: number
@@ -81,12 +91,35 @@ export class Schedule {
   @Field(() => [Availability], { nullable: true })
   availability: Availability
 }
+
+@ObjectType()
+export class EventBusyDetails {
+  @Field(() => String, { nullable: true })
+  start: string
+  @Field(() => String, { nullable: true })
+  end: string
+  @Field(() => String, { nullable: true })
+  title?: string
+  @Field(() => String, { nullable: true })
+  source?: string | null
+}
+
 @ObjectType()
 export class CalAvailability {
-  @Field(() => Schedule, { nullable: true })
-  schedule: Schedule
-  // @Field(() => [Booking], { nullable: true })
-  // bookings: Booking[]
-  @Field(() => EventType, { nullable: true })
-  eventType: EventType
+  @Field(() => [Timeslot], { nullable: true })
+  availabilities: Timeslot[]
+  @Field(() => [EventBusyDetails], { nullable: true })
+  busy: EventBusyDetails[]
+  @Field(() => String, { nullable: true })
+  timeZone?: string
+  @Field(() => Number, { nullable: true })
+  minimumBookingNotice?: number
+}
+
+@ObjectType()
+export class CalUser {
+  @Field(() => String)
+  email: string
+  @Field(() => String)
+  username?: string
 }
