@@ -999,9 +999,9 @@ class UserService extends EmailService {
     const { checkoutCompleted } = config.get("messages") as any
     const { notFound, alreadyCheckedOut } = config.get("errors.checkout") as any
 
-    const checkout = await CheckoutModel.find()
-      .findByStripeSubscriptionId(stripeSubscriptionId)
-      .lean()
+    const checkout = await CheckoutModel.find().findByStripeSubscriptionId(
+      stripeSubscriptionId
+    )
 
     if (!checkout) {
       throw new ApolloError(notFound.message, notFound.code)
@@ -1051,7 +1051,7 @@ class UserService extends EmailService {
     }
 
     checkout.checkedOut = true
-    await CheckoutModel.findByIdAndUpdate(checkout._id, checkout)
+    await checkout.save()
 
     return {
       message: checkoutCompleted,
