@@ -2,16 +2,14 @@ import * as Sentry from "@sentry/node"
 import { ApolloError } from "apollo-server"
 import axios, { AxiosInstance } from "axios"
 import config from "config"
-import { CalAvailability, CalUser } from "../schema/scheduler.schema"
+import {
+  BookingInput,
+  BookingResponse,
+  CalAvailability,
+  ScheduleAvailability,
+} from "../schema/scheduler.schema"
 import { ProviderModel } from "../schema/provider.schema"
 import dayjs from "dayjs"
-
-type CreateAvailability = {
-  scheduleId: number
-  days: number[]
-  startTime: string
-  endTime: string
-}
 
 class SchedulerService {
   public baseUrl: string
@@ -28,12 +26,12 @@ class SchedulerService {
     })
   }
 
-  async createAvailability({
+  async createScheduleAvailability({
     scheduleId,
     days,
     startTime,
     endTime,
-  }: CreateAvailability): Promise<any> {
+  }: ScheduleAvailability): Promise<any> {
     const payload = {
       scheduleId,
       days,
@@ -41,31 +39,31 @@ class SchedulerService {
       endTime,
     }
     const { data } = await this.axios.post(
-      `/v1//availabilities?apiKey=${process.env.CAL_API_KEY}`,
+      `/v1/availabilities?apiKey=${process.env.CAL_API_KEY}`,
       payload
     )
     return data
   }
 
-  async getAvailabilityById(id: number): Promise<any> {
+  async getScheduleAvailabilityById(id: number): Promise<any> {
     const { data } = await this.axios.post(
       `/v1/availabilities/${id}?apiKey=${process.env.CAL_API_KEY}`
     )
     return data
   }
 
-  async updateAvailability(id: number): Promise<any> {
+  async updateScheduleAvailability(id: number): Promise<any> {
     const { data } = await this.axios.post(
       `/v1/availabilities/${id}?apiKey=${process.env.CAL_API_KEY}`
     )
     return data
   }
 
-  async getAvailability(
+  async getProviderAvailability(
     email: string,
-    dateFrom?: string,
-    dateTo?: string,
-    timeZone?: string
+    dateFrom: string,
+    dateTo: string,
+    timeZone: string
   ): Promise<CalAvailability> {
     const { notFound, calIdNotFound } = config.get("errors.provider") as any
     const provider = await ProviderModel.find().findByEmail(email).lean()
@@ -112,12 +110,36 @@ class SchedulerService {
     }
   }
 
+  async createBooking(booking: BookingInput): Promise<BookingResponse> {
+    const payload = booking
+    const { data } = await this.axios.post(
+      `/v1/bookings?apiKey=${process.env.CAL_API_KEY}`,
+      payload
+    )
+    return data
+  }
+
+  async updateBooking(booking: BookingInput): Promise<BookingResponse> {
+    const payload = booking
+    const { data } = await this.axios.patch(
+      `/v1/bookings/${booking.id}?apiKey=${process.env.CAL_API_KEY}`,
+      payload
+    )
+    return data
+  }
+
+  async deleteBooking(id: number): Promise<BookingResponse> {
+    const { data } = await this.axios.delete(
+      `/v1/bookings/${id}/cancel?apiKey=${process.env.CAL_API_KEY}`
+    )
+    return data
+  }
+
   async getUsers() {
     try {
       const { data } = await this.axios.get(
         `/users?apiKey=${process.env.CAL_API_KEY}`
       )
-      console.log(data)
       return data
     } catch (error) {
       console.log(error)
