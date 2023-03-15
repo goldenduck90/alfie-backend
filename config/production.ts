@@ -16,4 +16,7 @@ export default {
     extension: "101",
   },
   akuteApiUrl: "https://api.akutehealth.com/v1",
+  akute: {
+    labCorpOrganizationId: "f-a855594f43fe879c6570b92e",
+  },
 }
