@@ -3,10 +3,11 @@ import { ApolloError } from "apollo-server"
 import axios, { AxiosInstance } from "axios"
 import config from "config"
 import {
-  BookingInput,
+  CreateBookingInput,
   BookingResponse,
   CalAvailability,
   ScheduleAvailability,
+  UpdateBookingInput,
 } from "../schema/scheduler.schema"
 import { ProviderModel } from "../schema/provider.schema"
 import dayjs from "dayjs"
@@ -125,7 +126,7 @@ class SchedulerService {
     }
   }
 
-  async createBooking(booking: BookingInput) {
+  async createBooking(booking: CreateBookingInput) {
     const payload = booking
     try {
       const { data } = await this.axios.post(
@@ -139,7 +140,7 @@ class SchedulerService {
     }
   }
 
-  async updateBooking(booking: BookingInput) {
+  async updateBooking(booking: UpdateBookingInput) {
     const payload = booking
     try {
       const { data } = await this.axios.patch(

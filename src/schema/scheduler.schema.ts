@@ -118,26 +118,26 @@ export class EventBusyDetails {
 }
 
 @InputType()
-export class BookingInput {
+export class UpdateBookingInput {
   @Field(() => Number)
   id?: number
   @Field(() => String)
   title?: string
   @Field(() => String)
-  startTime: string
+  startTime?: string
   @Field(() => String)
-  endTime: string
+  endTime?: string
   @Field(() => Number)
-  eventTypeId: number
+  eventTypeId?: number
   @Field(() => String)
-  eventTypeSlug: number
+  eventTypeSlug?: number
   @Field(() => [CustomInput])
-  customInput: CustomInput[]
+  customInput?: CustomInput[]
   @Field(() => String)
   recurringEventId?: number
-  @Field(() => String)
+  @Field(() => String, { nullable: true })
   description?: string
-  @Field(() => String)
+  @Field(() => String, { nullable: true })
   notes?: string
   @Field(() => Status)
   status?: Status
@@ -155,6 +155,46 @@ export class BookingInput {
   hashedLink?: string
   @Field(() => Attendee)
   attendees?: Attendee[]
+}
+
+@InputType()
+export class CreateBookingInput {
+  @Field(() => String)
+  title: string
+  @Field(() => String)
+  startTime: string
+  @Field(() => String)
+  endTime: string
+  @Field(() => Number)
+  eventTypeId: number
+  @Field(() => String)
+  eventTypeSlug: number
+  @Field(() => [CustomInput])
+  customInput: CustomInput[]
+  @Field(() => String)
+  recurringEventId?: number
+  @Field(() => String, { nullable: true })
+  description?: string
+  @Field(() => String, { nullable: true })
+  notes?: string
+  @Field(() => Status)
+  status?: Status
+  @Field(() => String)
+  user: CalUser
+  @Field(() => String)
+  location: string
+  @Field(() => String, { nullable: true })
+  language?: string
+  @Field(() => String, { nullable: true })
+  smsReminderNumber?: string
+  @Field(() => Boolean)
+  hasHashedBookingLink?: boolean
+  @Field(() => String, { nullable: true })
+  hashedLink?: string
+  @Field(() => Attendee)
+  attendees?: Attendee[]
+  @Field(() => String)
+  userTaskId: string
 }
 
 @ObjectType()

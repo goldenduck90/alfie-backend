@@ -2,11 +2,12 @@ import CalSchedulerService from "../services/scheduler.service"
 import { Arg, Authorized, Ctx, Mutation, Query, Resolver } from "type-graphql"
 import { Role } from "../schema/user.schema"
 import {
-  BookingInput,
+  CreateBookingInput,
   BookingResponse,
   CalAvailability,
   ProviderAvailabilityInput,
   ScheduleAvailability,
+  UpdateBookingInput,
 } from "../schema/scheduler.schema"
 import Context from "../types/context"
 
@@ -32,16 +33,13 @@ export default class SchedulerResolver {
 
   @Authorized([Role.Practitioner, Role.Admin, Role.HealthCoach])
   @Mutation(() => CalAvailability)
-  createScheduleAvailability(
-    @Ctx() context: Context,
-    @Arg("input") input: ScheduleAvailability
-  ) {
+  createScheduleAvailability(@Arg("input") input: ScheduleAvailability) {
     return this.calSchedulerService.createScheduleAvailability(input)
   }
 
   @Authorized([Role.Practitioner, Role.Admin, Role.HealthCoach])
   @Mutation(() => BookingResponse)
-  createBooking(@Arg("input") input: BookingInput) {
+  createBooking(@Arg("input") input: CreateBookingInput) {
     return this.calSchedulerService.createBooking(input)
   }
 
@@ -59,7 +57,7 @@ export default class SchedulerResolver {
 
   @Authorized([Role.Practitioner, Role.Admin, Role.HealthCoach])
   @Mutation(() => BookingResponse)
-  updateBooking(@Arg("input") input: BookingInput) {
+  updateBooking(@Arg("input") input: UpdateBookingInput) {
     return this.calSchedulerService.updateBooking(input)
   }
 
