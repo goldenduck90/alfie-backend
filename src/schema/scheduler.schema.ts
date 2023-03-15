@@ -6,20 +6,33 @@ enum Status {
   CANCELLED = "CANCELLED",
   REJECTED = "REJECTED",
 }
+enum CustomInputType {
+  TEXT = "TEXT",
+  TEXTLONG = "TEXTLONG",
+  NUMBER = "NUMBER",
+  BOOL = "BOOL",
+  RADIO = "RADIO",
+  PHONE = "PHONE",
+}
+
+registerEnumType(CustomInputType, {
+  name: "CustomInputType",
+})
 registerEnumType(Status, {
   name: "Status",
 })
 
+@InputType()
 @ObjectType()
 export class Attendee {
-  @Field(() => String, { nullable: true })
+  @Field(() => String)
   name: string
-  @Field(() => String, { nullable: true })
+  @Field(() => String)
   email: string
-  @Field(() => String, { nullable: true })
+  @Field(() => String)
   timeZone: string
   @Field(() => String, { nullable: true })
-  locale: string
+  locale?: string
 }
 
 @ObjectType()
@@ -34,37 +47,27 @@ export class CalTimeslot {
 
 @ObjectType()
 export class Availability {
-  @Field(() => Number, { nullable: true })
+  @Field(() => Number)
   id: number
-  @Field(() => Number, { nullable: true })
+  @Field(() => Number)
   eventTypeId: number
-  @Field(() => [Number], { nullable: true })
+  @Field(() => [Number])
   days: number[]
-  @Field(() => String, { nullable: true })
+  @Field(() => String)
   startTime: string
-  @Field(() => String, { nullable: true })
+  @Field(() => String)
   endTime: string
 }
 
-ObjectType()
-enum CustomInputType {
-  TEXT = "TEXT",
-  TEXTLONG = "TEXTLONG",
-  NUMBER = "NUMBER",
-  BOOL = "BOOL",
-  RADIO = "RADIO",
-  PHONE = "PHONE",
-}
-
-ObjectType()
-export class CustomOptions {
+@InputType()
+export class Options {
   @Field(() => String, { nullable: true })
   label: string
   @Field(() => String, { nullable: true })
   type: string
 }
 
-ObjectType()
+@InputType()
 export class CustomInput {
   @Field(() => Number)
   eventTypeId: number
@@ -72,21 +75,54 @@ export class CustomInput {
   label: string
   @Field(() => CustomInputType)
   type: CustomInputType
-  @Field(() => CustomOptions)
-  options: CustomOptions
+  @Field(() => Options, { nullable: true })
+  options: Options
   @Field(() => Boolean)
   required: boolean
   @Field(() => String)
   placeholder: string
 }
 
-@InputType()
 @ObjectType()
+export class CalUser {
+  @Field(() => String, { nullable: true })
+  email?: string
+  @Field(() => String, { nullable: true })
+  username?: string
+  @Field(() => String, { nullable: true })
+  timeZone?: string
+}
+
+@ObjectType()
+export class EventType {
+  @Field(() => Number, { nullable: true })
+  length: number
+  @Field(() => Number, { nullable: true })
+  beforeEventBuffer?: number
+  @Field(() => Number, { nullable: true })
+  afterEventBuffer?: number
+  @Field(() => Number, { nullable: true })
+  minimumBookingNotice?: number
+}
+
+@ObjectType()
+export class EventBusyDetails {
+  @Field(() => String)
+  start: string
+  @Field(() => String)
+  end: string
+  @Field(() => String)
+  title: string
+  @Field(() => String, { nullable: true })
+  source?: string | null
+}
+
+@InputType()
 export class BookingInput {
   @Field(() => Number)
   id?: number
   @Field(() => String)
-  title: string
+  title?: string
   @Field(() => String)
   startTime: string
   @Field(() => String)
@@ -97,48 +133,46 @@ export class BookingInput {
   eventTypeSlug: number
   @Field(() => [CustomInput])
   customInput: CustomInput[]
-  @Field(() => String, { nullable: true })
-  recurringEventId: number
-  @Field(() => String, { nullable: true })
-  description: string
-  @Field(() => String, { nullable: true })
-  notes: string
+  @Field(() => String)
+  recurringEventId?: number
+  @Field(() => String)
+  description?: string
+  @Field(() => String)
+  notes?: string
   @Field(() => Status)
-  status: Status
-  @Field(() => String, { nullable: true })
+  status?: Status
+  @Field(() => String)
   user: CalUser
+  @Field(() => String)
+  location?: string
   @Field(() => String, { nullable: true })
-  location: string
+  language?: string
   @Field(() => String, { nullable: true })
-  language: string
-  @Field(() => String, { nullable: true })
-  smsReminderNumber: string
+  smsReminderNumber?: string
   @Field(() => Boolean)
-  hasHashedBookingLink: boolean
+  hasHashedBookingLink?: boolean
   @Field(() => String, { nullable: true })
-  hashedLink: string
+  hashedLink?: string
   @Field(() => Attendee)
-  attendees: Attendee[]
+  attendees?: Attendee[]
 }
 
 @ObjectType()
 export class BookingResponse {
-  @Field(() => Number)
+  @Field(() => Number, { nullable: true })
   id: number
-  @Field(() => String)
+  @Field(() => String, { nullable: true })
   uid: string
-  @Field(() => Number)
+  @Field(() => Number, { nullable: true })
   userId: number
-  @Field(() => String)
+  @Field(() => String, { nullable: true })
   title: string
-  @Field(() => String)
+  @Field(() => String, { nullable: true })
   startTime: string
-  @Field(() => String)
+  @Field(() => String, { nullable: true })
   endTime: string
-  @Field(() => Number)
+  @Field(() => Number, { nullable: true })
   eventTypeId: number
-  @Field(() => [CustomInput])
-  customInput: CustomInput[]
   @Field(() => String, { nullable: true })
   recurringEventId: number
   @Field(() => String, { nullable: true })
@@ -157,11 +191,11 @@ export class BookingResponse {
   rejectionReason: string
   @Field(() => String, { nullable: true })
   description: string
-  @Field(() => Status)
+  @Field(() => Status, { nullable: true })
   status: Status
-  @Field(() => Boolean)
+  @Field(() => Boolean, { nullable: true })
   paid: boolean
-  @Field(() => CalUser)
+  @Field(() => CalUser, { nullable: true })
   user: CalUser
   @Field(() => String, { nullable: true })
   location: string
@@ -169,49 +203,10 @@ export class BookingResponse {
   language: string
   @Field(() => String, { nullable: true })
   smsReminderNumber: string
-  @Field(() => Boolean)
+  @Field(() => Boolean, { nullable: true })
   hasHashedBookingLink: boolean
   @Field(() => String, { nullable: true })
   hashedLink: string
-  @Field(() => Attendee)
-  attendees: Attendee[]
-}
-
-@ObjectType()
-export class EventType {
-  @Field(() => Number, { nullable: true })
-  length: number
-  @Field(() => Number, { nullable: true })
-  beforeEventBuffer: number
-  @Field(() => Number, { nullable: true })
-  afterEventBuffer: number
-  @Field(() => Number, { nullable: true })
-  minimumBookingNotice: number
-}
-@ObjectType()
-export class Schedule {
-  @Field(() => Number)
-  id: number
-  @Field(() => Number)
-  userId: number
-  @Field(() => String)
-  name: string
-  @Field(() => String, { nullable: true })
-  timeZone: string
-  @Field(() => [Availability], { nullable: true })
-  availability: Availability
-}
-
-@ObjectType()
-export class EventBusyDetails {
-  @Field(() => String, { nullable: true })
-  start: string
-  @Field(() => String, { nullable: true })
-  end: string
-  @Field(() => String, { nullable: true })
-  title?: string
-  @Field(() => String, { nullable: true })
-  source?: string | null
 }
 
 @InputType()
@@ -225,6 +220,7 @@ export class ScheduleAvailability {
   @Field(() => String)
   endTime: string
 }
+
 @InputType()
 export class ProviderAvailabilityInput {
   @Field(() => String)
@@ -241,20 +237,10 @@ export class ProviderAvailabilityInput {
 export class CalAvailability {
   @Field(() => [CalTimeslot], { nullable: true })
   availabilities: CalTimeslot[]
-  @Field(() => [EventBusyDetails], { nullable: true })
+  @Field(() => [EventBusyDetails])
   busy: EventBusyDetails[]
-  @Field(() => String, { nullable: true })
-  timeZone?: string
-  @Field(() => Number, { nullable: true })
-  minimumBookingNotice?: number
-}
-
-@ObjectType()
-export class CalUser {
   @Field(() => String)
-  email: string
-  @Field(() => String)
-  username?: string
-  @Field(() => String)
-  timeZone?: string
+  timeZone: string
+  @Field(() => Number)
+  minimumBookingNotice: number
 }

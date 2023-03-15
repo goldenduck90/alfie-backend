@@ -38,25 +38,40 @@ class SchedulerService {
       startTime,
       endTime,
     }
-    const { data } = await this.axios.post(
-      `/v1/availabilities?apiKey=${process.env.CAL_API_KEY}`,
-      payload
-    )
-    return data
+    try {
+      const { data } = await this.axios.post(
+        `/v1/availabilities?apiKey=${process.env.CAL_API_KEY}`,
+        payload
+      )
+      return data
+    } catch (err) {
+      Sentry.captureException(err)
+      throw new ApolloError(err.message, "ERROR")
+    }
   }
 
   async getScheduleAvailabilityById(id: number): Promise<any> {
-    const { data } = await this.axios.post(
-      `/v1/availabilities/${id}?apiKey=${process.env.CAL_API_KEY}`
-    )
-    return data
+    try {
+      const { data } = await this.axios.post(
+        `/v1/availabilities/${id}?apiKey=${process.env.CAL_API_KEY}`
+      )
+      return data
+    } catch (err) {
+      Sentry.captureException(err)
+      throw new ApolloError(err.message, "ERROR")
+    }
   }
 
   async updateScheduleAvailability(id: number): Promise<any> {
-    const { data } = await this.axios.post(
-      `/v1/availabilities/${id}?apiKey=${process.env.CAL_API_KEY}`
-    )
-    return data
+    try {
+      const { data } = await this.axios.post(
+        `/v1/availabilities/${id}?apiKey=${process.env.CAL_API_KEY}`
+      )
+      return data
+    } catch (err) {
+      Sentry.captureException(err)
+      throw new ApolloError(err.message, "ERROR")
+    }
   }
 
   async getProviderAvailability(
@@ -96,13 +111,13 @@ class SchedulerService {
       )
 
       // provider availability
-      const availabilities = data.availabilities
-      const busy = data.busy
-      const minimumBookingNotice = data.minimumBookingNotice
+      const { availabilities, busy, minimumBookingNotice } = data
+
       return {
         availabilities,
         busy,
         minimumBookingNotice,
+        timeZone,
       }
     } catch (err) {
       Sentry.captureException(err)
@@ -110,29 +125,44 @@ class SchedulerService {
     }
   }
 
-  async createBooking(booking: BookingInput): Promise<BookingResponse> {
+  async createBooking(booking: BookingInput) {
     const payload = booking
-    const { data } = await this.axios.post(
-      `/v1/bookings?apiKey=${process.env.CAL_API_KEY}`,
-      payload
-    )
-    return data
+    try {
+      const { data } = await this.axios.post(
+        `/v1/bookings?apiKey=${process.env.CAL_API_KEY}`,
+        payload
+      )
+      return data
+    } catch (err) {
+      Sentry.captureException(err)
+      throw new ApolloError(err.message, "ERROR")
+    }
   }
 
-  async updateBooking(booking: BookingInput): Promise<BookingResponse> {
+  async updateBooking(booking: BookingInput) {
     const payload = booking
-    const { data } = await this.axios.patch(
-      `/v1/bookings/${booking.id}?apiKey=${process.env.CAL_API_KEY}`,
-      payload
-    )
-    return data
+    try {
+      const { data } = await this.axios.patch(
+        `/v1/bookings/${booking.id}?apiKey=${process.env.CAL_API_KEY}`,
+        payload
+      )
+      return data
+    } catch (err) {
+      Sentry.captureException(err)
+      throw new ApolloError(err.message, "ERROR")
+    }
   }
 
-  async deleteBooking(id: number): Promise<BookingResponse> {
-    const { data } = await this.axios.delete(
-      `/v1/bookings/${id}/cancel?apiKey=${process.env.CAL_API_KEY}`
-    )
-    return data
+  async deleteBooking(id: number) {
+    try {
+      const { data } = await this.axios.delete(
+        `/v1/bookings/${id}/cancel?apiKey=${process.env.CAL_API_KEY}`
+      )
+      return data
+    } catch (err) {
+      Sentry.captureException(err)
+      throw new ApolloError(err.message, "ERROR")
+    }
   }
 
   async getUsers() {
