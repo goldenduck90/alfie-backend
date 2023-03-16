@@ -36,13 +36,19 @@ const createSendBirdUser = async (
   profile_url: string,
   profile_file: string
 ) => {
-  const { status, data: existingData } = await sendBirdInstance.get(
-    `/v3/users/${user_id}`
-  )
-  if (status === 200 && existingData?.user_id) {
-    return existingData
+  // check if user exists
+  try {
+    const { status, data: existingData } = await sendBirdInstance.get(
+      `/v3/users/${user_id}`
+    )
+    if (status === 200 && existingData?.user_id) {
+      return existingData
+    }
+  } catch (e) {
+    console.log("No user found, moving on...")
   }
 
+  // if not create user
   try {
     const { data } = await sendBirdInstance.post("/v3/users", {
       user_id,
