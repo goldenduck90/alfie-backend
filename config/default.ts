@@ -188,4 +188,5 @@ export default {
     labCorpAccountNumber: "31196710",
     labCorpOrganizationId: "f-e20f61500ba128d340068ff6",
   },
+  sendBirdBotId: "ALFIE_BOT",
 }

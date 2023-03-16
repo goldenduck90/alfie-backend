@@ -7,6 +7,8 @@ export default {
     "http://develop.platform.joinalfie.com.s3-website-us-east-1.amazonaws.com",
   easyAppointmentsApiUrl:
     "http://develop-ea.us-east-1.elasticbeanstalk.com/index.php/api/v1",
+  sendBirdApiUrl:
+    "https://api-D804CA81-FB1D-4078-8A98-B31AE451EAF9.sendbird.com",
   defaultPriceId: "price_1KMviXDOjl0X0gOq9Pk7gRFE",
   dynamoDb: {
     emailSubscribersTable: "develop-platform-email-subscribers",

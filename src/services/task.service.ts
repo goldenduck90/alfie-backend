@@ -12,7 +12,7 @@ import {
   GetUserTasksInput,
   UpdateUserTaskInput,
   UserTask,
-  UserTaskModel
+  UserTaskModel,
 } from "../schema/task.user.schema"
 import { UserModel } from "../schema/user.schema"
 import AkuteService from "./akute.service"
@@ -292,6 +292,7 @@ class TaskService extends EmailService {
       }))
     } catch (error) {
       console.log(error, "error in bulkAssignTasksToUser")
+      Sentry.captureException(error)
     }
   }
 

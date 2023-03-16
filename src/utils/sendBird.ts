@@ -1,9 +1,10 @@
 import * as Sentry from "@sentry/node"
 import axios from "axios"
+import config from "config"
 import { UserModel } from "./../schema/user.schema"
 
 const sendBirdInstance = axios.create({
-  baseURL: process.env.SEND_BIRD_API_URL,
+  baseURL: config.get("sendBirdApiUrl"),
   headers: {
     "Content-Type": "application/ json; charset = utf8",
     "Api-Token": process.env.SENDBIRD_API_TOKEN,
@@ -42,7 +43,7 @@ const createSendBirdUser = async (
       `/v3/users/${user_id}`
     )
     if (status === 200 && existingData?.user_id) {
-      return existingData
+      return existingData.user_id
     }
   } catch (e) {
     console.log("No user found, moving on...")
@@ -56,7 +57,7 @@ const createSendBirdUser = async (
       profile_url,
       profile_file,
     })
-    return data
+    return data.user_id
   } catch (error) {
     Sentry.captureException(error)
   }
@@ -67,16 +68,44 @@ const createSendBirdUser = async (
  * @returns a channel object and the full response object can be found here: https://sendbird.com/docs/chat/v3/platform-api/channel/creating-a-channel/create-a-group-channel#2-responses
  */
 
-const createSendBirdChannelForNewUser = async (user_id: string) => {
+const createSendBirdChannelForNewUser = async (
+  user_id: string,
+  nickname: string
+) => {
+  // check if channel exists
   try {
-    return await sendBirdInstance.post("/v3/group_channels", {
-      name: "Alfie Chat",
+    const { data } = await sendBirdInstance.get(
+      `/v3/group_channels?members_include_in=${user_id}`
+    )
+
+    if (data.channels.length !== 0) {
+      return data.channels[0].channel_url
+    } else {
+      console.log("No channel found for user, moving on to create channel...")
+    }
+  } catch (e) {
+    console.log(
+      e,
+      "error in createSendBirdChannelForNewUser when fetching existing channels"
+    )
+    Sentry.captureException(e)
+  }
+
+  // if channel doesnt exist create it
+  try {
+    const { data } = await sendBirdInstance.post("/v3/group_channels", {
+      name: `${nickname} - ${user_id}`,
       custom_type: "Alfie Chat",
       is_distinct: false,
       user_ids: [user_id],
     })
+
+    return data.channel_url
   } catch (error) {
-    // console.log(error, "error in createSendBirdChannelForNewUser")
+    console.log(
+      error,
+      "error in createSendBirdChannelForNewUser when creating new channels"
+    )
     Sentry.captureException(error)
   }
 }
@@ -92,31 +121,40 @@ const inviteUserToChannel = async (
   user_id: string,
   provider: string
 ) => {
+  const sendBirdBotId = config.get("sendBirdBotId") as string
+
+  const user_ids = [provider, sendBirdBotId]
+
+  if (process.env.NODE_ENV === "production") {
+    // Gabrielle H is the first ID then Alex then rohit
+    user_ids.push("63b85fa8ab80d27bb1af6d43")
+    user_ids.push("639ba07cb937527a0c43484e")
+    user_ids.push("639b9a70b937527a0c43484c")
+  }
+
   try {
     const { data } = await sendBirdInstance.post(
       `/v3/group_channels/${channel_url}/invite`,
       {
-        user_ids: [
-          user_id,
-          provider,
-          "63b85fa8ab80d27bb1af6d43",
-          "639ba07cb937527a0c43484e",
-          "639b9a70b937527a0c43484c",
-        ], // Gabrielle H is the first ID then Alex then rohit
+        user_ids,
       }
     )
+
     return data
   } catch (error) {
+    console.log(error, "error in inviteUserToChannel")
     Sentry.captureException(error)
   }
 }
 const sendMessageToChannel = async (channel_url: string, message: string) => {
+  const sendBirdBotId = config.get("sendBirdBotId") as string
+
   try {
     const { data } = await sendBirdInstance.post(
       `/v3/group_channels/${channel_url}/messages`,
       {
         message_type: "MESG",
-        user_id: "639ba07cb937527a0c43484e",
+        user_id: sendBirdBotId,
         message,
       }
     )
@@ -151,19 +189,18 @@ const triggerEntireSendBirdFlow = async ({
     // Batch these in groups of 5 with an interval being every 10 seconds
     await createSendBirdUser(user_id, nickname, profile_url, profile_file)
 
-    const channel = await createSendBirdChannelForNewUser(user_id)
-    await inviteUserToChannel(channel?.data?.channel_url, user_id, provider)
+    const channel_url = await createSendBirdChannelForNewUser(user_id, nickname)
+    await inviteUserToChannel(channel_url, user_id, provider)
+    await sendMessageToChannel(channel_url, "Welcome to Alfie Chat!")
 
-    await sendMessageToChannel(
-      channel?.data?.channel_url,
-      "Welcome to Alfie Chat!"
-    )
-
-    return "Channels created and messages sent!"
+    return true
   } catch (error) {
-    console.log(error, "error")
     Sentry.captureException(error)
-    throw new Error(error)
+    console.log(
+      `An error occured triggering the sendbird flow for user ID: ${user_id}`,
+      error
+    )
+    return false
   }
 }
 
