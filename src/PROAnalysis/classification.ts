@@ -76,6 +76,7 @@ export function classifyUser(
         const activityPercentile = score.percentile.toString().split("th")[0]
         if (!activityPercentile) break
         classifications.push({
+          calculatedPercentile: score.calculatedPercentile,
           classification: "Ember",
           percentile: activityPercentile,
           displayPercentile:
@@ -86,11 +87,20 @@ export function classifyUser(
       case "MP_HUNGER":
         const hungerPercentile1hour = score.percentile1hour
         const hungerPercentile30 = score.percentile30mins
-        if (!hungerPercentile1hour || !hungerPercentile30) break
+        if (!hungerPercentile1hour || !hungerPercentile30) {
+          classifications.push({
+            classification: "Growler",
+            percentile: "0",
+            displayPercentile: "0",
+            date: score.date,
+          })
+        }
         if (Number(hungerPercentile1hour) <= 25) {
           classifications.push({
             classification: "Growler",
             percentile: score.percentile1hour,
+            calculatedPercentile30Mins: score.calculated30minsPercent,
+            calculatedPercentile2Hour: score.calculated1hourPercent,
             displayPercentile:
               Number(hungerPercentile1hour) === 25
                 ? "75"
@@ -109,7 +119,14 @@ export function classifyUser(
         break
       case "AD_LIBITUM":
         const adLibitumPercentile = Number(score.percentile)
-        if (!adLibitumPercentile) break
+        if (!adLibitumPercentile) {
+          classifications.push({
+            classification: "Rover",
+            percentile: "0",
+            displayPercentile: "0",
+            date: score.date,
+          })
+        }
         classifications.push({
           classification: "Rover",
           percentile: score.percentile.toString(),

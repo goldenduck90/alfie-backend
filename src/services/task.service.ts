@@ -12,7 +12,7 @@ import {
   GetUserTasksInput,
   UpdateUserTaskInput,
   UserTask,
-  UserTaskModel
+  UserTaskModel,
 } from "../schema/task.user.schema"
 import { UserModel } from "../schema/user.schema"
 import AkuteService from "./akute.service"
@@ -45,7 +45,7 @@ class TaskService extends EmailService {
 
   async getUserTask(id: string, userId?: string) {
     const { notFound, notPermitted } = config.get("errors.tasks") as any
-    const userTask = await UserTaskModel.findById(id)
+    const userTask = await UserTaskModel.findById(id).populate("task")
     if (!userTask) {
       throw new ApolloError(notFound.message, notFound.code)
     }
@@ -212,7 +212,7 @@ class TaskService extends EmailService {
           const bmi =
             (weight.value / user.heightInInches / user.heightInInches) *
             703.071720346
-          // Add more cases here as needed
+          user.weights.push(weight)
           user.bmi = bmi
           await user.save()
           break
@@ -292,6 +292,7 @@ class TaskService extends EmailService {
       }))
     } catch (error) {
       console.log(error, "error in bulkAssignTasksToUser")
+      Sentry.captureException(error)
     }
   }
 

@@ -2,6 +2,8 @@ export default {
   dbUri: `mongodb+srv://joinalfie_dev_user:${process.env.DB_PASSWORD}@platform-production-clu.wnd0f.mongodb.net/?retryWrites=true&w=majority`,
   baseUrl: "https://app.joinalfie.com",
   easyAppointmentsApiUrl: "https://ea.joinalfie.com/index.php/api/v1",
+  sendBirdApiUrl:
+    "https://api-56D883B9-B30F-428B-8B7A-31184E513DF4.sendbird.com",
   defaultPriceId: "price_1KMv4hDOjl0X0gOqRIWXpGVz",
   s3: {
     patientBucketName: "production-platform-patient-storage",
@@ -16,4 +18,7 @@ export default {
     extension: "101",
   },
   akuteApiUrl: "https://api.akutehealth.com/v1",
+  akute: {
+    labCorpOrganizationId: "f-a855594f43fe879c6570b92e",
+  },
 }
