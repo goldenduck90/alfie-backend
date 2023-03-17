@@ -1,4 +1,5 @@
 import { ApolloError } from "apollo-server"
+import { createSendBirdUser } from "../utils/sendBird"
 import { v4 as uuidv4 } from "uuid"
 import {
   BatchCreateOrUpdateProvidersInput,
@@ -44,8 +45,6 @@ class ProviderService {
 
   async batchCreateOrUpdateProviders(input: BatchCreateOrUpdateProvidersInput) {
     const { providers } = input
-    console.error(input)
-    console.log(providers)
 
     const bulkOps = providers.map((provider) => ({
       updateOne: {
@@ -66,6 +65,19 @@ class ProviderService {
     })
 
     for (const provider of providersCreated) {
+      // create sendbird user
+      const sendBirdId = await createSendBirdUser(
+        provider._id,
+        `${provider.firstName} ${provider.lastName}`,
+        "",
+        ""
+      )
+      if (!sendBirdId) {
+        console.log(
+          `Error occured creating sendbird ID for provider: ${provider._id}`
+        )
+      }
+
       // create email token
       const emailToken = uuidv4()
 

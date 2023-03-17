@@ -160,8 +160,11 @@ function calculateActivityScore(
 ) {
   // The tasks in this category are all activity based tasks so their values for each task are simple numbers
   // For Example: [{"key": "weight", "value": "333", "type": "DATE"}]
-  const lastTaskScore = Number(lastTask.answers[0].value)
-  const currentTaskScore = Number(currentTask.answers[0].value)
+  const lastTaskScore = Number(lastTask?.answers[0]?.value)
+  const currentTaskScore = Number(currentTask?.answers[0]?.value)
+  if (!lastTaskScore || !currentTaskScore) {
+    return {}
+  }
   const score = currentTaskScore - lastTaskScore
   const percentDifferenceBetweenLastAndCurrentTaskScore = getPercentageChange(
     lastTaskScore,
@@ -295,6 +298,9 @@ function calculateHungerScore(
   task: TaskType
 ) {
   // [{"key": "foodEaten", "value": "mushrooms and rice", "type": "STRING"}, {"key": "hungerLevel1Hour", "value": "65", "type": "DATE"}, {"key": "hungerLevel30Mins", "value": "32", "type": "DATE"}]
+  if (!lastTask || !currentTask) {
+    return {}
+  }
   const currentHungerLevel1Hour = Number(
     currentTask.answers.find((answer) => answer.key === "hungerLevel1Hour")
       .value

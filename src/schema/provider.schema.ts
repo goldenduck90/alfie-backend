@@ -1,13 +1,13 @@
-import { Field, ObjectType, InputType, Int } from "type-graphql"
 import {
   getModelForClass,
   index,
   prop,
   queryMethod,
-  ReturnModelType,
+  ReturnModelType
 } from "@typegoose/typegoose"
-import mongoose from "mongoose"
 import { AsQueryMethod } from "@typegoose/typegoose/lib/types"
+import mongoose from "mongoose"
+import { Field, InputType, Int, ObjectType } from "type-graphql"
 import { Role } from "./user.schema"
 
 function findByEmail(

@@ -394,6 +394,10 @@ export class User {
   @prop()
   address: Address
 
+  @Field(() => Number, { nullable: true })
+  @prop()
+  weightGoal: number
+
   @Field(() => [Weight])
   @prop({ default: [], required: true })
   weights: mongoose.Types.Array<Weight>
@@ -470,6 +474,21 @@ export class User {
 export const UserModel = getModelForClass<typeof User, QueryHelpers>(User, {
   schemaOptions: { timestamps: true },
 })
+@InputType()
+export class UpdateUserInput {
+  @Field(() => String)
+  userId: string
+
+  @Field(() => String)
+  stripeCustomerId: string
+
+  @Field(() => String)
+  stripeSubscriptionId: string
+
+  @Field(() => Date)
+  subscriptionExpiresAt: Date
+}
+
 @InputType()
 export class CreateUserInput {
   @Field(() => String)
