@@ -23,6 +23,16 @@ export default {
         message: "You are not permitted to view another patient's task.",
       },
     },
+    provider: {
+      notFound: {
+        code: "NOT_FOUND",
+        message: "Provider not found",
+      },
+      calIdNotFound: {
+        code: "NOT_FOUND",
+        message: "Provider cal id not found",
+      },
+    },
     user: {
       notFound: {
         code: "NOT_FOUND",

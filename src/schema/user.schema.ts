@@ -420,6 +420,10 @@ export class User {
 
   @Field(() => String)
   @prop()
+  calId?: string
+
+  @Field(() => String)
+  @prop()
   stripeCustomerId?: string
 
   @Field(() => String)
