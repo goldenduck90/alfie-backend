@@ -17,7 +17,7 @@ class SchedulerService {
   public axios: AxiosInstance
 
   constructor() {
-    this.baseUrl = "http://localhost:3002"
+    this.baseUrl = config.get("calApiUrl")
     this.axios = axios.create({
       baseURL: this.baseUrl,
       headers: {
