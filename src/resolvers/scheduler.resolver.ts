@@ -27,7 +27,7 @@ export default class SchedulerResolver {
       context.user.email,
       input.dateFrom,
       input.dateTo,
-      context.user.timezone
+      context.user.timezone || input.timezone
     )
   }
 

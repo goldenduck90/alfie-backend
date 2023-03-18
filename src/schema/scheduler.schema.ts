@@ -263,8 +263,6 @@ export class ScheduleAvailability {
 
 @InputType()
 export class ProviderAvailabilityInput {
-  @Field(() => String)
-  email?: string
   @Field(() => String, { nullable: true })
   dateFrom?: string
   @Field(() => String, { nullable: true })
@@ -280,7 +278,5 @@ export class CalAvailability {
   @Field(() => [EventBusyDetails])
   busy: EventBusyDetails[]
   @Field(() => String)
-  timeZone: string
-  @Field(() => Number)
-  minimumBookingNotice: number
+  timeZone?: string
 }

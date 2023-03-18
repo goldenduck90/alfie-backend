@@ -4,7 +4,6 @@ import axios, { AxiosInstance } from "axios"
 import config from "config"
 import {
   CreateBookingInput,
-  BookingResponse,
   CalAvailability,
   ScheduleAvailability,
   UpdateBookingInput,
@@ -41,7 +40,7 @@ class SchedulerService {
     }
     try {
       const { data } = await this.axios.post(
-        `/v1/availabilities?apiKey=${process.env.CAL_API_KEY}`,
+        `/availabilities&apiKey=${process.env.CAL_API_KEY}`,
         payload
       )
       return data
@@ -54,7 +53,7 @@ class SchedulerService {
   async getScheduleAvailabilityById(id: number): Promise<any> {
     try {
       const { data } = await this.axios.post(
-        `/v1/availabilities/${id}?apiKey=${process.env.CAL_API_KEY}`
+        `/availabilities/${id}&apiKey=${process.env.CAL_API_KEY}`
       )
       return data
     } catch (err) {
@@ -66,7 +65,7 @@ class SchedulerService {
   async updateScheduleAvailability(id: number): Promise<any> {
     try {
       const { data } = await this.axios.post(
-        `/v1/availabilities/${id}?apiKey=${process.env.CAL_API_KEY}`
+        `/availabilities/${id}&apiKey=${process.env.CAL_API_KEY}`
       )
       return data
     } catch (err) {
@@ -79,45 +78,47 @@ class SchedulerService {
     email: string,
     dateFrom: string,
     dateTo: string,
-    timeZone: string
+    timezone: string
   ): Promise<CalAvailability> {
     const { notFound, calIdNotFound } = config.get("errors.provider") as any
     const provider = await ProviderModel.find().findByEmail(email).lean()
     if (!provider) {
       throw new ApolloError(notFound.message, notFound.code)
     }
-    if (!provider.calId) {
-      throw new ApolloError(calIdNotFound.message, calIdNotFound.code)
-    }
+    // TODO: uncomment once providers have their calIds set
+    // if (!provider.calId) {
+    //   throw new ApolloError(calIdNotFound.message, calIdNotFound.code)
+    // }
 
     try {
-      const { data: userData } = await this.axios.get(
-        `/v1/users${provider.calId}?apiKey=${process.env.CAL_API_KEY}`
-      )
+      // TODO: 401 here and is supposed to be called by an admin but works in postman
+      // const usersUrl = `/users/${provider.calId || 1}&apiKey=${
+      //   process.env.CAL_API_KEY
+      // }`
+      // const { data: userData } = await this.axios.get(usersUrl)
 
-      if (!userData?.defaultScheduleId) {
-        throw new ApolloError("Default schedule id not found", "NOT_FOUND")
-      }
+      // if (!userData?.defaultScheduleId) {
+      //   throw new ApolloError("Default schedule id not found", "NOT_FOUND")
+      // }
+
       const today = dayjs()
       const tomorrow = today.add(1, "day")
       const todayString = today.format("YYYY-MM-DD")
       const tomorrowString = tomorrow.format("YYYY-MM-DD")
+      const userId = 1 // use from userData above once uncommented
 
-      const { data } = await this.axios.get(
-        `/availability?userId=${provider.calId || 1}&dateFrom=${
-          dateFrom || todayString
-        }&eventTypeId=1&timeZone=${timeZone}&dateTo=${
-          dateTo || tomorrowString
-        }?apiKey=${process.env.CAL_API_KEY}`
-      )
+      const url = `/availability?userId=${userId}&eventTypeId=1&timeZone=${timezone}&dateFrom=${
+        dateFrom || todayString
+      }&dateTo=${dateTo || tomorrowString}&apiKey=${process.env.CAL_API_KEY}`
+
+      const { data } = await this.axios.get(url)
 
       // provider availability
-      const { availabilities, busy, minimumBookingNotice } = data
+      const { availabilities, busy, timeZone } = data
 
       return {
         availabilities,
         busy,
-        minimumBookingNotice,
         timeZone,
       }
     } catch (err) {
@@ -130,7 +131,7 @@ class SchedulerService {
     const payload = booking
     try {
       const { data } = await this.axios.post(
-        `/v1/bookings?apiKey=${process.env.CAL_API_KEY}`,
+        `/bookings&apiKey=${process.env.CAL_API_KEY}`,
         payload
       )
       return data
@@ -144,7 +145,7 @@ class SchedulerService {
     const payload = booking
     try {
       const { data } = await this.axios.patch(
-        `/v1/bookings/${booking.id}?apiKey=${process.env.CAL_API_KEY}`,
+        `/bookings/${booking.id}&apiKey=${process.env.CAL_API_KEY}`,
         payload
       )
       return data
@@ -157,7 +158,7 @@ class SchedulerService {
   async deleteBooking(id: number) {
     try {
       const { data } = await this.axios.delete(
-        `/v1/bookings/${id}/cancel?apiKey=${process.env.CAL_API_KEY}`
+        `/bookings/${id}/cancel&apiKey=${process.env.CAL_API_KEY}`
       )
       return data
     } catch (err) {
@@ -169,7 +170,7 @@ class SchedulerService {
   async getUsers() {
     try {
       const { data } = await this.axios.get(
-        `/users?apiKey=${process.env.CAL_API_KEY}`
+        `/users&apiKey=${process.env.CAL_API_KEY}`
       )
       return data
     } catch (error) {
