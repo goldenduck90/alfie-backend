@@ -4,8 +4,7 @@ import axios, { AxiosInstance } from "axios"
 import config from "config"
 import { format } from "date-fns"
 import {
-  PharmacyLocationInput,
-  CreateLabOrderResponse,
+  CreateLabOrderResponse, PharmacyLocationInput
 } from "../schema/akute.schema"
 import { CreatePatientInput, UserModel } from "../schema/user.schema"
 class AkuteService {
@@ -13,7 +12,7 @@ class AkuteService {
   public axios: AxiosInstance
 
   constructor() {
-    this.baseUrl = config.get("akuteApiUrl")
+    this.baseUrl = "https://api.akutehealth.com/v1"
     this.axios = axios.create({
       baseURL: this.baseUrl,
       headers: {
