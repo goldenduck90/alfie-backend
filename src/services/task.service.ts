@@ -12,7 +12,7 @@ import {
   GetUserTasksInput,
   UpdateUserTaskInput,
   UserTask,
-  UserTaskModel,
+  UserTaskModel
 } from "../schema/task.user.schema"
 import { UserModel } from "../schema/user.schema"
 import AkuteService from "./akute.service"
@@ -130,11 +130,14 @@ class TaskService extends EmailService {
       // Get the user task, throw an error if it is not found
       const { notFound } = config.get("errors.tasks") as any
       const { _id, answers } = input
+      console.log("input", input)
+      console.log("answers", answers)
       const userTask = await UserTaskModel.findById(_id)
       if (!userTask) {
         throw new ApolloError(notFound.message, notFound.code)
       }
 
+      console.log("userTask", userTask)
       // Get the user and task documents
       const user = await UserModel.findById(userTask.user)
       const task = await TaskModel.findById(userTask.task)
@@ -155,7 +158,7 @@ class TaskService extends EmailService {
       })
         .sort({ createdAt: -1 })
         .skip(1)
-      if (lastTask) {
+      if (lastTask && task.type !== TaskType.NEW_PATIENT_INTAKE_FORM) {
         const score = calculateScore(lastTask, userTask, task.type)
         // push score to user score array
         if (score !== null) {
@@ -226,6 +229,7 @@ class TaskService extends EmailService {
         ...userTask.toObject(),
       }
     } catch (error) {
+      console.log(error, "error")
       console.error(error)
       Sentry.captureException(error)
       throw error

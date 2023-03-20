@@ -4,8 +4,7 @@ import axios, { AxiosInstance } from "axios"
 import config from "config"
 import { format } from "date-fns"
 import {
-  PharmacyLocationInput,
-  CreateLabOrderResponse,
+  CreateLabOrderResponse, PharmacyLocationInput
 } from "../schema/akute.schema"
 import { CreatePatientInput, UserModel } from "../schema/user.schema"
 class AkuteService {
