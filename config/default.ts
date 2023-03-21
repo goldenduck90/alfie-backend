@@ -170,7 +170,7 @@ export default {
   },
   emails: {
     forgotPassword: {
-      path: "forgot-password",
+      path: "reset-password",
       subject: "Reset your password",
     },
     completeRegistration: {
