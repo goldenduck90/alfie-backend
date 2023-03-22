@@ -31,8 +31,8 @@ export default class AppointmentResolver {
     Role.Nutritionist,
   ])
   @Query(() => TimeslotsResponse)
-  timeslots(@Arg("input") input: GetTimeslotsInput) {
-    return this.appointmentService.getTimeslots(input)
+  timeslots(@Ctx() context: Context, @Arg("input") input: GetTimeslotsInput) {
+    return this.appointmentService.getTimeslots(context.user, input)
   }
 
   @Authorized([
@@ -104,6 +104,19 @@ export default class AppointmentResolver {
     Role.HealthCoach,
     Role.Nutritionist,
   ])
+  @Mutation(() => EAAppointment)
+  updateAppointment(@Arg("input") input: UpdateAppointmentInput) {
+    return this.appointmentService.updateAppointment(input)
+  }
+
+  @Authorized([
+    Role.Patient,
+    Role.Practitioner,
+    Role.Doctor,
+    Role.CareCoordinator,
+    Role.HealthCoach,
+    Role.Nutritionist,
+  ])
   @Mutation(() => MessageResponse)
   cancelAppointment(@Arg("eaAppointmentId") eaAppointmentId: string) {
     return this.appointmentService.cancelAppointment(eaAppointmentId)
@@ -144,21 +157,5 @@ export default class AppointmentResolver {
     @Arg("input") input: CreateAppointmentInput
   ) {
     return this.appointmentService.createAppointment(context.user, input)
-  }
-
-  @Authorized([
-    Role.Patient,
-    Role.Practitioner,
-    Role.Doctor,
-    Role.CareCoordinator,
-    Role.HealthCoach,
-    Role.Nutritionist,
-  ])
-  @Mutation(() => EAAppointment)
-  updateAppointment(
-    @Ctx() context: Context,
-    @Arg("input") input: UpdateAppointmentInput
-  ) {
-    return this.appointmentService.updateAppointment(context.user, input)
   }
 }
