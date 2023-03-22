@@ -170,11 +170,11 @@ export default {
   },
   emails: {
     forgotPassword: {
-      path: "forgot-password",
+      path: "reset-password",
       subject: "Reset your password",
     },
     completeRegistration: {
-      path: "signup/password",
+      path: "reset-password",
       subject: "Complete your Alfie registration",
     },
     taskAssigned: {

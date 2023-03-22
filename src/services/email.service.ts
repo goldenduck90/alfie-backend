@@ -27,7 +27,7 @@ class EmailService {
     provider?: boolean
   }) {
     const { path, subject } = config.get("emails.forgotPassword") as any
-    const url = `${this.baseUrl}/${path}/${token}?provider=${provider}`
+    const url = `${this.baseUrl}/${path}?token=${token}&provider=${provider}`
 
     const params = {
       Source: this.noReplyEmail,
@@ -67,7 +67,7 @@ class EmailService {
   }) {
     try {
       const { path } = config.get("emails.completeRegistration") as any
-      const url = `${this.baseUrl}/${path}/${token}?provider=${provider}`
+      const url = `${this.baseUrl}/${path}?${token}&provider=${provider}`
       console.log(
         {
           email,
@@ -108,7 +108,7 @@ class EmailService {
     manual?: boolean
   }) {
     const { path, subject } = config.get("emails.completeRegistration") as any
-    const url = `${this.baseUrl}/${path}/${token}?provider=${provider}`
+    const url = `${this.baseUrl}/${path}?${token}&provider=${provider}`
 
     // TODO: change email content based on manual flag
     console.log(manual)
@@ -157,10 +157,9 @@ class EmailService {
       Hello,<br/><br/>
       
       You have been assigned a task: ${taskName}.<br/>
-      ${
-        dueAt
-          ? `It is due on ${format(dueAt, "MM/dd/yyyy @ h:mm a")}.<br/><br/>`
-          : "<br/>"
+      ${dueAt
+        ? `It is due on ${format(dueAt, "MM/dd/yyyy @ h:mm a")}.<br/><br/>`
+        : "<br/>"
       }
 
       Please click the link below to complete the task:<br/>
