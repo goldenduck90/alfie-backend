@@ -2,7 +2,6 @@ import * as Sentry from "@sentry/node"
 import { ApolloError } from "apollo-server"
 import axios, { AxiosInstance } from "axios"
 import config from "config"
-import { formatInTimeZone } from "date-fns-tz"
 import { ProviderModel } from "../schema/provider.schema"
 import Context from "../types/context"
 import { IEAProvider } from "../@types/easyAppointmentTypes"
@@ -100,27 +99,90 @@ class AppointmentService {
     }
   }
 
-  async getTimeslots(input: GetTimeslotsInput) {
+  async getTimeslots(user: Context["user"], input: GetTimeslotsInput) {
     try {
-      const { eaProviderId, selectedDate, timezone, bypassNotice } = input
+      const { selectedDate, timezone, bypassNotice, appointmentId, userId } =
+        input
+      const { notFound, noEaCustomerId } = config.get("errors.user") as any
+
+      let eaProviderId
+      if (!bypassNotice) {
+        const _user = await UserModel.findById(user._id).lean()
+        if (!_user) {
+          throw new ApolloError(notFound.message, notFound.code)
+        }
+
+        if (!_user.eaCustomerId) {
+          throw new ApolloError(noEaCustomerId.message, noEaCustomerId.code)
+        }
+
+        const provider = await ProviderModel.findById(_user.provider).lean()
+        if (!provider) {
+          throw new ApolloError(notFound.message, notFound.code)
+        }
+
+        if (!provider.eaProviderId) {
+          throw new ApolloError(noEaCustomerId.message, noEaCustomerId.code)
+        }
+
+        eaProviderId = provider.eaProviderId
+      } else {
+        const provider = await ProviderModel.findById(user._id).lean()
+        if (!provider) {
+          throw new ApolloError(notFound.message, notFound.code)
+        }
+
+        if (!provider.eaProviderId) {
+          throw new ApolloError(noEaCustomerId.message, noEaCustomerId.code)
+        }
+
+        eaProviderId = provider.eaProviderId
+      }
+
+      let eaCustomer = {
+        id: "",
+        name: "",
+        email: "",
+      }
+
+      if (userId) {
+        const _user = await UserModel.findById(user._id).lean()
+        if (!_user) {
+          throw new ApolloError(notFound.message, notFound.code)
+        }
+
+        if (!_user.eaCustomerId) {
+          throw new ApolloError(noEaCustomerId.message, noEaCustomerId.code)
+        }
+
+        eaCustomer = {
+          id: _user.eaCustomerId,
+          name: _user.name,
+          email: _user.email,
+        }
+      }
 
       const { data: response } = await this.axios.get("/availabilities", {
         params: {
           eaProviderId: eaProviderId,
           eaServiceId: 1,
-          selectedDate: formatInTimeZone(selectedDate, timezone, "yyyy-MM-dd"),
+          selectedDate,
           timezone,
           bypassNotice,
+          ...(appointmentId && {
+            eaAppointmentId: appointmentId,
+          }),
         },
       })
 
       return {
         total: response.total,
-        selectedDate: formatInTimeZone(selectedDate, timezone, "yyyy-MM-dd"),
+        selectedDate: response.selectedDate,
         timezone,
         eaService: response.eaService,
         eaProvider: response.eaProvider,
         timeslots: response.timeslots,
+        eaCustomer,
       }
     } catch (error) {
       Sentry.captureException(error)
@@ -134,16 +196,8 @@ class AppointmentService {
   ) {
     try {
       const { notFound, noEaCustomerId } = config.get("errors.user") as any
-      const {
-        userId,
-        selectedDate,
-        start,
-        end,
-        timezone,
-        notes,
-        bypassNotice,
-        userTaskId,
-      } = input
+      const { userId, start, end, timezone, notes, bypassNotice, userTaskId } =
+        input
 
       const _user = await UserModel.findById(userId ? userId : user._id).lean()
       if (!_user) {
@@ -171,16 +225,8 @@ class AppointmentService {
       const { data: response } = await this.axios.post(
         `/appointments?bypassNotice=${bypassNotice}`,
         {
-          start: `${formatInTimeZone(
-            selectedDate,
-            timezone,
-            "yyyy-MM-dd"
-          )} ${start}`,
-          end: `${formatInTimeZone(
-            selectedDate,
-            timezone,
-            "yyyy-MM-dd"
-          )} ${end}`,
+          start,
+          end,
           timezone,
           location: meetingData,
           customerId: eaCustomerId,
@@ -228,46 +274,27 @@ class AppointmentService {
           id: response.customer.id,
           name: response.customer.firstName + " " + response.customer.lastName,
           email: response.customer.email,
-          phone: response.phone,
+          phone: response.customer.phone,
         },
       }
     } catch (error) {
+      console.log(error)
       Sentry.captureException(error)
       throw new ApolloError(error.message, "ERROR")
     }
   }
 
-  async updateAppointment(
-    user: Context["user"],
-    input: UpdateAppointmentInput
-  ) {
+  async updateAppointment(input: UpdateAppointmentInput) {
     try {
-      const {
-        eaAppointmentId,
-        selectedDate,
-        start,
-        end,
-        notes,
-        timezone,
-        bypassNotice,
-      } = input
+      const { eaAppointmentId, start, end, notes, timezone, bypassNotice } =
+        input
 
-      const meetingData = await createMeetingAndToken(user._id)
       const { data: response } = await this.axios.put(
         `/appointments/${eaAppointmentId}?bypassNotice=${bypassNotice}`,
         {
-          start: `${formatInTimeZone(
-            selectedDate,
-            timezone,
-            "yyyy-MM-dd"
-          )} ${start}`,
-          end: `${formatInTimeZone(
-            selectedDate,
-            timezone,
-            "yyyy-MM-dd"
-          )} ${end}`,
+          start,
+          end,
           timezone,
-          location: meetingData,
           notes: notes || "",
         }
       )
@@ -295,10 +322,11 @@ class AppointmentService {
           id: response.customer.id,
           name: response.customer.firstName + " " + response.customer.lastName,
           email: response.customer.email,
-          phone: response.phone,
+          phone: response.customer.phone,
         },
       }
     } catch (error) {
+      console.log(error)
       Sentry.captureException(error)
       throw new ApolloError(error.message, "ERROR")
     }
@@ -427,8 +455,8 @@ class AppointmentService {
         eaCustomer: {
           id: response.customer.id,
           name: response.customer.firstName + " " + response.customer.lastName,
-          email: response.email,
-          phone: response.phone,
+          email: response.customer.email,
+          phone: response.customer.phone,
         },
       }))
 
@@ -508,8 +536,8 @@ class AppointmentService {
         eaCustomer: {
           id: response.customer.id,
           name: response.customer.firstName + " " + response.customer.lastName,
-          email: response.email,
-          phone: response.phone,
+          email: response.customer.email,
+          phone: response.customer.phone,
         },
       }))
 
@@ -589,8 +617,8 @@ class AppointmentService {
         eaCustomer: {
           id: response.customer.id,
           name: response.customer.firstName + " " + response.customer.lastName,
-          email: response.email,
-          phone: response.phone,
+          email: response.customer.email,
+          phone: response.customer.phone,
         },
       }))
 

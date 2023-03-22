@@ -67,8 +67,8 @@ export class EACustomer {
 
 @ObjectType()
 export class TimeslotsResponse {
-  @Field(() => Date)
-  selectedDate: Date
+  @Field(() => String)
+  selectedDate: string
 
   @Field(() => Number)
   total: number
@@ -81,6 +81,9 @@ export class TimeslotsResponse {
 
   @Field(() => EAProvider)
   eaProvider: EAProvider
+
+  @Field(() => EACustomer, { nullable: true })
+  eaCustomer?: boolean
 
   @Field(() => [Timeslot])
   timeslots: Timeslot[]
@@ -98,16 +101,19 @@ export class Timeslot {
 @InputType()
 export class GetTimeslotsInput {
   @Field(() => String)
-  eaProviderId: string
-
-  @Field(() => Date)
-  selectedDate: Date
+  selectedDate: string
 
   @Field(() => String)
   timezone: string
 
+  @Field(() => String, { nullable: true })
+  appointmentId?: string
+
   @Field(() => Boolean, { defaultValue: false })
   bypassNotice: boolean
+
+  @Field(() => String, { nullable: true })
+  userId?: string
 }
 
 @InputType()
@@ -163,9 +169,6 @@ export class CreateAppointmentInput {
   @Field(() => String)
   timezone: string
 
-  @Field(() => Date)
-  selectedDate: Date
-
   @Field(() => Boolean, { defaultValue: false })
   bypassNotice: boolean
 
@@ -186,9 +189,6 @@ export class UpdateAppointmentInput {
 
   @Field(() => String)
   end: string
-
-  @Field(() => Date)
-  selectedDate: Date
 
   @Field(() => String)
   timezone: string
@@ -211,8 +211,8 @@ export class GetAppointmentInput {
 
 @InputType()
 export class UpcomingAppointmentsInput {
-  @Field(() => Date, { nullable: true })
-  selectedDate?: Date
+  @Field(() => String, { nullable: true })
+  selectedDate?: string
 
   @Field(() => String)
   timezone: string
@@ -229,8 +229,8 @@ export class GetAppointmentsByMonthInput {
 
 @InputType()
 export class GetAppointmentsByDateInput {
-  @Field(() => Date)
-  selectedDate: Date
+  @Field(() => String)
+  selectedDate: string
 
   @Field(() => String)
   timezone: string
