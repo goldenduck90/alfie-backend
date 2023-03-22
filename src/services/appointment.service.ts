@@ -228,7 +228,7 @@ class AppointmentService {
           id: response.customer.id,
           name: response.customer.firstName + " " + response.customer.lastName,
           email: response.customer.email,
-          phone: response.phone,
+          phone: response.customer.phone,
         },
       }
     } catch (error) {
@@ -295,7 +295,7 @@ class AppointmentService {
           id: response.customer.id,
           name: response.customer.firstName + " " + response.customer.lastName,
           email: response.customer.email,
-          phone: response.phone,
+          phone: response.customer.phone,
         },
       }
     } catch (error) {
@@ -427,8 +427,8 @@ class AppointmentService {
         eaCustomer: {
           id: response.customer.id,
           name: response.customer.firstName + " " + response.customer.lastName,
-          email: response.email,
-          phone: response.phone,
+          email: response.customer.email,
+          phone: response.customer.phone,
         },
       }))
 
@@ -508,8 +508,8 @@ class AppointmentService {
         eaCustomer: {
           id: response.customer.id,
           name: response.customer.firstName + " " + response.customer.lastName,
-          email: response.email,
-          phone: response.phone,
+          email: response.customer.email,
+          phone: response.customer.phone,
         },
       }))
 
@@ -589,8 +589,8 @@ class AppointmentService {
         eaCustomer: {
           id: response.customer.id,
           name: response.customer.firstName + " " + response.customer.lastName,
-          email: response.email,
-          phone: response.phone,
+          email: response.customer.email,
+          phone: response.customer.phone,
         },
       }))
 
