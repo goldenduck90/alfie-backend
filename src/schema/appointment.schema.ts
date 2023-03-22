@@ -8,18 +8,6 @@ import {
 } from "./../@types/easyAppointmentTypes"
 import { Role } from "./user.schema"
 
-@InputType()
-export class AllTimeslotsInput {
-  @Field(() => Date)
-  selectedDate: Date
-
-  @Field(() => String)
-  eaServiceId: string
-
-  @Field(() => Role, { nullable: true, defaultValue: Role.Practitioner })
-  providerType: Role
-}
-
 @ObjectType()
 export class EAService {
   @Field(() => String)
@@ -38,13 +26,19 @@ export class EAService {
 @ObjectType()
 export class TimeslotsResponse {
   @Field(() => Date)
-  selectedDateInUtc: Date
+  selectedDate: Date
 
   @Field(() => Number)
   total: number
 
+  @Field(() => String)
+  timezone: string
+
   @Field(() => EAService)
   eaService: EAService
+
+  @Field(() => EAProvider)
+  eaProvider: EAProvider
 
   @Field(() => [Timeslot])
   timeslots: Timeslot[]
@@ -67,32 +61,38 @@ export class EAProvider {
   @Field(() => Number, { nullable: true })
   numberOfPatients?: number
 
-  @Field(() => String, { nullable: true })
-  timezone?: string
+  @Field(() => String)
+  timezone: string
+
+  @Field(() => Number)
+  minAdvancedNotice: number
+
+  @Field(() => Number)
+  bufferTime: number
 }
 
 @ObjectType()
 export class Timeslot {
   @Field(() => Date)
-  startTimeInUtc: Date
+  start: Date
 
   @Field(() => Date)
-  endTimeInUtc: Date
-
-  @Field(() => EAProvider)
-  eaProvider: EAProvider
+  end: Date
 }
 
 @InputType()
-export class ProviderTimeslotsInput {
+export class GetTimeslotsInput {
   @Field(() => String)
   eaProviderId: string
 
-  @Field(() => String)
-  eaServiceId: string
-
   @Field(() => Date)
   selectedDate: Date
+
+  @Field(() => String)
+  timezone: string
+
+  @Field(() => Boolean, { defaultValue: false })
+  bypassNotice: boolean
 }
 
 @InputType()
@@ -124,6 +124,9 @@ export class CreateCustomerInput {
   @Field(() => String)
   zipCode: string
 
+  @Field(() => String)
+  timezone: string
+
   @Field(() => String, { nullable: true })
   notes?: string
 
@@ -133,26 +136,29 @@ export class CreateCustomerInput {
 
 @InputType()
 export class CreateAppointmentInput {
-  @Field(() => Role)
-  providerType: Role
+  @Field(() => String, { nullable: true })
+  userId?: string
 
   @Field(() => String)
-  eaServiceId: string
+  start: string
 
   @Field(() => String)
-  eaProviderId: string
+  end: string
+
+  @Field(() => String)
+  timezone: string
 
   @Field(() => Date)
-  startTimeInUtc: Date
+  selectedDate: Date
 
-  @Field(() => Date)
-  endTimeInUtc: Date
+  @Field(() => Boolean, { defaultValue: false })
+  bypassNotice: boolean
 
   @Field(() => String, { nullable: true })
   notes?: string
 
-  @Field(() => String)
-  userTaskId: string
+  @Field(() => String, { nullable: true })
+  userTaskId?: string
 }
 
 @InputType()
@@ -160,23 +166,59 @@ export class UpdateAppointmentInput {
   @Field(() => String)
   eaAppointmentId: string
 
-  @Field(() => Role)
-  providerType: Role
+  @Field(() => String)
+  start: string
 
   @Field(() => String)
-  eaServiceId: string
+  end: string
+
+  @Field(() => Date)
+  selectedDate: Date
 
   @Field(() => String)
-  eaProviderId: string
-
-  @Field(() => Date)
-  startTimeInUtc: Date
-
-  @Field(() => Date)
-  endTimeInUtc: Date
+  timezone: string
 
   @Field(() => String, { nullable: true })
   notes?: string
+
+  @Field(() => Boolean, { defaultValue: false })
+  bypassNotice: boolean
+}
+
+@InputType()
+export class GetAppointmentInput {
+  @Field(() => String)
+  eaAppointmentId: string
+
+  @Field(() => String)
+  timezone: string
+}
+
+@InputType()
+export class UpcomingAppointmentsInput {
+  @Field(() => Date, { nullable: true })
+  selectedDate?: Date
+
+  @Field(() => String)
+  timezone: string
+}
+
+@InputType()
+export class GetAppointmentsByMonthInput {
+  @Field(() => Number)
+  month: number
+
+  @Field(() => String)
+  timezone: string
+}
+
+@InputType()
+export class GetAppointmentsByDateInput {
+  @Field(() => Date)
+  selectedDate: Date
+
+  @Field(() => String)
+  timezone: string
 }
 
 @ObjectType()
@@ -191,20 +233,27 @@ export class EAAppointment {
   eaProvider: EAProvider
 
   @Field(() => Date)
-  startTimeInUtc: Date
+  start: Date
 
   @Field(() => Date)
-  endTimeInUtc: Date
+  end: Date
 
   @Field(() => String)
   location: string
 
   @Field(() => String, { nullable: true })
   notes?: string
+
+  @Field(() => EACustomer)
+  eaCustomer: EACustomer
 }
+
 @ObjectType()
 export class EACustomer {
-  @Field(() => String, { nullable: true })
+  @Field(() => String)
+  id: string
+
+  @Field(() => String)
   name: string
 
   @Field(() => String)
@@ -212,11 +261,6 @@ export class EACustomer {
 
   @Field(() => String)
   phone: string
-}
-@ObjectType()
-export class EAAppointmentWithCustomer extends EAAppointment {
-  @Field(() => EACustomer)
-  eaCustomer: EACustomer
 }
 
 @ObjectType()
@@ -228,6 +272,7 @@ export class EAWorkingPlanBreak implements Break {
   @Field(() => String, { nullable: true })
   end?: string
 }
+
 @ObjectType()
 @InputType("EAProviderProfileWorkingPlanDayInput")
 export class EAWorkingPlanDay implements Day {
@@ -240,6 +285,7 @@ export class EAWorkingPlanDay implements Day {
   @Field(() => [EAWorkingPlanBreak], { nullable: true })
   breaks?: EAWorkingPlanBreak[]
 }
+
 @ObjectType()
 @InputType("EAProviderProfileWorkingPlanInput")
 export class EAWorkingPlan implements WorkingPlan {
@@ -271,6 +317,7 @@ export class EAProviderSettings implements Settings {
   @Field(() => EAWorkingPlan, { nullable: true })
   workingPlan?: EAWorkingPlan
 }
+
 @ObjectType()
 @InputType("EAProviderProfileInput")
 export class EAProviderProfile implements IEAProvider {
