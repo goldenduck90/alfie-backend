@@ -5,7 +5,7 @@ import {
   pre,
   prop,
   queryMethod,
-  ReturnModelType
+  ReturnModelType,
 } from "@typegoose/typegoose"
 import { AsQueryMethod, Ref } from "@typegoose/typegoose/lib/types"
 import bcrypt from "bcrypt"
@@ -15,11 +15,17 @@ import {
   IsPhoneNumber,
   MaxDate,
   MaxLength,
-  MinLength
+  MinLength,
 } from "class-validator"
 import config from "config"
 import mongoose from "mongoose"
-import { Field, Float, InputType, ObjectType, registerEnumType } from "type-graphql"
+import {
+  Field,
+  Float,
+  InputType,
+  ObjectType,
+  registerEnumType,
+} from "type-graphql"
 import { Provider } from "./provider.schema"
 
 const {
@@ -388,6 +394,10 @@ export class User {
   @prop()
   address: Address
 
+  @Field(() => Number, { nullable: true })
+  @prop()
+  weightGoal: number
+
   @Field(() => [Weight])
   @prop({ default: [], required: true })
   weights: mongoose.Types.Array<Weight>
@@ -407,6 +417,10 @@ export class User {
   @Field(() => String, { nullable: true })
   @prop()
   akutePatientId?: string
+
+  @Field(() => String)
+  @prop()
+  calId?: string
 
   @Field(() => String)
   @prop()
@@ -444,7 +458,6 @@ export class User {
   @prop()
   timezone?: string
 
-
   @Field(() => String, { nullable: true })
   @prop()
   meetingUrl?: string
@@ -461,6 +474,21 @@ export class User {
 export const UserModel = getModelForClass<typeof User, QueryHelpers>(User, {
   schemaOptions: { timestamps: true },
 })
+@InputType()
+export class UpdateUserInput {
+  @Field(() => String)
+  userId: string
+
+  @Field(() => String)
+  stripeCustomerId: string
+
+  @Field(() => String)
+  stripeSubscriptionId: string
+
+  @Field(() => Date)
+  subscriptionExpiresAt: Date
+}
+
 @InputType()
 export class CreateUserInput {
   @Field(() => String)

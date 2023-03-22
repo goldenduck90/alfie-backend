@@ -65,3 +65,30 @@ export class CreateLabOrderResponse {
   @Field(() => String)
   labOrderId: string
 }
+
+@InputType()
+export class DocUploadInput {
+  @Field(() => String)
+  file: string
+
+  @Field(() => String)
+  fileName: string
+
+  @Field(() => String, { nullable: true })
+  description?: string
+
+  @Field(() => String, { nullable: true })
+  externalPatientId?: string
+
+  @Field(() => String, { nullable: true })
+  patientId?: string
+
+  @Field(() => [String])
+  tags?: string[]
+}
+
+@ObjectType()
+export class AkuteDocument {
+  @Field(() => String)
+  id: string
+}

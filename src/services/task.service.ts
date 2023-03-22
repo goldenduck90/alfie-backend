@@ -45,7 +45,7 @@ class TaskService extends EmailService {
 
   async getUserTask(id: string, userId?: string) {
     const { notFound, notPermitted } = config.get("errors.tasks") as any
-    const userTask = await UserTaskModel.findById(id)
+    const userTask = await UserTaskModel.findById(id).populate("task")
     if (!userTask) {
       throw new ApolloError(notFound.message, notFound.code)
     }
@@ -130,11 +130,14 @@ class TaskService extends EmailService {
       // Get the user task, throw an error if it is not found
       const { notFound } = config.get("errors.tasks") as any
       const { _id, answers } = input
+      console.log("input", input)
+      console.log("answers", answers)
       const userTask = await UserTaskModel.findById(_id)
       if (!userTask) {
         throw new ApolloError(notFound.message, notFound.code)
       }
 
+      console.log("userTask", userTask)
       // Get the user and task documents
       const user = await UserModel.findById(userTask.user)
       const task = await TaskModel.findById(userTask.task)
@@ -155,7 +158,7 @@ class TaskService extends EmailService {
       })
         .sort({ createdAt: -1 })
         .skip(1)
-      if (lastTask) {
+      if (lastTask && task.type !== TaskType.NEW_PATIENT_INTAKE_FORM) {
         const score = calculateScore(lastTask, userTask, task.type)
         // push score to user score array
         if (score !== null) {
@@ -212,7 +215,7 @@ class TaskService extends EmailService {
           const bmi =
             (weight.value / user.heightInInches / user.heightInInches) *
             703.071720346
-          // Add more cases here as needed
+          user.weights.push(weight)
           user.bmi = bmi
           await user.save()
           break
@@ -226,6 +229,7 @@ class TaskService extends EmailService {
         ...userTask.toObject(),
       }
     } catch (error) {
+      console.log(error, "error")
       console.error(error)
       Sentry.captureException(error)
       throw error
@@ -292,6 +296,7 @@ class TaskService extends EmailService {
       }))
     } catch (error) {
       console.log(error, "error in bulkAssignTasksToUser")
+      Sentry.captureException(error)
     }
   }
 

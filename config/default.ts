@@ -23,6 +23,16 @@ export default {
         message: "You are not permitted to view another patient's task.",
       },
     },
+    provider: {
+      notFound: {
+        code: "NOT_FOUND",
+        message: "Provider not found",
+      },
+      calIdNotFound: {
+        code: "NOT_FOUND",
+        message: "Provider cal id not found",
+      },
+    },
     user: {
       notFound: {
         code: "NOT_FOUND",
@@ -160,11 +170,11 @@ export default {
   },
   emails: {
     forgotPassword: {
-      path: "forgot-password",
+      path: "reset-password",
       subject: "Reset your password",
     },
     completeRegistration: {
-      path: "signup/password",
+      path: "reset-password",
       subject: "Complete your Alfie registration",
     },
     taskAssigned: {
@@ -188,4 +198,5 @@ export default {
     labCorpAccountNumber: "31196710",
     labCorpOrganizationId: "f-e20f61500ba128d340068ff6",
   },
+  sendBirdBotId: "ALFIE_BOT",
 }

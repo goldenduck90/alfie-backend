@@ -1,4 +1,3 @@
-
 import * as Sentry from "@sentry/node"
 import { ApolloError } from "apollo-server-errors"
 import * as AWS from "aws-sdk"
@@ -11,7 +10,7 @@ import { classifyUser } from "../PROAnalysis/classification"
 import {
   CheckoutModel,
   CreateCheckoutInput,
-  CreateStripeCustomerInput
+  CreateStripeCustomerInput,
 } from "../schema/checkout.schema"
 import { ProviderModel } from "../schema/provider.schema"
 import { TaskType } from "../schema/task.schema"
@@ -25,11 +24,15 @@ import {
   Role,
   SubscribeEmailInput,
   UpdateSubscriptionInput,
-  Weight
+  UpdateUserInput,
+  Weight,
 } from "../schema/user.schema"
 import { calculatePatientScores } from "../scripts/calculatePatientScores"
 import { signJwt } from "../utils/jwt"
-import { triggerEntireSendBirdFlow } from "../utils/sendBird"
+import {
+  findAndTriggerEntireSendBirdFlowForAllUSersAndProvider,
+  triggerEntireSendBirdFlow,
+} from "../utils/sendBird"
 import { UserModel } from "./../schema/user.schema"
 import AkuteService from "./akute.service"
 import AppointmentService from "./appointment.service"
@@ -70,6 +73,44 @@ class UserService extends EmailService {
       await this.taskService.bulkAssignTasksToUser(input)
     } catch (error) {
       console.error(error, "error in assignUserTasks")
+    }
+  }
+
+  async updateUser(input: UpdateUserInput) {
+    const { emailSendError } = config.get("errors.createUser") as any
+
+    const userCreatedMessage = config.get(
+      "messages.userCreatedViaCheckout"
+    ) as any
+
+    const {
+      userId,
+      stripeCustomerId,
+      subscriptionExpiresAt,
+      stripeSubscriptionId,
+    } = input
+
+    const user = await UserModel.findById(userId)
+    const emailToken = uuidv4()
+    user.emailToken = emailToken
+    user.stripeCustomerId = stripeCustomerId
+    user.stripeSubscriptionId = stripeSubscriptionId
+    user.subscriptionExpiresAt = subscriptionExpiresAt
+    await user.save()
+
+    // send email with link to set password
+    const sent = await this.sendRegistrationEmailTemplate({
+      email: user.email,
+      token: emailToken,
+      name: user.name,
+    })
+    if (!sent) {
+      throw new ApolloError(emailSendError.message, emailSendError.code)
+    }
+
+    return {
+      message: userCreatedMessage,
+      user,
     }
   }
 
@@ -234,7 +275,7 @@ class UserService extends EmailService {
         $response2.error.message
       )
     }
-    const selectedProvider = await ProviderModel.findById(provider._id).lean()
+
     // trigger sendbird flow
     await triggerEntireSendBirdFlow({
       user_id: user._id,
@@ -242,7 +283,6 @@ class UserService extends EmailService {
       profile_file: "",
       profile_url: "",
       provider: provider._id,
-      providerName: `${selectedProvider.firstName} ${selectedProvider.lastName}`,
     })
 
     // assign initial tasks to user
@@ -299,94 +339,116 @@ class UserService extends EmailService {
       const { paymentIntentId } = input
       const priceId = config.get("defaultPriceId") as any
 
+      let customer
+      let subscription
+
       const paymentIntent = await this.stripeSdk.paymentIntents.retrieve(
         paymentIntentId
       )
 
       if (!paymentIntent || paymentIntent.status !== "succeeded") {
         throw new ApolloError("Payment intent not found", "NOT_FOUND")
-      } else {
-        const stripePaymentMethodId = paymentIntent.payment_method as string
-        const existingCheckout = await CheckoutModel.findById(
-          paymentIntent.metadata.checkoutId
+      }
+
+      const stripeCustomerId = paymentIntent.customer as string
+      const stripePaymentMethodId = paymentIntent.payment_method as string
+
+      // if payment method is associated with another user, detach it for now
+      // TODO: figure out how to allow the same payment method on multiple users
+      if (stripePaymentMethodId) {
+        const paymentMethod = await this.stripeSdk.paymentMethods.retrieve(
+          stripePaymentMethodId
         )
+        const paymentMethodCustomerId = paymentMethod.customer as string
 
-        // create customer
-        if (!existingCheckout?.stripeSubscriptionId) {
-          const customer = await this.stripeSdk.customers.create({
-            name: paymentIntent?.shipping?.name,
-            payment_method: stripePaymentMethodId,
-            email: paymentIntent?.metadata?.email,
-            phone: paymentIntent?.shipping?.phone,
-            invoice_settings: {
-              default_payment_method: stripePaymentMethodId,
-            },
-            shipping: {
-              name: paymentIntent?.shipping?.name,
-              address: paymentIntent?.shipping?.address,
-              phone: paymentIntent?.shipping?.phone,
-            },
-            metadata: {
-              checkoutId: paymentIntent?.metadata?.checkoutId,
-            },
-            address: paymentIntent?.shipping?.address,
-          })
-
-          if (!customer) {
-            throw new ApolloError(
-              "Customer not created",
-              "INTERNAL_SERVER_ERROR"
-            )
-          }
-
-          // create subscription
-          const subscription = await this.stripeSdk.subscriptions.create({
-            customer: customer.id,
-            items: [{ price: priceId }],
-            default_payment_method: stripePaymentMethodId,
-            collection_method: "charge_automatically",
-            trial_period_days: 30,
-          })
-
-          // update checkout
-          const checkout = await CheckoutModel.findByIdAndUpdate(
-            paymentIntent.metadata.checkoutId,
-            {
-              stripeCustomerId: customer.id,
-              stripeSubscriptionId: subscription.id,
-            }
+        if (paymentMethodCustomerId) {
+          customer = await this.stripeSdk.customers.retrieve(
+            paymentMethodCustomerId
           )
-
-          if (!checkout) {
-            throw new ApolloError("Checkout not found", "NOT_FOUND")
-          }
-
-          // create user
-          const { message } = await this.completeCheckout(
-            subscription.id,
-            new Date(subscription.current_period_end)
-          )
-
-          return { message }
-        } else {
-          // get subscription
-          const subscription = await this.stripeSdk.subscriptions.retrieve(
-            existingCheckout.stripeSubscriptionId
-          )
-
-          if (!subscription) {
-            throw new ApolloError("Subscription not found", "NOT_FOUND")
-          }
-
-          // create user
-          const { message } = await this.completeCheckout(
-            existingCheckout.stripeSubscriptionId,
-            new Date(subscription.current_period_end)
-          )
-
-          return { message }
         }
       }
+
+      if (stripeCustomerId || customer) {
+        // if customer wasnt found on the payment method, it must be on the payment intent
+        // to reach here. so lets fetch the customer from the payment intent
+        if (!customer) {
+          customer = await this.stripeSdk.customers.retrieve(stripeCustomerId)
+        }
+
+        // lets check for existing subscriptions for this customer
+        const existingSubscriptions = await this.stripeSdk.subscriptions.list({
+          customer: customer.id,
+        })
+
+        // if there is an existing subscription grab it
+        if (existingSubscriptions.data.length !== 0) {
+          subscription = existingSubscriptions.data[0]
+
+          // if the subscription isn't active or past due, lets just create a new subscription
+          if (
+            subscription.status !== "active" &&
+            subscription.status !== "past_due"
+          ) {
+            subscription = undefined
+          }
+        }
+      } else {
+        // customer doesnt exist, create a new one
+        customer = await this.stripeSdk.customers.create({
+          name: paymentIntent.shipping?.name,
+          payment_method: stripePaymentMethodId,
+          email: paymentIntent.metadata?.email,
+          phone: paymentIntent.shipping?.phone,
+          invoice_settings: {
+            default_payment_method: stripePaymentMethodId,
+          },
+          shipping: {
+            name: paymentIntent.shipping?.name,
+            address: paymentIntent.shipping?.address,
+            phone: paymentIntent.shipping?.phone,
+          },
+          metadata: {
+            checkoutId: paymentIntent.metadata?.checkoutId,
+          },
+          address: paymentIntent.shipping?.address,
+        })
+      }
+
+      // if subscription exists & isnt expired, cancel it so we can create a new one
+      if (subscription) {
+        await this.stripeSdk.subscriptions.cancel(subscription.id)
+        subscription = undefined
+      }
+
+      // if not, create a new one
+      subscription = await this.stripeSdk.subscriptions.create({
+        customer: customer.id,
+        items: [{ price: priceId }],
+        default_payment_method: stripePaymentMethodId,
+        collection_method: "charge_automatically",
+        trial_period_days: 30,
+      })
+
+      // update checkout
+      const checkout = await CheckoutModel.findByIdAndUpdate(
+        paymentIntent.metadata.checkoutId,
+        {
+          stripeCustomerId: customer.id,
+          stripeSubscriptionId: subscription.id,
+        }
+      )
+
+      if (!checkout) {
+        throw new ApolloError("Checkout not found", "NOT_FOUND")
+      }
+
+      // create or update user
+      const { message } = await this.completeCheckout(
+        subscription.id,
+        new Date(subscription.current_period_end)
+      )
+
+      return { message }
     } catch (error) {
       console.log(error)
       Sentry.captureException(error)
@@ -758,8 +820,8 @@ class UserService extends EmailService {
         ...(!noExpire
           ? { expiresIn: remember ? rememberExp : normalExp }
           : {
-            expiresIn: "6000d",
-          }),
+              expiresIn: "6000d",
+            }),
       }
     )
 
@@ -771,15 +833,19 @@ class UserService extends EmailService {
   }
 
   async getUser(userId: string) {
-    const { notFound } = config.get("errors.user") as any
-    const user = await UserModel.findById(userId).populate("provider")
-
-    if (!user) {
-      throw new ApolloError(notFound.message, notFound.code)
+    try {
+      const { notFound } = config.get("errors.user") as any
+      const user = await UserModel.findById(userId).populate("provider")
+      if (!user) {
+        throw new ApolloError(notFound.message, notFound.code)
+      }
+      return user
+    } catch (error) {
+      Sentry.captureException(error)
+      throw new ApolloError(error.message, error.code)
     }
-
-    return user
   }
+
   async getAllUsers() {
     try {
       // Find all users and populate the "provider" field
@@ -852,6 +918,16 @@ class UserService extends EmailService {
       // console.log(scores, "scores")
       // const scores = await calculateAllScores()
       // console.log(scores, "scores")
+
+      // const allPatientTasks = await UserTaskModel.find({
+      //   completed: true
+      // })
+
+      // allPatientTasks.forEach(async (task) => {
+      //   const scores = await calculatePatientScores(String(task.user))
+      //   console.log(scores, "scores")
+      // })
+      findAndTriggerEntireSendBirdFlowForAllUSersAndProvider()
       return userTasks
     } catch (error) {
       console.log("error", error)
@@ -868,37 +944,54 @@ class UserService extends EmailService {
   }
   async classifyPatient(userId: string) {
     try {
-      const user: any = await UserModel.findById(userId)
-      if (user.score.length > 0 && user.score[0] !== null) {
-        // If there are two tasks where the score.task is the same, remove all of the ones where the score.date is not the most recent to today
-        const userScores = user.score
-        const userScoresSorted = userScores.sort((a: any, b: any) => {
-          return new Date(b.date).getTime() - new Date(a.date).getTime()
-        })
+      console.log(userId) // TODO: classify specific patient
+      const users = await UserModel.find()
 
-        console.log(userScores, "userScores")
-        // remove duplicate userScores by task and date match if the date is exactly the same then only use one
+      for (const user of users) {
+        if (user.score.length > 0 && user.score[0] !== null) {
+          const scoresByTask = new Map()
 
-
-        const classifications = classifyUser(userScores)
-        classifications.forEach((c: any) => {
-          const classificationExists = user.classifications.some(
-            (el: any) => el.date === c.date
-          )
-          if (!classificationExists) {
-            user.classifications.push(c)
+          // group scores by task
+          for (const score of user.score) {
+            if (!scoresByTask.has(score.task)) {
+              scoresByTask.set(score.task, [])
+            }
+            scoresByTask.get(score.task).push(score)
           }
-        })
-        console.log(classifications, "classifications")
-        // save the user
-        await user.save()
-        return user
-      }
 
+          const scores = []
+
+          // get most recent score for each task
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          for (const [_, taskScores] of scoresByTask) {
+            const mostRecentScore = taskScores.sort(
+              (a: any, b: any) =>
+                new Date(b.date).getTime() - new Date(a.date).getTime()
+            )[0]
+            scores.push(mostRecentScore)
+          }
+
+          const classifications: any = classifyUser(scores)
+
+          for (const c of classifications) {
+            const classificationExists = user.classifications.some(
+              (el: any) => el.date === c.date
+            )
+
+            if (!classificationExists) {
+              user.classifications.push(c)
+            }
+          }
+
+          await user.save()
+        }
+      }
     } catch (error) {
+      console.log(error, "error")
       Sentry.captureException(error)
     }
   }
+
   async completeCheckout(
     stripeSubscriptionId: string,
     subscriptionExpiresAt: Date
@@ -906,9 +999,9 @@ class UserService extends EmailService {
     const { checkoutCompleted } = config.get("messages") as any
     const { notFound, alreadyCheckedOut } = config.get("errors.checkout") as any
 
-    const checkout = await CheckoutModel.find()
-      .findByStripeSubscriptionId(stripeSubscriptionId)
-      .lean()
+    const checkout = await CheckoutModel.find().findByStripeSubscriptionId(
+      stripeSubscriptionId
+    )
 
     if (!checkout) {
       throw new ApolloError(notFound.message, notFound.code)
@@ -925,24 +1018,40 @@ class UserService extends EmailService {
       expiresAt = addMonths(new Date(), 1)
     }
 
-    const { user } = await this.createUser({
-      name: checkout.name,
-      email: checkout.email,
-      phone: checkout.phone,
-      dateOfBirth: checkout.dateOfBirth,
-      address: checkout.shippingAddress,
-      gender: checkout.gender,
-      weightInLbs: checkout.weightInLbs,
-      heightInInches: checkout.heightInInches,
-      stripeCustomerId: checkout.stripeCustomerId,
-      subscriptionExpiresAt: expiresAt,
-      stripeSubscriptionId,
-      textOptIn: checkout.textOptIn,
-    })
+    const existingUser = await UserModel.find().findByEmail(checkout.email)
+    let user
+    if (existingUser) {
+      // update existing user
+      const { user: updatedUser } = await this.updateUser({
+        userId: existingUser._id,
+        subscriptionExpiresAt: expiresAt,
+        stripeSubscriptionId,
+        stripeCustomerId: checkout.stripeCustomerId,
+      })
+
+      checkout.user = updatedUser._id
+      user = updatedUser
+    } else {
+      const { user: newUser } = await this.createUser({
+        name: checkout.name,
+        email: checkout.email,
+        phone: checkout.phone,
+        dateOfBirth: checkout.dateOfBirth,
+        address: checkout.shippingAddress,
+        gender: checkout.gender,
+        weightInLbs: checkout.weightInLbs,
+        heightInInches: checkout.heightInInches,
+        stripeCustomerId: checkout.stripeCustomerId,
+        subscriptionExpiresAt: expiresAt,
+        stripeSubscriptionId,
+        textOptIn: checkout.textOptIn,
+      })
+      checkout.user = newUser._id
+      user = newUser
+    }
 
     checkout.checkedOut = true
-    checkout.user = user._id
-    await CheckoutModel.findByIdAndUpdate(checkout._id, checkout)
+    await checkout.save()
 
     return {
       message: checkoutCompleted,
@@ -989,6 +1098,15 @@ class UserService extends EmailService {
       throw new ApolloError(alreadyCheckedOut.message, alreadyCheckedOut.code)
     }
 
+    // check for existing customer
+    const existingCustomer = await this.stripeSdk.customers.list({
+      email: checkout.email,
+    })
+
+    // vars to add stripe details to
+    let customer
+    let paymentIntent
+
     const stripeShipping = {
       line1: shipping.line1,
       line2: shipping.line2,
@@ -997,66 +1115,64 @@ class UserService extends EmailService {
       postal_code: shipping.postalCode,
     }
 
-    if (checkout.stripePaymentIntentId) {
-      const existingPaymentIntent =
-        await this.stripeSdk.paymentIntents.retrieve(
-          checkout.stripePaymentIntentId
-        )
+    // if customer exists update info
+    if (existingCustomer.data.length !== 0) {
+      customer = existingCustomer.data[0]
 
-      if (existingPaymentIntent.status === "canceled") {
-        const newPaymentIntent = await this.stripeSdk.paymentIntents.create({
-          description: "Alfie Subscription - First Payment",
-          amount: 12000,
-          currency: "usd",
-          setup_future_usage: "off_session",
-          metadata: {
-            checkoutId: String(checkout._id),
-            email: checkout.email,
-          },
-          shipping: {
-            name: checkout.name,
-            address: stripeShipping,
-            phone: checkout.phone,
-          },
-        })
-
-        checkout.stripePaymentIntentId = newPaymentIntent.id
-        checkout.stripeClientSecret = newPaymentIntent.client_secret
-        await checkout.save()
-      }
-
-      checkout.shippingAddress = shipping
-      checkout.billingAddress = sameAsShipping ? shipping : billing
-      await checkout.save()
-
-      return {
-        checkout,
-      }
+      // update with latest checkout info
+      await this.stripeSdk.customers.update(customer.id, {
+        address: stripeShipping,
+        phone: checkout.phone,
+        name: checkout.name,
+        email: checkout.email,
+      })
     }
 
-    // create payment intent
-    const paymentIntent = await this.stripeSdk.paymentIntents.create({
+    if (checkout.stripePaymentIntentId) {
+      paymentIntent = await this.stripeSdk.paymentIntents.retrieve(
+        checkout.stripePaymentIntentId
+      )
+    }
+
+    // payment intent details
+    const paymentIntentDetails = {
       description: "Alfie Subscription - First Payment",
       amount: 12000,
       currency: "usd",
-      setup_future_usage: "off_session",
       metadata: {
         checkoutId: String(checkout._id),
         email: checkout.email,
       },
+      ...(customer && { customer: customer.id }),
       shipping: {
         name: checkout.name,
         address: stripeShipping,
         phone: checkout.phone,
       },
-    })
+    }
+
+    // create payment intent
+    if (paymentIntent && paymentIntent.status !== "canceled") {
+      paymentIntent = await this.stripeSdk.paymentIntents.update(
+        paymentIntent.id,
+        {
+          ...paymentIntentDetails,
+          setup_future_usage: "off_session",
+        }
+      )
+    } else {
+      paymentIntent = await this.stripeSdk.paymentIntents.create({
+        ...paymentIntentDetails,
+        setup_future_usage: "off_session",
+      })
+    }
 
     // update checkout with stripe info
     checkout.stripePaymentIntentId = paymentIntent.id
     checkout.stripeClientSecret = paymentIntent.client_secret
     checkout.shippingAddress = shipping
     checkout.billingAddress = sameAsShipping ? shipping : billing
-
+    if (customer) checkout.stripeCustomerId = customer.id
     await checkout.save()
 
     return {
