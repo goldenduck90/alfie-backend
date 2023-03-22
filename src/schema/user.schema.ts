@@ -438,6 +438,10 @@ export class User {
   @prop()
   eaHealthCoachId?: string
 
+  @Field(() => String, { nullable: true })
+  @prop()
+  externalPatientId?: string
+
   @Field(() => Date)
   @prop({ default: Date.now(), required: true })
   subscriptionExpiresAt: Date
