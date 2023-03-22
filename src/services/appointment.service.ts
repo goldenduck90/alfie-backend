@@ -24,7 +24,9 @@ class AppointmentService {
   public axios: AxiosInstance
 
   constructor() {
-    this.baseUrl = "https://ea.joinalfie.com/index.php/api/v1"
+    const eaUrl = config.get("easyAppointmentsApiUrl") as string
+
+    this.baseUrl = eaUrl
     this.axios = axios.create({
       baseURL: this.baseUrl,
       headers: {
@@ -346,8 +348,8 @@ class AppointmentService {
         eaCustomer: {
           id: response.customer.id,
           name: response.customer.firstName + " " + response.customer.lastName,
-          email: response.email,
-          phone: response.phone,
+          email: response.customer.email,
+          phone: response.customer.phone,
         },
       }
     } catch (error) {

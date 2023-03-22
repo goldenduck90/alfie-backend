@@ -24,27 +24,6 @@ export class EAService {
 }
 
 @ObjectType()
-export class TimeslotsResponse {
-  @Field(() => Date)
-  selectedDate: Date
-
-  @Field(() => Number)
-  total: number
-
-  @Field(() => String)
-  timezone: string
-
-  @Field(() => EAService)
-  eaService: EAService
-
-  @Field(() => EAProvider)
-  eaProvider: EAProvider
-
-  @Field(() => [Timeslot])
-  timeslots: Timeslot[]
-}
-
-@ObjectType()
 export class EAProvider {
   @Field(() => String)
   id: string
@@ -72,12 +51,48 @@ export class EAProvider {
 }
 
 @ObjectType()
-export class Timeslot {
-  @Field(() => Date)
-  start: Date
+export class EACustomer {
+  @Field(() => String)
+  id: string
 
+  @Field(() => String)
+  name: string
+
+  @Field(() => String)
+  email: string
+
+  @Field(() => String)
+  phone: string
+}
+
+@ObjectType()
+export class TimeslotsResponse {
   @Field(() => Date)
-  end: Date
+  selectedDate: Date
+
+  @Field(() => Number)
+  total: number
+
+  @Field(() => String)
+  timezone: string
+
+  @Field(() => EAService)
+  eaService: EAService
+
+  @Field(() => EAProvider)
+  eaProvider: EAProvider
+
+  @Field(() => [Timeslot])
+  timeslots: Timeslot[]
+}
+
+@ObjectType()
+export class Timeslot {
+  @Field(() => String)
+  start: string
+
+  @Field(() => String)
+  end: string
 }
 
 @InputType()
@@ -232,11 +247,11 @@ export class EAAppointment {
   @Field(() => EAProvider)
   eaProvider: EAProvider
 
-  @Field(() => Date)
-  start: Date
+  @Field(() => String)
+  start: string
 
-  @Field(() => Date)
-  end: Date
+  @Field(() => String)
+  end: string
 
   @Field(() => String)
   location: string
@@ -246,21 +261,6 @@ export class EAAppointment {
 
   @Field(() => EACustomer)
   eaCustomer: EACustomer
-}
-
-@ObjectType()
-export class EACustomer {
-  @Field(() => String)
-  id: string
-
-  @Field(() => String)
-  name: string
-
-  @Field(() => String)
-  email: string
-
-  @Field(() => String)
-  phone: string
 }
 
 @ObjectType()
