@@ -1,24 +1,22 @@
 import * as Sentry from "@sentry/node"
 import { ApolloError } from "apollo-server"
 import axios, { AxiosInstance } from "axios"
+import { Buffer } from "buffer"
 import config from "config"
 import { format } from "date-fns"
+import FormData from "form-data"
 import {
-  PharmacyLocationInput,
-  CreateLabOrderResponse,
-  DocUploadInput,
-  AkuteDocument,
+  AkuteDocument, CreateLabOrderResponse,
+  DocUploadInput, PharmacyLocationInput
 } from "../schema/akute.schema"
 import { CreatePatientInput, UserModel } from "../schema/user.schema"
-import FormData from "form-data"
-import { Buffer } from "buffer"
 
 class AkuteService {
   public baseUrl: string
   public axios: AxiosInstance
 
   constructor() {
-    this.baseUrl = config.get("akuteApiUrl")
+    this.baseUrl = "https://api.akutehealth.com/v1"
     this.axios = axios.create({
       baseURL: this.baseUrl,
       headers: {
@@ -192,7 +190,22 @@ class AkuteService {
       throw new ApolloError(e.message, "ERROR")
     }
   }
+  async getASinglePatientMedications(patientId: string) {
+    try {
+      const { data: medications } = await this.axios.get(
+        `/medications?patient_id=${patientId}`
+      )
+      return medications
+    } catch (e) {
+      Sentry.captureException(new Error(e), {
+        tags: {
+          function: "getASinglePatientMedications",
+        },
+      })
 
+      throw new ApolloError(e.message, "ERROR")
+    }
+  }
   async createLabOrder(userId: string): Promise<CreateLabOrderResponse> {
     const labCorpAccountNumber = config.get("akute.labCorpAccountNumber") as any
     const labCorpOrganizationId = config.get(
