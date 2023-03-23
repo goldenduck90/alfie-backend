@@ -1291,7 +1291,7 @@ class UserService extends EmailService {
 
   removeDuplicates(subTypes: any[]): any[] {
     const uniqueSubTypesSet = new Set<string>();
-    const uniqueSubTypes: SubType[] = [];
+    const uniqueSubTypes: any[] = [];
 
     subTypes.forEach((subType) => {
       const subTypeJSON = JSON.stringify(subType)
