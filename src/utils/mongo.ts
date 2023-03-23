@@ -3,7 +3,7 @@ import mongoose from "mongoose";
 
 export async function connectToMongo() {
   try {
-    const dbUri = config.get("dbUri")
+    const dbUri = config.get("dbUri") as string
     console.log(dbUri)
     await mongoose.connect(dbUri)
     console.log("Connected to MongoDB")

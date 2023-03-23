@@ -1309,7 +1309,7 @@ class UserService extends EmailService {
   async generateProtocolSummary(userId: string) {
     try {
       const configuration = new Configuration({
-        apiKey: process.env.OPEN_AI_KEY || "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",
+        apiKey: process.env.OPEN_AI_KEY
       });
       const openAi = new OpenAIApi(configuration)
       const user = await UserModel.findById(userId)
