@@ -1369,9 +1369,6 @@ class UserService extends EmailService {
       }).join(', ');
 
       const prompt = `This Patient has the following classifications and percentiles: ${subTypesText}. They have lost ${weightChange}% over the past 4 weeks and are currently on this or these doses of medication: ${medications}`
-
-      console.log(prompt);
-
       const params = {
         model: "gpt-4",
         temperature: 0,
