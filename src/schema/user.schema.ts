@@ -5,7 +5,7 @@ import {
   pre,
   prop,
   queryMethod,
-  ReturnModelType,
+  ReturnModelType
 } from "@typegoose/typegoose"
 import { AsQueryMethod, Ref } from "@typegoose/typegoose/lib/types"
 import bcrypt from "bcrypt"
@@ -15,7 +15,7 @@ import {
   IsPhoneNumber,
   MaxDate,
   MaxLength,
-  MinLength,
+  MinLength
 } from "class-validator"
 import config from "config"
 import mongoose from "mongoose"
@@ -24,7 +24,7 @@ import {
   Float,
   InputType,
   ObjectType,
-  registerEnumType,
+  registerEnumType
 } from "type-graphql"
 import { Provider } from "./provider.schema"
 
@@ -347,6 +347,10 @@ export class User {
   @Field(() => Boolean, { nullable: true })
   @prop({ nullable: true })
   textOptIn: boolean
+
+  @Field(() => String, { nullable: true })
+  @prop({ nullable: true })
+  generatedSummary?: string
 
   @Field(() => [Classification], { nullable: true })
   @prop({ default: [] })

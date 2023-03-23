@@ -1,3 +1,4 @@
+
 import * as Sentry from "@sentry/node";
 import {
   ApolloServerPluginLandingPageGraphQLPlayground,
@@ -13,11 +14,12 @@ import "reflect-metadata";
 import { buildSchema } from "type-graphql";
 import authChecker from "./middleware/authChecker";
 import resolvers from "./resolvers";
-import { ProviderModel } from './schema/provider.schema';
-import { Role, UserModel } from './schema/user.schema';
+import { ProviderModel } from "./schema/provider.schema";
+import { Role, UserModel } from "./schema/user.schema";
 import Context from "./types/context";
 import { connectToMongo } from "./utils/mongo";
 dotenv.config()
+
 // import * as Tracing from '@sentry/tracing';
 Sentry.init({
   dsn: "https://e99c3274029e405f9e1b6dd50a63fd85@o4504040965603328.ingest.sentry.io/4504040986705920",
@@ -27,6 +29,7 @@ Sentry.init({
   // We recommend adjusting this value in production
   tracesSampleRate: 1.0,
 })
+
 
 async function bootstrap() {
   const path = "/graphql"
@@ -39,6 +42,7 @@ async function bootstrap() {
 
   // init express
   const app = express()
+  app.use(express.json())
 
   // create the apollo server
   const server = new ApolloServer({
@@ -179,8 +183,6 @@ async function bootstrap() {
       res.sendStatus(500)
     }
   })
-
-
   // app.listen on express server
   app.listen({ port: process.env.PORT || 4000 }, () => {
     console.log(
