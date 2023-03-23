@@ -1,20 +1,21 @@
-import * as Sentry from "@sentry/node"
-import { ApolloError } from "apollo-server-errors"
-import * as AWS from "aws-sdk"
-import bcrypt from "bcrypt"
-import config from "config"
-import { addMinutes, addMonths } from "date-fns"
-import stripe from "stripe"
-import { v4 as uuidv4 } from "uuid"
-import { classifyUser } from "../PROAnalysis/classification"
+import * as Sentry from "@sentry/node";
+import { ApolloError } from "apollo-server-errors";
+import * as AWS from "aws-sdk";
+import bcrypt from "bcrypt";
+import config from "config";
+import { addMinutes, addMonths } from "date-fns";
+import { ChatCompletionRequestMessageRoleEnum, Configuration, OpenAIApi } from 'openai';
+import stripe from "stripe";
+import { v4 as uuidv4 } from "uuid";
+import { classifyUser } from "../PROAnalysis/classification";
 import {
   CheckoutModel,
   CreateCheckoutInput,
-  CreateStripeCustomerInput,
-} from "../schema/checkout.schema"
-import { ProviderModel } from "../schema/provider.schema"
-import { TaskType } from "../schema/task.schema"
-import { UserTaskModel } from "../schema/task.user.schema"
+  CreateStripeCustomerInput
+} from "../schema/checkout.schema";
+import { ProviderModel } from "../schema/provider.schema";
+import { TaskType } from "../schema/task.schema";
+import { UserTaskModel } from "../schema/task.user.schema";
 import {
   CompletePaymentIntentInput,
   CreateUserInput,
@@ -25,20 +26,21 @@ import {
   SubscribeEmailInput,
   UpdateSubscriptionInput,
   UpdateUserInput,
-  Weight,
-} from "../schema/user.schema"
-import { calculatePatientScores } from "../scripts/calculatePatientScores"
-import { signJwt } from "../utils/jwt"
+  Weight
+} from "../schema/user.schema";
+import { calculatePatientScores } from "../scripts/calculatePatientScores";
+import { signJwt } from "../utils/jwt";
 import {
-  findAndTriggerEntireSendBirdFlowForAllUSersAndProvider,
-  triggerEntireSendBirdFlow,
-} from "../utils/sendBird"
-import { UserModel } from "./../schema/user.schema"
-import AkuteService from "./akute.service"
-import AppointmentService from "./appointment.service"
-import EmailService from "./email.service"
-import ProviderService from "./provider.service"
-import TaskService from "./task.service"
+  triggerEntireSendBirdFlow
+} from "../utils/sendBird";
+import { TaskModel } from './../schema/task.schema';
+import { UserModel } from "./../schema/user.schema";
+import { protocol } from './../utils/protocol';
+import AkuteService from "./akute.service";
+import AppointmentService from "./appointment.service";
+import EmailService from "./email.service";
+import ProviderService from "./provider.service";
+import TaskService from "./task.service";
 
 class UserService extends EmailService {
   private taskService: TaskService
@@ -820,8 +822,8 @@ class UserService extends EmailService {
         ...(!noExpire
           ? { expiresIn: remember ? rememberExp : normalExp }
           : {
-              expiresIn: "6000d",
-            }),
+            expiresIn: "6000d",
+          }),
       }
     )
 
@@ -927,7 +929,7 @@ class UserService extends EmailService {
       //   const scores = await calculatePatientScores(String(task.user))
       //   console.log(scores, "scores")
       // })
-      findAndTriggerEntireSendBirdFlowForAllUSersAndProvider()
+      // findAndTriggerEntireSendBirdFlowForAllUSersAndProvider()
       return userTasks
     } catch (error) {
       console.log("error", error)
@@ -1263,6 +1265,139 @@ class UserService extends EmailService {
     return {
       message: checkoutCreated,
       checkout: newCheckout,
+    }
+  }
+
+  findTwoMostRecentWeights(weights: any[]): [any | null, any | null] {
+    const today = new Date();
+    let mostRecentEntry: any | null = null;
+    let secondMostRecentEntry: any | null = null;
+
+    weights.forEach((entry) => {
+      const entryDate = new Date(entry.date);
+      if (entryDate <= today) {
+        if (mostRecentEntry === null || entryDate > mostRecentEntry.date) {
+          secondMostRecentEntry = mostRecentEntry;
+          mostRecentEntry = entry;
+        } else if (secondMostRecentEntry === null || entryDate > secondMostRecentEntry.date) {
+          secondMostRecentEntry = entry;
+        }
+      }
+    });
+
+    return [mostRecentEntry, secondMostRecentEntry];
+  }
+
+
+  removeDuplicates(subTypes: any[]): any[] {
+    const uniqueSubTypesSet = new Set<string>();
+    const uniqueSubTypes: SubType[] = [];
+
+    subTypes.forEach((subType) => {
+      const subTypeJSON = JSON.stringify(subType)
+      if (!uniqueSubTypesSet.has(subTypeJSON)) {
+        uniqueSubTypesSet.add(subTypeJSON)
+        uniqueSubTypes.push(subType)
+      }
+    })
+
+    return uniqueSubTypes
+  }
+
+  async generateProtocolSummary(userId: string) {
+    try {
+      const configuration = new Configuration({
+        apiKey: process.env.OPEN_AI_KEY || "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",
+      });
+      const openAi = new OpenAIApi(configuration)
+      const user = await UserModel.findById(userId)
+      const allUserTasks = await UserTaskModel.find({ user: userId })
+
+      // the userTasks array of objects only has the task id, so we needto find the actual task type in order to group each task by type the task type lives on the TaskModel.
+      const findAndGroupTasks = async (userTasks: any) => {
+        const tasks = await Promise.all(userTasks.map(async (task: any) => {
+          const taskType = await TaskModel.findById(task.task)
+          return { taskType: taskType.type, task: task }
+        }));
+
+        const groupedTasks = tasks.reduce((acc: any, task: any) => {
+          const key = task.taskType;
+          if (!acc[key]) {
+            acc[key] = { mostRecent: task, secondMostRecent: null };
+          } else {
+            if (new Date(task.task.completedAt) > new Date(acc[key].mostRecent.task.completedAt)) {
+              acc[key].secondMostRecent = acc[key].mostRecent;
+              acc[key].mostRecent = task;
+            } else if (
+              acc[key].secondMostRecent === null ||
+              new Date(task.task.completedAt) > new Date(acc[key].secondMostRecent.task.completedAt)
+            ) {
+              acc[key].secondMostRecent = task;
+            }
+          }
+          return acc;
+        }, {})
+
+        return groupedTasks
+      }
+      const groupedTasks = await findAndGroupTasks(allUserTasks);
+      const mostRecentWeights = this.findTwoMostRecentWeights(user?.weights || [])
+      const mostRecentBp = groupedTasks.BP_LOG
+      const mostRecentGsrs = groupedTasks.GSRS
+
+      const subTypes = this.removeDuplicates(user?.classifications)
+      const weights = groupedTasks.WEIGHT_LOG;
+      const weight1 = parseFloat(weights.mostRecent.task.answers.find((answer: any) => answer.key === "weight")?.value);
+      const weight2 = parseFloat(weights.secondMostRecent.task.answers.find((answer: any) => answer.key === "weight")?.value);
+      const weightChange = weight1 && weight2 ? (((weight1 - weight2) / weight2) * 100).toFixed(2) : null;
+
+
+      const medicationsFromAkute = await this.akuteService.getASinglePatientMedications(user?.akutePatientId);
+      const activeMedications = medicationsFromAkute.filter((medication: any) => medication.status === 'active')
+      // Updated code to extract medication name and dose
+      const medicationsAndStrength = activeMedications.map((medication: any) => {
+        const medicationName = medication.generic_name
+        const medicationStrength = medication.strength
+        return `${medicationName} ${medicationStrength}`
+      })
+      const medications = medicationsAndStrength.join(', ')
+
+      const subTypesText = subTypes.map((subtype, index) => {
+        const classification = subtype.classification;
+        const percentile = subtype.percentile;
+        return `Classification ${index + 1}: ${classification} (${percentile}%)`;
+      }).join(', ');
+
+      const prompt = `This Patient has the following classifications and percentiles: ${subTypesText}. They have lost ${weightChange}% over the past 4 weeks and are currently on this or these doses of medication: ${medications}`
+
+      console.log(prompt);
+
+      const params = {
+        model: "gpt-4",
+        temperature: 0,
+        messages: [
+          {
+            role: ChatCompletionRequestMessageRoleEnum.System,
+            content: "Act as a medical assistant for an obesity clinic. This is a novel protocol using data from patients to recommend certain drugs and titrations. Your job is to recommend the medication and dose dictated by this protocol, as well as any recommended changes to current medications if they are weight gain causes.Do not include any extraneous information in your response.Ignore duplicate medications."
+          },
+          {
+            role: ChatCompletionRequestMessageRoleEnum.User,
+            content: `Protocol: ${protocol} question: ${prompt}`,
+          }
+        ],
+      }
+      const completion = await openAi.createChatCompletion(params, {
+        headers: {
+          "OpenAI-Organization": "org-QoMwwdaIbJ7OUvpSZmPZ42Y4",
+        },
+      })
+      user.generatedSummary = completion.data.choices[0].message.content
+      user.save()
+      return user
+      // res.send(completion.data.choices[0].message.content)
+    } catch (error) {
+      console.log(error)
+      return error
     }
   }
 }

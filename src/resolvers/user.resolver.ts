@@ -3,7 +3,7 @@ import { CreateLabOrderResponse } from "../schema/akute.schema"
 import {
   CheckoutResponse,
   CreateCheckoutInput,
-  CreateStripeCustomerInput,
+  CreateStripeCustomerInput
 } from "../schema/checkout.schema"
 import { UserTask } from "../schema/task.user.schema"
 import {
@@ -18,7 +18,7 @@ import {
   Score,
   SubscribeEmailInput,
   UpdateSubscriptionInput,
-  User,
+  User
 } from "../schema/user.schema"
 import AkuteService from "../services/akute.service"
 import UserService from "../services/user.service"
@@ -75,6 +75,12 @@ export default class UserResolver {
   @Query(() => User)
   me(@Ctx() context: Context) {
     return this.userService.getUser(context.user._id)
+  }
+
+  @Authorized([Role.Doctor, Role.Admin, Role.Practitioner, Role.HealthCoach])
+  @Query(() => User)
+  generateSummary(@Arg("userId") userId: string) {
+    return this.userService.generateProtocolSummary(userId)
   }
 
   @Query(() => User)
