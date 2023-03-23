@@ -1,14 +1,16 @@
 import { Arg, Authorized, Ctx, Mutation, Query, Resolver } from "type-graphql"
 import {
-  AllTimeslotsInput,
   CreateAppointmentInput,
   CreateCustomerInput,
   EAAppointment,
-  EAAppointmentWithCustomer,
   EAProviderProfile,
-  ProviderTimeslotsInput,
+  GetAppointmentInput,
+  GetAppointmentsByDateInput,
+  GetAppointmentsByMonthInput,
+  GetTimeslotsInput,
   TimeslotsResponse,
-  UpdateAppointmentInput
+  UpcomingAppointmentsInput,
+  UpdateAppointmentInput,
 } from "../schema/appointment.schema"
 import { MessageResponse, Role } from "../schema/user.schema"
 import AppointmentService from "../services/appointment.service"
@@ -20,49 +22,107 @@ export default class AppointmentResolver {
     this.appointmentService = new AppointmentService()
   }
 
-  @Authorized([Role.Patient])
+  @Authorized([
+    Role.Patient,
+    Role.Practitioner,
+    Role.Doctor,
+    Role.CareCoordinator,
+    Role.HealthCoach,
+    Role.Nutritionist,
+  ])
   @Query(() => TimeslotsResponse)
-  allTimeslots(
-    @Ctx() context: Context,
-    @Arg("input") input: AllTimeslotsInput
-  ) {
-    return this.appointmentService.allTimeslots(context.user._id, input)
+  timeslots(@Ctx() context: Context, @Arg("input") input: GetTimeslotsInput) {
+    return this.appointmentService.getTimeslots(context.user, input)
   }
 
-  @Authorized([Role.Patient])
-  @Query(() => TimeslotsResponse)
-  providerTimeslots(@Arg("input") input: ProviderTimeslotsInput) {
-    return this.appointmentService.providerTimeslots(input)
-  }
-
-  @Authorized([Role.Patient])
+  @Authorized([
+    Role.Patient,
+    Role.Practitioner,
+    Role.Doctor,
+    Role.CareCoordinator,
+    Role.HealthCoach,
+    Role.Nutritionist,
+  ])
   @Query(() => EAAppointment)
-  appointment(
-    @Ctx() context: Context,
-    @Arg("eaAppointmentId") eaAppointmentId: string
-  ) {
-    return this.appointmentService.getAppointment(
-      context.user._id,
-      eaAppointmentId
-    )
+  appointment(@Arg("input") input: GetAppointmentInput) {
+    return this.appointmentService.getAppointment(input)
   }
 
-  @Authorized([Role.Patient])
+  @Authorized([
+    Role.Patient,
+    Role.Practitioner,
+    Role.Doctor,
+    Role.CareCoordinator,
+    Role.HealthCoach,
+    Role.Nutritionist,
+  ])
   @Query(() => [EAAppointment])
-  appointments(
+  appointmentsByDate(
     @Ctx() context: Context,
-    @Arg("limit", { defaultValue: 3, nullable: true }) limit?: number
+    @Arg("input") input: GetAppointmentsByDateInput
   ) {
-    return this.appointmentService.getAppointments(context.user._id, limit)
+    return this.appointmentService.getAppointmentsByDate(context.user, input)
   }
 
-  @Authorized([Role.Practitioner, Role.Admin, Role.HealthCoach])
-  @Query(() => [EAAppointmentWithCustomer])
-  providerAppointments(@Arg("eaProviderId") eaProviderId: string) {
-    return this.appointmentService.getProviderAppointments(eaProviderId)
+  @Authorized([
+    Role.Patient,
+    Role.Practitioner,
+    Role.Doctor,
+    Role.CareCoordinator,
+    Role.HealthCoach,
+    Role.Nutritionist,
+  ])
+  @Query(() => [EAAppointment])
+  appointmentsByMonth(
+    @Ctx() context: Context,
+    @Arg("input") input: GetAppointmentsByMonthInput
+  ) {
+    return this.appointmentService.getAppointmentsByMonth(context.user, input)
   }
 
-  @Authorized([Role.Practitioner, Role.Admin, Role.HealthCoach])
+  @Authorized([
+    Role.Patient,
+    Role.Practitioner,
+    Role.Doctor,
+    Role.CareCoordinator,
+    Role.HealthCoach,
+    Role.Nutritionist,
+  ])
+  @Query(() => [EAAppointment])
+  upcomingAppointments(
+    @Ctx() context: Context,
+    @Arg("input") input: UpcomingAppointmentsInput
+  ) {
+    return this.appointmentService.upcomingAppointments(context.user, input)
+  }
+
+  @Authorized([
+    Role.Patient,
+    Role.Practitioner,
+    Role.Doctor,
+    Role.CareCoordinator,
+    Role.HealthCoach,
+    Role.Nutritionist,
+  ])
+  @Mutation(() => EAAppointment)
+  updateAppointment(@Arg("input") input: UpdateAppointmentInput) {
+    return this.appointmentService.updateAppointment(input)
+  }
+
+  @Authorized([
+    Role.Patient,
+    Role.Practitioner,
+    Role.Doctor,
+    Role.CareCoordinator,
+    Role.HealthCoach,
+    Role.Nutritionist,
+  ])
+  @Mutation(() => MessageResponse)
+  cancelAppointment(@Arg("eaAppointmentId") eaAppointmentId: string) {
+    return this.appointmentService.cancelAppointment(eaAppointmentId)
+  }
+
+  @Authorized([Role.Practitioner, Role.Doctor, Role.Admin, Role.HealthCoach])
   @Mutation(() => EAProviderProfile)
   updateProviderProfile(
     @Arg("eaProviderId") eaProviderId: string,
@@ -70,7 +130,8 @@ export default class AppointmentResolver {
   ) {
     return this.appointmentService.updateProvider(eaProviderId, input)
   }
-  @Authorized([Role.Practitioner, Role.Admin, Role.HealthCoach])
+
+  @Authorized([Role.Practitioner, Role.Doctor, Role.Admin, Role.HealthCoach])
   @Query(() => EAProviderProfile)
   getAProvider(@Arg("eaProviderId") eaProviderId: string) {
     return this.appointmentService.getProvider(eaProviderId)
@@ -82,33 +143,19 @@ export default class AppointmentResolver {
     return this.appointmentService.createCustomer(input)
   }
 
-  @Authorized([Role.Patient])
+  @Authorized([
+    Role.Patient,
+    Role.Practitioner,
+    Role.Doctor,
+    Role.CareCoordinator,
+    Role.HealthCoach,
+    Role.Nutritionist,
+  ])
   @Mutation(() => EAAppointment)
   createAppointment(
     @Ctx() context: Context,
     @Arg("input") input: CreateAppointmentInput
   ) {
-    return this.appointmentService.createAppointment(context.user._id, input)
-  }
-
-  @Authorized([Role.Patient])
-  @Mutation(() => EAAppointment)
-  updateAppointment(
-    @Ctx() context: Context,
-    @Arg("input") input: UpdateAppointmentInput
-  ) {
-    return this.appointmentService.updateAppointment(context.user._id, input)
-  }
-
-  @Authorized([Role.Patient])
-  @Mutation(() => MessageResponse)
-  cancelAppointment(
-    @Ctx() context: Context,
-    @Arg("eaAppointmentId") eaAppointmentId: string
-  ) {
-    return this.appointmentService.cancelAppointment(
-      context.user._id,
-      eaAppointmentId
-    )
+    return this.appointmentService.createAppointment(context.user, input)
   }
 }

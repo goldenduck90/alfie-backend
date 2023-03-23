@@ -210,6 +210,7 @@ class UserService extends EmailService {
       zipCode: address.postalCode,
       state: address.state,
       updateUser: false,
+      timezone: "UTC",
     })
     if (!customerId) {
       throw new ApolloError(
@@ -586,6 +587,7 @@ class UserService extends EmailService {
 
     if (!user) {
       const provider = await ProviderModel.find().findByEmail(email).lean()
+      console.log(provider, email)
       if (!provider) {
         throw new ApolloError(emailNotFound.message, emailNotFound.code)
       }
