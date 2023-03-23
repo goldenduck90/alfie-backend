@@ -146,7 +146,7 @@ class AppointmentService {
       }
 
       if (userId) {
-        const _user = await UserModel.findById(user._id).lean()
+        const _user = await UserModel.findById(userId).lean()
         if (!_user) {
           throw new ApolloError(notFound.message, notFound.code)
         }
