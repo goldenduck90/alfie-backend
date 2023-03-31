@@ -18,6 +18,38 @@ import {
 import { UserTaskModel } from "../schema/task.user.schema"
 import { Role, UserModel } from "../schema/user.schema"
 import { createMeetingAndToken } from "../utils/daily"
+
+interface TimeBlock {
+  start: string
+  end: string
+}
+
+type Break = TimeBlock
+
+interface DailySchedule extends TimeBlock {
+  breaks: Break[]
+}
+
+interface Schedule {
+  sunday: DailySchedule
+  monday: DailySchedule
+  tuesday: DailySchedule
+  wednesday: DailySchedule
+  thursday: DailySchedule
+  friday: DailySchedule
+  saturday: DailySchedule
+}
+
+interface Exceptions {
+  date: DailySchedule
+}
+
+interface ScheduleObject {
+  timezone: string
+  schedule: Schedule
+  exceptions: Exceptions
+}
+
 class AppointmentService {
   public baseUrl: string
   public axios: AxiosInstance
@@ -646,6 +678,26 @@ class AppointmentService {
       const { data } = await this.axios.get(`/providers/${eaProviderId}`)
       return data
     } catch (err) {
+      Sentry.captureException(err)
+    }
+  }
+
+  async getProviderSchedule(eaProviderId: string, timezone: string) {
+    try {
+      // timezone example: America/New_York
+      const schedule: ScheduleObject = await this.axios.get(`providers/schedule?eaProviderId=${eaProviderId}&timezone=${timezone}`)
+      return schedule
+    } catch(err) {
+      Sentry.captureException(err)
+    }
+  }
+
+  async updateProviderSchedule(eaProviderId: string, timezone: string, schedule: ScheduleObject) {
+    try {
+      // timezone example: America/New_York
+      const { data } = await this.axios.put(`/providers/schedule?eaProviderId=${eaProviderId}&timezone=${timezone}`, schedule)
+      return data
+    } catch(err) {
       Sentry.captureException(err)
     }
   }

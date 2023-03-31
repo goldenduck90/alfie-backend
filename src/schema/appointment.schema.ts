@@ -7,7 +7,78 @@ import {
   WorkingPlan,
 } from "./../@types/easyAppointmentTypes"
 import { Role } from "./user.schema"
+@ObjectType()
+@InputType("TimeBlockInput")
+class TimeBlock {
+  @Field()
+  start: string
 
+  @Field()
+  end: string
+}
+
+@ObjectType()
+@InputType("BreakInput")
+class ScheduleBreak extends TimeBlock {}
+
+@ObjectType()
+@InputType("DailyScheduleInput")
+class DailySchedule extends TimeBlock {
+  @Field(() => [ScheduleBreak])
+  breaks: ScheduleBreak[]
+}
+
+@ObjectType()
+class Schedule {
+  @Field(() => DailySchedule)
+  sunday: DailySchedule
+
+  @Field(() => DailySchedule)
+  monday: DailySchedule
+
+  @Field(() => DailySchedule)
+  tuesday: DailySchedule
+
+  @Field(() => DailySchedule)
+  wednesday: DailySchedule
+
+  @Field(() => DailySchedule)
+  thursday: DailySchedule
+
+  @Field(() => DailySchedule)
+  friday: DailySchedule
+
+  @Field(() => DailySchedule)
+  saturday: DailySchedule
+}
+@ObjectType()
+class ScheduleExceptions {
+  @Field(() => String)
+  date: DailySchedule
+}
+@ObjectType()
+export class ScheduleObject {
+  @Field()
+  timezone: string
+
+  @Field(() => Schedule)
+  schedule: Schedule
+
+  @Field(() => ScheduleExceptions)
+  exceptions: ScheduleExceptions
+}
+
+@InputType()
+export class ScheduleObjectInput {
+  @Field()
+  timezone: string
+
+  @Field(() => Schedule)
+  schedule: Schedule
+
+  @Field(() => ScheduleExceptions)
+  exceptions: ScheduleExceptions
+}
 @ObjectType()
 export class EAService {
   @Field(() => String)

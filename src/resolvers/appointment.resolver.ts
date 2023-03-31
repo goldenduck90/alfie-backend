@@ -1,3 +1,4 @@
+import { ScheduleObject } from "./../schema/appointment.schema"
 import { Arg, Authorized, Ctx, Mutation, Query, Resolver } from "type-graphql"
 import {
   CreateAppointmentInput,
@@ -11,6 +12,7 @@ import {
   TimeslotsResponse,
   UpcomingAppointmentsInput,
   UpdateAppointmentInput,
+  ScheduleObjectInput,
 } from "../schema/appointment.schema"
 import { MessageResponse, Role } from "../schema/user.schema"
 import AppointmentService from "../services/appointment.service"
@@ -141,6 +143,18 @@ export default class AppointmentResolver {
   @Mutation(() => String)
   createCustomer(@Arg("input") input: CreateCustomerInput) {
     return this.appointmentService.createCustomer(input)
+  }
+
+  @Authorized([Role.Admin, Role.Practitioner, Role.Doctor, Role.HealthCoach])
+  @Query(() => ScheduleObject)
+  getProviderSchedule(@Arg("eaProviderId") eaProviderId: string, @Arg("timezone") timezone: string) {
+    return this.appointmentService.getProviderSchedule(eaProviderId, timezone)
+  }
+
+  @Authorized([Role.Admin, Role.Practitioner, Role.Doctor, Role.HealthCoach])
+  @Mutation(() => ScheduleObject)
+  updateProviderSchedule(@Arg("eaProviderId") eaProviderId: string, @Arg("timezone") timezone: string, @Arg("schedule") schedule: ScheduleObjectInput) {
+    return this.appointmentService.updateProviderSchedule(eaProviderId, timezone, schedule)
   }
 
   @Authorized([
