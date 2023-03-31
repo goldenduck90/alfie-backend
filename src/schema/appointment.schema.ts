@@ -28,6 +28,7 @@ class DailySchedule extends TimeBlock {
   breaks: ScheduleBreak[]
 }
 
+@InputType("ScheduleInput")
 @ObjectType()
 class Schedule {
   @Field(() => DailySchedule)
@@ -51,6 +52,8 @@ class Schedule {
   @Field(() => DailySchedule)
   saturday: DailySchedule
 }
+
+@InputType("ScheduleExceptionsInput")
 @ObjectType()
 class ScheduleExceptions {
   @Field(() => String)
@@ -68,7 +71,8 @@ export class ScheduleObject {
   exceptions: ScheduleExceptions
 }
 
-@InputType()
+@InputType("ScheduleInput2")
+@ObjectType()
 export class ScheduleObjectInput {
   @Field()
   timezone: string
