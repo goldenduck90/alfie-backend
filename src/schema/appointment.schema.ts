@@ -56,7 +56,7 @@ class Schedule {
 @InputType("ScheduleExceptionsInput")
 @ObjectType()
 class ScheduleExceptions {
-  @Field(() => String)
+  @Field(() => DailySchedule)
   date: DailySchedule
 }
 @ObjectType()
