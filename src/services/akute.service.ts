@@ -1,13 +1,16 @@
 import * as Sentry from "@sentry/node"
 import { ApolloError } from "apollo-server"
 import axios, { AxiosInstance } from "axios"
+import { Buffer } from "buffer"
 import config from "config"
 import { format } from "date-fns"
+import FormData from "form-data"
 import {
-  PharmacyLocationInput,
-  CreateLabOrderResponse,
+  AkuteDocument, CreateLabOrderResponse,
+  DocUploadInput, PharmacyLocationInput
 } from "../schema/akute.schema"
 import { CreatePatientInput, UserModel } from "../schema/user.schema"
+
 class AkuteService {
   public baseUrl: string
   public axios: AxiosInstance
@@ -76,7 +79,6 @@ class AkuteService {
 
       return data.data.id
     } catch (error) {
-      console.log(error)
       Sentry.captureException(error)
       throw new ApolloError(error.message, "ERROR")
     }
@@ -188,7 +190,22 @@ class AkuteService {
       throw new ApolloError(e.message, "ERROR")
     }
   }
+  async getASinglePatientMedications(patientId: string) {
+    try {
+      const { data: medications } = await this.axios.get(
+        `/medications?patient_id=${patientId}`
+      )
+      return medications
+    } catch (e) {
+      Sentry.captureException(new Error(e), {
+        tags: {
+          function: "getASinglePatientMedications",
+        },
+      })
 
+      throw new ApolloError(e.message, "ERROR")
+    }
+  }
   async createLabOrder(userId: string): Promise<CreateLabOrderResponse> {
     const labCorpAccountNumber = config.get("akute.labCorpAccountNumber") as any
     const labCorpOrganizationId = config.get(
@@ -298,6 +315,60 @@ class AkuteService {
       })
 
       throw new ApolloError(e.message, "ERROR")
+    }
+  }
+
+  async uploadDocument({
+    file,
+    fileName,
+    description = "",
+    externalPatientId,
+    patientId,
+    tags = [],
+  }: DocUploadInput): Promise<AkuteDocument> {
+    try {
+      if (!file) {
+        throw new ApolloError("Required file not found", "NOT_FOUND")
+      }
+
+      const formData = new FormData()
+      const fileBuffer = Buffer.from(file, "base64")
+      formData.append("file", fileBuffer, fileName)
+      formData.append("file_name", fileName)
+
+      if (patientId) {
+        formData.append("patient_id", patientId)
+      } else if (externalPatientId) {
+        formData.append("external_patient_id", externalPatientId)
+      } else {
+        throw new ApolloError("Patient identifier not found", "NOT_FOUND")
+      }
+
+      if (description) {
+        formData.append("description", description)
+      }
+      if (tags?.length > 0) {
+        tags.forEach((tag) => formData.append("tags[]", tag))
+      }
+
+      const { data } = await this.axios.post("/documents", formData, {
+        headers: {
+          "Content-Type": "multipart/form-data",
+          "X-API-Key": process.env.AKUTE_API_KEY,
+        },
+      })
+
+      return { id: data?.id }
+    } catch (error) {
+      console.log(error.response.data)
+
+      Sentry.captureException(error, {
+        tags: {
+          function: "uploadDocument",
+        },
+      })
+
+      throw new ApolloError(error.message, "ERROR")
     }
   }
 }

@@ -1,4 +1,4 @@
-name: (DEV) Build and Deploy
+name: (PROD) Build and Deploy
 
 env:
   APP_NAME:	alfie-backend
@@ -49,6 +49,6 @@ jobs:
         aws_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         region: ${{ env.AWS_REGION }}
         application_name: alfie-backend
-        environment_name: production
+        environment_name: production-v2-be
         version_label: "production_${{ steps.timestamp.outputs.date }}"
         deployment_package: package.zip
