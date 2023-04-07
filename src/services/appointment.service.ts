@@ -685,19 +685,32 @@ class AppointmentService {
   async getProviderSchedule(eaProviderId: string, timezone: string) {
     try {
       // timezone example: America/New_York
-      const schedule: ScheduleObject = await this.axios.get(`providers/schedule?eaProviderId=${eaProviderId}&timezone=${timezone}`)
-      return schedule
-    } catch(err) {
+      const schedule = await this.axios.get(
+        `/providers/schedule?eaProviderId=${eaProviderId}&timezone=${timezone}`
+      )
+      return schedule.data
+    } catch (err) {
+      console.log(err)
       Sentry.captureException(err)
     }
   }
 
-  async updateProviderSchedule(eaProviderId: string, timezone: string, schedule: ScheduleObject) {
+  async updateProviderSchedule(
+    eaProviderId: string,
+    timezone: string,
+    schedule: Schedule
+  ) {
     try {
-      // timezone example: America/New_York
-      const { data } = await this.axios.put(`/providers/schedule?eaProviderId=${eaProviderId}&timezone=${timezone}`, schedule)
+      const { data } = await this.axios.put(
+        `/providers/schedule?eaProviderId=${eaProviderId}&timezone=${timezone}`,
+        {
+          schedule: schedule,
+          exceptions: [],
+        }
+      )
+      console.log(data)
       return data
-    } catch(err) {
+    } catch (err) {
       Sentry.captureException(err)
     }
   }
