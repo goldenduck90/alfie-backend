@@ -30,10 +30,7 @@ class DailySchedule extends TimeBlock {
 
 @InputType("ScheduleInput")
 @ObjectType()
-class Schedule {
-  @Field(() => DailySchedule)
-  sunday: DailySchedule
-
+export class Schedule {
   @Field(() => DailySchedule)
   monday: DailySchedule
 
@@ -51,6 +48,9 @@ class Schedule {
 
   @Field(() => DailySchedule)
   saturday: DailySchedule
+
+  @Field(() => DailySchedule)
+  sunday: DailySchedule
 }
 
 @InputType("ScheduleExceptionsInput")
@@ -71,6 +71,15 @@ export class ScheduleObject {
   exceptions: ScheduleExceptions
 }
 
+@ObjectType()
+export class UpdateScheduleMessage {
+  @Field()
+  code: number
+
+  @Field()
+  message: string
+}
+
 @InputType("ScheduleInput2")
 @ObjectType()
 export class ScheduleObjectInput {
@@ -79,9 +88,6 @@ export class ScheduleObjectInput {
 
   @Field(() => Schedule)
   schedule: Schedule
-
-  @Field(() => ScheduleExceptions)
-  exceptions: ScheduleExceptions
 }
 @ObjectType()
 export class EAService {
