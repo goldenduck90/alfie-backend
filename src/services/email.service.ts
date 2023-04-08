@@ -157,9 +157,10 @@ class EmailService {
       Hello,<br/><br/>
       
       You have been assigned a task: ${taskName}.<br/>
-      ${dueAt
-        ? `It is due on ${format(dueAt, "MM/dd/yyyy @ h:mm a")}.<br/><br/>`
-        : "<br/>"
+      ${
+        dueAt
+          ? `It is due on ${format(dueAt, "MM/dd/yyyy @ h:mm a")}.<br/><br/>`
+          : "<br/>"
       }
 
       Please click the link below to complete the task:<br/>
@@ -185,6 +186,200 @@ class EmailService {
         Subject: {
           Charset: "UTF-8",
           Data: subject,
+        },
+      },
+    }
+
+    const result = await this.awsSes.sendEmail(params).promise()
+    return result.MessageId
+  }
+
+  async sendAppointmentCreatedEmail({
+    name,
+    email,
+    start,
+    end,
+    date,
+    id,
+    otherName,
+    provider = false,
+  }: {
+    name: string
+    email: string
+    start: string
+    end: string
+    date: string
+    id: string
+    otherName: string
+    provider?: boolean
+  }) {
+    const url = `${this.baseUrl}/dashboard/appointments/${id}`
+
+    const emailBody = `
+      Hello ${name},<br/><br/>
+      
+      An appointment with ${
+        provider ? "patient," : ""
+      } <b>${otherName}</b> has been scheduled.<br/><br/>
+
+      <b>Appointment Date:</b> ${date}<br/>
+      <b>Start Time:</b> ${start}<br/>
+      <b>End Time:</b> ${end}<br/><br/>
+
+      Please click the link below to view the appointment details:<br/>
+      ${url}<br/><br/>
+
+      If you have any questions, please reach out to your Alfie care team<br/><br/>
+
+      Thanks,<br/>
+      Alfie Team
+    `
+
+    const params = {
+      Source: this.noReplyEmail,
+      Destination: {
+        ToAddresses: [email],
+      },
+      ReplyToAddresses: [] as string[],
+      Message: {
+        Body: {
+          Html: {
+            Charset: "UTF-8",
+            Data: emailBody, // TODO: build email template & copy
+          },
+        },
+        Subject: {
+          Charset: "UTF-8",
+          Data: `Appointment with ${
+            provider ? "patient," : ""
+          } ${otherName} scheduled`,
+        },
+      },
+    }
+
+    const result = await this.awsSes.sendEmail(params).promise()
+    return result.MessageId
+  }
+
+  async sendAppointmentUpdatedEmail({
+    name,
+    email,
+    start,
+    end,
+    date,
+    id,
+    otherName,
+    provider = false,
+  }: {
+    name: string
+    email: string
+    start: string
+    end: string
+    date: string
+    id: string
+    otherName: string
+    provider?: boolean
+  }) {
+    const url = `${this.baseUrl}/dashboard/appointments/${id}`
+
+    const emailBody = `
+      Hello ${name},<br/><br/>
+      
+      You're appointment with ${
+        provider ? "patient, " : ""
+      } <b>${otherName}</b> has been rescheduled.<br/><br/>
+
+      <b>Appointment Date:</b> ${date}<br/>
+      <b>Start Time:</b> ${start}<br/>
+      <b>End Time:</b> ${end}<br/><br/>
+
+      Please click the link below to view the appointment details:<br/>
+      ${url}<br/><br/>
+
+      If you have any questions, please reach out to your Alfie care team<br/><br/>
+
+      Thanks,<br/>
+      Alfie Team
+    `
+
+    const params = {
+      Source: this.noReplyEmail,
+      Destination: {
+        ToAddresses: [email],
+      },
+      ReplyToAddresses: [] as string[],
+      Message: {
+        Body: {
+          Html: {
+            Charset: "UTF-8",
+            Data: emailBody, // TODO: build email template & copy
+          },
+        },
+        Subject: {
+          Charset: "UTF-8",
+          Data: `Appointment with ${
+            provider ? "patient," : ""
+          } ${otherName} scheduled`,
+        },
+      },
+    }
+
+    const result = await this.awsSes.sendEmail(params).promise()
+    return result.MessageId
+  }
+
+  async sendAppointmentCancelledEmail({
+    name,
+    email,
+    start,
+    end,
+    date,
+    otherName,
+    provider = false,
+  }: {
+    name: string
+    email: string
+    start: string
+    end: string
+    date: string
+    otherName: string
+    provider?: boolean
+  }) {
+    const emailBody = `
+      Hello ${name},<br/><br/>
+      
+      Your appointment with ${
+        provider ? "patient," : ""
+      } <b>${otherName}</b> has been cancelled.<br/><br/>
+
+      <b>Appointment Date:</b> ${date}<br/>
+      <b>Start Time:</b> ${start}<br/>
+      <b>End Time:</b> ${end}<br/><br/>
+
+      If you have any questions, please reach out to your Alfie care team<br/><br/>
+
+      Thanks,<br/>
+      Alfie Team
+    `
+
+    const params = {
+      Source: this.noReplyEmail,
+      Destination: {
+        ToAddresses: [email],
+      },
+      ReplyToAddresses: [] as string[],
+      Message: {
+        Body: {
+          Html: {
+            Charset: "UTF-8",
+            Data: emailBody, // TODO: build email template & copy
+          },
+        },
+        Subject: {
+          Charset: "UTF-8",
+          Data: `Appointment with ${
+            provider ? "patient," : ""
+          } ${otherName} cancelled`,
         },
       },
     }
