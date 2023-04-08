@@ -123,8 +123,8 @@ export default class AppointmentResolver {
     Role.Nutritionist,
   ])
   @Mutation(() => MessageResponse)
-  cancelAppointment(@Arg("eaAppointmentId") eaAppointmentId: string) {
-    return this.appointmentService.cancelAppointment(eaAppointmentId)
+  cancelAppointment(@Arg("input") input: GetAppointmentInput) {
+    return this.appointmentService.cancelAppointment(input)
   }
 
   @Authorized([Role.Practitioner, Role.Doctor, Role.Admin, Role.HealthCoach])

@@ -18,6 +18,15 @@ import {
 import { UserTaskModel } from "../schema/task.user.schema"
 import { Role, UserModel } from "../schema/user.schema"
 import { createMeetingAndToken } from "../utils/daily"
+import EmailService from "./email.service"
+import dayjs from "dayjs"
+import tz from "dayjs/plugin/timezone"
+import utc from "dayjs/plugin/utc"
+import advanced from "dayjs/plugin/advancedFormat"
+
+dayjs.extend(utc)
+dayjs.extend(tz)
+dayjs.extend(advanced)
 
 interface TimeBlock {
   start: string
@@ -50,11 +59,12 @@ interface ScheduleObject {
   exceptions: Exceptions
 }
 
-class AppointmentService {
+class AppointmentService extends EmailService {
   public baseUrl: string
   public axios: AxiosInstance
 
   constructor() {
+    super()
     const eaUrl = config.get("easyAppointmentsApiUrl") as string
 
     this.baseUrl = eaUrl
@@ -283,6 +293,44 @@ class AppointmentService {
         meetingUrl: meetingData,
       })
 
+      if (response) {
+        await this.sendAppointmentCreatedEmail({
+          name: response.provider.firstName,
+          email: response.provider.email,
+          date: dayjs(response.start)
+            .tz(response.timezone)
+            .format("MM/DD/YYYY"),
+          start: `${dayjs(response.start)
+            .tz(response.timezone)
+            .format("h:mm A (z)")}`,
+          end: `${dayjs(response.end)
+            .tz(response.timezone)
+            .format("h:mm A (z)")}`,
+          otherName:
+            response.customer.firstName + " " + response.customer.lastName,
+          id: response.id,
+          provider: true,
+        })
+
+        await this.sendAppointmentCreatedEmail({
+          name: response.customer.firstName,
+          email: response.customer.email,
+          date: dayjs(response.start)
+            .tz(response.timezone)
+            .format("MM/DD/YYYY"),
+          start: `${dayjs(response.start)
+            .tz(response.timezone)
+            .format("h:mm A (z)")}`,
+          end: `${dayjs(response.end)
+            .tz(response.timezone)
+            .format("h:mm A (z)")}`,
+          otherName:
+            response.provider.firstName + " " + response.provider.lastName,
+          id: response.id,
+          provider: false,
+        })
+      }
+
       return {
         eaAppointmentId: response.id,
         start: response.start,
@@ -331,6 +379,44 @@ class AppointmentService {
         }
       )
 
+      if (response) {
+        await this.sendAppointmentUpdatedEmail({
+          name: response.provider.firstName,
+          email: response.provider.email,
+          date: dayjs(response.start)
+            .tz(response.timezone)
+            .format("MM/DD/YYYY"),
+          start: `${dayjs(response.start)
+            .tz(response.timezone)
+            .format("h:mm A (z)")}`,
+          end: `${dayjs(response.end)
+            .tz(response.timezone)
+            .format("h:mm A (z)")}`,
+          otherName:
+            response.customer.firstName + " " + response.customer.lastName,
+          id: response.id,
+          provider: true,
+        })
+
+        await this.sendAppointmentUpdatedEmail({
+          name: response.customer.firstName,
+          email: response.customer.email,
+          date: dayjs(response.start)
+            .tz(response.timezone)
+            .format("MM/DD/YYYY"),
+          start: `${dayjs(response.start)
+            .tz(response.timezone)
+            .format("h:mm A (z)")}`,
+          end: `${dayjs(response.end)
+            .tz(response.timezone)
+            .format("h:mm A (z)")}`,
+          otherName:
+            response.provider.firstName + " " + response.provider.lastName,
+          id: response.id,
+          provider: false,
+        })
+      }
+
       return {
         eaAppointmentId: response.id,
         start: response.start,
@@ -364,11 +450,52 @@ class AppointmentService {
     }
   }
 
-  async cancelAppointment(eaAppointmentId: string) {
+  async cancelAppointment(input: GetAppointmentInput) {
     try {
-      const { data } = await this.axios.delete(
-        `/appointments/${eaAppointmentId}`
+      const { data: getData } = await this.axios.get(
+        `/appointments/${input.eaAppointmentId}?timezone=${input.timezone}`
       )
+      const response = getData
+
+      const { data } = await this.axios.delete(
+        `/appointments/${input.eaAppointmentId}`
+      )
+
+      if (data) {
+        await this.sendAppointmentCancelledEmail({
+          name: response.provider.firstName,
+          email: response.provider.email,
+          date: dayjs(response.start)
+            .tz(response.timezone)
+            .format("MM/DD/YYYY"),
+          start: `${dayjs(response.start)
+            .tz(response.timezone)
+            .format("h:mm A (z)")}`,
+          end: `${dayjs(response.end)
+            .tz(response.timezone)
+            .format("h:mm A (z)")}`,
+          otherName:
+            response.customer.firstName + " " + response.customer.lastName,
+          provider: true,
+        })
+
+        await this.sendAppointmentCancelledEmail({
+          name: response.customer.firstName,
+          email: response.customer.email,
+          date: dayjs(response.start)
+            .tz(response.timezone)
+            .format("MM/DD/YYYY"),
+          start: `${dayjs(response.start)
+            .tz(response.timezone)
+            .format("h:mm A (z)")}`,
+          end: `${dayjs(response.end)
+            .tz(response.timezone)
+            .format("h:mm A (z)")}`,
+          otherName:
+            response.provider.firstName + " " + response.provider.lastName,
+          provider: false,
+        })
+      }
 
       return {
         message: data.message,
