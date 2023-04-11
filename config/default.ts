@@ -199,4 +199,6 @@ export default {
     labCorpOrganizationId: "f-e20f61500ba128d340068ff6",
   },
   sendBirdBotId: "ALFIE_BOT",
+  twilioAccountSid: "ACbb4313087a5ddfe068560647a79f55aa",
+  twilioMessagingServiceSid: "MGc9274f6baa27f492eaf008c8e77fd947",
 }
