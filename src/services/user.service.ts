@@ -1,21 +1,37 @@
-import * as Sentry from "@sentry/node";
-import { ApolloError } from "apollo-server-errors";
-import * as AWS from "aws-sdk";
-import bcrypt from "bcrypt";
-import config from "config";
-import { addMinutes, addMonths } from "date-fns";
-import { ChatCompletionRequestMessageRoleEnum, Configuration, OpenAIApi } from 'openai';
-import stripe from "stripe";
-import { v4 as uuidv4 } from "uuid";
-import { classifyUser } from "../PROAnalysis/classification";
+import * as Sentry from "@sentry/node"
+import { ApolloError } from "apollo-server-errors"
+import * as AWS from "aws-sdk"
+import bcrypt from "bcrypt"
+import config from "config"
+import {
+  addDays,
+  addMinutes,
+  addMonths,
+  differenceInDays,
+  isPast,
+  isToday,
+  format,
+  isTomorrow,
+  isThisWeek,
+  subDays,
+  isYesterday,
+} from "date-fns"
+import {
+  ChatCompletionRequestMessageRoleEnum,
+  Configuration,
+  OpenAIApi,
+} from "openai"
+import stripe from "stripe"
+import { v4 as uuidv4 } from "uuid"
+import { classifyUser } from "../PROAnalysis/classification"
 import {
   CheckoutModel,
   CreateCheckoutInput,
-  CreateStripeCustomerInput
-} from "../schema/checkout.schema";
-import { ProviderModel } from "../schema/provider.schema";
-import { TaskType } from "../schema/task.schema";
-import { UserTaskModel } from "../schema/task.user.schema";
+  CreateStripeCustomerInput,
+} from "../schema/checkout.schema"
+import { ProviderModel } from "../schema/provider.schema"
+import { AllTaskEmail, TaskEmail, TaskType } from "../schema/task.schema"
+import { UserTaskModel } from "../schema/task.user.schema"
 import {
   CompletePaymentIntentInput,
   CreateUserInput,
@@ -26,27 +42,27 @@ import {
   SubscribeEmailInput,
   UpdateSubscriptionInput,
   UpdateUserInput,
-  Weight
-} from "../schema/user.schema";
-import { calculatePatientScores } from "../scripts/calculatePatientScores";
-import { signJwt } from "../utils/jwt";
-import {
-  triggerEntireSendBirdFlow
-} from "../utils/sendBird";
-import { TaskModel } from './../schema/task.schema';
-import { UserModel } from "./../schema/user.schema";
-import { protocol } from './../utils/protocol';
-import AkuteService from "./akute.service";
-import AppointmentService from "./appointment.service";
-import EmailService from "./email.service";
-import ProviderService from "./provider.service";
-import TaskService from "./task.service";
+  Weight,
+} from "../schema/user.schema"
+import { calculatePatientScores } from "../scripts/calculatePatientScores"
+import { signJwt } from "../utils/jwt"
+import { triggerEntireSendBirdFlow } from "../utils/sendBird"
+import { TaskModel } from "./../schema/task.schema"
+import { UserModel } from "./../schema/user.schema"
+import { protocol } from "./../utils/protocol"
+import AkuteService from "./akute.service"
+import AppointmentService from "./appointment.service"
+import EmailService from "./email.service"
+import ProviderService from "./provider.service"
+import TaskService from "./task.service"
+import SmsService from "./sms.service"
 
 class UserService extends EmailService {
   private taskService: TaskService
   private providerService: ProviderService
   private akuteService: AkuteService
   private appointmentService: AppointmentService
+  private smsService: SmsService
   public awsDynamo: AWS.DynamoDB
   private stripeSdk: stripe
 
@@ -56,6 +72,7 @@ class UserService extends EmailService {
     this.providerService = new ProviderService()
     this.akuteService = new AkuteService()
     this.appointmentService = new AppointmentService()
+    this.smsService = new SmsService()
     this.awsDynamo = new AWS.DynamoDB({
       accessKeyId: process.env.AWS_ACCESS_KEY_ID,
       secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
@@ -824,8 +841,8 @@ class UserService extends EmailService {
         ...(!noExpire
           ? { expiresIn: remember ? rememberExp : normalExp }
           : {
-            expiresIn: "6000d",
-          }),
+              expiresIn: "6000d",
+            }),
       }
     )
 
@@ -908,6 +925,268 @@ class UserService extends EmailService {
       throw new ApolloError(error.message, error.code)
     }
   }
+
+  async getAllPatients() {
+    try {
+      const users = await UserModel.find({
+        role: Role.Patient,
+      })
+
+      return users
+    } catch (error) {
+      throw new ApolloError(error.message, error.code)
+    }
+  }
+
+  async taskJob() {
+    const users = await this.getAllPatients()
+    const tasks = await TaskModel.find({ interval: { $exists: true } })
+
+    const allNewTasks: AllTaskEmail[] = []
+    const allDueTodayTasks: AllTaskEmail[] = []
+    const allPastDueTasks: AllTaskEmail[] = []
+    const errors: string[] = []
+
+    // loop through each user
+    for (let i = 0; i < users.length; i++) {
+      const newTasks: TaskEmail[] = []
+      const dueTodayTasks: TaskEmail[] = []
+      const pastDueTasks: TaskEmail[] = []
+
+      // loop through each task that has an interval
+      for (let j = 0; j < tasks.length; j++) {
+        // get the last user task completed for this specific task
+        const uTask = await UserTaskModel.findOne(
+          { task: tasks[j]._id, user: users[i]._id },
+          {},
+          { sort: { createdAt: -1 } }
+        )
+
+        // if exists continue
+        if (uTask) {
+          // if completed continue
+          if (uTask.completed) {
+            console.log("Inside task completed")
+            const completedAt = new Date(uTask.completedAt).setHours(0, 0)
+            const completedDate = addDays(
+              completedAt,
+              Number(tasks[j].interval)
+            )
+
+            // assign new task if its past the interval
+            if (isPast(completedDate) || isToday(completedDate)) {
+              console.log("task is completed and past the completed date")
+
+              // create new user task in database
+              const dueAt = addDays(
+                new Date().setHours(0, 0),
+                tasks[j].daysTillDue || 0
+              )
+
+              const newUTask = await UserTaskModel.create({
+                user: users[i]._id,
+                task: tasks[j]._id,
+                dueAt: tasks[j].daysTillDue ? dueAt : undefined,
+                highPriority: tasks[j].highPriority,
+                lastNotifiedUserAt: new Date(new Date().setHours(0, 0)),
+              })
+
+              const dueAtFormatted = isToday(dueAt)
+                ? "Today"
+                : isTomorrow(dueAt)
+                ? "Tomorrow"
+                : isThisWeek(dueAt)
+                ? `${format(dueAt, "EEE")}`
+                : `${format(dueAt, "EEE, LLL do")}`
+
+              // send email that new task was assigned
+              newTasks.push({
+                taskName: tasks[j].name,
+                dueAt: dueAtFormatted,
+                taskId: newUTask._id,
+              })
+
+              // add to output for report email
+              allNewTasks.push({
+                taskName: tasks[j].name,
+                dueAt: dueAtFormatted,
+                taskId: newUTask._id,
+                userId: users[i]._id,
+                userName: users[i].name,
+                userEmail: users[i].email,
+              })
+            }
+          } else {
+            const interval = Number(tasks[j].interval)
+            const isDueToday = isToday(
+              subDays(new Date(uTask.dueAt).setHours(0, 0), 1)
+            )
+            const daysSinceNotified = differenceInDays(
+              new Date().setHours(0, 0),
+              new Date(uTask.lastNotifiedUserAt).setHours(0, 0)
+            )
+
+            // if interval is 21 days or greater notify the day its due
+            if (interval >= 21 && isDueToday && daysSinceNotified > 0) {
+              console.log("inside notify due today")
+              dueTodayTasks.push({
+                taskName: tasks[j].name,
+                dueAt: "Today",
+                taskId: uTask._id,
+              })
+
+              allDueTodayTasks.push({
+                taskName: tasks[j].name,
+                dueAt: "Today",
+                taskId: uTask._id,
+                userId: users[i]._id,
+                userName: users[i].name,
+                userEmail: users[i].email,
+              })
+
+              uTask.lastNotifiedUserAt = new Date()
+              await uTask.save()
+
+              // if past due starting today and you havent been notified today
+              // or if its past due and its been 3 or more days since the user has been notified
+            } else if (
+              (isToday(new Date(uTask.dueAt).setHours(0, 0)) &&
+                daysSinceNotified > 0) ||
+              (isPast(new Date(uTask.dueAt).setHours(0, 0)) &&
+                daysSinceNotified >= 3)
+            ) {
+              const pastDueFormatted = isToday(uTask.dueAt)
+                ? "Today"
+                : isYesterday(uTask.dueAt)
+                ? "Yesterday"
+                : `${format(uTask.dueAt, "EEE, LLL do")}`
+
+              pastDueTasks.push({
+                taskName: tasks[j].name,
+                dueAt: pastDueFormatted,
+                taskId: uTask._id,
+              })
+
+              uTask.lastNotifiedUserAt = new Date()
+              await uTask.save()
+
+              allPastDueTasks.push({
+                taskName: tasks[j].name,
+                dueAt: pastDueFormatted,
+                taskId: uTask._id,
+                userId: users[i]._id,
+                userName: users[i].name,
+                userEmail: users[i].email,
+              })
+            }
+          }
+        } else if (
+          tasks[j].type !== TaskType.SCHEDULE_APPOINTMENT ||
+          tasks[j].type !== TaskType.SCHEDULE_HEALTH_COACH_APPOINTMENT
+        ) {
+          console.log("No task yet, create new one")
+
+          // create new user task in database
+          const dueAt = addDays(
+            new Date().setHours(0, 0),
+            tasks[j].daysTillDue || 0
+          )
+
+          const newUTask = await UserTaskModel.create({
+            user: users[i]._id,
+            task: tasks[j]._id,
+            dueAt: tasks[j].daysTillDue ? dueAt : undefined,
+            highPriority: tasks[j].highPriority,
+            lastNotifiedUserAt: new Date(new Date().setHours(0, 0)),
+          })
+
+          const dueAtFormatted = isToday(dueAt)
+            ? "Today"
+            : isTomorrow(dueAt)
+            ? "Tomorrow"
+            : isThisWeek(dueAt)
+            ? `${format(dueAt, "EEE")}`
+            : `${format(dueAt, "EEE, LLL do")}`
+
+          // send email that new task was assigned
+          newTasks.push({
+            taskName: tasks[j].name,
+            dueAt: dueAtFormatted,
+            taskId: newUTask._id,
+          })
+
+          // add to output for report email
+          allNewTasks.push({
+            taskName: tasks[j].name,
+            dueAt: dueAtFormatted,
+            taskId: newUTask._id,
+            userId: users[i]._id,
+            userName: users[i].name,
+            userEmail: users[i].email,
+          })
+        }
+      }
+
+      if (
+        newTasks.length > 0 ||
+        pastDueTasks.length > 0 ||
+        dueTodayTasks.length > 0
+      ) {
+        console.log("inside send email")
+        // send email
+        const sent = await this.sendTaskEmail({
+          name: users[i].name,
+          email: users[i].email,
+          newTasks,
+          pastDueTasks,
+          dueTodayTasks,
+        })
+
+        if (!sent) {
+          errors.push(
+            `An error occured sending task email to user (${users[i]._id}): ${users[i].email}`
+          )
+        }
+
+        // send sms
+        const smsSent = await this.smsService.sendTaskSms({
+          name: users[i].name,
+          phone: users[i].phone,
+          newTasks,
+          pastDueTasks,
+          dueTodayTasks,
+          timezone: users[i].timezone,
+        })
+
+        if (!smsSent.sid) {
+          errors.push(
+            `An error occured sending task sms to user (${users[i]._id}): ${users[i].email}, ${users[i].phone}`
+          )
+        }
+      }
+    }
+
+    // send report
+    if (
+      allNewTasks.length > 0 ||
+      allPastDueTasks.length > 0 ||
+      allDueTodayTasks.length > 0
+    ) {
+      const sent = await this.sendTaskReport({
+        allNewTasks,
+        allPastDueTasks,
+        allDueTodayTasks,
+        errors,
+      })
+
+      if (!sent) {
+        console.log(`An error occured sending the daily task report: ${sent}`)
+      } else {
+        console.log("Daily task report email has been successfully sent")
+      }
+    }
+  }
+
   async getAllUserTasksByUser(userId: string) {
     try {
       const userTasks: any = await UserTaskModel.find({ user: userId })
@@ -1271,29 +1550,31 @@ class UserService extends EmailService {
   }
 
   findTwoMostRecentWeights(weights: any[]): [any | null, any | null] {
-    const today = new Date();
-    let mostRecentEntry: any | null = null;
-    let secondMostRecentEntry: any | null = null;
+    const today = new Date()
+    let mostRecentEntry: any | null = null
+    let secondMostRecentEntry: any | null = null
 
     weights.forEach((entry) => {
-      const entryDate = new Date(entry.date);
+      const entryDate = new Date(entry.date)
       if (entryDate <= today) {
         if (mostRecentEntry === null || entryDate > mostRecentEntry.date) {
-          secondMostRecentEntry = mostRecentEntry;
-          mostRecentEntry = entry;
-        } else if (secondMostRecentEntry === null || entryDate > secondMostRecentEntry.date) {
-          secondMostRecentEntry = entry;
+          secondMostRecentEntry = mostRecentEntry
+          mostRecentEntry = entry
+        } else if (
+          secondMostRecentEntry === null ||
+          entryDate > secondMostRecentEntry.date
+        ) {
+          secondMostRecentEntry = entry
         }
       }
-    });
+    })
 
-    return [mostRecentEntry, secondMostRecentEntry];
+    return [mostRecentEntry, secondMostRecentEntry]
   }
 
-
   removeDuplicates(subTypes: any[]): any[] {
-    const uniqueSubTypesSet = new Set<string>();
-    const uniqueSubTypes: any[] = [];
+    const uniqueSubTypesSet = new Set<string>()
+    const uniqueSubTypes: any[] = []
 
     subTypes.forEach((subType) => {
       const subTypeJSON = JSON.stringify(subType)
@@ -1309,66 +1590,93 @@ class UserService extends EmailService {
   async generateProtocolSummary(userId: string) {
     try {
       const configuration = new Configuration({
-        apiKey: process.env.OPEN_AI_KEY
-      });
+        apiKey: process.env.OPEN_AI_KEY,
+      })
       const openAi = new OpenAIApi(configuration)
       const user = await UserModel.findById(userId)
       const allUserTasks = await UserTaskModel.find({ user: userId })
 
       // the userTasks array of objects only has the task id, so we needto find the actual task type in order to group each task by type the task type lives on the TaskModel.
       const findAndGroupTasks = async (userTasks: any) => {
-        const tasks = await Promise.all(userTasks.map(async (task: any) => {
-          const taskType = await TaskModel.findById(task.task)
-          return { taskType: taskType.type, task: task }
-        }));
+        const tasks = await Promise.all(
+          userTasks.map(async (task: any) => {
+            const taskType = await TaskModel.findById(task.task)
+            return { taskType: taskType.type, task: task }
+          })
+        )
 
         const groupedTasks = tasks.reduce((acc: any, task: any) => {
-          const key = task.taskType;
+          const key = task.taskType
           if (!acc[key]) {
-            acc[key] = { mostRecent: task, secondMostRecent: null };
+            acc[key] = { mostRecent: task, secondMostRecent: null }
           } else {
-            if (new Date(task.task.completedAt) > new Date(acc[key].mostRecent.task.completedAt)) {
-              acc[key].secondMostRecent = acc[key].mostRecent;
-              acc[key].mostRecent = task;
+            if (
+              new Date(task.task.completedAt) >
+              new Date(acc[key].mostRecent.task.completedAt)
+            ) {
+              acc[key].secondMostRecent = acc[key].mostRecent
+              acc[key].mostRecent = task
             } else if (
               acc[key].secondMostRecent === null ||
-              new Date(task.task.completedAt) > new Date(acc[key].secondMostRecent.task.completedAt)
+              new Date(task.task.completedAt) >
+                new Date(acc[key].secondMostRecent.task.completedAt)
             ) {
-              acc[key].secondMostRecent = task;
+              acc[key].secondMostRecent = task
             }
           }
-          return acc;
+          return acc
         }, {})
 
         return groupedTasks
       }
-      const groupedTasks = await findAndGroupTasks(allUserTasks);
-      const mostRecentWeights = this.findTwoMostRecentWeights(user?.weights || [])
-      const mostRecentBp = groupedTasks.BP_LOG
-      const mostRecentGsrs = groupedTasks.GSRS
+      const groupedTasks = await findAndGroupTasks(allUserTasks)
+      // const mostRecentWeights = this.findTwoMostRecentWeights(user?.weights || [])
+      // const mostRecentBp = groupedTasks.BP_LOG
+      // const mostRecentGsrs = groupedTasks.GSRS
 
       const subTypes = this.removeDuplicates(user?.classifications)
-      const weights = groupedTasks.WEIGHT_LOG;
-      const weight1 = parseFloat(weights.mostRecent.task.answers.find((answer: any) => answer.key === "weight")?.value);
-      const weight2 = parseFloat(weights.secondMostRecent.task.answers.find((answer: any) => answer.key === "weight")?.value);
-      const weightChange = weight1 && weight2 ? (((weight1 - weight2) / weight2) * 100).toFixed(2) : null;
+      const weights = groupedTasks.WEIGHT_LOG
+      const weight1 = parseFloat(
+        weights.mostRecent.task.answers.find(
+          (answer: any) => answer.key === "weight"
+        )?.value
+      )
+      const weight2 = parseFloat(
+        weights.secondMostRecent.task.answers.find(
+          (answer: any) => answer.key === "weight"
+        )?.value
+      )
+      const weightChange =
+        weight1 && weight2
+          ? (((weight1 - weight2) / weight2) * 100).toFixed(2)
+          : null
 
-
-      const medicationsFromAkute = await this.akuteService.getASinglePatientMedications(user?.akutePatientId);
-      const activeMedications = medicationsFromAkute.filter((medication: any) => medication.status === 'active')
+      const medicationsFromAkute =
+        await this.akuteService.getASinglePatientMedications(
+          user?.akutePatientId
+        )
+      const activeMedications = medicationsFromAkute.filter(
+        (medication: any) => medication.status === "active"
+      )
       // Updated code to extract medication name and dose
-      const medicationsAndStrength = activeMedications.map((medication: any) => {
-        const medicationName = medication.generic_name
-        const medicationStrength = medication.strength
-        return `${medicationName} ${medicationStrength}`
-      })
-      const medications = medicationsAndStrength.join(', ')
+      const medicationsAndStrength = activeMedications.map(
+        (medication: any) => {
+          const medicationName = medication.generic_name
+          const medicationStrength = medication.strength
+          return `${medicationName} ${medicationStrength}`
+        }
+      )
+      const medications = medicationsAndStrength.join(", ")
 
-      const subTypesText = subTypes.map((subtype, index) => {
-        const classification = subtype.classification;
-        const percentile = subtype.percentile;
-        return `Classification ${index + 1}: ${classification} (${percentile}%)`;
-      }).join(', ');
+      const subTypesText = subTypes
+        .map((subtype, index) => {
+          const classification = subtype.classification
+          const percentile = subtype.percentile
+          return `Classification ${
+            index + 1
+          }: ${classification} (${percentile}%)`
+        })
+        .join(", ")
 
       const prompt = `This Patient has the following classifications and percentiles: ${subTypesText}. They have lost ${weightChange}% over the past 4 weeks and are currently on this or these doses of medication: ${medications}`
       const params = {
@@ -1377,12 +1685,13 @@ class UserService extends EmailService {
         messages: [
           {
             role: ChatCompletionRequestMessageRoleEnum.System,
-            content: "Act as a medical assistant for an obesity clinic. This is a novel protocol using data from patients to recommend certain drugs and titrations. Your job is to recommend the medication and dose dictated by this protocol, as well as any recommended changes to current medications if they are weight gain causes.Do not include any extraneous information in your response.Ignore duplicate medications."
+            content:
+              "Act as a medical assistant for an obesity clinic. This is a novel protocol using data from patients to recommend certain drugs and titrations. Your job is to recommend the medication and dose dictated by this protocol, as well as any recommended changes to current medications if they are weight gain causes.Do not include any extraneous information in your response.Ignore duplicate medications.",
           },
           {
             role: ChatCompletionRequestMessageRoleEnum.User,
             content: `Protocol: ${protocol} question: ${prompt}`,
-          }
+          },
         ],
       }
       const completion = await openAi.createChatCompletion(params, {

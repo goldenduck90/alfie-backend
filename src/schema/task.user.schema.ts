@@ -3,7 +3,7 @@ import {
   ModelOptions,
   prop,
   queryMethod,
-  ReturnModelType
+  ReturnModelType,
 } from "@typegoose/typegoose"
 import { AsQueryMethod, Ref } from "@typegoose/typegoose/lib/types"
 import { Field, InputType, ObjectType, registerEnumType } from "type-graphql"

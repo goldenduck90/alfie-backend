@@ -3,8 +3,7 @@ dotenv.config()
 
 export default {
   dbUri: `mongodb+srv://joinalfie_dev_user:${process.env.DB_PASSWORD}@platform-staging-cluste.zn2qm3z.mongodb.net/?retryWrites=true&w=majority`,
-  baseUrl:
-    "https://www.staging.joinalfie.com",
+  baseUrl: "https://www.staging.joinalfie.com",
   calApiUrl: "https://api.staging.cal.joinalfie.com",
   easyAppointmentsApiUrl:
     "http://develop-ea.us-east-1.elasticbeanstalk.com/index.php/api/v1",
@@ -24,4 +23,5 @@ export default {
     extension: "101",
   },
   akuteApiUrl: "https://api.staging.akutehealth.com/v1",
+  twilioPhone: "+18447440088",
 }

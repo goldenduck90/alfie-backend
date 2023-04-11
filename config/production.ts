@@ -21,4 +21,5 @@ export default {
   akute: {
     labCorpOrganizationId: "f-a855594f43fe879c6570b92e",
   },
+  twilioPhone: "+18447244465",
 }
