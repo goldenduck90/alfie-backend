@@ -2,6 +2,7 @@ import config from "config"
 import { TaskEmail } from "../schema/task.schema"
 import client, { Twilio } from "twilio"
 import { utcToZonedTime } from "date-fns-tz"
+import { addDays, isPast } from "date-fns"
 
 export class SmsService {
   client: Twilio
@@ -28,42 +29,41 @@ export class SmsService {
     dueTodayTasks?: TaskEmail[]
     timezone?: string
   }) {
-    const body = `
-      Hey ${name},\n\n
+    const messageSid = config.get("twilioMessagingServiceSid") as any
 
-      You have the following new task notifications:\n
-      ${
-        newTasks.length > 0
-          ? `- ${newTasks.length} new ${
-              newTasks.length > 1 ? "tasks are" : "task is"
-            } ready to complete.\n`
-          : ""
-      }
-      ${
-        dueTodayTasks.length > 0
-          ? `- ${dueTodayTasks.length} ${
-              dueTodayTasks.length > 1 ? "tasks are" : "task is"
-            } due today.\n`
-          : ""
-      }
-      ${
-        pastDueTasks.length > 0
-          ? `- ${pastDueTasks.length} ${
-              pastDueTasks.length > 1 ? "tasks are" : "task is"
-            } past due.\n`
-          : ""
-      }
+    let body = `Hey ${name},\n\n`
+    body += "You have the following new task notifications:\n"
+    if (newTasks.length > 0) {
+      body += `- ${newTasks.length} new ${
+        newTasks.length > 1 ? "tasks are" : "task is"
+      } ready to complete.\n`
+    }
 
-      \nAlfie Team
-    `
+    if (dueTodayTasks.length > 0) {
+      body += `- ${dueTodayTasks.length} ${
+        dueTodayTasks.length > 1 ? "tasks are" : "task is"
+      } due today.\n`
+    }
+
+    if (pastDueTasks.length > 0) {
+      body += `- ${pastDueTasks.length} ${
+        pastDueTasks.length > 1 ? "tasks are" : "task is"
+      } past due.\n`
+    }
+
+    body += "\nAlfie Team"
+
+    const date = isPast(new Date().setHours(17, 0, 0))
+      ? addDays(new Date().setHours(17, 0, 0), 1)
+      : new Date().setHours(17, 0, 0)
 
     const message = await this.client.messages.create({
       body,
       to: phone,
       from: this.from,
-      sendAt: timezone
-        ? utcToZonedTime(new Date().setHours(17, 0, 0), timezone)
-        : new Date(new Date().setHours(17, 0, 0)),
+      messagingServiceSid: messageSid,
+      scheduleType: "fixed",
+      sendAt: utcToZonedTime(date, timezone),
     })
 
     return message

@@ -200,4 +200,5 @@ export default {
   },
   sendBirdBotId: "ALFIE_BOT",
   twilioAccountSid: "ACbb4313087a5ddfe068560647a79f55aa",
+  twilioMessagingServiceSid: "MGdf75c7005a73d7d68e67f50567c5dc5b",
 }

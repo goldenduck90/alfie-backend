@@ -948,42 +948,46 @@ class UserService extends EmailService {
     const errors: string[] = []
 
     // loop through each user
-    users.forEach(async (u) => {
+    for (let i = 0; i < users.length; i++) {
       const newTasks: TaskEmail[] = []
       const dueTodayTasks: TaskEmail[] = []
       const pastDueTasks: TaskEmail[] = []
 
       // loop through each task that has an interval
-      tasks.forEach(async (t) => {
+      for (let j = 0; j < tasks.length; j++) {
         // get the last user task completed for this specific task
         const uTask = await UserTaskModel.findOne(
-          { task: t._id, user: u._id },
+          { task: tasks[j]._id, user: users[i]._id },
           {},
           { sort: { createdAt: -1 } }
         )
 
         // if exists continue
         if (uTask) {
-          console.log(uTask)
-
           // if completed continue
           if (uTask.completed) {
+            console.log("Inside task completed")
             const completedAt = new Date(uTask.completedAt).setHours(0, 0)
-            const completedDate = addDays(completedAt, Number(t.interval))
+            const completedDate = addDays(
+              completedAt,
+              Number(tasks[j].interval)
+            )
 
             // assign new task if its past the interval
             if (isPast(completedDate) || isToday(completedDate)) {
+              console.log("task is completed and past the completed date")
+
               // create new user task in database
               const dueAt = addDays(
                 new Date().setHours(0, 0),
-                t.daysTillDue || 0
+                tasks[j].daysTillDue || 0
               )
 
               const newUTask = await UserTaskModel.create({
-                user: u._id,
-                task: t._id,
-                dueAt: t.daysTillDue ? dueAt : undefined,
-                highPriority: t.highPriority,
+                user: users[i]._id,
+                task: tasks[j]._id,
+                dueAt: tasks[j].daysTillDue ? dueAt : undefined,
+                highPriority: tasks[j].highPriority,
                 lastNotifiedUserAt: new Date(new Date().setHours(0, 0)),
               })
 
@@ -997,46 +1001,47 @@ class UserService extends EmailService {
 
               // send email that new task was assigned
               newTasks.push({
-                taskName: t.name,
+                taskName: tasks[j].name,
                 dueAt: dueAtFormatted,
                 taskId: newUTask._id,
               })
 
               // add to output for report email
               allNewTasks.push({
-                taskName: t.name,
+                taskName: tasks[j].name,
                 dueAt: dueAtFormatted,
                 taskId: newUTask._id,
-                userId: u._id,
-                userName: u.name,
-                userEmail: u.email,
+                userId: users[i]._id,
+                userName: users[i].name,
+                userEmail: users[i].email,
               })
             }
           } else {
-            const interval = Number(t.interval)
+            const interval = Number(tasks[j].interval)
             const isDueToday = isToday(
               subDays(new Date(uTask.dueAt).setHours(0, 0), 1)
             )
             const daysSinceNotified = differenceInDays(
-              new Date(uTask.lastNotifiedUserAt).setHours(0, 0),
-              new Date().setHours(0, 0)
+              new Date().setHours(0, 0),
+              new Date(uTask.lastNotifiedUserAt).setHours(0, 0)
             )
 
             // if interval is 21 days or greater notify the day its due
-            if (interval >= 21 && isDueToday) {
+            if (interval >= 21 && isDueToday && daysSinceNotified > 0) {
+              console.log("inside notify due today")
               dueTodayTasks.push({
-                taskName: t.name,
+                taskName: tasks[j].name,
                 dueAt: "Today",
                 taskId: uTask._id,
               })
 
               allDueTodayTasks.push({
-                taskName: t.name,
+                taskName: tasks[j].name,
                 dueAt: "Today",
                 taskId: uTask._id,
-                userId: u._id,
-                userName: u.name,
-                userEmail: u.email,
+                userId: users[i]._id,
+                userName: users[i].name,
+                userEmail: users[i].email,
               })
 
               uTask.lastNotifiedUserAt = new Date()
@@ -1057,7 +1062,7 @@ class UserService extends EmailService {
                 : `${format(uTask.dueAt, "EEE, LLL do")}`
 
               pastDueTasks.push({
-                taskName: t.name,
+                taskName: tasks[j].name,
                 dueAt: pastDueFormatted,
                 taskId: uTask._id,
               })
@@ -1066,28 +1071,72 @@ class UserService extends EmailService {
               await uTask.save()
 
               allPastDueTasks.push({
-                taskName: t.name,
+                taskName: tasks[j].name,
                 dueAt: pastDueFormatted,
                 taskId: uTask._id,
-                userId: u._id,
-                userName: u.name,
-                userEmail: u.email,
+                userId: users[i]._id,
+                userName: users[i].name,
+                userEmail: users[i].email,
               })
             }
           }
-        }
-      })
+        } else if (
+          tasks[j].type !== TaskType.SCHEDULE_APPOINTMENT ||
+          tasks[j].type !== TaskType.SCHEDULE_HEALTH_COACH_APPOINTMENT
+        ) {
+          console.log("No task yet, create new one")
 
-      // if any tasks exists in any array we must send out an email and sms
+          // create new user task in database
+          const dueAt = addDays(
+            new Date().setHours(0, 0),
+            tasks[j].daysTillDue || 0
+          )
+
+          const newUTask = await UserTaskModel.create({
+            user: users[i]._id,
+            task: tasks[j]._id,
+            dueAt: tasks[j].daysTillDue ? dueAt : undefined,
+            highPriority: tasks[j].highPriority,
+            lastNotifiedUserAt: new Date(new Date().setHours(0, 0)),
+          })
+
+          const dueAtFormatted = isToday(dueAt)
+            ? "Today"
+            : isTomorrow(dueAt)
+            ? "Tomorrow"
+            : isThisWeek(dueAt)
+            ? `${format(dueAt, "EEE")}`
+            : `${format(dueAt, "EEE, LLL do")}`
+
+          // send email that new task was assigned
+          newTasks.push({
+            taskName: tasks[j].name,
+            dueAt: dueAtFormatted,
+            taskId: newUTask._id,
+          })
+
+          // add to output for report email
+          allNewTasks.push({
+            taskName: tasks[j].name,
+            dueAt: dueAtFormatted,
+            taskId: newUTask._id,
+            userId: users[i]._id,
+            userName: users[i].name,
+            userEmail: users[i].email,
+          })
+        }
+      }
+
       if (
         newTasks.length > 0 ||
         pastDueTasks.length > 0 ||
         dueTodayTasks.length > 0
       ) {
+        console.log("inside send email")
         // send email
         const sent = await this.sendTaskEmail({
-          name: u.name,
-          email: u.email,
+          name: users[i].name,
+          email: users[i].email,
           newTasks,
           pastDueTasks,
           dueTodayTasks,
@@ -1095,27 +1144,27 @@ class UserService extends EmailService {
 
         if (!sent) {
           errors.push(
-            `An error occured sending task email to user (${u._id}): ${u.email}`
+            `An error occured sending task email to user (${users[i]._id}): ${users[i].email}`
           )
         }
 
         // send sms
         const smsSent = await this.smsService.sendTaskSms({
-          name: u.name,
-          phone: u.phone,
+          name: users[i].name,
+          phone: users[i].phone,
           newTasks,
           pastDueTasks,
           dueTodayTasks,
-          timezone: u.timezone,
+          timezone: users[i].timezone,
         })
 
         if (!smsSent.sid) {
           errors.push(
-            `An error occured sending task sms to user (${u._id}): ${u.email}, ${u.phone}`
+            `An error occured sending task sms to user (${users[i]._id}): ${users[i].email}, ${users[i].phone}`
           )
         }
       }
-    })
+    }
 
     // send report
     if (

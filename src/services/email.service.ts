@@ -411,7 +411,7 @@ class EmailService {
       ${
         allNewTasks.length > 0
           ? `
-        <table>
+        <table style="border: 1px solid #000000;">
           <tr>
             <th>Task Name</th>
             <th>Due At</th>
@@ -441,7 +441,7 @@ class EmailService {
       ${
         allDueTodayTasks.length > 0
           ? `
-        <table>
+        <table style="border: 1px solid #000000;">
           <tr>
             <th>Task Name</th>
             <th>Due At</th>
@@ -471,7 +471,7 @@ class EmailService {
       ${
         allPastDueTasks.length > 0
           ? `
-        <table>
+        <table style="border: 1px solid #000000;">
           <tr>
             <th>Task Name</th>
             <th>Due At</th>
@@ -497,7 +497,7 @@ class EmailService {
       ${
         errors.length > 0
           ? `
-        <table>
+        <table style="border: 1px solid #000000;">
           <tr>
             <th>Error</th>
           </tr>
@@ -569,7 +569,7 @@ class EmailService {
       ${
         newTasks.length > 0
           ? `
-        <table>
+        <table style="border: 1px solid #000000;">
           <tr>
             <th>Task Name</th>
             <th>Due At</th>
@@ -580,7 +580,7 @@ class EmailService {
       ${newTasks.map(
         (n: TaskEmail) => `
         <tr>
-          <td><a href="">${n.taskName}</a></td>
+          <td>${n.taskName}</td>
           <td>${n.dueAt}</td>
         </tr>
       `
@@ -595,7 +595,7 @@ class EmailService {
       ${
         dueTodayTasks.length > 0
           ? `
-        <table>
+        <table style="border: 1px solid #000000;">
           <tr>
             <th>Task Name</th>
             <th>Due At</th>
@@ -621,7 +621,7 @@ class EmailService {
       ${
         pastDueTasks.length > 0
           ? `
-        <table>
+        <table style="border: 1px solid #000000;">
           <tr>
             <th>Task Name</th>
             <th>Due At</th>
@@ -638,6 +638,8 @@ class EmailService {
       `
       )}
       ${pastDueTasks.length > 0 ? "</table><br/><br/>" : ""}
+
+      <a href="https://app.joinalfie.com">Click here</a> to go to the Patient Portal.<br/><br/>
       
       If you have any questions, please reach out to your Alfie care team<br/><br/>
 

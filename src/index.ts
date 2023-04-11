@@ -231,9 +231,6 @@ async function bootstrap() {
     console.log(
       `App is listening on http://localhost:4000${server.graphqlPath}`
     )
-
-    const userService = new UserService()
-    await userService.taskJob()
   })
 
   // connect to mongodb
