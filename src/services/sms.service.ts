@@ -10,8 +10,9 @@ export class SmsService {
 
   constructor() {
     const accountSid = config.get("twilioAccountSid") as any
+    const phone = config.get("twilioPhone") as any
     this.client = client(accountSid, process.env.TWILIO_AUTH_TOKEN)
-    this.from = "+18447440088"
+    this.from = phone
   }
 
   async sendTaskSms({
