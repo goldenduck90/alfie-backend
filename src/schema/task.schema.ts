@@ -8,6 +8,21 @@ import {
 import { AsQueryMethod } from "@typegoose/typegoose/lib/types"
 import { Field, InputType, ObjectType, registerEnumType } from "type-graphql"
 
+export interface TaskEmail {
+  taskName: string
+  dueAt: string
+  taskId: string
+}
+
+export interface AllTaskEmail {
+  taskName: string
+  dueAt: string
+  taskId: string
+  userId: string
+  userName: string
+  userEmail: string
+}
+
 export enum TaskType {
   ID_AND_INSURANCE_UPLOAD = "ID_AND_INSURANCE_UPLOAD",
   NEW_PATIENT_INTAKE_FORM = "NEW_PATIENT_INTAKE_FORM",
@@ -89,9 +104,9 @@ export class Task {
   @prop({ required: false, default: false })
   highPriority: boolean
 
-  @Field(() => String, { nullable: true })
+  @Field(() => Number, { nullable: true })
   @prop({ required: false })
-  interval?: string
+  interval?: number
 }
 
 export const TaskModel = getModelForClass<typeof Task, QueryHelpers>(Task, {
@@ -160,10 +175,10 @@ export class CreateTaskInput {
   })
   highPriority?: boolean
 
-  @Field(() => String, {
+  @Field(() => Number, {
     nullable: true,
     description:
       "If set, this task will be assigned on a recurring interval. This is a cron expression.",
   })
-  interval?: string
+  interval?: number
 }
