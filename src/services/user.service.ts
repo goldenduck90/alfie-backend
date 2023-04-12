@@ -1370,6 +1370,7 @@ class UserService extends EmailService {
     const { checkoutNotFound, alreadyCheckedOut } = config.get(
       "errors.checkout"
     ) as any
+    const baseUrl = config.get("baseUrl") as any
 
     const checkout = await CheckoutModel.findById(_id)
 
@@ -1446,6 +1447,7 @@ class UserService extends EmailService {
     } else {
       paymentIntent = await this.stripeSdk.paymentIntents.create({
         ...paymentIntentDetails,
+        return_url: `${baseUrl}/signup/checkout/success`,
         setup_future_usage: "off_session",
       })
     }
