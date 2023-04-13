@@ -1447,7 +1447,6 @@ class UserService extends EmailService {
     } else {
       paymentIntent = await this.stripeSdk.paymentIntents.create({
         ...paymentIntentDetails,
-        return_url: `${baseUrl}/signup/checkout/success`,
         setup_future_usage: "off_session",
       })
     }
