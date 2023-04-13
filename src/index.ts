@@ -17,8 +17,8 @@ import { ProviderModel } from "./schema/provider.schema"
 import { Role, UserModel } from "./schema/user.schema"
 import Context from "./types/context"
 import { connectToMongo } from "./utils/mongo"
-// import * as cron from "node-cron"
-// import UserService from "./services/user.service"
+import * as cron from "node-cron"
+import UserService from "./services/user.service"
 
 dotenv.config()
 
@@ -87,10 +87,10 @@ async function bootstrap() {
   })
 
   // run task job
-  // cron.schedule("0 0 * * *", async () => {
-  //   const userService = new UserService()
-  //   await userService.taskJob()
-  // })
+  cron.schedule("0 0 * * *", async () => {
+    const userService = new UserService()
+    await userService.taskJob()
+  })
 
   // webhook listener
   app.post(
