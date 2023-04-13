@@ -1370,7 +1370,6 @@ class UserService extends EmailService {
     const { checkoutNotFound, alreadyCheckedOut } = config.get(
       "errors.checkout"
     ) as any
-    const baseUrl = config.get("baseUrl") as any
 
     const checkout = await CheckoutModel.findById(_id)
 

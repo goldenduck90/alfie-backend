@@ -68,7 +68,9 @@ class EmailService {
   }) {
     try {
       const { path } = config.get("emails.completeRegistration") as any
-      const url = `${this.baseUrl}/${path}?${token}&provider=${provider}`
+      const url = `${
+        this.baseUrl
+      }/${path}?registration=true&token=${token}&patient=${!provider}`
       console.log(
         {
           email,
@@ -109,7 +111,9 @@ class EmailService {
     manual?: boolean
   }) {
     const { path, subject } = config.get("emails.completeRegistration") as any
-    const url = `${this.baseUrl}/${path}?${token}&provider=${provider}`
+    const url = `${
+      this.baseUrl
+    }/${path}?registration=true&token=${token}&patient=${!provider}`
 
     // TODO: change email content based on manual flag
     console.log(manual)
