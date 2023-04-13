@@ -86,12 +86,6 @@ async function bootstrap() {
     region: process.env.AWS_REGION,
   })
 
-  // run task job
-  cron.schedule("0 0 * * *", async () => {
-    const userService = new UserService()
-    await userService.taskJob()
-  })
-
   // webhook listener
   app.post(
     "/sendbirdWebhooks",
@@ -236,5 +230,13 @@ async function bootstrap() {
   // connect to mongodb
   connectToMongo()
 }
+
+// run task job
+cron.schedule("0 0 * * *", async () => {
+  console.log("[TASK JOB] RUNNING...")
+  const userService = new UserService()
+  await userService.taskJob()
+  console.log("[TASK JOB] COMPLETED")
+})
 
 bootstrap()

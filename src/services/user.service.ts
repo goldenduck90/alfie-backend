@@ -340,9 +340,10 @@ class UserService extends EmailService {
       console.log(
         `An error occured for creating a lab order in Akute for: ${email}`
       )
-      throw new ApolloError(
-        `An error occured for creating a lab order in Akute for: ${email}`,
-        "INTERNAL_SERVER_ERROR"
+      Sentry.captureException(
+        `Lab Order Akute Failed for: ${user._id}, ${email}: ${JSON.stringify(
+          labOrder
+        )}`
       )
     }
 
@@ -1025,6 +1026,8 @@ class UserService extends EmailService {
               new Date().setHours(0, 0),
               new Date(uTask.lastNotifiedUserAt).setHours(0, 0)
             )
+
+            console.log(tasks[j].name, interval, daysSinceNotified)
 
             // if interval is 21 days or greater notify the day its due
             if (interval >= 21 && isDueToday && daysSinceNotified > 0) {

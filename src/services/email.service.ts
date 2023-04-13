@@ -610,7 +610,7 @@ class EmailService {
       ${dueTodayTasks.map(
         (n: TaskEmail) => `
         <tr>
-          <td><a href="">${n.taskName}</a></td>
+          <td>${n.taskName}</td>
           <td>${n.dueAt}</td>
         </tr>
       `
@@ -636,7 +636,7 @@ class EmailService {
       ${pastDueTasks.map(
         (n: TaskEmail) => `
         <tr>
-          <td><a href="">${n.taskName}</a></td>
+          <td>${n.taskName}</td>
           <td>${n.dueAt}</td>
         </tr>
       `
