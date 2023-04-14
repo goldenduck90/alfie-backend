@@ -174,6 +174,7 @@ const getSendBirdUserChannelUrl = async (user_id: string) => {
     console.log(response)
     return response.data.channels
   } catch (error) {
+    console.log(error)
     Sentry.captureException(error)
   }
 }
