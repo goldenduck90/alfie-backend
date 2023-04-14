@@ -1717,7 +1717,9 @@ class UserService extends EmailService {
 
   async sendbirdChannels(userId: string) {
     try {
-      return await getSendBirdUserChannelUrl(userId)
+      const channels = await getSendBirdUserChannelUrl(userId)
+      console.log(channels)
+      return channels
     } catch (error) {
       console.log("error", error)
       Sentry.captureException(error)
