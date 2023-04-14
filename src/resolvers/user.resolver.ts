@@ -19,6 +19,7 @@ import {
   SubscribeEmailInput,
   UpdateSubscriptionInput,
   User,
+  UserSendbirdChannel,
 } from "../schema/user.schema"
 import AkuteService from "../services/akute.service"
 import UserService from "../services/user.service"
@@ -148,6 +149,13 @@ export default class UserResolver {
     return this.akuteService.createLabOrder(userId)
   }
 
+  @Authorized([
+    Role.Admin,
+    Role.Practitioner,
+    Role.CareCoordinator,
+    Role.Doctor,
+  ])
+  @Query(() => [UserSendbirdChannel])
   userSendbirdChannel(@Arg("userId") userId: string) {
     return this.userService.sendbirdChannels(userId)
   }
