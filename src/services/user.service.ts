@@ -46,7 +46,10 @@ import {
 } from "../schema/user.schema"
 import { calculatePatientScores } from "../scripts/calculatePatientScores"
 import { signJwt } from "../utils/jwt"
-import { triggerEntireSendBirdFlow } from "../utils/sendBird"
+import {
+  getSendBirdUserChannelUrl,
+  triggerEntireSendBirdFlow,
+} from "../utils/sendBird"
 import { TaskModel } from "./../schema/task.schema"
 import { UserModel } from "./../schema/user.schema"
 import { protocol } from "./../utils/protocol"
@@ -1709,6 +1712,15 @@ class UserService extends EmailService {
     } catch (error) {
       console.log(error)
       return error
+    }
+  }
+
+  async sendbirdChannels(userId: string) {
+    try {
+      return await getSendBirdUserChannelUrl(userId)
+    } catch (error) {
+      console.log("error", error)
+      Sentry.captureException(error)
     }
   }
 }

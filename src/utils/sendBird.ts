@@ -164,6 +164,19 @@ const sendMessageToChannel = async (channel_url: string, message: string) => {
     Sentry.captureException(error)
   }
 }
+
+// get users by id and get their channel url
+const getSendBirdUserChannelUrl = async (user_id: string) => {
+  try {
+    const { data } = await sendBirdInstance.get(
+      `/v3/users/${user_id}/my_group_channels`
+    )
+    return data.channels
+  } catch (error) {
+    Sentry.captureException(error)
+  }
+}
+
 /**
  *
  * @param user_id
@@ -240,6 +253,7 @@ export {
   createSendBirdUser,
   createSendBirdChannelForNewUser,
   inviteUserToChannel,
+  getSendBirdUserChannelUrl,
   triggerEntireSendBirdFlow,
   findAndTriggerEntireSendBirdFlowForAllUSersAndProvider,
 }
