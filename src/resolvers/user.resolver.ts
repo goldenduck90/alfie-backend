@@ -147,4 +147,8 @@ export default class UserResolver {
   createLabOrder(@Arg("userId") userId: string) {
     return this.akuteService.createLabOrder(userId)
   }
+
+  userSendbirdChannel(@Arg("userId") userId: string) {
+    return this.userService.sendbirdChannels(userId)
+  }
 }
