@@ -171,7 +171,7 @@ const getSendBirdUserChannelUrl = async (user_id: string) => {
     const { data } = await sendBirdInstance.get(
       `/v3/users/${user_id}/my_group_channels`
     )
-    return data.channels
+    return data
   } catch (error) {
     Sentry.captureException(error)
   }
