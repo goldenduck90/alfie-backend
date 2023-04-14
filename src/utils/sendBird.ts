@@ -169,9 +169,9 @@ const sendMessageToChannel = async (channel_url: string, message: string) => {
 const getSendBirdUserChannelUrl = async (user_id: string) => {
   try {
     const { data } = await sendBirdInstance.get(
-      `/v3/users/${user_id}/my_group_channels`
+      `/v3/users/${user_id}/my_group_channels?hidden_mode=all`
     )
-    return data.channels
+    return data
   } catch (error) {
     Sentry.captureException(error)
   }
