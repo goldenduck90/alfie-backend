@@ -169,7 +169,7 @@ const sendMessageToChannel = async (channel_url: string, message: string) => {
 const getSendBirdUserChannelUrl = async (user_id: string) => {
   try {
     const response = await sendBirdInstance.get(
-      `/v3/users/${user_id}/my_group_channels?hidden_mode=all`
+      `/v3/group_channels?name_contains=${user_id}`
     )
     console.log(response)
     return response.data.channels
