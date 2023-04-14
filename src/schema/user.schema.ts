@@ -359,6 +359,9 @@ export class User {
   @Field(() => String, { nullable: true })
   meetingRoomUrl: string
 
+  @Field(() => String, { nullable: true })
+  sendbirdChannelUrl: string
+
   @Field(() => String)
   @prop({ required: true })
   name: string
@@ -788,4 +791,127 @@ export class CreatePatientInput {
   @IsPhoneNumber("US", { message: phoneValidation.message })
   @Field(() => String)
   phone: string
+}
+
+@ObjectType()
+export class UserSendbirdChannel {
+  @Field(() => String)
+  channel_url: string
+
+  @Field(() => String)
+  name: string
+
+  @Field(() => String, { nullable: true })
+  cover_url?: string
+
+  @Field(() => String, { nullable: true })
+  data?: string
+
+  @Field(() => Number)
+  member_count: number
+
+  @Field(() => Number)
+  joined_member_count: number
+
+  @Field(() => Number)
+  max_length_message: number
+
+  @Field(() => Number)
+  created_at: number
+
+  @Field(() => String, { nullable: true })
+  custom_type?: string
+
+  @Field(() => Boolean)
+  is_distinct: boolean
+
+  @Field(() => Boolean)
+  is_super: boolean
+
+  @Field(() => Boolean)
+  is_broadcast: boolean
+
+  @Field(() => Boolean)
+  is_public: boolean
+
+  @Field(() => Boolean)
+  is_discoverable: boolean
+
+  @Field(() => Boolean)
+  freeze: boolean
+
+  @Field(() => Boolean)
+  is_ephemeral: boolean
+
+  @Field(() => Number)
+  unread_message_count: number
+
+  @Field(() => Number)
+  unread_mention_count: number
+
+  @Field(() => Boolean)
+  ignore_profanity_filter: boolean
+
+  @Field(() => String, { nullable: true })
+  count_preference?: string
+
+  @Field(() => String, { nullable: true })
+  created_by?: string
+
+  // @Field(() => Object, { nullable: true })
+  // disappearing_message?: Object
+
+  @Field(() => Boolean)
+  is_access_code_required: boolean
+
+  @Field(() => Boolean)
+  is_exclusive: boolean
+
+  @Field(() => Boolean)
+  is_muted: boolean
+
+  @Field(() => Boolean)
+  is_push_enabled: boolean
+
+  @Field(() => String)
+  member_state: string
+
+  @Field(() => Number)
+  message_survival_seconds: number
+
+  @Field(() => String, { nullable: true })
+  my_role?: string
+
+  @Field(() => String, { nullable: true })
+  push_trigger_option?: string
+
+  // @Field(() => Object, { nullable: true })
+  // sms_fallback?: Object
+
+  @Field(() => Number)
+  ts_message_offset: number
+
+  @Field(() => Number)
+  user_last_read: number
+
+  @Field(() => String, { nullable: true })
+  inviter?: string
+
+  @Field(() => Number)
+  invited_at: number
+
+  @Field(() => Boolean)
+  is_hidden: boolean
+
+  @Field(() => String, { nullable: true })
+  hidden_state?: string
+
+  // @Field(() => Object, { nullable: true })
+  // last_message?: Object
+
+  @Field(() => Number, { nullable: true })
+  joined_ts?: number
+
+  // @Field(() => Object, { nullable: true })
+  // last_queried_message?: Object
 }

@@ -46,7 +46,10 @@ import {
 } from "../schema/user.schema"
 import { calculatePatientScores } from "../scripts/calculatePatientScores"
 import { signJwt } from "../utils/jwt"
-import { triggerEntireSendBirdFlow } from "../utils/sendBird"
+import {
+  getSendBirdUserChannelUrl,
+  triggerEntireSendBirdFlow,
+} from "../utils/sendBird"
 import { TaskModel } from "./../schema/task.schema"
 import { UserModel } from "./../schema/user.schema"
 import { protocol } from "./../utils/protocol"
@@ -340,9 +343,10 @@ class UserService extends EmailService {
       console.log(
         `An error occured for creating a lab order in Akute for: ${email}`
       )
-      throw new ApolloError(
-        `An error occured for creating a lab order in Akute for: ${email}`,
-        "INTERNAL_SERVER_ERROR"
+      Sentry.captureException(
+        `Lab Order Akute Failed for: ${user._id}, ${email}: ${JSON.stringify(
+          labOrder
+        )}`
       )
     }
 
@@ -1026,6 +1030,8 @@ class UserService extends EmailService {
               new Date(uTask.lastNotifiedUserAt).setHours(0, 0)
             )
 
+            console.log(tasks[j].name, interval, daysSinceNotified)
+
             // if interval is 21 days or greater notify the day its due
             if (interval >= 21 && isDueToday && daysSinceNotified > 0) {
               console.log("inside notify due today")
@@ -1706,6 +1712,15 @@ class UserService extends EmailService {
     } catch (error) {
       console.log(error)
       return error
+    }
+  }
+
+  async sendbirdChannels(userId: string) {
+    try {
+      return await getSendBirdUserChannelUrl(userId)
+    } catch (error) {
+      console.log("error", error)
+      Sentry.captureException(error)
     }
   }
 }
