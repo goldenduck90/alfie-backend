@@ -88,6 +88,10 @@ export class UserTask {
   @prop({ required: true, default: false })
   archived: boolean
 
+  @Field(() => Boolean, { nullable: true })
+  @prop({ required: false, default: false })
+  isProfilingReady: boolean
+
   @Field(() => User)
   @prop({ ref: () => User, required: true })
   user: Ref<User>

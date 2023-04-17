@@ -124,7 +124,95 @@ class TaskService extends EmailService {
       Sentry.captureException(error)
     }
   }
+async handleIsReadyForProfiling(userId: any) {
+    try {
+      const userTasks: any = await UserTaskModel.find({
+        user: userId,
+      }).populate("task")
+      const user: any = await UserModel.find({
+        _id: userId,
+      })
+      const userScores = user.score
+      const classifications = user.classifications
+      const tasksEligibleForProfiling = [
+        TaskType.MP_HUNGER,
+        TaskType.MP_FEELING,
+        TaskType.AD_LIBITUM,
+        TaskType.MP_ACTIVITY,
+      ]
+      
+    } catch (error) {
+      Sentry.captureException(error)
+    }
+  }
+  // need to do thi but just for our patient instead so we can call classifyUser right now that classifyPatient function does a lot of the data normalization that we need to do so we can call classifyUser
+  // async classifyPatient(userId: string) {
+  //   try {
+  //     console.log(userId) // TODO: classify specific patient
+  //     const users = await UserModel.find()
 
+  //     for (const user of users) {
+  //       if (user.score.length > 0 && user.score[0] !== null) {
+  //         const scoresByTask = new Map()
+
+  //         // group scores by task
+  //         for (const score of user.score) {
+  //           if (!scoresByTask.has(score.task)) {
+  //             scoresByTask.set(score.task, [])
+  //           }
+  //           scoresByTask.get(score.task).push(score)
+  //         }
+
+  //         const scores = []
+
+  //         // get most recent score for each task
+  //         // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  //         for (const [_, taskScores] of scoresByTask) {
+  //           const mostRecentScore = taskScores.sort(
+  //             (a: any, b: any) =>
+  //               new Date(b.date).getTime() - new Date(a.date).getTime()
+  //           )[0]
+  //           scores.push(mostRecentScore)
+  //         }
+
+  //         const classifications: any = classifyUser(scores)
+
+  //         for (const c of classifications) {
+  //           const classificationExists = user.classifications.some(
+  //             (el: any) => el.date === c.date
+  //           )
+
+  //           if (!classificationExists) {
+  //             user.classifications.push(c)
+  //           }
+  //         }
+
+  //         await user.save()
+  //       }
+  //     }
+  //   } catch (error) {
+  //     console.log(error, "error")
+  //     Sentry.captureException(error)
+  //   }
+  // }
+  // let newScores = []
+  // if (!userScores) {
+  //   newScores = await calculatePatientScores(userId)
+  //   classifyUser(newScores)
+  // } else {
+  //   classifyUser(userScores)
+  // }
+  // if all tasks are completed, and all have isReadyForProfiling set to true,
+  // then run classifyUser() with the scores of each user from the UserModel
+  // if the users scores are empty we need to calculate them
+  // then with the calculated scores we can run the classifyUser() function
+  // we then need to save the result in the user model under classifications by pushing it to the array
+  // we also need to store the scores in the user model under score
+  // we also need to set the isReadyForProfiling to false for the tasks that were used to calculate the score
+
+  // to save call user.save()
+  // } catch (error) {}
+  // }
   async completeUserTask(input: CompleteUserTaskInput) {
     try {
       // Get the user task, throw an error if it is not found
@@ -150,7 +238,7 @@ class TaskService extends EmailService {
 
       // Check the user's eligibility for an appointment
       await this.checkEligibilityForAppointment(userTask.user)
-
+      await this.handleIsReadyForProfiling(userTask.user)
       // Calculate the score for the user based on their previous and current tasks
       const lastTask = await UserTaskModel.findOne({
         user: userTask.user,
@@ -277,6 +365,7 @@ class TaskService extends EmailService {
                 ? new Date()
                 : undefined,
               archived: false,
+              isProfilingReady: false,
             })
           }
 
