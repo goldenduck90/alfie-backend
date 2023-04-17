@@ -2,6 +2,7 @@ import * as Sentry from "@sentry/node"
 import { ApolloError } from "apollo-server"
 import config from "config"
 import { addDays, isPast } from "date-fns"
+import { classifyUser } from "../PROAnalysis/classification"
 import { calculateScore } from "../PROAnalysis"
 import { ProviderModel } from "../schema/provider.schema"
 import { CreateTaskInput, TaskModel, TaskType } from "../schema/task.schema"
@@ -124,7 +125,7 @@ class TaskService extends EmailService {
       Sentry.captureException(error)
     }
   }
-async handleIsReadyForProfiling(userId: any) {
+  async handleIsReadyForProfiling(userId: any, scores: any) {
     try {
       const userTasks: any = await UserTaskModel.find({
         user: userId,
@@ -132,7 +133,7 @@ async handleIsReadyForProfiling(userId: any) {
       const user: any = await UserModel.find({
         _id: userId,
       })
-      const userScores = user.score
+      const userScores = scores
       const classifications = user.classifications
       const tasksEligibleForProfiling = [
         TaskType.MP_HUNGER,
@@ -140,7 +141,12 @@ async handleIsReadyForProfiling(userId: any) {
         TaskType.AD_LIBITUM,
         TaskType.MP_ACTIVITY,
       ]
-      
+      // if a user doesn't have classifications we need to call classifyUser with the users scores
+      let newScores = []
+      if (classifications.length === 0) {
+        const newScores0 = await classifyUser(userScores)
+        newScores = newScores0
+      }
     } catch (error) {
       Sentry.captureException(error)
     }
@@ -235,25 +241,28 @@ async handleIsReadyForProfiling(userId: any) {
       userTask.answers = []
       userTask.answers = answers
       await userTask.save()
-
-      // Check the user's eligibility for an appointment
-      await this.checkEligibilityForAppointment(userTask.user)
-      await this.handleIsReadyForProfiling(userTask.user)
-      // Calculate the score for the user based on their previous and current tasks
       const lastTask = await UserTaskModel.findOne({
         user: userTask.user,
         task: userTask.task,
       })
         .sort({ createdAt: -1 })
         .skip(1)
+      // Check the user's eligibility for an appointment
+      await this.checkEligibilityForAppointment(userTask.user)
+
+      // Calculate the score for the user based on their previous and current tasks
+
+      const scores = user?.score
       if (lastTask && task.type !== TaskType.NEW_PATIENT_INTAKE_FORM) {
         const score = calculateScore(lastTask, userTask, task.type)
         // push score to user score array
         if (score !== null) {
+          scores.push(score)
           user.score.push(score)
           await user.save()
         }
       }
+      // await this.handleIsReadyForProfiling(userTask.user, scores)
       // Handle different task types
       switch (task.type) {
         case TaskType.MP_BLUE_CAPSULE: {
