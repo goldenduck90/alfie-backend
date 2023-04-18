@@ -311,7 +311,18 @@ class TaskService {
           await user.save()
         }
       }
-      // await this.handleIsReadyForProfiling(userTask.user, scores)
+      const tasksEligibleForProfiling = [
+        TaskType.MP_HUNGER,
+        TaskType.MP_FEELING,
+        TaskType.AD_LIBITUM,
+        TaskType.MP_ACTIVITY,
+      ]
+      // if the tasktype is eligible for profiling, check if the user is ready for profiling and set the userTask.isReadyForProfiling to true
+      if (tasksEligibleForProfiling.includes(task.type)) {
+        userTask.isReadyForProfiling = true
+        await this.handleIsReadyForProfiling(userTask.user, scores)
+      }
+
       // Handle different task types
       switch (task.type) {
         case TaskType.MP_BLUE_CAPSULE: {
