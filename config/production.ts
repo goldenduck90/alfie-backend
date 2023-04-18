@@ -1,3 +1,6 @@
+import dotenv from "dotenv"
+dotenv.config()
+
 export default {
   dbUri: `mongodb+srv://joinalfie_dev_user:${process.env.DB_PASSWORD}@platform-production-clu.wnd0f.mongodb.net/?retryWrites=true&w=majority`,
   baseUrl: "https://prod.joinalfie.com",
