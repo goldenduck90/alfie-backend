@@ -1,5 +1,5 @@
 import { Arg, Authorized, Ctx, Mutation, Query, Resolver } from "type-graphql"
-import { Role } from "../schema/user.schema"
+import { Role, Score, User } from "../schema/user.schema"
 import { Task, CreateTaskInput } from "../schema/task.schema"
 import TaskService from "../services/task.service"
 import {
@@ -92,5 +92,17 @@ export default class TaskResolver {
   @Query(() => Task, { nullable: true })
   task(@Arg("id") id: string) {
     return this.taskService.getTask(id)
+  }
+
+  @Authorized([Role.Admin, Role.Doctor, Role.Practitioner, Role.HealthCoach])
+  @Mutation(() => User)
+  classifyPatients(@Arg("userId") userId: string) {
+    return this.taskService.classifyPatient(userId)
+  }
+
+  @Authorized([Role.Admin, Role.Doctor, Role.Practitioner, Role.HealthCoach])
+  @Mutation(() => Score)
+  scorePatients(@Arg("userId") userId: string) {
+    return this.taskService.scorePatient(userId)
   }
 }

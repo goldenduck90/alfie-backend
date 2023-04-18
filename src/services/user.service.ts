@@ -23,7 +23,6 @@ import {
 } from "openai"
 import stripe from "stripe"
 import { v4 as uuidv4 } from "uuid"
-import { classifyUser } from "../PROAnalysis/classification"
 import {
   CheckoutModel,
   CreateCheckoutInput,
@@ -44,7 +43,6 @@ import {
   UpdateUserInput,
   Weight,
 } from "../schema/user.schema"
-import { calculatePatientScores } from "../scripts/calculatePatientScores"
 import { signJwt } from "../utils/jwt"
 import {
   getSendBirdUserChannelUrl,
@@ -1195,9 +1193,9 @@ class UserService extends EmailService {
 
   async getAllUserTasksByUser(userId: string) {
     try {
-      const userTasks: any = await UserTaskModel.find({ user: userId })
-        .populate("task")
-        .lean()
+      const userTasks: any = await UserTaskModel.find({
+        user: userId,
+      }).populate("task")
       // const users = await UserModel.find()
       // users.forEach(async (u) => {
       //   const classify = await this.classifyPatient(u._id)
@@ -1223,115 +1221,6 @@ class UserService extends EmailService {
       Sentry.captureException(error)
     }
   }
-  async scorePatient(userId: string) {
-    try {
-      const scores = await calculatePatientScores(userId)
-      return scores
-    } catch (error) {
-      Sentry.captureException(error)
-    }
-  }
-  async classifyPatient(userId: string) {
-    try {
-      console.log(userId) // TODO: classify specific patient
-      const users = await UserModel.find()
-
-      for (const user of users) {
-        if (user.score.length > 0 && user.score[0] !== null) {
-          const scoresByTask = new Map()
-
-          // group scores by task
-          for (const score of user.score) {
-            if (!scoresByTask.has(score.task)) {
-              scoresByTask.set(score.task, [])
-            }
-            scoresByTask.get(score.task).push(score)
-          }
-
-          const scores = []
-
-          // get most recent score for each task
-          // eslint-disable-next-line @typescript-eslint/no-unused-vars
-          for (const [_, taskScores] of scoresByTask) {
-            const mostRecentScore = taskScores.sort(
-              (a: any, b: any) =>
-                new Date(b.date).getTime() - new Date(a.date).getTime()
-            )[0]
-            scores.push(mostRecentScore)
-          }
-
-          const classifications: any = classifyUser(scores)
-
-          for (const c of classifications) {
-            const classificationExists = user.classifications.some(
-              (el: any) => el.date === c.date
-            )
-
-            if (!classificationExists) {
-              user.classifications.push(c)
-            }
-          }
-
-          await user.save()
-        }
-      }
-    } catch (error) {
-      console.log(error, "error")
-      Sentry.captureException(error)
-    }
-  }
-
-  async classifySinglePatient(userId: string) {
-    try {
-      console.log(userId) // TODO: classify specific patient
-      const user = await UserModel.findById(userId)
-  
-      if (user && user.score.length > 0 && user.score[0] !== null) {
-        const scoresByTask = new Map()
-  
-        // group scores by task
-        for (const score of user.score) {
-          if (!scoresByTask.has(score.task)) {
-            scoresByTask.set(score.task, [])
-          }
-          scoresByTask.get(score.task).push(score)
-        }
-  
-        const scores = []
-  
-        // get most recent score for each task
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        for (const [_, taskScores] of scoresByTask) {
-          const mostRecentScore = taskScores.sort(
-            (a: any, b: any) =>
-              new Date(b.date).getTime() - new Date(a.date).getTime()
-          )[0]
-          scores.push(mostRecentScore)
-        }
-  
-        const classifications: any = classifyUser(scores)
-  
-        for (const c of classifications) {
-          const classificationExists = user.classifications.some(
-            (el: any) => el.date === c.date
-          )
-  
-          if (!classificationExists) {
-            user.classifications.push(c)
-          }
-        }
-  
-        await user.save()
-        return classifications
-      }
-    } catch (error) {
-      console.log(error, "error")
-      Sentry.captureException(error)
-    }
-  }
-  
-
-
 
   async completeCheckout(
     stripeSubscriptionId: string,
@@ -1693,21 +1582,21 @@ class UserService extends EmailService {
       const weights = groupedTasks.WEIGHT_LOG
       let weightChange = null
       let firstWeight = null
-  
+
       if (weights && weights.mostRecent) {
         const weight1 = parseFloat(
           weights.mostRecent.task.answers.find(
             (answer: any) => answer.key === "weight"
           )?.value
         )
-  
+
         if (weights.secondMostRecent) {
           const weight2 = parseFloat(
             weights.secondMostRecent.task.answers.find(
               (answer: any) => answer.key === "weight"
             )?.value
           )
-  
+
           weightChange =
             weight1 && weight2
               ? (((weight1 - weight2) / weight2) * 100).toFixed(2)
@@ -1716,16 +1605,15 @@ class UserService extends EmailService {
           firstWeight = weight1
         }
       }
-  
+
       // ... (rest of the code remains unchanged)
-  
+
       const weightInfo = weightChange
         ? `They have lost ${weightChange}% over the past 4 weeks`
         : firstWeight
         ? `Their current weight is ${firstWeight}`
         : ""
-  
-      
+
       const medicationsFromAkute =
         await this.akuteService.getASinglePatientMedications(
           user?.akutePatientId
@@ -1756,8 +1644,8 @@ class UserService extends EmailService {
           }: ${classification} (${percentile}%)`
         })
         .join(", ")
-        
-        const prompt = `This Patient has the following classifications and percentiles: ${subTypesText}. ${weightInfo} and are currently on this or these doses of medication: ${medications}`
+
+      const prompt = `This Patient has the following classifications and percentiles: ${subTypesText}. ${weightInfo} and are currently on this or these doses of medication: ${medications}`
       console.log(prompt, "prompt")
       const params = {
         model: "gpt-4",
@@ -1773,7 +1661,7 @@ class UserService extends EmailService {
             content: `Protocol: ${protocol} question: ${prompt}`,
           },
         ],
-      }      
+      }
       const completion = await openAi.createChatCompletion(params, {
         headers: {
           "OpenAI-Organization": "org-QoMwwdaIbJ7OUvpSZmPZ42Y4",
