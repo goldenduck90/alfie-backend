@@ -1692,23 +1692,40 @@ class UserService extends EmailService {
       const subTypes = this.removeDuplicates(user?.classifications)
       const weights = groupedTasks.WEIGHT_LOG
       let weightChange = null
-
-      if (weights && weights.mostRecent && weights.secondMostRecent) {
+      let firstWeight = null
+  
+      if (weights && weights.mostRecent) {
         const weight1 = parseFloat(
           weights.mostRecent.task.answers.find(
             (answer: any) => answer.key === "weight"
           )?.value
         )
-        const weight2 = parseFloat(
-          weights.secondMostRecent.task.answers.find(
-            (answer: any) => answer.key === "weight"
-          )?.value
-        )
-        weightChange =
-          weight1 && weight2
-            ? (((weight1 - weight2) / weight2) * 100).toFixed(2)
-            : null
+  
+        if (weights.secondMostRecent) {
+          const weight2 = parseFloat(
+            weights.secondMostRecent.task.answers.find(
+              (answer: any) => answer.key === "weight"
+            )?.value
+          )
+  
+          weightChange =
+            weight1 && weight2
+              ? (((weight1 - weight2) / weight2) * 100).toFixed(2)
+              : null
+        } else {
+          firstWeight = weight1
+        }
       }
+  
+      // ... (rest of the code remains unchanged)
+  
+      const weightInfo = weightChange
+        ? `They have lost ${weightChange}% over the past 4 weeks`
+        : firstWeight
+        ? `Their current weight is ${firstWeight}`
+        : ""
+  
+      
       const medicationsFromAkute =
         await this.akuteService.getASinglePatientMedications(
           user?.akutePatientId
@@ -1740,7 +1757,7 @@ class UserService extends EmailService {
         })
         .join(", ")
         
-      const prompt = `This Patient has the following classifications and percentiles: ${subTypesText}. They have lost ${weightChange}% over the past 4 weeks and are currently on this or these doses of medication: ${medications}`
+        const prompt = `This Patient has the following classifications and percentiles: ${subTypesText}. ${weightInfo} and are currently on this or these doses of medication: ${medications}`
       console.log(prompt, "prompt")
       const params = {
         model: "gpt-4",

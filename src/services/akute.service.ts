@@ -16,8 +16,7 @@ class AkuteService {
   public axios: AxiosInstance
 
   constructor() {
-    this.baseUrl = "https://api.akutehealth.com/v1"
-    // config.get("akuteApiUrl")
+    this.baseUrl = config.get("akuteApiUrl")
     this.axios = axios.create({
       baseURL: this.baseUrl,
       headers: {
