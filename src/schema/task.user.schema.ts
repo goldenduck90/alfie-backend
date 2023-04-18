@@ -90,7 +90,7 @@ export class UserTask {
 
   @Field(() => Boolean, { nullable: true })
   @prop({ required: false, default: false })
-  isProfilingReady: boolean
+  isReadyForProfiling: boolean
 
   @Field(() => User)
   @prop({ ref: () => User, required: true })
