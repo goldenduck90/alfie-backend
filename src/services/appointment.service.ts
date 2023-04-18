@@ -297,14 +297,14 @@ class AppointmentService extends EmailService {
         await this.sendAppointmentCreatedEmail({
           name: response.provider.firstName,
           email: response.provider.email,
-          date: dayjs(response.start)
-            .tz(response.timezone)
+          date: dayjs
+            .tz(response.start, response.timezone)
             .format("MM/DD/YYYY"),
-          start: `${dayjs(response.start)
-            .tz(response.timezone)
+          start: `${dayjs
+            .tz(response.start, response.timezone)
             .format("h:mm A (z)")}`,
-          end: `${dayjs(response.end)
-            .tz(response.timezone)
+          end: `${dayjs
+            .tz(response.end, response.timezone)
             .format("h:mm A (z)")}`,
           otherName:
             response.customer.firstName + " " + response.customer.lastName,
@@ -315,14 +315,14 @@ class AppointmentService extends EmailService {
         await this.sendAppointmentCreatedEmail({
           name: response.customer.firstName,
           email: response.customer.email,
-          date: dayjs(response.start)
-            .tz(response.timezone)
+          date: dayjs
+            .tz(response.start, response.timezone)
             .format("MM/DD/YYYY"),
-          start: `${dayjs(response.start)
-            .tz(response.timezone)
+          start: `${dayjs
+            .tz(response.start, response.timezone)
             .format("h:mm A (z)")}`,
-          end: `${dayjs(response.end)
-            .tz(response.timezone)
+          end: `${dayjs
+            .tz(response.end, response.timezone)
             .format("h:mm A (z)")}`,
           otherName:
             response.provider.firstName + " " + response.provider.lastName,
@@ -383,14 +383,14 @@ class AppointmentService extends EmailService {
         await this.sendAppointmentUpdatedEmail({
           name: response.provider.firstName,
           email: response.provider.email,
-          date: dayjs(response.start)
-            .tz(response.timezone)
+          date: dayjs
+            .tz(response.start, response.timezone)
             .format("MM/DD/YYYY"),
-          start: `${dayjs(response.start)
-            .tz(response.timezone)
+          start: `${dayjs
+            .tz(response.start, response.timezone)
             .format("h:mm A (z)")}`,
-          end: `${dayjs(response.end)
-            .tz(response.timezone)
+          end: `${dayjs
+            .tz(response.end, response.timezone)
             .format("h:mm A (z)")}`,
           otherName:
             response.customer.firstName + " " + response.customer.lastName,
@@ -401,14 +401,14 @@ class AppointmentService extends EmailService {
         await this.sendAppointmentUpdatedEmail({
           name: response.customer.firstName,
           email: response.customer.email,
-          date: dayjs(response.start)
-            .tz(response.timezone)
+          date: dayjs
+            .tz(response.start, response.timezone)
             .format("MM/DD/YYYY"),
-          start: `${dayjs(response.start)
-            .tz(response.timezone)
+          start: `${dayjs
+            .tz(response.start, response.timezone)
             .format("h:mm A (z)")}`,
-          end: `${dayjs(response.end)
-            .tz(response.timezone)
+          end: `${dayjs
+            .tz(response.end, response.timezone)
             .format("h:mm A (z)")}`,
           otherName:
             response.provider.firstName + " " + response.provider.lastName,
@@ -465,14 +465,14 @@ class AppointmentService extends EmailService {
         await this.sendAppointmentCancelledEmail({
           name: response.provider.firstName,
           email: response.provider.email,
-          date: dayjs(response.start)
-            .tz(response.timezone)
+          date: dayjs
+            .tz(response.start, response.timezone)
             .format("MM/DD/YYYY"),
-          start: `${dayjs(response.start)
-            .tz(response.timezone)
+          start: `${dayjs
+            .tz(response.start, response.timezone)
             .format("h:mm A (z)")}`,
-          end: `${dayjs(response.end)
-            .tz(response.timezone)
+          end: `${dayjs
+            .tz(response.end, response.timezone)
             .format("h:mm A (z)")}`,
           otherName:
             response.customer.firstName + " " + response.customer.lastName,
@@ -482,14 +482,14 @@ class AppointmentService extends EmailService {
         await this.sendAppointmentCancelledEmail({
           name: response.customer.firstName,
           email: response.customer.email,
-          date: dayjs(response.start)
-            .tz(response.timezone)
+          date: dayjs
+            .tz(response.start, response.timezone)
             .format("MM/DD/YYYY"),
-          start: `${dayjs(response.start)
-            .tz(response.timezone)
+          start: `${dayjs
+            .tz(response.start, response.timezone)
             .format("h:mm A (z)")}`,
-          end: `${dayjs(response.end)
-            .tz(response.timezone)
+          end: `${dayjs
+            .tz(response.end, response.timezone)
             .format("h:mm A (z)")}`,
           otherName:
             response.provider.firstName + " " + response.provider.lastName,
