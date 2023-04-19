@@ -34,29 +34,29 @@ function GetZPercent(z: number) {
   // number of significant digits will be outside of a reasonable range
 
   if (z < -6.5) {
-    return 0.0;
+    return 0.0
   }
 
   if (z > 6.5) {
-    return 1.0;
+    return 1.0
   }
 
-  let factK = 1;
-  let sum = 0;
-  let term = 1;
-  let k = 0;
-  const loopStop = Math.exp(-23);
+  let factK = 1
+  let sum = 0
+  let term = 1
+  let k = 0
+  const loopStop = Math.exp(-23)
 
   while (Math.abs(term) > loopStop) {
-    term = .3989422804 * Math.pow(-1, k) * Math.pow(z, k) / (2 * k + 1) / Math.pow(2, k) * Math.pow(z, k + 1) / factK;
-    sum += term;
-    k++;
-    factK *= k;
+    term = .3989422804 * Math.pow(-1, k) * Math.pow(z, k) / (2 * k + 1) / Math.pow(2, k) * Math.pow(z, k + 1) / factK
+    sum += term
+    k++
+    factK *= k
   }
 
-  sum += 0.5;
+  sum += 0.5
 
-  return sum;
+  return sum
 }
 
 // zScore is just (score - mean)/standard deviation
@@ -67,7 +67,7 @@ function calculateMPFeelingScore(
   lastTask: UserTask,
   currentTask: UserTask,
   task: TaskType
-) {
+ ) {
   // We first need to create a score for the lastTask and the currentTask
   // We will create a score for task in it's entirety all the scores added together for each question will equal the score for the task
 
@@ -125,11 +125,24 @@ function calculateSingleMPFeeling(currentTask: UserTask, task: TaskType) {
   const currentTaskScore = Object.keys(currentTask.answers).reduce(
     (acc, key: any) => {
       const answer: any = currentTask.answers[key]
-      const score = mpFeelingQuestions[answer.key][answer.value]
-      return acc + score
+      // eslint-disable-next-line no-prototype-builtins
+      if (mpFeelingQuestions.hasOwnProperty(answer.key) && mpFeelingQuestions[answer.key].hasOwnProperty(answer.value)) {
+        const score = mpFeelingQuestions[answer.key][answer.value]
+        return acc + score
+      } else {
+        console.warn(`Invalid answer key or value for MP_FEELING: ${answer.key}, ${answer.value}`)
+        return acc
+      }
     },
     0
   )
+
+  // Add a check for currentTaskScore being a valid number
+  if (isNaN(currentTaskScore)) {
+    console.warn("Invalid currentTaskScore for MP_FEELING:", currentTaskScore)
+    return null
+  }
+
   const percentileKey = Object.keys(hadspercentile).reduce((acc, key) => {
     const value = parseInt(key)
     if (value < currentTaskScore) {
@@ -137,6 +150,7 @@ function calculateSingleMPFeeling(currentTask: UserTask, task: TaskType) {
     }
     return acc
   }, 0)
+
   const message = `You scored within the ${percentileKey} percentile`
   const calculatedZScore = getZScore(
     currentTaskScore,
@@ -144,6 +158,7 @@ function calculateSingleMPFeeling(currentTask: UserTask, task: TaskType) {
     3.1
   )
   const calculatedPercentile = GetZPercent(calculatedZScore) * 100
+
   return {
     percentile: String(percentileKey),
     calculatedPercentile,
@@ -153,6 +168,7 @@ function calculateSingleMPFeeling(currentTask: UserTask, task: TaskType) {
     task,
   }
 }
+
 function calculateActivityScore(
   lastTask: UserTask,
   currentTask: UserTask,

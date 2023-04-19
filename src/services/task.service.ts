@@ -16,14 +16,17 @@ import {
 } from "../schema/task.user.schema"
 import { UserModel } from "../schema/user.schema"
 import AkuteService from "./akute.service"
+import { classifyUser } from "../PROAnalysis/classification"
+import { calculatePatientScores } from "../scripts/calculatePatientScores"
 import EmailService from "./email.service"
 
-class TaskService extends EmailService {
+class TaskService {
   private akuteService: AkuteService
+  private emailService: EmailService
 
   constructor() {
-    super()
     this.akuteService = new AkuteService()
+    this.emailService = new EmailService()
   }
 
   async createTask(input: CreateTaskInput) {
@@ -125,6 +128,184 @@ class TaskService extends EmailService {
     }
   }
 
+  async handleIsReadyForProfiling(userId: any, scores: any) {
+    try {
+      const userTasks: any = await UserTaskModel.find({
+        user: userId,
+      }).populate("task")
+      const user: any = await UserModel.find({
+        _id: userId,
+      })
+      const userScores = scores
+      const tasksEligibleForProfiling = [
+        TaskType.MP_HUNGER,
+        TaskType.MP_FEELING,
+        TaskType.AD_LIBITUM,
+        TaskType.MP_ACTIVITY,
+      ]
+      console.log(userTasks, "userTasks")
+      const completedTasks = userTasks.filter(
+        ({
+          task,
+          isReadyForProfiling,
+          completed,
+        }: {
+          task: any
+          isReadyForProfiling: any
+          completed: any
+        }) =>
+          tasksEligibleForProfiling.includes(task.type) &&
+          isReadyForProfiling &&
+          completed
+      )
+
+      console.log(
+        completedTasks.length,
+        tasksEligibleForProfiling.length,
+        "completedTasks.length, tasksEligibleForProfiling.length"
+      )
+      console.log(userScores.length, "userScores.length")
+      if (
+        userScores.length === 0 &&
+        completedTasks.length >= tasksEligibleForProfiling.length
+      ) {
+        console.log("HERE 2")
+        const newScores = await this.scorePatient(userId)
+        user.score = newScores
+        await user.save()
+        await this.classifySinglePatient(userId)
+        // set those tasks to not ready for profiling
+        for (const task of completedTasks) {
+          const userTask = await UserTaskModel.findById(task._id)
+          userTask.isReadyForProfiling = false
+          await userTask.save()
+        }
+      } else if (
+        userScores.length > 0 &&
+        completedTasks.length >= tasksEligibleForProfiling.length
+      ) {
+        console.log("HERE")
+        await this.classifySinglePatient(userId)
+        for (const task of completedTasks) {
+          const userTask = await UserTaskModel.findById(task._id)
+          userTask.isReadyForProfiling = false
+          await userTask.save()
+        }
+      } else {
+        console.log("not ready for profiling")       
+      }
+    } catch (error) {
+      Sentry.captureException(error)
+    }
+  }
+
+  async scorePatient(userId: string) {
+    try {
+      const scores = await calculatePatientScores(userId)
+      return scores
+    } catch (error) {
+      Sentry.captureException(error)
+    }
+  }
+  async classifyPatient(userId: string) {
+    try {
+      console.log(userId) // TODO: classify specific patient
+      const users = await UserModel.find()
+
+      for (const user of users) {
+        if (user.score.length > 0 && user.score[0] !== null) {
+          const scoresByTask = new Map()
+
+          // group scores by task
+          for (const score of user.score) {
+            if (!scoresByTask.has(score.task)) {
+              scoresByTask.set(score.task, [])
+            }
+            scoresByTask.get(score.task).push(score)
+          }
+
+          const scores = []
+
+          // get most recent score for each task
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          for (const [_, taskScores] of scoresByTask) {
+            const mostRecentScore = taskScores.sort(
+              (a: any, b: any) =>
+                new Date(b.date).getTime() - new Date(a.date).getTime()
+            )[0]
+            scores.push(mostRecentScore)
+          }
+
+          const classifications: any = classifyUser(scores)
+
+          for (const c of classifications) {
+            const classificationExists = user.classifications.some(
+              (el: any) => el.date === c.date
+            )
+
+            if (!classificationExists) {
+              user.classifications.push(c)
+            }
+          }
+
+          await user.save()
+        }
+      }
+    } catch (error) {
+      console.log(error, "error")
+      Sentry.captureException(error)
+    }
+  }
+
+  async classifySinglePatient(userId: string) {
+    try {
+      console.log(userId) // TODO: classify specific patient
+      const user = await UserModel.findById(userId)
+
+      if (user && user.score.length > 0 && user.score[0] !== null) {
+        const scoresByTask = new Map()
+
+        // group scores by task
+        for (const score of user.score) {
+          if (!scoresByTask.has(score.task)) {
+            scoresByTask.set(score.task, [])
+          }
+          scoresByTask.get(score.task).push(score)
+        }
+
+        const scores = []
+
+        // get most recent score for each task
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        for (const [_, taskScores] of scoresByTask) {
+          const mostRecentScore = taskScores.sort(
+            (a: any, b: any) =>
+              new Date(b.date).getTime() - new Date(a.date).getTime()
+          )[0]
+          scores.push(mostRecentScore)
+        }
+
+        const classifications: any = classifyUser(scores)
+
+        for (const c of classifications) {
+          const classificationExists = user.classifications.some(
+            (el: any) => el.date === c.date
+          )
+
+          if (!classificationExists) {
+            user.classifications.push(c)
+          }
+        }
+
+        await user.save()
+        return classifications
+      }
+    } catch (error) {
+      console.log(error, "error")
+      Sentry.captureException(error)
+    }
+  }
+
   async completeUserTask(input: CompleteUserTaskInput) {
     try {
       // Get the user task, throw an error if it is not found
@@ -147,25 +328,40 @@ class TaskService extends EmailService {
       userTask.answers = []
       userTask.answers = answers
       await userTask.save()
-
-      // Check the user's eligibility for an appointment
-      await this.checkEligibilityForAppointment(userTask.user)
-
-      // Calculate the score for the user based on their previous and current tasks
       const lastTask = await UserTaskModel.findOne({
         user: userTask.user,
         task: userTask.task,
       })
         .sort({ createdAt: -1 })
         .skip(1)
+      // Check the user's eligibility for an appointment
+      await this.checkEligibilityForAppointment(userTask.user)
+
+      // Calculate the score for the user based on their previous and current tasks
+
+      const scores = user?.score
       if (lastTask && task.type !== TaskType.NEW_PATIENT_INTAKE_FORM) {
         const score = calculateScore(lastTask, userTask, task.type)
         // push score to user score array
         if (score !== null) {
+          scores.push(score)
           user.score.push(score)
           await user.save()
         }
       }
+      const tasksEligibleForProfiling = [
+        TaskType.MP_HUNGER,
+        TaskType.MP_FEELING,
+        TaskType.AD_LIBITUM,
+        TaskType.MP_ACTIVITY,
+      ]
+      // if the tasktype is eligible for profiling, check if the user is ready for profiling and set the userTask.isReadyForProfiling to true
+      if (tasksEligibleForProfiling.includes(task.type)) {
+        userTask.isReadyForProfiling = true
+        await userTask.save()
+        await this.handleIsReadyForProfiling(userTask.user, scores)
+      }
+
       // Handle different task types
       switch (task.type) {
         case TaskType.MP_BLUE_CAPSULE: {
@@ -246,9 +442,9 @@ class TaskService extends EmailService {
         throw new ApolloError(userNotFound.message, userNotFound.code)
       }
 
-      const tasks = await TaskModel.find({ type: { $in: taskTypes } })
-        .where({ completed: false })
-        .lean()
+      const tasks = await TaskModel.find({ type: { $in: taskTypes } }).where({
+        completed: false,
+      })
       if (tasks.length !== taskTypes.length) {
         throw new ApolloError(notFound.message, notFound.code)
       }
@@ -277,6 +473,7 @@ class TaskService extends EmailService {
                 ? new Date()
                 : undefined,
               archived: false,
+              isReadyForProfiling: false,
             })
           }
 
@@ -306,7 +503,7 @@ class TaskService extends EmailService {
     ) as any
     const { userId, taskType } = input
 
-    const task = await TaskModel.find().findByType(taskType).lean()
+    const task = await TaskModel.find().findByType(taskType)
     if (!task) {
       throw new ApolloError(notFound.message, notFound.code)
     }
@@ -342,7 +539,7 @@ class TaskService extends EmailService {
     await newTask.populate("task")
 
     if (task.notifyWhenAssigned) {
-      await this.sendTaskAssignedEmail({
+      await this.emailService.sendTaskAssignedEmail({
         email: user.email,
         taskName: task.name,
         taskId: newTask._id,

@@ -23,7 +23,6 @@ import {
 } from "openai"
 import stripe from "stripe"
 import { v4 as uuidv4 } from "uuid"
-import { classifyUser } from "../PROAnalysis/classification"
 import {
   CheckoutModel,
   CreateCheckoutInput,
@@ -44,7 +43,6 @@ import {
   UpdateUserInput,
   Weight,
 } from "../schema/user.schema"
-import { calculatePatientScores } from "../scripts/calculatePatientScores"
 import { signJwt } from "../utils/jwt"
 import {
   getSendBirdUserChannelUrl,
@@ -59,6 +57,7 @@ import EmailService from "./email.service"
 import ProviderService from "./provider.service"
 import TaskService from "./task.service"
 import SmsService from "./sms.service"
+import { calculatePatientScores } from "./../scripts/calculatePatientScores"
 
 class UserService extends EmailService {
   private taskService: TaskService
@@ -1195,18 +1194,18 @@ class UserService extends EmailService {
 
   async getAllUserTasksByUser(userId: string) {
     try {
-      const userTasks: any = await UserTaskModel.find({ user: userId })
-        .populate("task")
-        .lean()
-      // const users = await UserModel.find()
+      const userTasks: any = await UserTaskModel.find({
+        user: userId,
+      }).populate("task")
+      const users = await UserModel.find()
       // users.forEach(async (u) => {
       //   const classify = await this.classifyPatient(u._id)
       //   console.log(classify, "score")
       // })
       // const scores = await calculatePatientScores(userId)
       // console.log(scores, "scores")
-      // const scores = await calculateAllScores()
-      // console.log(scores, "scores")
+      // const scores2 = await calculateAllScores()
+      // console.log(scores2, "scores")
 
       // const allPatientTasks = await UserTaskModel.find({
       //   completed: true
@@ -1220,63 +1219,6 @@ class UserService extends EmailService {
       return userTasks
     } catch (error) {
       console.log("error", error)
-      Sentry.captureException(error)
-    }
-  }
-  async scorePatient(userId: string) {
-    try {
-      const scores = await calculatePatientScores(userId)
-      return scores
-    } catch (error) {
-      Sentry.captureException(error)
-    }
-  }
-  async classifyPatient(userId: string) {
-    try {
-      console.log(userId) // TODO: classify specific patient
-      const users = await UserModel.find()
-
-      for (const user of users) {
-        if (user.score.length > 0 && user.score[0] !== null) {
-          const scoresByTask = new Map()
-
-          // group scores by task
-          for (const score of user.score) {
-            if (!scoresByTask.has(score.task)) {
-              scoresByTask.set(score.task, [])
-            }
-            scoresByTask.get(score.task).push(score)
-          }
-
-          const scores = []
-
-          // get most recent score for each task
-          // eslint-disable-next-line @typescript-eslint/no-unused-vars
-          for (const [_, taskScores] of scoresByTask) {
-            const mostRecentScore = taskScores.sort(
-              (a: any, b: any) =>
-                new Date(b.date).getTime() - new Date(a.date).getTime()
-            )[0]
-            scores.push(mostRecentScore)
-          }
-
-          const classifications: any = classifyUser(scores)
-
-          for (const c of classifications) {
-            const classificationExists = user.classifications.some(
-              (el: any) => el.date === c.date
-            )
-
-            if (!classificationExists) {
-              user.classifications.push(c)
-            }
-          }
-
-          await user.save()
-        }
-      }
-    } catch (error) {
-      console.log(error, "error")
       Sentry.captureException(error)
     }
   }
@@ -1636,34 +1578,54 @@ class UserService extends EmailService {
         return groupedTasks
       }
       const groupedTasks = await findAndGroupTasks(allUserTasks)
-      // const mostRecentWeights = this.findTwoMostRecentWeights(user?.weights || [])
-      // const mostRecentBp = groupedTasks.BP_LOG
-      // const mostRecentGsrs = groupedTasks.GSRS
 
       const subTypes = this.removeDuplicates(user?.classifications)
       const weights = groupedTasks.WEIGHT_LOG
-      const weight1 = parseFloat(
-        weights.mostRecent.task.answers.find(
-          (answer: any) => answer.key === "weight"
-        )?.value
-      )
-      const weight2 = parseFloat(
-        weights.secondMostRecent.task.answers.find(
-          (answer: any) => answer.key === "weight"
-        )?.value
-      )
-      const weightChange =
-        weight1 && weight2
-          ? (((weight1 - weight2) / weight2) * 100).toFixed(2)
-          : null
+      let weightChange = null
+      let firstWeight = null
+
+      if (weights && weights.mostRecent) {
+        const weight1 = parseFloat(
+          weights.mostRecent.task.answers.find(
+            (answer: any) => answer.key === "weight"
+          )?.value
+        )
+
+        if (weights.secondMostRecent) {
+          const weight2 = parseFloat(
+            weights.secondMostRecent.task.answers.find(
+              (answer: any) => answer.key === "weight"
+            )?.value
+          )
+
+          weightChange =
+            weight1 && weight2
+              ? (((weight1 - weight2) / weight2) * 100).toFixed(2)
+              : null
+        } else {
+          firstWeight = weight1
+        }
+      }
+
+      // ... (rest of the code remains unchanged)
+
+      const weightInfo = weightChange
+        ? `They have lost ${weightChange}% over the past 4 weeks`
+        : firstWeight
+        ? `Their current weight is ${firstWeight}`
+        : ""
 
       const medicationsFromAkute =
         await this.akuteService.getASinglePatientMedications(
           user?.akutePatientId
         )
-      const activeMedications = medicationsFromAkute.filter(
-        (medication: any) => medication.status === "active"
-      )
+
+      let activeMedications = []
+      if (Array.isArray(medicationsFromAkute)) {
+        activeMedications = medicationsFromAkute.filter(
+          (medication: any) => medication.status === "active"
+        )
+      }
       // Updated code to extract medication name and dose
       const medicationsAndStrength = activeMedications.map(
         (medication: any) => {
@@ -1684,7 +1646,8 @@ class UserService extends EmailService {
         })
         .join(", ")
 
-      const prompt = `This Patient has the following classifications and percentiles: ${subTypesText}. They have lost ${weightChange}% over the past 4 weeks and are currently on this or these doses of medication: ${medications}`
+      const prompt = `This Patient has the following classifications and percentiles: ${subTypesText}. ${weightInfo} and are currently on this or these doses of medication: ${medications}`
+      console.log(prompt, "prompt")
       const params = {
         model: "gpt-4",
         temperature: 0,
@@ -1705,12 +1668,13 @@ class UserService extends EmailService {
           "OpenAI-Organization": "org-QoMwwdaIbJ7OUvpSZmPZ42Y4",
         },
       })
+      console.log(completion.data.choices[0].message.content, "completion")
       user.generatedSummary = completion.data.choices[0].message.content
       user.save()
       return user
       // res.send(completion.data.choices[0].message.content)
     } catch (error) {
-      console.log(error)
+      console.log(error, "ERROR")
       return error
     }
   }

@@ -149,7 +149,7 @@ class AppointmentService extends EmailService {
 
       let eaProviderId
       if (!bypassNotice) {
-        const _user = await UserModel.findById(user._id).lean()
+        const _user = await UserModel.findById(user._id)
         if (!_user) {
           throw new ApolloError(notFound.message, notFound.code)
         }
@@ -158,7 +158,7 @@ class AppointmentService extends EmailService {
           throw new ApolloError(noEaCustomerId.message, noEaCustomerId.code)
         }
 
-        const provider = await ProviderModel.findById(_user.provider).lean()
+        const provider = await ProviderModel.findById(_user.provider)
         if (!provider) {
           throw new ApolloError(notFound.message, notFound.code)
         }
@@ -169,7 +169,7 @@ class AppointmentService extends EmailService {
 
         eaProviderId = provider.eaProviderId
       } else {
-        const provider = await ProviderModel.findById(user._id).lean()
+        const provider = await ProviderModel.findById(user._id)
         if (!provider) {
           throw new ApolloError(notFound.message, notFound.code)
         }
@@ -188,7 +188,7 @@ class AppointmentService extends EmailService {
       }
 
       if (userId) {
-        const _user = await UserModel.findById(userId).lean()
+        const _user = await UserModel.findById(userId)
         if (!_user) {
           throw new ApolloError(notFound.message, notFound.code)
         }
@@ -241,7 +241,7 @@ class AppointmentService extends EmailService {
       const { userId, start, end, timezone, notes, bypassNotice, userTaskId } =
         input
 
-      const _user = await UserModel.findById(userId ? userId : user._id).lean()
+      const _user = await UserModel.findById(userId ? userId : user._id)
       if (!_user) {
         throw new ApolloError(notFound.message, notFound.code)
       }
@@ -252,7 +252,7 @@ class AppointmentService extends EmailService {
 
       const eaCustomerId = _user.eaCustomerId
 
-      const provider = await ProviderModel.findById(_user.provider).lean()
+      const provider = await ProviderModel.findById(_user.provider)
       if (!provider) {
         throw new ApolloError(notFound.message, notFound.code)
       }
@@ -297,14 +297,14 @@ class AppointmentService extends EmailService {
         await this.sendAppointmentCreatedEmail({
           name: response.provider.firstName,
           email: response.provider.email,
-          date: dayjs(response.start)
-            .tz(response.timezone)
+          date: dayjs
+            .tz(response.start, response.timezone)
             .format("MM/DD/YYYY"),
-          start: `${dayjs(response.start)
-            .tz(response.timezone)
+          start: `${dayjs
+            .tz(response.start, response.timezone)
             .format("h:mm A (z)")}`,
-          end: `${dayjs(response.end)
-            .tz(response.timezone)
+          end: `${dayjs
+            .tz(response.end, response.timezone)
             .format("h:mm A (z)")}`,
           otherName:
             response.customer.firstName + " " + response.customer.lastName,
@@ -315,14 +315,14 @@ class AppointmentService extends EmailService {
         await this.sendAppointmentCreatedEmail({
           name: response.customer.firstName,
           email: response.customer.email,
-          date: dayjs(response.start)
-            .tz(response.timezone)
+          date: dayjs
+            .tz(response.start, response.timezone)
             .format("MM/DD/YYYY"),
-          start: `${dayjs(response.start)
-            .tz(response.timezone)
+          start: `${dayjs
+            .tz(response.start, response.timezone)
             .format("h:mm A (z)")}`,
-          end: `${dayjs(response.end)
-            .tz(response.timezone)
+          end: `${dayjs
+            .tz(response.end, response.timezone)
             .format("h:mm A (z)")}`,
           otherName:
             response.provider.firstName + " " + response.provider.lastName,
@@ -383,14 +383,14 @@ class AppointmentService extends EmailService {
         await this.sendAppointmentUpdatedEmail({
           name: response.provider.firstName,
           email: response.provider.email,
-          date: dayjs(response.start)
-            .tz(response.timezone)
+          date: dayjs
+            .tz(response.start, response.timezone)
             .format("MM/DD/YYYY"),
-          start: `${dayjs(response.start)
-            .tz(response.timezone)
+          start: `${dayjs
+            .tz(response.start, response.timezone)
             .format("h:mm A (z)")}`,
-          end: `${dayjs(response.end)
-            .tz(response.timezone)
+          end: `${dayjs
+            .tz(response.end, response.timezone)
             .format("h:mm A (z)")}`,
           otherName:
             response.customer.firstName + " " + response.customer.lastName,
@@ -401,14 +401,14 @@ class AppointmentService extends EmailService {
         await this.sendAppointmentUpdatedEmail({
           name: response.customer.firstName,
           email: response.customer.email,
-          date: dayjs(response.start)
-            .tz(response.timezone)
+          date: dayjs
+            .tz(response.start, response.timezone)
             .format("MM/DD/YYYY"),
-          start: `${dayjs(response.start)
-            .tz(response.timezone)
+          start: `${dayjs
+            .tz(response.start, response.timezone)
             .format("h:mm A (z)")}`,
-          end: `${dayjs(response.end)
-            .tz(response.timezone)
+          end: `${dayjs
+            .tz(response.end, response.timezone)
             .format("h:mm A (z)")}`,
           otherName:
             response.provider.firstName + " " + response.provider.lastName,
@@ -465,14 +465,14 @@ class AppointmentService extends EmailService {
         await this.sendAppointmentCancelledEmail({
           name: response.provider.firstName,
           email: response.provider.email,
-          date: dayjs(response.start)
-            .tz(response.timezone)
+          date: dayjs
+            .tz(response.start, response.timezone)
             .format("MM/DD/YYYY"),
-          start: `${dayjs(response.start)
-            .tz(response.timezone)
+          start: `${dayjs
+            .tz(response.start, response.timezone)
             .format("h:mm A (z)")}`,
-          end: `${dayjs(response.end)
-            .tz(response.timezone)
+          end: `${dayjs
+            .tz(response.end, response.timezone)
             .format("h:mm A (z)")}`,
           otherName:
             response.customer.firstName + " " + response.customer.lastName,
@@ -482,14 +482,14 @@ class AppointmentService extends EmailService {
         await this.sendAppointmentCancelledEmail({
           name: response.customer.firstName,
           email: response.customer.email,
-          date: dayjs(response.start)
-            .tz(response.timezone)
+          date: dayjs
+            .tz(response.start, response.timezone)
             .format("MM/DD/YYYY"),
-          start: `${dayjs(response.start)
-            .tz(response.timezone)
+          start: `${dayjs
+            .tz(response.start, response.timezone)
             .format("h:mm A (z)")}`,
-          end: `${dayjs(response.end)
-            .tz(response.timezone)
+          end: `${dayjs
+            .tz(response.end, response.timezone)
             .format("h:mm A (z)")}`,
           otherName:
             response.provider.firstName + " " + response.provider.lastName,
@@ -555,7 +555,7 @@ class AppointmentService extends EmailService {
       let eaUserId
 
       if (user.role === Role.Doctor || user.role === Role.Practitioner) {
-        const provider = await ProviderModel.findById(user._id).lean()
+        const provider = await ProviderModel.findById(user._id)
         if (!provider) {
           throw new ApolloError(notFound.message, notFound.code)
         }
@@ -566,7 +566,7 @@ class AppointmentService extends EmailService {
 
         eaUserId = provider.eaProviderId
       } else {
-        const _user = await UserModel.findById(user._id).lean()
+        const _user = await UserModel.findById(user._id)
         if (!_user) {
           throw new ApolloError(notFound.message, notFound.code)
         }

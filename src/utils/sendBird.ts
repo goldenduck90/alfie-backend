@@ -121,9 +121,7 @@ const inviteUserToChannel = async (
   user_id: string,
   provider: string
 ) => {
-  const sendBirdBotId = config.get("sendBirdBotId") as string
-
-  const user_ids = [provider, sendBirdBotId]
+  const user_ids = [provider]
 
   if (process.env.NODE_ENV === "production") {
     // Gabrielle H is the first ID then Alex then rohit
@@ -140,6 +138,12 @@ const inviteUserToChannel = async (
       }
     )
 
+    console.log(
+      `INVITED SENDBIRD CHANNEL FOR USER ID: ${user_id}: ${JSON.stringify(
+        data
+      )}`
+    )
+
     return data
   } catch (error) {
     console.log(error, "error in inviteUserToChannel")
@@ -147,7 +151,7 @@ const inviteUserToChannel = async (
   }
 }
 const sendMessageToChannel = async (channel_url: string, message: string) => {
-  const sendBirdBotId = config.get("sendBirdBotId") as string
+  const sendBirdBotId = "639ba07cb937527a0c43484e"
 
   try {
     const { data } = await sendBirdInstance.post(
@@ -206,7 +210,9 @@ const triggerEntireSendBirdFlow = async ({
 
     const channel_url = await createSendBirdChannelForNewUser(user_id, nickname)
     await inviteUserToChannel(channel_url, user_id, provider)
-    await sendMessageToChannel(channel_url, "Welcome to Alfie Chat!")
+    if (process.env.NODE_ENV === "production") {
+      await sendMessageToChannel(channel_url, "Welcome to Alfie Chat!")
+    }
 
     return true
   } catch (error) {

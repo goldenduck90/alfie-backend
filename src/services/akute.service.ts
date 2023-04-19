@@ -7,7 +7,7 @@ import { format } from "date-fns"
 import FormData from "form-data"
 import {
   AkuteDocument, CreateLabOrderResponse,
-  DocUploadInput, PharmacyLocationInput
+  DocUploadInput, PharmacyLocationInput,
 } from "../schema/akute.schema"
 import { CreatePatientInput, UserModel } from "../schema/user.schema"
 
