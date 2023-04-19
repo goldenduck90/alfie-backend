@@ -57,6 +57,7 @@ import EmailService from "./email.service"
 import ProviderService from "./provider.service"
 import TaskService from "./task.service"
 import SmsService from "./sms.service"
+import { calculatePatientScores } from "./../scripts/calculatePatientScores"
 
 class UserService extends EmailService {
   private taskService: TaskService
@@ -1196,15 +1197,15 @@ class UserService extends EmailService {
       const userTasks: any = await UserTaskModel.find({
         user: userId,
       }).populate("task")
-      // const users = await UserModel.find()
+      const users = await UserModel.find()
       // users.forEach(async (u) => {
       //   const classify = await this.classifyPatient(u._id)
       //   console.log(classify, "score")
       // })
       // const scores = await calculatePatientScores(userId)
       // console.log(scores, "scores")
-      // const scores = await calculateAllScores()
-      // console.log(scores, "scores")
+      // const scores2 = await calculateAllScores()
+      // console.log(scores2, "scores")
 
       // const allPatientTasks = await UserTaskModel.find({
       //   completed: true

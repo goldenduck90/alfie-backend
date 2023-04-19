@@ -133,28 +133,66 @@ class TaskService {
       const userTasks: any = await UserTaskModel.find({
         user: userId,
       }).populate("task")
-      let userScores = scores
+      const user: any = await UserModel.find({
+        _id: userId,
+      })
+      const userScores = scores
       const tasksEligibleForProfiling = [
         TaskType.MP_HUNGER,
         TaskType.MP_FEELING,
         TaskType.AD_LIBITUM,
         TaskType.MP_ACTIVITY,
       ]
-
+      console.log(userTasks, "userTasks")
       const completedTasks = userTasks.filter(
-        (task: any) =>
-          tasksEligibleForProfiling.includes(task.task.type) &&
-          task.task.isReadyForProfiling &&
-          task.completed
+        ({
+          task,
+          isReadyForProfiling,
+          completed,
+        }: {
+          task: any
+          isReadyForProfiling: any
+          completed: any
+        }) =>
+          tasksEligibleForProfiling.includes(task.type) &&
+          isReadyForProfiling &&
+          completed
       )
 
+      console.log(
+        completedTasks.length,
+        tasksEligibleForProfiling.length,
+        "completedTasks.length, tasksEligibleForProfiling.length"
+      )
+      console.log(userScores.length, "userScores.length")
       if (
         userScores.length === 0 &&
         completedTasks.length === tasksEligibleForProfiling.length
       ) {
+        console.log("HERE 2")
         const newScores = await this.scorePatient(userId)
-        userScores = newScores
+        user.score = newScores
+        await user.save()
         await this.classifySinglePatient(userId)
+        // set those tasks to not ready for profiling
+        for (const task of completedTasks) {
+          const userTask = await UserTaskModel.findById(task._id)
+          userTask.isReadyForProfiling = false
+          await userTask.save()
+        }
+      } else if (
+        userScores.length > 0 &&
+        completedTasks.length === tasksEligibleForProfiling.length
+      ) {
+        console.log("HERE")
+        await this.classifySinglePatient(userId)
+        for (const task of completedTasks) {
+          const userTask = await UserTaskModel.findById(task._id)
+          userTask.isReadyForProfiling = false
+          await userTask.save()
+        }
+      } else {
+        console.log("not ready for profiling")       
       }
     } catch (error) {
       Sentry.captureException(error)
@@ -320,6 +358,7 @@ class TaskService {
       // if the tasktype is eligible for profiling, check if the user is ready for profiling and set the userTask.isReadyForProfiling to true
       if (tasksEligibleForProfiling.includes(task.type)) {
         userTask.isReadyForProfiling = true
+        await userTask.save()
         await this.handleIsReadyForProfiling(userTask.user, scores)
       }
 
