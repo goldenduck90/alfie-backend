@@ -167,7 +167,7 @@ class TaskService {
       console.log(userScores.length, "userScores.length")
       if (
         userScores.length === 0 &&
-        completedTasks.length === tasksEligibleForProfiling.length
+        completedTasks.length >= tasksEligibleForProfiling.length
       ) {
         console.log("HERE 2")
         const newScores = await this.scorePatient(userId)
@@ -182,7 +182,7 @@ class TaskService {
         }
       } else if (
         userScores.length > 0 &&
-        completedTasks.length === tasksEligibleForProfiling.length
+        completedTasks.length >= tasksEligibleForProfiling.length
       ) {
         console.log("HERE")
         await this.classifySinglePatient(userId)
