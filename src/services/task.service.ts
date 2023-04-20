@@ -128,7 +128,7 @@ class TaskService {
     }
   }
 
-  async handleIsReadyForProfiling(userId: any, scores: any) {
+  async handleIsReadyForProfiling(userId: any, scores: any, currentTask: any) {
     try {
       const userTasks: any = await UserTaskModel.find({
         user: userId,
@@ -154,22 +154,14 @@ class TaskService {
           isReadyForProfiling: any
           completed: any
         }) =>
-          tasksEligibleForProfiling.includes(task.type) &&
+          (tasksEligibleForProfiling.includes(task.type) || task._id === currentTask._id) &&
           isReadyForProfiling &&
           completed
       )
-
-      console.log(
-        completedTasks.length,
-        tasksEligibleForProfiling.length,
-        "completedTasks.length, tasksEligibleForProfiling.length"
-      )
-      console.log(userScores.length, "userScores.length")
       if (
         userScores.length === 0 &&
         completedTasks.length >= tasksEligibleForProfiling.length
       ) {
-        console.log("HERE 2")
         const newScores = await this.scorePatient(userId)
         user.score = newScores
         await user.save()
@@ -359,7 +351,7 @@ class TaskService {
       if (tasksEligibleForProfiling.includes(task.type)) {
         userTask.isReadyForProfiling = true
         await userTask.save()
-        await this.handleIsReadyForProfiling(userTask.user, scores)
+        await this.handleIsReadyForProfiling(userTask.user, scores, task)
       }
 
       // Handle different task types
