@@ -5,12 +5,10 @@ import { format } from "date-fns"
 import { AllTaskEmail, TaskEmail } from "../schema/task.schema"
 class EmailService {
   noReplyEmail: string
-  baseUrl: string
   awsSes: AWS.SES
 
   constructor() {
     this.noReplyEmail = config.get("noReplyEmail")
-    this.baseUrl = config.get("baseUrl")
     this.awsSes = new AWS.SES({
       accessKeyId: process.env.AWS_ACCESS_KEY_ID,
       secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
@@ -28,7 +26,8 @@ class EmailService {
     provider?: boolean
   }) {
     const { path, subject } = config.get("emails.forgotPassword") as any
-    const url = `${this.baseUrl}/${path}?token=${token}&provider=${provider}`
+    const baseUrl = config.get("baseUrl") as any
+    const url = `${baseUrl}/${path}?token=${token}&provider=${provider}`
 
     const params = {
       Source: this.noReplyEmail,
@@ -68,9 +67,8 @@ class EmailService {
   }) {
     try {
       const { path } = config.get("emails.completeRegistration") as any
-      const url = `${
-        this.baseUrl
-      }/${path}?registration=true&token=${token}&patient=${!provider}`
+      const baseUrl = config.get("baseUrl") as any
+      const url = `${baseUrl}/${path}?registration=true&token=${token}&patient=${!provider}`
       console.log(
         {
           email,
@@ -111,9 +109,8 @@ class EmailService {
     manual?: boolean
   }) {
     const { path, subject } = config.get("emails.completeRegistration") as any
-    const url = `${
-      this.baseUrl
-    }/${path}?registration=true&token=${token}&patient=${!provider}`
+    const baseUrl = config.get("baseUrl") as any
+    const url = `${baseUrl}/${path}?registration=true&token=${token}&patient=${!provider}`
 
     // TODO: change email content based on manual flag
     console.log(manual)
@@ -156,7 +153,8 @@ class EmailService {
     dueAt?: Date
   }) {
     const { path, subject } = config.get("emails.taskAssigned") as any
-    const url = `${this.baseUrl}/${path}/${taskType}/${taskId}`
+    const baseUrl = config.get("baseUrl") as any
+    const url = `${baseUrl}/${path}/${taskType}/${taskId}`
 
     const emailBody = `
       Hello,<br/><br/>
@@ -218,7 +216,8 @@ class EmailService {
     otherName: string
     provider?: boolean
   }) {
-    const url = `${this.baseUrl}/dashboard/appointments/${id}`
+    const baseUrl = config.get("baseUrl") as any
+    const url = `${baseUrl}/dashboard/appointments/${id}`
 
     const emailBody = `
       Hello ${name},<br/><br/>
@@ -285,7 +284,8 @@ class EmailService {
     otherName: string
     provider?: boolean
   }) {
-    const url = `${this.baseUrl}/dashboard/appointments/${id}`
+    const baseUrl = config.get("baseUrl") as any
+    const url = `${baseUrl}/dashboard/appointments/${id}`
 
     const emailBody = `
       Hello ${name},<br/><br/>
