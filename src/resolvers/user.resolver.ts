@@ -15,6 +15,7 @@ import {
   MessageResponse,
   ResetPasswordInput,
   Role,
+  RoleResponse,
   SubscribeEmailInput,
   UpdateSubscriptionInput,
   User,
@@ -75,6 +76,11 @@ export default class UserResolver {
   @Query(() => User)
   me(@Ctx() context: Context) {
     return this.userService.getUser(context.user._id)
+  }
+
+  @Query(() => RoleResponse)
+  getRole(@Ctx() context: Context) {
+    return { role: context.user.role }
   }
 
   @Authorized([Role.Doctor, Role.Admin, Role.Practitioner, Role.HealthCoach])
