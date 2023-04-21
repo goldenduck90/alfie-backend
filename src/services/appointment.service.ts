@@ -592,32 +592,36 @@ class AppointmentService extends EmailService {
         },
       })
 
-      const apps = data.map((response: any) => ({
-        eaAppointmentId: response.id,
-        start: response.start,
-        end: response.end,
-        location: response.location,
-        timezone: response.timezone,
-        notes: response.notes,
-        eaProvider: {
-          id: response.provider.id,
-          name: response.provider.firstName + " " + response.provider.lastName,
-          email: response.provider.email,
-          type: response.provider.type,
-        },
-        eaService: {
-          id: response.service.id,
-          name: response.service.name,
-          durationInMins: response.service.duration,
-          description: response.service.description,
-        },
-        eaCustomer: {
-          id: response.customer.id,
-          name: response.customer.firstName + " " + response.customer.lastName,
-          email: response.customer.email,
-          phone: response.customer.phone,
-        },
-      }))
+      const apps = data
+        .filter((response: any) => response.customer && response.service)
+        .map((response: any) => ({
+          eaAppointmentId: response.id,
+          start: response.start,
+          end: response.end,
+          location: response.location,
+          timezone: response.timezone,
+          notes: response.notes,
+          eaProvider: {
+            id: response.provider.id,
+            name:
+              response.provider.firstName + " " + response.provider.lastName,
+            email: response.provider.email,
+            type: response.provider.type,
+          },
+          eaService: {
+            id: response.service.id,
+            name: response.service.name,
+            durationInMins: response.service.duration,
+            description: response.service.description,
+          },
+          eaCustomer: {
+            id: response.customer.id,
+            name:
+              response.customer.firstName + " " + response.customer.lastName,
+            email: response.customer.email,
+            phone: response.customer.phone,
+          },
+        }))
 
       return apps
     } catch (error) {
@@ -671,37 +675,40 @@ class AppointmentService extends EmailService {
           timezone: input.timezone,
           month: input.month,
         },
-      })
-
-      const apps = data.map((response: any) => ({
-        eaAppointmentId: response.id,
-        start: response.start,
-        end: response.end,
-        location: response.location,
-        timezone: response.timezone,
-        notes: response.notes,
-        eaProvider: {
-          id: response.provider.id,
-          name: response.provider.firstName + " " + response.provider.lastName,
-          email: response.provider.email,
-          type: response.provider.type,
-        },
-        eaService: {
-          id: response.service.id,
-          name: response.service.name,
-          durationInMins: response.service.duration,
-          description: response.service.description,
-        },
-        eaCustomer: {
-          id: response.customer.id,
-          name: response.customer.firstName + " " + response.customer.lastName,
-          email: response.customer.email,
-          phone: response.customer.phone,
-        },
-      }))
+      })      
+      const apps = data
+        .filter((response: any) => response.customer && response.service)
+        .map((response: any) => ({
+          eaAppointmentId: response.id,
+          start: response.start,
+          end: response.end,
+          location: response.location,
+          timezone: response.timezone,
+          notes: response.notes,
+          eaProvider: {
+            id: response.provider.id,
+            name:
+              response.provider.firstName + " " + response.provider.lastName,
+            email: response.provider.email,
+            type: response.provider.type,
+          },
+          eaService: {
+            id: response.service.id,
+            name: response.service.name,
+            durationInMins: response.service.duration,
+            description: response.service.description,
+          },
+          eaCustomer: {
+            id: response.customer.id,
+            name:
+              response.customer.firstName + " " + response.customer.lastName,
+            email: response.customer.email,
+            phone: response.customer.phone,
+          },
+        }))
 
       return apps
-    } catch (error) {
+    } catch (error) {      
       Sentry.captureException(error)
       throw new ApolloError(error.message, "ERROR")
     }
