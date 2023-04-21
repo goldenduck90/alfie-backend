@@ -32,7 +32,7 @@ export class SmsService {
   }) {
     const messageSid = config.get("twilioMessagingServiceSid") as any
 
-    let body = `Hey ${name},\n\n`
+    let body = `Hi ${name},\n\n`
     body += "You have the following new task notifications:\n"
     if (newTasks.length > 0) {
       body += `- ${newTasks.length} new ${
