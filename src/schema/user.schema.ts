@@ -73,6 +73,12 @@ registerEnumType(Role, {
 })
 
 @ObjectType()
+export class RoleResponse {
+  @Field(() => Role)
+  role: Role
+}
+
+@ObjectType()
 @InputType("AddressInput")
 @ModelOptions({ schemaOptions: { _id: false } })
 export class Address {
