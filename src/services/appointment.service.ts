@@ -60,16 +60,16 @@ interface ScheduleObject {
 }
 
 class AppointmentService extends EmailService {
-  public baseUrl: string
+  public eaUrl: string
   public axios: AxiosInstance
 
   constructor() {
     super()
     const eaUrl = config.get("easyAppointmentsApiUrl") as string
 
-    this.baseUrl = eaUrl
+    this.eaUrl = eaUrl
     this.axios = axios.create({
-      baseURL: this.baseUrl,
+      baseURL: this.eaUrl,
       headers: {
         "Content-Type": "application/json",
         "Authorization": "Bearer letmein1",
