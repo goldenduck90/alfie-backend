@@ -25,4 +25,6 @@ export default {
     labCorpOrganizationId: "f-a855594f43fe879c6570b92e",
   },
   twilioPhone: "+18447244465",
+  zapierCreateUserWebhook:
+    "https://hooks.zapier.com/hooks/catch/12197313/34bsrhc/",
 }

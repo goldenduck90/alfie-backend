@@ -58,6 +58,7 @@ import ProviderService from "./provider.service"
 import TaskService from "./task.service"
 import SmsService from "./sms.service"
 import { calculatePatientScores } from "./../scripts/calculatePatientScores"
+import axios from "axios"
 
 class UserService extends EmailService {
   private taskService: TaskService
@@ -347,6 +348,23 @@ class UserService extends EmailService {
           labOrder
         )}`
       )
+    }
+
+    if (process.env.NODE_ENV === "production") {
+      const zapierCreateUserWebhook = config.get(
+        "zapierCreateUserWebhook"
+      ) as string
+
+      // zapier webhook
+      await axios.post(zapierCreateUserWebhook, {
+        user: {
+          _id: user._id,
+          email: user.email,
+          phone: user.phone,
+          address: user.address,
+          name: user.name,
+        },
+      })
     }
 
     console.log(`USER CREATED: ${user._id}`)
