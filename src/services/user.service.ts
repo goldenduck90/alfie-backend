@@ -355,7 +355,7 @@ class UserService extends EmailService {
         "zapierCreateUserWebhook"
       ) as string
 
-      // zapier webhook
+      // zapier webhook send
       await axios.post(zapierCreateUserWebhook, {
         user: {
           _id: user._id,
