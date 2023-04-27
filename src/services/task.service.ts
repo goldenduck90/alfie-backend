@@ -101,6 +101,8 @@ class TaskService {
         TaskType.MP_FEELING,
         TaskType.AD_LIBITUM,
         TaskType.MP_ACTIVITY,
+        TaskType.ID_AND_INSURANCE_UPLOAD,
+        TaskType.NEW_PATIENT_INTAKE_FORM,
       ]
       const completedTasks: any = userTasks.filter(
         (task: any) => task.completed
@@ -184,7 +186,7 @@ class TaskService {
           await userTask.save()
         }
       } else {
-        console.log("not ready for profiling")       
+        console.log("not ready for profiling")
       }
     } catch (error) {
       Sentry.captureException(error)
