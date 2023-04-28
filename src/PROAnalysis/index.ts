@@ -27,7 +27,6 @@ const hungerPercentile: any = {
   100: "90-95th",
 }
 function GetZPercent(z: number) {
-
   // z == number of standard deviations from the mean
 
   // if z is greater than 6.5 standard deviations from the mean the
@@ -48,7 +47,12 @@ function GetZPercent(z: number) {
   const loopStop = Math.exp(-23)
 
   while (Math.abs(term) > loopStop) {
-    term = .3989422804 * Math.pow(-1, k) * Math.pow(z, k) / (2 * k + 1) / Math.pow(2, k) * Math.pow(z, k + 1) / factK
+    term =
+      (((0.3989422804 * Math.pow(-1, k) * Math.pow(z, k)) /
+        (2 * k + 1) /
+        Math.pow(2, k)) *
+        Math.pow(z, k + 1)) /
+      factK
     sum += term
     k++
     factK *= k
@@ -67,7 +71,7 @@ function calculateMPFeelingScore(
   lastTask: UserTask,
   currentTask: UserTask,
   task: TaskType
- ) {
+) {
   // We first need to create a score for the lastTask and the currentTask
   // We will create a score for task in it's entirety all the scores added together for each question will equal the score for the task
 
@@ -103,11 +107,7 @@ function calculateMPFeelingScore(
     return acc
   }, 0)
   const message = `You scored within the ${percentileKey} percentile`
-  const calculatedZScore = getZScore(
-    currentTaskScore,
-    3.9,
-    3.1
-  )
+  const calculatedZScore = getZScore(currentTaskScore, 3.9, 3.1)
   const calculatedPercentile = GetZPercent(calculatedZScore) * 100
   return {
     percentile: String(percentileKey),
@@ -116,7 +116,9 @@ function calculateMPFeelingScore(
     calculatedPercentile,
     date: currentTask.completedAt,
     increased,
-    percentDifference: isFinite(percentDifferenceBetweenLastAndCurrentTaskScore) ? percentDifferenceBetweenLastAndCurrentTaskScore : 0,
+    percentDifference: isFinite(percentDifferenceBetweenLastAndCurrentTaskScore)
+      ? percentDifferenceBetweenLastAndCurrentTaskScore
+      : 0,
     message,
     task,
   }
@@ -126,11 +128,16 @@ function calculateSingleMPFeeling(currentTask: UserTask, task: TaskType) {
     (acc, key: any) => {
       const answer: any = currentTask.answers[key]
       // eslint-disable-next-line no-prototype-builtins
-      if (mpFeelingQuestions.hasOwnProperty(answer.key) && mpFeelingQuestions[answer.key].hasOwnProperty(answer.value)) {
+      if (
+        mpFeelingQuestions.hasOwnProperty(answer.key) &&
+        mpFeelingQuestions[answer.key].hasOwnProperty(answer.value)
+      ) {
         const score = mpFeelingQuestions[answer.key][answer.value]
         return acc + score
       } else {
-        console.warn(`Invalid answer key or value for MP_FEELING: ${answer.key}, ${answer.value}`)
+        console.warn(
+          `Invalid answer key or value for MP_FEELING: ${answer.key}, ${answer.value}`
+        )
         return acc
       }
     },
@@ -152,11 +159,7 @@ function calculateSingleMPFeeling(currentTask: UserTask, task: TaskType) {
   }, 0)
 
   const message = `You scored within the ${percentileKey} percentile`
-  const calculatedZScore = getZScore(
-    currentTaskScore,
-    3.9,
-    3.1
-  )
+  const calculatedZScore = getZScore(currentTaskScore, 3.9, 3.1)
   const calculatedPercentile = GetZPercent(calculatedZScore) * 100
 
   return {
@@ -214,8 +217,9 @@ function calculateActivityScore(
     }
   }
   if (task === TaskType.WEIGHT_LOG) {
-    const message = `Your weight has ${increased ? "increased" : "decreased"
-      } by ${percentDifferenceBetweenLastAndCurrentTaskScore}%`
+    const message = `Your weight has ${
+      increased ? "increased" : "decreased"
+    } by ${percentDifferenceBetweenLastAndCurrentTaskScore}%`
     return {
       latest: String(currentTaskScore),
       score,
@@ -227,8 +231,9 @@ function calculateActivityScore(
     }
   }
   if (task === TaskType.WAIST_LOG) {
-    const message = `Your waist has ${increased ? "increased" : "decreased"
-      } by ${percentDifferenceBetweenLastAndCurrentTaskScore}%`
+    const message = `Your waist has ${
+      increased ? "increased" : "decreased"
+    } by ${percentDifferenceBetweenLastAndCurrentTaskScore}%`
     return {
       latest: currentTaskScore,
       score,
@@ -255,8 +260,12 @@ function calculateSingleMPActivity(currentTask: UserTask, task: TaskType) {
     }
     return acc
   }, 0)
+  // const calculatedZScore = getZScore(currentTaskScore, 5.14, 2.65)
+  // const calculatedPercentile = GetZPercent(calculatedZScore) * 100
+  
   const message = `You scored within the ${percentileDifferenceStepsPercentile} percentile`
   return {
+    calculatedPercentile,
     latest: String(currentTaskScore),
     date: currentTask.completedAt,
     message,
@@ -273,38 +282,31 @@ function calculateSingleMPHunger(currentTask: UserTask, task: TaskType) {
     currentTask.answers.find((answer) => answer.key === "hungerLevel30Mins")
       .value
   )
-  const score = currentHungerLevel1Hour - currentHungerLevel30Mins
-  const increased = score > 0
-  const message = `Your hunger level has ${increased ? "increased" : "decreased"
-    } by ${score}`
   const percentile1hour =
     currentHungerLevel1Hour <= 45
       ? "25"
       : currentHungerLevel1Hour <= 64
-        ? "50"
-        : currentHungerLevel1Hour <= 83
-          ? "75"
-          : currentHungerLevel1Hour <= 100
-            ? "90"
-            : "95"
+      ? "50"
+      : currentHungerLevel1Hour <= 83
+      ? "75"
+      : currentHungerLevel1Hour <= 100
+      ? "90"
+      : "95"
   const percentile30mins =
     currentHungerLevel30Mins <= 45
       ? "25"
       : currentHungerLevel30Mins <= 64
-        ? "50"
-        : currentHungerLevel30Mins <= 83
-          ? "75"
-          : currentHungerLevel30Mins <= 100
-            ? "90"
-            : "95"
+      ? "50"
+      : currentHungerLevel30Mins <= 83
+      ? "75"
+      : currentHungerLevel30Mins <= 100
+      ? "90"
+      : "95"
   return {
     percentile1hour: String(percentile1hour),
     percentile30mins: String(percentile30mins),
     latest: String(currentHungerLevel1Hour),
-    score,
     date: currentTask.completedAt,
-    increased,
-    message,
     task,
   }
 }
@@ -368,9 +370,11 @@ function calculateHungerScore(
 
   const increased1Hour = currentHungerLevel1Hour > lastHungerLevel1Hour
   const increased30Mins = currentHungerLevel30Mins > lastHungerLevel30Mins
-  const message = `Your hunger level has ${increased1Hour ? "increased" : "decreased"
-    } by ${currentHungerLevel1HourPercentDifference}% for 1 hour and ${increased30Mins ? "increased" : "decreased"
-    } by ${currentHungerLevel30MinsPercentDifference}% for 30 mins and you scored within the ${percentileDifferenceHungerPercentile1hour} percentile for 1 hour and ${percentileDifferenceHungerPercentile30mins} percentile for 30 mins`
+  const message = `Your hunger level has ${
+    increased1Hour ? "increased" : "decreased"
+  } by ${currentHungerLevel1HourPercentDifference}% for 1 hour and ${
+    increased30Mins ? "increased" : "decreased"
+  } by ${currentHungerLevel30MinsPercentDifference}% for 30 mins and you scored within the ${percentileDifferenceHungerPercentile1hour} percentile for 1 hour and ${percentileDifferenceHungerPercentile30mins} percentile for 30 mins`
   const score1hourIsFinite = isFinite(currentHungerLevel1HourPercentDifference)
     ? currentHungerLevel1HourPercentDifference
     : 0
@@ -398,32 +402,24 @@ function calculateHungerScore(
     percentileDifferenceHungerPercentile1hour <= 45
       ? "25"
       : percentileDifferenceHungerPercentile1hour <= 64
-        ? "50"
-        : percentileDifferenceHungerPercentile1hour <= 83
-          ? "75"
-          : percentileDifferenceHungerPercentile1hour <= 100
-            ? "90"
-            : "95"
+      ? "50"
+      : percentileDifferenceHungerPercentile1hour <= 83
+      ? "75"
+      : percentileDifferenceHungerPercentile1hour <= 100
+      ? "90"
+      : "95"
   const percentile30mins =
     percentileDifferenceHungerPercentile30mins <= 45
       ? "25"
       : percentileDifferenceHungerPercentile30mins <= 64
-        ? "50"
-        : percentileDifferenceHungerPercentile30mins <= 83
-          ? "75"
-          : percentileDifferenceHungerPercentile30mins <= 100
-            ? "90"
-            : "95"
-  const calculatedZScore1hour = getZScore(
-    currentHungerLevel1Hour,
-    64,
-    28.1
-  )
-  const calculatedZScore30mins = getZScore(
-    currentHungerLevel30Mins,
-    64,
-    28.1
-  )
+      ? "50"
+      : percentileDifferenceHungerPercentile30mins <= 83
+      ? "75"
+      : percentileDifferenceHungerPercentile30mins <= 100
+      ? "90"
+      : "95"
+  const calculatedZScore1hour = getZScore(currentHungerLevel1Hour, 64, 28.1)
+  const calculatedZScore30mins = getZScore(currentHungerLevel30Mins, 64, 28.1)
   const calculated1hourPercent = GetZPercent(calculatedZScore1hour) * 100
   const calculated30minsPercent = GetZPercent(calculatedZScore30mins) * 100
   return {
@@ -475,9 +471,11 @@ function calculateBPLogScore(
   )
   const increasedSystolic = currentSystolic > lastSystolic
   const increasedDiastolic = currentDiastolic > lastDiastolic
-  const message = `Your systolic has ${increasedSystolic ? "increased" : "decreased"
-    } by ${currentSystolicPercentDifference}% and your diastolic has ${increasedDiastolic ? "increased" : "decreased"
-    } by ${currentDiastolicPercentDifference}%`
+  const message = `Your systolic has ${
+    increasedSystolic ? "increased" : "decreased"
+  } by ${currentSystolicPercentDifference}% and your diastolic has ${
+    increasedDiastolic ? "increased" : "decreased"
+  } by ${currentDiastolicPercentDifference}%`
   let providerMessage = ""
   switch (true) {
     case currentSystolic > 140 || currentDiastolic > 90:
@@ -560,8 +558,9 @@ function calculateGsrs(
     currentGsrs
   )
   const increased = currentGsrs > lastGsrs
-  const message = `Your GSRS has ${increased ? "increased" : "decreased"
-    } by ${currentGsrsPercentDifference}%`
+  const message = `Your GSRS has ${
+    increased ? "increased" : "decreased"
+  } by ${currentGsrsPercentDifference}%`
   return {
     // score should be the difference between the two
     latest: String(currentGsrs),
@@ -635,15 +634,16 @@ function calculateTefq(
     currentTefq
   )
   const increased = currentTefq > lastTefq
-  const message = `Your TEFQ has ${increased ? "increased" : "decreased"
-    } by ${currentTefqPercentDifference}% and your percentile is ${percentileKey}`
+  const message = `Your TEFQ has ${
+    increased ? "increased" : "decreased"
+  } by ${currentTefqPercentDifference}% and your percentile is ${percentileKey}`
   // make sure currentTefqPercentDifference is a number and not NaN and is not Infinity
-  const confirmPercentDifferenceValue = isNaN(currentTefqPercentDifference) || isFinite(currentTefqPercentDifference) ? 0 : currentTefqPercentDifference
-  const calculatedZScore = getZScore(
-    currentTefq,
-    5.14,
-    2.65
-  )
+  const confirmPercentDifferenceValue =
+    isNaN(currentTefqPercentDifference) ||
+    isFinite(currentTefqPercentDifference)
+      ? 0
+      : currentTefqPercentDifference
+  const calculatedZScore = getZScore(currentTefq, 5.14, 2.65)
   const calculatedPercentile = GetZPercent(calculatedZScore) * 100
   return {
     calculatedPercentile,
@@ -677,12 +677,9 @@ function calculateSingleTefq(currentTask: UserTask, task: TaskType) {
     return acc
   }, 0)
   const message = `Your TEFQ is ${currentTefq} and your percentile is ${percentileKey}`
-  const confirmPercentDifferenceValue = isNaN(currentTefq) || isFinite(currentTefq) ? 0 : currentTefq
-  const calculatedZScore = getZScore(
-    currentTefq,
-    5.14,
-    2.65
-  )
+  const confirmPercentDifferenceValue =
+    isNaN(currentTefq) || isFinite(currentTefq) ? 0 : currentTefq
+  const calculatedZScore = getZScore(currentTefq, 5.14, 2.65)
   const calculatedPercentile = GetZPercent(calculatedZScore) * 100
   return {
     calculatedPercentile,
@@ -707,25 +704,22 @@ function calculateAdLibitumScore(
     currentCalories
   )
   const increased = currentCalories > lastCalories
-  const message = `Your calories have ${increased ? "increased" : "decreased"
-    } by ${currentCaloriesPercentDifference}%`
+  const message = `Your calories have ${
+    increased ? "increased" : "decreased"
+  } by ${currentCaloriesPercentDifference}%`
   const percentileKey =
     currentCalories > 1283
       ? 95
       : currentCalories > 1177
-        ? 90
-        : currentCalories > 1000
-          ? 75
-          : currentCalories > 803
-            ? 50
-            : currentCalories > 606
-              ? 25
-              : 0
-  const calculatedZScore = getZScore(
-    currentCalories,
-    803,
-    291.851852
-  )
+      ? 90
+      : currentCalories > 1000
+      ? 75
+      : currentCalories > 803
+      ? 50
+      : currentCalories > 606
+      ? 25
+      : 0
+  const calculatedZScore = getZScore(currentCalories, 803, 291.851852)
   const calculatedPercentile = GetZPercent(calculatedZScore) * 100
   return {
     calculatedPercentile,
@@ -741,24 +735,20 @@ function calculateAdLibitumScore(
 }
 function calculateSingleAdLibitum(currentTask: UserTask, task: TaskType) {
   const currentCalories = Number(currentTask.answers[0].value)
-  const message = `Your calories is ${currentCalories}`
+  const message = `Current calories consumed is: ${currentCalories}`
   const percentileKey =
     currentCalories > 1283
       ? 95
       : currentCalories > 1177
-        ? 90
-        : currentCalories > 1000
-          ? 75
-          : currentCalories > 803
-            ? 50
-            : currentCalories > 606
-              ? 25
-              : 0
-  const calculatedZScore = getZScore(
-    currentCalories,
-    803,
-    291.851852
-  )
+      ? 90
+      : currentCalories > 1000
+      ? 75
+      : currentCalories > 803
+      ? 50
+      : currentCalories > 606
+      ? 25
+      : 0
+  const calculatedZScore = getZScore(currentCalories, 803, 291.851852)
   const calculatedPercentile = GetZPercent(calculatedZScore) * 100
   return {
     calculatedPercentile,
@@ -800,6 +790,7 @@ export function calculateScore(
       return calculateSingleMPHunger(currentTask, taskType)
     }
   }
+  
   if (taskType === TaskType.BP_LOG) {
     if (lastTask) {
       return calculateBPLogScore(lastTask, currentTask, taskType)

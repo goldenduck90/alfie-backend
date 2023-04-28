@@ -19,6 +19,7 @@ import Context from "./types/context"
 import { connectToMongo } from "./utils/mongo"
 import * as cron from "node-cron"
 import UserService from "./services/user.service"
+import TaskService from "./services/task.service"
 
 dotenv.config()
 
@@ -225,6 +226,7 @@ async function bootstrap() {
     console.log(
       `App is listening on http://localhost:4000${server.graphqlPath}`
     )
+ 
   })
 
   // connect to mongodb
