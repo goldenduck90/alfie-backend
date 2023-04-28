@@ -101,8 +101,6 @@ class TaskService {
         TaskType.MP_FEELING,
         TaskType.AD_LIBITUM,
         TaskType.MP_ACTIVITY,
-        TaskType.ID_AND_INSURANCE_UPLOAD,
-        TaskType.NEW_PATIENT_INTAKE_FORM,
       ]
       const completedTasks: any = userTasks.filter(
         (task: any) => task.completed
@@ -178,7 +176,6 @@ class TaskService {
         userScores.length > 0 &&
         completedTasks.length >= tasksEligibleForProfiling.length
       ) {
-        console.log("HERE")
         await this.classifySinglePatient(userId)
         for (const task of completedTasks) {
           const userTask = await UserTaskModel.findById(task._id)
@@ -186,7 +183,7 @@ class TaskService {
           await userTask.save()
         }
       } else {
-        console.log("not ready for profiling")
+        console.log("not ready for profiling")       
       }
     } catch (error) {
       Sentry.captureException(error)
