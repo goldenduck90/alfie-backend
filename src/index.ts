@@ -181,7 +181,7 @@ async function bootstrap() {
                   <br />
                   <br />
 
-                  <a href="https://app.joinalfie.com/chat">Read Message</a>
+                  <a href="https://app.joinalfie.com/dashboard/chat">Read Message</a>
 
                   <br />
                   <br />

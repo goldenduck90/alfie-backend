@@ -99,7 +99,7 @@ export default class UserResolver {
     return this.userService.getUser(userId)
   }
 
-  @Authorized([Role.Admin])
+  @Authorized([Role.Admin, Role.HealthCoach])
   @Query(() => [User])
   users() {
     return this.userService.getAllUsers()
