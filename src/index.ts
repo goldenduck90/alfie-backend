@@ -5,7 +5,6 @@ import {
 } from "apollo-server-core"
 import { ApolloServer } from "apollo-server-express"
 import * as AWS from "aws-sdk"
-import crypto from "crypto"
 import dotenv from "dotenv"
 import express from "express"
 import { expressjwt } from "express-jwt"
@@ -19,7 +18,6 @@ import Context from "./types/context"
 import { connectToMongo } from "./utils/mongo"
 import * as cron from "node-cron"
 import UserService from "./services/user.service"
-import TaskService from "./services/task.service"
 
 dotenv.config()
 
@@ -88,66 +86,54 @@ async function bootstrap() {
   })
 
   // webhook listener
-  app.post(
-    "/sendbirdWebhooks",
-    express.text({ type: "json" }),
-    async (req, res) => {
-      try {
-        const body = JSON.parse(req.body)
-        const signature = req.get("x-sendbird-signature")
-        const hash = crypto
-          .createHmac("sha256", process.env.SENDBIRD_API_TOKEN)
-          .update(req.body)
-          .digest("hex")
+  app.post("/sendbirdWebhooks", express.json(), async (req, res) => {
+    try {
+      const signature = req.get("x-sendbird-signature")
+      console.log(req.body, signature)
 
-        console.log(req.body, signature)
+      const {
+        sender,
+        payload: { message },
+        members,
+      } = req.body
 
-        const {
-          sender,
-          payload: { message },
-          members,
-        } = body
-
-        const foundUserEmailAddresses = members.map(async (member: any) => {
-          const foundEmails = []
-          const emailsToSendTo = await UserModel.findOne({
+      const foundUserEmailAddresses = members.map(async (member: any) => {
+        const foundEmails = []
+        const emailsToSendTo = await UserModel.findOne({
+          _id: member.user_id,
+        })
+        foundEmails.push(emailsToSendTo)
+        if (!emailsToSendTo) {
+          const foundOnProviderTable = await ProviderModel.findOne({
             _id: member.user_id,
           })
-          foundEmails.push(emailsToSendTo)
-          if (!emailsToSendTo) {
-            const foundOnProviderTable = await ProviderModel.findOne({
-              _id: member.user_id,
-            })
-            foundEmails.push(foundOnProviderTable)
-          }
-          return foundEmails
-        })
-        const emailsToSendTo = (
-          await Promise.all(foundUserEmailAddresses)
-        ).flat()
-        const filteredEmailsToSendTo = emailsToSendTo.filter(
-          (email) => email !== null
+          foundEmails.push(foundOnProviderTable)
+        }
+        return foundEmails
+      })
+      const emailsToSendTo = (await Promise.all(foundUserEmailAddresses)).flat()
+      const filteredEmailsToSendTo = emailsToSendTo.filter(
+        (email) => email !== null
+      )
+      const possibleSender = await UserModel.findOne({ _id: sender.user_id })
+      if (possibleSender?.role === Role.Patient) {
+        const filteredEmailsToSendToBasedOnRole = filteredEmailsToSendTo.filter(
+          (user) => String(user._id) !== String(possibleSender._id)
         )
-        const possibleSender = await UserModel.findOne({ _id: sender.user_id })
-        if (possibleSender?.role === Role.Patient) {
-          const filteredEmailsToSendToBasedOnRole =
-            filteredEmailsToSendTo.filter(
-              (user) => String(user._id) !== String(possibleSender._id)
-            )
-          const mapToEmails = filteredEmailsToSendToBasedOnRole.map(
-            (user: any) => user.email
-          )
-          const params = {
-            Source: "no-reply@joinalfie.com",
-            Destination: {
-              ToAddresses: mapToEmails,
-            },
-            ReplyToAddresses: [] as string[],
-            Message: {
-              Body: {
-                Html: {
-                  Charset: "UTF-8",
-                  Data: `
+        const mapToEmails = filteredEmailsToSendToBasedOnRole.map(
+          (user: any) => user.email
+        )
+        const params = {
+          Source: "no-reply@joinalfie.com",
+          Destination: {
+            ToAddresses: mapToEmails,
+          },
+          ReplyToAddresses: [] as string[],
+          Message: {
+            Body: {
+              Html: {
+                Charset: "UTF-8",
+                Data: `
           You have unread messages from ${sender.nickname}
                     <br />
           <br />
@@ -157,39 +143,38 @@ async function bootstrap() {
           Message: ${message}
           .          
           `,
-                },
               },
-              Subject: {
+            },
+            Subject: {
+              Charset: "UTF-8",
+              Data: `Unread Messages in Channel by ${sender.nickname}`,
+            },
+          },
+        }
+        await ses.sendEmail(params).promise()
+        return res.sendStatus(200)
+      } else {
+        // this is an admin, health coach or practitioner so we just send the email to the patient
+        const filteredEmailsToSendToBasedOnRole = filteredEmailsToSendTo.filter(
+          (user) =>
+            user.type !== Role.Practitioner &&
+            user.role !== Role.Admin &&
+            user.role !== Role.HealthCoach
+        )
+        const mapToEmails = filteredEmailsToSendToBasedOnRole.map(
+          (user: any) => user.email
+        )
+        const params = {
+          Source: "no-reply@joinalfie.com",
+          Destination: {
+            ToAddresses: mapToEmails,
+          },
+          ReplyToAddresses: [] as string[],
+          Message: {
+            Body: {
+              Html: {
                 Charset: "UTF-8",
-                Data: `Unread Messages in Channel by ${sender.nickname}`,
-              },
-            },
-          }
-          await ses.sendEmail(params).promise()
-          return res.sendStatus(200)
-        } else {
-          // this is an admin, health coach or practitioner so we just send the email to the patient
-          const filteredEmailsToSendToBasedOnRole =
-            filteredEmailsToSendTo.filter(
-              (user) =>
-                user.type !== Role.Practitioner &&
-                user.role !== Role.Admin &&
-                user.role !== Role.HealthCoach
-            )
-          const mapToEmails = filteredEmailsToSendToBasedOnRole.map(
-            (user: any) => user.email
-          )
-          const params = {
-            Source: "no-reply@joinalfie.com",
-            Destination: {
-              ToAddresses: mapToEmails,
-            },
-            ReplyToAddresses: [] as string[],
-            Message: {
-              Body: {
-                Html: {
-                  Charset: "UTF-8",
-                  Data: `
+                Data: `
                 Hi ${filteredEmailsToSendToBasedOnRole[0]?.name},
 
                   You have a new message from your Care Team. To read it, simply click the button below:
@@ -206,23 +191,22 @@ async function bootstrap() {
                   <br />
                   <br />
                   Your Care Team`,
-                },
-              },
-              Subject: {
-                Charset: "UTF-8",
-                Data: "New Message from your Care Team",
               },
             },
-          }
-          await ses.sendEmail(params).promise()
+            Subject: {
+              Charset: "UTF-8",
+              Data: "New Message from your Care Team",
+            },
+          },
         }
-        signature == hash ? res.sendStatus(200) : res.sendStatus(401)
-      } catch (error) {
-        console.log(error, "error")
-        res.sendStatus(500)
+        await ses.sendEmail(params).promise()
       }
+      res.sendStatus(200)
+    } catch (error) {
+      console.log(error, "error")
+      res.sendStatus(500)
     }
-  )
+  })
 
   // app.listen on express server
   app.listen({ port: process.env.PORT || 4000 }, async () => {
