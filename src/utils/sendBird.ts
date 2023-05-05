@@ -183,6 +183,19 @@ const getSendBirdUserChannelUrl = async (user_id: string) => {
   }
 }
 
+const getUsersInSendBirdChannel = async (channel_url: string) => {
+  try {
+    const response = await sendBirdInstance.get(
+      `/v3/group_channels/${channel_url}/members`
+    )
+    console.log(response)
+    return response.data.members
+  } catch (error) {
+    console.log(error)
+    Sentry.captureException(error)
+  }
+}
+
 /**
  *
  * @param user_id
@@ -264,4 +277,5 @@ export {
   getSendBirdUserChannelUrl,
   triggerEntireSendBirdFlow,
   findAndTriggerEntireSendBirdFlowForAllUSersAndProvider,
+  getUsersInSendBirdChannel,
 }
