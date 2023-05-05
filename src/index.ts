@@ -100,11 +100,14 @@ async function bootstrap() {
           .update(req.body)
           .digest("hex")
 
+        console.log(req.body, signature)
+
         const {
           sender,
           payload: { message },
           members,
         } = body
+
         const foundUserEmailAddresses = members.map(async (member: any) => {
           const foundEmails = []
           const emailsToSendTo = await UserModel.findOne({
@@ -226,7 +229,6 @@ async function bootstrap() {
     console.log(
       `App is listening on http://localhost:4000${server.graphqlPath}`
     )
- 
   })
 
   // connect to mongodb

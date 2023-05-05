@@ -129,7 +129,9 @@ function calculateSingleMPFeeling(currentTask: UserTask, task: TaskType) {
       const answer: any = currentTask.answers[key]
       // eslint-disable-next-line no-prototype-builtins
       if (
+        // eslint-disable-next-line no-prototype-builtins
         mpFeelingQuestions.hasOwnProperty(answer.key) &&
+        // eslint-disable-next-line no-prototype-builtins
         mpFeelingQuestions[answer.key].hasOwnProperty(answer.value)
       ) {
         const score = mpFeelingQuestions[answer.key][answer.value]
@@ -262,10 +264,10 @@ function calculateSingleMPActivity(currentTask: UserTask, task: TaskType) {
   }, 0)
   // const calculatedZScore = getZScore(currentTaskScore, 5.14, 2.65)
   // const calculatedPercentile = GetZPercent(calculatedZScore) * 100
-  
+
   const message = `You scored within the ${percentileDifferenceStepsPercentile} percentile`
   return {
-    calculatedPercentile,
+    // calculatedPercentile,
     latest: String(currentTaskScore),
     date: currentTask.completedAt,
     message,
@@ -790,7 +792,7 @@ export function calculateScore(
       return calculateSingleMPHunger(currentTask, taskType)
     }
   }
-  
+
   if (taskType === TaskType.BP_LOG) {
     if (lastTask) {
       return calculateBPLogScore(lastTask, currentTask, taskType)
