@@ -29,7 +29,7 @@ export interface Message {
   message: string
   translations: Record<string, any>
   data: any
-  sorted_metaarray: Array<{ key: any; value: any }>
+  sorted_metaarray: Array<{ key: any, value: any }>
   poll?: any
   message_events: MessageEvents
   created_at: number

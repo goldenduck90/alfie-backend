@@ -6,8 +6,10 @@ import config from "config"
 import { format } from "date-fns"
 import FormData from "form-data"
 import {
-  AkuteDocument, CreateLabOrderResponse,
-  DocUploadInput, PharmacyLocationInput,
+  AkuteDocument,
+  CreateLabOrderResponse,
+  DocUploadInput,
+  PharmacyLocationInput,
 } from "../schema/akute.schema"
 import { CreatePatientInput, UserModel } from "../schema/user.schema"
 

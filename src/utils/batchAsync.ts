@@ -6,7 +6,7 @@ export default async function batchAsync<T>(
   /** A list of functions that each return a promise. */
   funcs: (() => Promise<T>)[],
   /** The number of promises to execute in parallel per batch. */
-  batchSize: number = 10
+  batchSize = 10
 ) {
   const result: T[] = []
   for (let index = 0; index < funcs.length; index += batchSize) {
