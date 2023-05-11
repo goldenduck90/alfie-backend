@@ -12,7 +12,9 @@
     "lint": "eslint . --ext .js,.ts",
     "lint:fix": "npm run lint -- --fix",
     "tsc": "tsc --noEmit --project ./tsconfig.json",
-    "prepare": "husky install && npx husky add .husky/pre-commit \"node_modules/.bin/lint-staged\""
+    "prepare": "husky install && npx husky add .husky/pre-commit \"node_modules/.bin/lint-staged\"",
+    "sendbird:reset": "ts-node ./scripts/recreateSendBirdObjects.ts --delete",
+    "sendbird:sync": "ts-node ./scripts/recreateSendBirdObjects.ts"
   },
   "author": "",
   "license": "ISC",
@@ -67,6 +69,7 @@
     "@types/uuid": "^8.3.4",
     "@types/validator": "^13.7.4",
     "@typescript-eslint/eslint-plugin": "^5.32.0",
+    "commander": "^10.0.1",
     "eslint": "^8.21.0",
     "eslint-config-prettier": "^8.5.0",
     "eslint-plugin-prettier": "^4.2.1",

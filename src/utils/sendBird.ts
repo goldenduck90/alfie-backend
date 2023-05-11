@@ -278,7 +278,7 @@ export const getSendBirdUserChannels = async (user_id: string) =>
 /** Gets a list of all sendbird channels. */
 export const listSendBirdChannels = async () =>
   await getPagedSendBirdCollection<Channel>(
-    `/v3/group_channels`,
+    "/v3/group_channels",
     "channels",
     { show_empty: true },
     "Error in listSendBirdChannels"
@@ -287,7 +287,7 @@ export const listSendBirdChannels = async () =>
 /** Gets a list of all sendbird users. */
 export const listSendBirdUsers = async () =>
   await getPagedSendBirdCollection<Member>(
-    `/v3/users`,
+    "/v3/users",
     "users",
     { active_mode: "all" },
     "Error in listSendBirdUsers"
@@ -340,10 +340,14 @@ export const triggerEntireSendBirdFlow = async ({
 }
 
 /** Recreates the entire sendbird state, including users (patients and providers), and channels. */
-export const findAndTriggerEntireSendBirdFlowForAllUsersAndProvider =
-  async () => {
-    try {
-      console.log("Recreating sendbird state.")
+export const findAndTriggerEntireSendBirdFlowForAllUsersAndProvider = async (
+  /** Whether to delete previous sendbird users and channels. Defaults to true. */
+  deletePreviousEntities = true
+) => {
+  try {
+    console.log("Recreating sendbird state.")
+
+    if (deletePreviousEntities) {
       const channels = await listSendBirdChannels()
       console.log(`Deleting ${channels.length} sendbird channels.`)
       await batchAsync(
@@ -362,50 +366,51 @@ export const findAndTriggerEntireSendBirdFlowForAllUsersAndProvider =
         ),
         sendbirdBatchSize
       )
-
-      const providers = await ProviderModel.find()
-      console.log(`Creating sendbird users for ${providers.length} providers.`)
-      await batchAsync(
-        providers.map(
-          (provider) => async () =>
-            await createSendBirdUser(
-              provider._id,
-              `${provider.firstName} ${provider.lastName}`,
-              "",
-              ""
-            )
-        ),
-        sendbirdBatchSize
-      )
-
-      const users = await UserModel.find().populate<{ provider: Provider }>(
-        "provider"
-      )
-      console.log(
-        `Creating sendbird users and channels for ${users.length} users.`
-      )
-      await batchAsync(
-        users.map((user) => async () => {
-          if (user.provider?._id && user.role === Role.Patient) {
-            await triggerEntireSendBirdFlow({
-              nickname: user.name,
-              profile_file: "",
-              profile_url: "",
-              provider: user.provider._id,
-              user_id: user._id,
-            })
-          } else {
-            await createSendBirdUser(user._id, user.name, "", "")
-          }
-          await new Promise((resolve) => setTimeout(resolve, 2000))
-        }),
-        sendbirdBatchSize
-      )
-      console.log(`All channels created and messages sent!`)
-    } catch (e) {
-      console.log(
-        e,
-        "Error in findAndTriggerEntireSendBirdFlowForAllUsersAndProvider"
-      )
     }
+
+    const providers = await ProviderModel.find()
+    console.log(`Creating sendbird users for ${providers.length} providers.`)
+    await batchAsync(
+      providers.map(
+        (provider) => async () =>
+          await createSendBirdUser(
+            provider._id,
+            `${provider.firstName} ${provider.lastName}`,
+            "",
+            ""
+          )
+      ),
+      sendbirdBatchSize
+    )
+
+    const users = await UserModel.find().populate<{ provider: Provider }>(
+      "provider"
+    )
+    console.log(
+      `Creating sendbird users and channels for ${users.length} users.`
+    )
+    await batchAsync(
+      users.map((user) => async () => {
+        if (user.provider?._id && user.role === Role.Patient) {
+          await triggerEntireSendBirdFlow({
+            nickname: user.name,
+            profile_file: "",
+            profile_url: "",
+            provider: user.provider._id,
+            user_id: user._id,
+          })
+        } else {
+          await createSendBirdUser(user._id, user.name, "", "")
+        }
+        await new Promise((resolve) => setTimeout(resolve, 2000))
+      }),
+      sendbirdBatchSize
+    )
+    console.log("All channels created and messages sent!")
+  } catch (e) {
+    console.log(
+      e,
+      "Error in findAndTriggerEntireSendBirdFlowForAllUsersAndProvider"
+    )
   }
+}
