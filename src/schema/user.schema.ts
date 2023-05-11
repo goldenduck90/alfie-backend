@@ -6,6 +6,7 @@ import {
   prop,
   queryMethod,
   ReturnModelType,
+  Severity,
 } from "@typegoose/typegoose"
 import { AsQueryMethod, Ref } from "@typegoose/typegoose/lib/types"
 import bcrypt from "bcrypt"
@@ -346,6 +347,7 @@ interface QueryHelpers {
 @queryMethod(findByEmailToken)
 @queryMethod(findBySubscriptionId)
 @ObjectType()
+@ModelOptions({ options: { allowMixed: Severity.ALLOW } })
 export class User {
   @Field(() => String)
   _id: string

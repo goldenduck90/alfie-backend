@@ -10,10 +10,12 @@
     "baseUrl": ".",
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
+    "skipLibCheck": true,
+    "skipDefaultLibCheck": true,
     "paths": {
       "*": ["node_modules/*"]
     },
     "lib": ["es2018", "esnext.asynciterable", "dom"]
   },
-  "include": ["src/**/*", "config/*", "assets/*"]
+  "include": ["src/**/*", "config/*", "assets/*", "scripts/*"]
 }

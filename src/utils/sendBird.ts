@@ -1,57 +1,156 @@
 import * as Sentry from "@sentry/node"
 import axios from "axios"
 import config from "config"
-import { UserModel } from "./../schema/user.schema"
+import { Role, UserModel } from "../schema/user.schema"
+import { Channel, Member, Message } from "./sendbirdtypes"
+import { Provider, ProviderModel } from "../schema/provider.schema"
+import batchAsync from "./batchAsync"
 
-const sendBirdInstance = axios.create({
+const sendbirdBatchSize = 10
+
+export const sendBirdInstance = axios.create({
   baseURL: config.get("sendBirdApiUrl"),
   headers: {
     "Content-Type": "application/ json; charset = utf8",
     "Api-Token": process.env.SENDBIRD_API_TOKEN,
   },
 })
-// TODO: This whole file needs proper typing...
 
-export const findSendBirdUser = async (user_id: string) => {
+/**
+ * Returns the typed sendbird entity for the given url.
+ */
+export const getSendBirdEntity = async <T>(
+  url: string,
+  params: Record<string, any> = {},
+  errorMessage?: string
+): Promise<T> => {
   try {
-    const { data } = await sendBirdInstance.get(`/v3/users/${user_id}`)
+    const { data } = await sendBirdInstance.get(url, { params })
     return data
+  } catch (error) {
+    if (errorMessage) {
+      console.error(errorMessage, error)
+    }
+    Sentry.captureException(error)
+    return null
+  }
+}
+
+/**
+ * Creates a sendbird entity with the given url and parameters, returning the object.
+ */
+export const createSendBirdEntity = async <T>(
+  url: string,
+  params: Record<string, any> = {},
+  errorMessage?: string
+): Promise<T> => {
+  try {
+    const { data } = await sendBirdInstance.post(url, params)
+    return data
+  } catch (error) {
+    if (errorMessage) {
+      console.error(errorMessage, error)
+    }
+    Sentry.captureException(error)
+    return null
+  }
+}
+
+/**
+ * Deletes a sendbird entity with the given url and parameters.
+ */
+export const deleteSendBirdEntity = async (url: string) => {
+  try {
+    const result = await sendBirdInstance.delete(url)
+    const { status, data } = result
+    if (status >= 300) {
+      console.error(`Error deleting sendbird entity with url ${url}`, data)
+    }
   } catch (error) {
     Sentry.captureException(error)
   }
 }
 
 /**
- *
- * @param user_id
- * @param nickname
- * @param profile_url
- * @param profile_file
- * @returns a users data object and the full response object can be found here: https://sendbird.com/docs/chat/v3/platform-api/user/creating-users/create-a-user#2-responses
- *
- * Please note that the profile_url and profile_file are required but should be set to an empty string.
+ * Returns a sendbird collection, typed with the passed generic type
+ * @template T The type of the element in the result.
+ * @template R The type of the result data if `field` is null.
+ * @param field The field on the data object to return (e.g. 'users').
  */
-const createSendBirdUser = async (
+export const getSendBirdCollection = async <T>(
+  url: string,
+  field: string,
+  params: Record<string, any> = {},
+  errorMessage?: string
+): Promise<T[]> => {
+  const data = await getSendBirdEntity<any>(url, params, errorMessage)
+  if (data && data[field]) {
+    return data[field]
+  } else {
+    return []
+  }
+}
+
+/** Get all items from a paged sendbird collection. */
+export const getPagedSendBirdCollection = async <T>(
+  url: string,
+  field: string,
+  params: Record<string, any> = {},
+  errorMessage?: string
+): Promise<T[]> => {
+  let next: string | null = null
+  const result: T[] = []
+  do {
+    const data = (await getSendBirdEntity<any>(
+      url,
+      { ...params, limit: 100, token: next || undefined },
+      errorMessage
+    )) as any
+    const items: T[] = data[field]
+    result.push(...items)
+    next = data.next as string
+  } while (next)
+
+  return result
+}
+
+/**
+ * Finds and returns the User sendbird obect for the given user_id.
+ */
+export const findSendBirdUser = async (user_id: string): Promise<Member> =>
+  await getSendBirdEntity<Member>(`/v3/users/${user_id}`)
+
+/**
+ * Deletes a sendbird user by user_id.
+ */
+export const deleteSendBirdUser = async (user_id: string) =>
+  await deleteSendBirdEntity(`/v3/users/${user_id}`)
+
+/**
+ * Creates a new sendbird user.
+ * Please note that the profile_url and profile_file are required but should be set to an empty string.
+ *
+ * @returns {string} The user id.
+ * @see https://sendbird.com/docs/chat/v3/platform-api/user/creating-users/create-a-user#2-responses
+ */
+export const createSendBirdUser = async (
   user_id: string,
   nickname: string,
   profile_url: string,
   profile_file: string
-) => {
+): Promise<string | null> => {
   // check if user exists
-  try {
-    const { status, data: existingData } = await sendBirdInstance.get(
-      `/v3/users/${user_id}`
+  const existingData = await findSendBirdUser(user_id)
+  if (existingData && existingData.user_id) {
+    console.log(
+      `Returning existing user: ${existingData.user_id} - ${existingData.nickname}`
     )
-    if (status === 200 && existingData?.user_id) {
-      return existingData.user_id
-    }
-  } catch (e) {
-    console.log("No user found, moving on...")
+    return existingData.user_id
   }
 
   // if not create user
   try {
-    const { data } = await sendBirdInstance.post("/v3/users", {
+    const data = await createSendBirdEntity<Member>("/v3/users", {
       user_id,
       nickname,
       profile_url,
@@ -60,47 +159,46 @@ const createSendBirdUser = async (
     return data.user_id
   } catch (error) {
     Sentry.captureException(error)
+    return null
   }
 }
+
 /**
+ * Creates a sendbird channel for the given user.
  *
  * @param user_id
- * @returns a channel object and the full response object can be found here: https://sendbird.com/docs/chat/v3/platform-api/channel/creating-a-channel/create-a-group-channel#2-responses
+ * @returns The channel URL. A channel object and the full response object can be found here
+ * @see https://sendbird.com/docs/chat/v3/platform-api/channel/creating-a-channel/create-a-group-channel#2-responses
  */
-
-const createSendBirdChannelForNewUser = async (
+export const createSendBirdChannelForNewUser = async (
   user_id: string,
   nickname: string
 ) => {
   // check if channel exists
-  try {
-    const { data } = await sendBirdInstance.get(
-      `/v3/group_channels?members_include_in=${user_id}`
-    )
+  const channels = await getSendBirdCollection<Channel>(
+    "/v3/group_channels",
+    "channels",
+    { members_include_in: user_id }
+  )
 
-    if (data.channels.length !== 0) {
-      return data.channels[0].channel_url
-    } else {
-      console.log("No channel found for user, moving on to create channel...")
-    }
-  } catch (e) {
+  if (channels && channels.length !== 0) {
     console.log(
-      e,
-      "error in createSendBirdChannelForNewUser when fetching existing channels"
+      `Returned existing channel ${channels[0].channel_url} for user ${user_id}`
     )
-    Sentry.captureException(e)
+    return channels[0].channel_url
   }
 
   // if channel doesnt exist create it
   try {
-    const { data } = await sendBirdInstance.post("/v3/group_channels", {
+    const channel = await createSendBirdEntity<Channel>("/v3/group_channels", {
       name: `${nickname} - ${user_id}`,
       custom_type: "Alfie Chat",
       is_distinct: false,
       user_ids: [user_id],
     })
 
-    return data.channel_url
+    console.log(`Created channel ${channel.channel_url} for user  ${user_id}`)
+    return channel.channel_url
   } catch (error) {
     console.log(
       error,
@@ -110,17 +208,22 @@ const createSendBirdChannelForNewUser = async (
   }
 }
 
+/** Deletes the given sendbird channel. */
+export const deleteSendBirdChannel = async (channel_url: string) =>
+  await deleteSendBirdEntity(`/v3/group_channels/${channel_url}`)
+
 /**
+ * Invites the given user to the given channel.
  *
- * @param channel_url
- * @param message
- * @returns a message object and the full response object can be found here: https://sendbird.com/docs/chat/v3/platform-api/message/messaging-basics/send-a-message#2-responses
+ * @returns A channel object.
+ * @see https://sendbird.com/docs/chat/v3/platform-api/channel/inviting-a-user/invite-as-members-channel#2-response
  */
-const inviteUserToChannel = async (
+export const inviteUserToChannel = async (
   channel_url: string,
   user_id: string,
+  /** The user's provider. */
   provider: string
-) => {
+): Promise<Channel | null> => {
   const user_ids = [provider]
 
   if (process.env.NODE_ENV === "production") {
@@ -130,81 +233,78 @@ const inviteUserToChannel = async (
     user_ids.push("639b9a70b937527a0c43484c")
   }
 
-  try {
-    const { data } = await sendBirdInstance.post(
-      `/v3/group_channels/${channel_url}/invite`,
-      {
-        user_ids,
-      }
-    )
-
-    console.log(
-      `INVITED SENDBIRD CHANNEL FOR USER ID: ${user_id}: ${JSON.stringify(
-        data
-      )}`
-    )
-
+  const data = await createSendBirdEntity<Channel>(
+    `/v3/group_channels/${channel_url}/invite`,
+    { user_ids }
+  )
+  if (data) {
+    console.log(`Invited user ${user_id} to channel ${data.channel_url}`)
     return data
-  } catch (error) {
-    console.log(error, "error in inviteUserToChannel")
-    Sentry.captureException(error)
+  } else {
+    console.log("error in inviteUserToChannel")
+    return null
   }
 }
-const sendMessageToChannel = async (channel_url: string, message: string) => {
+
+/** Sends a message from the sendbird bot to the given channel. */
+export const sendMessageToChannel = async (
+  channel_url: string,
+  message: string
+): Promise<Message | null> => {
   const sendBirdBotId = "639ba07cb937527a0c43484e"
 
-  try {
-    const { data } = await sendBirdInstance.post(
-      `/v3/group_channels/${channel_url}/messages`,
-      {
-        message_type: "MESG",
-        user_id: sendBirdBotId,
-        message,
-      }
-    )
-    return data
-  } catch (error) {
-    console.log(error, "error in sendMessageToChannel")
-    Sentry.captureException(error)
-  }
+  const data = await createSendBirdEntity<Message>(
+    `/v3/group_channels/${channel_url}/messages`,
+    {
+      message_type: "MESG",
+      user_id: sendBirdBotId,
+      message,
+    },
+    "error in sendMessageToChannel"
+  )
+
+  return data
 }
 
-// get users by id and get their channel url
-const getSendBirdUserChannelUrl = async (user_id: string) => {
-  try {
-    const response = await sendBirdInstance.get(
-      `/v3/users/${user_id}/my_group_channels?hidden_mode=all`
-    )
-    console.log(response)
-    return response.data.channels
-  } catch (error) {
-    console.log(error)
-    Sentry.captureException(error)
-  }
-}
+/** Get all of a sendbird user's group channels. */
+export const getSendBirdUserChannels = async (user_id: string) =>
+  await getSendBirdCollection<Channel>(
+    `/v3/users/${user_id}/my_group_channels`,
+    "channels",
+    { hidden_mode: "all" }
+  )
 
-const getUsersInSendBirdChannel = async (channel_url: string) => {
-  try {
-    const response = await sendBirdInstance.get(
-      `/v3/group_channels/${channel_url}/members`
-    )
-    console.log(response)
-    return response.data.members
-  } catch (error) {
-    console.log(error)
-    Sentry.captureException(error)
-  }
-}
+/** Gets a list of all sendbird channels. */
+export const listSendBirdChannels = async () =>
+  await getPagedSendBirdCollection<Channel>(
+    `/v3/group_channels`,
+    "channels",
+    { show_empty: true },
+    "Error in listSendBirdChannels"
+  )
+
+/** Gets a list of all sendbird users. */
+export const listSendBirdUsers = async () =>
+  await getPagedSendBirdCollection<Member>(
+    `/v3/users`,
+    "users",
+    { active_mode: "all" },
+    "Error in listSendBirdUsers"
+  )
+
+/** Returns all users in the given sendbird group channel. */
+export const getUsersInSendBirdChannel = async (channel_url: string) =>
+  await getSendBirdCollection<Member>(
+    `/v3/group_channels/${channel_url}/members`,
+    "members",
+    {},
+    "error in getUsersInSendBirdChannel"
+  )
 
 /**
- *
- * @param user_id
- * @param nickname
- * @param profile_url
- * @param profile_file
- * @returns TBD
+ * Creates all necessary sendbird objects for a new user.
  */
-const triggerEntireSendBirdFlow = async ({
+export const triggerEntireSendBirdFlow = async ({
   nickname,
   profile_file,
   profile_url,
@@ -216,7 +316,7 @@ const triggerEntireSendBirdFlow = async ({
   profile_url: string
   profile_file: string
   provider: string
-}) => {
+}): Promise<boolean> => {
   try {
     // Batch these in groups of 5 with an interval being every 10 seconds
     await createSendBirdUser(user_id, nickname, profile_url, profile_file)
@@ -238,44 +338,73 @@ const triggerEntireSendBirdFlow = async ({
   }
 }
 
-const findAndTriggerEntireSendBirdFlowForAllUSersAndProvider = async () => {
-  try {
-    // const providers: any = await ProviderModel.find()
-    const allUsersAndProvider: any = await UserModel.find().populate("provider")
-    // console.log(allUsersAndProvider, "allUsersAndProvider")
-    for (let i = 0; i < allUsersAndProvider.length; i += 5) {
-      const batch = allUsersAndProvider.slice(i, i + 5)
-      console.log(batch.length, "batch length")
-      console.log(batch[0]?.name, "batch[0].name")
+/** Recreates the entire sendbird state, including users (patients and providers), and channels. */
+export const findAndTriggerEntireSendBirdFlowForAllUsersAndProvider =
+  async () => {
+    try {
+      console.log("Recreating sendbird state.")
+      const channels = await listSendBirdChannels()
+      console.log(`Deleting ${channels.length} sendbird channels.`)
+      await batchAsync(
+        channels.map(
+          (channel) => async () =>
+            await deleteSendBirdChannel(channel.channel_url)
+        ),
+        sendbirdBatchSize
+      )
 
-      await Promise.all(
-        batch.map(async (user: any) => {
-          if (user?.provider?._id) {
+      const sendbirdUsers = await listSendBirdUsers()
+      console.log(`Deleting ${sendbirdUsers.length} sendbird users.`)
+      await batchAsync(
+        sendbirdUsers.map(
+          (user) => async () => await deleteSendBirdUser(user.user_id)
+        ),
+        sendbirdBatchSize
+      )
+
+      const providers = await ProviderModel.find()
+      console.log(`Creating sendbird users for ${providers.length} providers.`)
+      await batchAsync(
+        providers.map(
+          (provider) => async () =>
+            await createSendBirdUser(
+              provider._id,
+              `${provider.firstName} ${provider.lastName}`,
+              "",
+              ""
+            )
+        ),
+        sendbirdBatchSize
+      )
+
+      const users = await UserModel.find().populate<{ provider: Provider }>(
+        "provider"
+      )
+      console.log(
+        `Creating sendbird users and channels for ${users.length} users.`
+      )
+      await batchAsync(
+        users.map((user) => async () => {
+          if (user.provider?._id && user.role === Role.Patient) {
             await triggerEntireSendBirdFlow({
-              nickname: user?.name,
+              nickname: user.name,
               profile_file: "",
               profile_url: "",
-              provider: user?.provider?._id,
-              user_id: user?._id,
+              provider: user.provider._id,
+              user_id: user._id,
             })
+          } else {
+            await createSendBirdUser(user._id, user.name, "", "")
           }
-        })
+          await new Promise((resolve) => setTimeout(resolve, 2000))
+        }),
+        sendbirdBatchSize
       )
-      await new Promise((resolve) => setTimeout(resolve, 10000))
+      console.log(`All channels created and messages sent!`)
+    } catch (e) {
+      console.log(
+        e,
+        "Error in findAndTriggerEntireSendBirdFlowForAllUsersAndProvider"
+      )
     }
-    return "All channels created and messages sent!"
-  } catch (e) {
-    console.log(e, "Error")
   }
-}
-
-export {
-  sendBirdInstance,
-  createSendBirdUser,
-  createSendBirdChannelForNewUser,
-  inviteUserToChannel,
-  getSendBirdUserChannelUrl,
-  triggerEntireSendBirdFlow,
-  findAndTriggerEntireSendBirdFlowForAllUSersAndProvider,
-  getUsersInSendBirdChannel,
-}

@@ -4,14 +4,14 @@
   "description": "",
   "main": "build/src/index.js",
   "scripts": {
-    "build": "tsc",
+    "build": "tsc --project ./tsconfig.json",
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
     "prod": "NODE_ENV=production ts-node-dev --respawn --transpile-only src/index.ts",
     "format": "prettier --check . --config ./.prettierrc",
     "format:fix": "prettier --write . --config ./.prettierrc",
     "lint": "eslint . --ext .js,.ts",
     "lint:fix": "npm run lint -- --fix",
-    "tsc": "tsc --noEmit",
+    "tsc": "tsc --noEmit --project ./tsconfig.json",
     "prepare": "husky install && npx husky add .husky/pre-commit \"node_modules/.bin/lint-staged\""
   },
   "author": "",
@@ -81,15 +81,5 @@
     "hooks": {
       "pre-commit": "lint-staged"
     }
-  },
-  "lint-staged": {
-    "**/*.{js,ts}": [
-      "bash -c tsc --noEmit",
-      "prettier --write --config ./.prettierrc",
-      "eslint --fix"
-    ],
-    "**/*.{css,md,json}": [
-      "prettier --write --config ./.prettierrc"
-    ]
   }
 }
