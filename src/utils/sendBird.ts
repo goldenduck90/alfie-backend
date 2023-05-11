@@ -227,10 +227,11 @@ export const inviteUserToChannel = async (
   const user_ids = [provider]
 
   if (process.env.NODE_ENV === "production") {
-    // Gabrielle H is the first ID then Alex then rohit
+    // Gabrielle H is the first ID then Alex then rohit then Rachel
     user_ids.push("63b85fa8ab80d27bb1af6d43")
     user_ids.push("639ba07cb937527a0c43484e")
     user_ids.push("639b9a70b937527a0c43484c")
+    user_ids.push("63bd8d61af58147c29a7c272")
   }
 
   const data = await createSendBirdEntity<Channel>(
