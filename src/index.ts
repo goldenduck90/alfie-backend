@@ -1,4 +1,3 @@
-import * as Sentry from "@sentry/node"
 import {
   ApolloServerPluginLandingPageGraphQLPlayground,
   ApolloServerPluginLandingPageProductionDefault,
@@ -18,18 +17,11 @@ import Context from "./types/context"
 import { connectToMongo } from "./utils/mongo"
 import * as cron from "node-cron"
 import UserService from "./services/user.service"
+import { setupSentry } from "./utils/sentry"
 
 dotenv.config()
 
-// import * as Tracing from '@sentry/tracing';
-Sentry.init({
-  dsn: "https://e99c3274029e405f9e1b6dd50a63fd85@o4504040965603328.ingest.sentry.io/4504040986705920",
-  environment: process.env.NODE_ENV,
-  // Set tracesSampleRate to 1.0 to capture 100%
-  // of transactions for performance monitoring.
-  // We recommend adjusting this value in production
-  tracesSampleRate: 1.0,
-})
+setupSentry()
 
 async function bootstrap() {
   const path = "/graphql"

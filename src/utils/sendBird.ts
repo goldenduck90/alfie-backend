@@ -6,7 +6,23 @@ import { Channel, Member, Message } from "./sendbirdtypes"
 import { Provider, ProviderModel } from "../schema/provider.schema"
 import batchAsync from "./batchAsync"
 
-const sendbirdBatchSize = 10
+const sendbirdBatchSize = 5
+
+const sendbirdAutoinviteUsers: string[] = []
+if (process.env.SENDBIRD_AUTOINVITE_USERS) {
+  const addUsers: string = process.env.SENDBIRD_AUTOINVITE_USERS
+  sendbirdAutoinviteUsers.push(
+    ...addUsers.split(",").map((user_id) => user_id.trim())
+  )
+} else if (process.env.NODE_ENV === "production") {
+  // Gabrielle H is the first ID then Alex then rohit then Rachel
+  sendbirdAutoinviteUsers.push(
+    "63b85fa8ab80d27bb1af6d43",
+    "639ba07cb937527a0c43484e",
+    "639b9a70b937527a0c43484c",
+    "63bd8d61af58147c29a7c272"
+  )
+}
 
 export const sendBirdInstance = axios.create({
   baseURL: config.get("sendBirdApiUrl"),
@@ -29,7 +45,7 @@ export const getSendBirdEntity = async <T>(
     return data
   } catch (error) {
     if (errorMessage) {
-      console.error(errorMessage, error)
+      console.log(`${errorMessage}: ${error.message}`)
     }
     Sentry.captureException(error)
     return null
@@ -166,20 +182,19 @@ export const createSendBirdUser = async (
 /**
  * Creates a sendbird channel for the given user.
  *
- * @param user_id
  * @returns The channel URL. A channel object and the full response object can be found here
  * @see https://sendbird.com/docs/chat/v3/platform-api/channel/creating-a-channel/create-a-group-channel#2-responses
  */
 export const createSendBirdChannelForNewUser = async (
   user_id: string,
   nickname: string
-) => {
-  // check if channel exists
-  const channels = await getSendBirdCollection<Channel>(
-    "/v3/group_channels",
-    "channels",
-    { members_include_in: user_id }
-  )
+): Promise<string | null> => {
+  // check if there is a channel with the user as a member
+  const channels = await getSendBirdUserChannels(user_id)
+  if (channels.length === 0) {
+    console.log(`could not find channels with user ${user_id}`)
+    process.exit(1)
+  }
 
   if (channels && channels.length !== 0) {
     console.log(
@@ -197,7 +212,7 @@ export const createSendBirdChannelForNewUser = async (
       user_ids: [user_id],
     })
 
-    console.log(`Created channel ${channel.channel_url} for user  ${user_id}`)
+    console.log(`Created channel ${channel.channel_url} for user ${user_id}`)
     return channel.channel_url
   } catch (error) {
     console.log(
@@ -224,16 +239,9 @@ export const inviteUserToChannel = async (
   /** The user's provider. */
   provider: string
 ): Promise<Channel | null> => {
-  const user_ids = [provider]
+  const user_ids = [provider, ...sendbirdAutoinviteUsers]
 
-  if (process.env.NODE_ENV === "production") {
-    // Gabrielle H is the first ID then Alex then rohit then Rachel
-    user_ids.push("63b85fa8ab80d27bb1af6d43")
-    user_ids.push("639ba07cb937527a0c43484e")
-    user_ids.push("639b9a70b937527a0c43484c")
-    user_ids.push("63bd8d61af58147c29a7c272")
-  }
-
+  // POST the invite (returns the modified channel object).
   const data = await createSendBirdEntity<Channel>(
     `/v3/group_channels/${channel_url}/invite`,
     { user_ids }
@@ -245,6 +253,23 @@ export const inviteUserToChannel = async (
     console.log("error in inviteUserToChannel")
     return null
   }
+}
+
+/**
+ * Returns messages in the given group channel.
+ */
+export const getMessagesInChannel = async (channel_url: string, limit = 10) => {
+  const messages = await getSendBirdCollection<Message>(
+    `/v3/group_channels/${channel_url}/messages`,
+    "messages",
+    {
+      message_ts: Date.now(),
+      prev_limit: limit,
+      message_type: "MESG",
+    },
+    "error retrieving messages in channel"
+  )
+  return messages
 }
 
 /** Sends a message from the sendbird bot to the given channel. */
@@ -269,18 +294,16 @@ export const sendMessageToChannel = async (
 
 /** Get all of a sendbird user's group channels. */
 export const getSendBirdUserChannels = async (user_id: string) =>
-  await getSendBirdCollection<Channel>(
-    `/v3/users/${user_id}/my_group_channels`,
-    "channels",
-    { hidden_mode: "all" }
-  )
+  await getSendBirdCollection<Channel>("/v3/group_channels", "channels", {
+    members_include_in: user_id,
+  })
 
 /** Gets a list of all sendbird channels. */
-export const listSendBirdChannels = async () =>
+export const listSendBirdChannels = async (showMembers = false) =>
   await getPagedSendBirdCollection<Channel>(
     "/v3/group_channels",
     "channels",
-    { show_empty: true },
+    { show_empty: true, show_member: showMembers },
     "Error in listSendBirdChannels"
   )
 
@@ -319,13 +342,21 @@ export const triggerEntireSendBirdFlow = async ({
   provider: string
 }): Promise<boolean> => {
   try {
-    // Batch these in groups of 5 with an interval being every 10 seconds
+    // create the sendbird user
     await createSendBirdUser(user_id, nickname, profile_url, profile_file)
 
+    // create a channel for the user, or return the existing channel
     const channel_url = await createSendBirdChannelForNewUser(user_id, nickname)
+
+    // ensure that the provider and autoinvite users have been added to the channel
     await inviteUserToChannel(channel_url, user_id, provider)
+
+    // send a welcome message to the channel in production
     if (process.env.NODE_ENV === "production") {
-      await sendMessageToChannel(channel_url, "Welcome to Alfie Chat!")
+      const messages = await getMessagesInChannel(channel_url, 1)
+      if (messages && messages.length === 0) {
+        await sendMessageToChannel(channel_url, "Welcome to Alfie Chat!")
+      }
     }
 
     return true
@@ -340,77 +371,158 @@ export const triggerEntireSendBirdFlow = async ({
 }
 
 /** Recreates the entire sendbird state, including users (patients and providers), and channels. */
-export const findAndTriggerEntireSendBirdFlowForAllUsersAndProvider = async (
-  /** Whether to delete previous sendbird users and channels. Defaults to true. */
-  deletePreviousEntities = true
-) => {
-  try {
-    console.log("Recreating sendbird state.")
+export const findAndTriggerEntireSendBirdFlowForAllUsersAndProvider =
+  async () => {
+    try {
+      console.log("Recreating sendbird state.")
 
-    if (deletePreviousEntities) {
-      const channels = await listSendBirdChannels()
-      console.log(`Deleting ${channels.length} sendbird channels.`)
-      await batchAsync(
-        channels.map(
-          (channel) => async () =>
-            await deleteSendBirdChannel(channel.channel_url)
-        ),
-        sendbirdBatchSize
+      const users = await UserModel.find().populate<{ provider: Provider }>(
+        "provider"
+      )
+      console.log("All users:")
+      console.log(users.map((u) => `  * ${u._id} - ${u.name}`).join("\n"))
+
+      const providers = await ProviderModel.find()
+      const channels = await listSendBirdChannels(true)
+      const sendbirdUsers = await listSendBirdUsers()
+
+      // create maps by which to reference users and channels quickly by ID/url
+      const mapByField = <T>(
+        collection: T[],
+        getField: (item: T) => string
+      ): Record<string, T> =>
+        collection.reduce(
+          (map, item) => ({ ...map, [getField(item)]: item }),
+          {}
+        )
+
+      const sendbirdUsersMap = mapByField(sendbirdUsers, (item) => item.user_id)
+      const usersMap = mapByField([...users, ...providers], (item) =>
+        item._id.toString()
+      )
+      // const providersMap = mapByField(providers, (item) => item._id.toString())
+
+      // delete channels where all of the members do not correspond to database users.
+      const channelsToDelete: Channel[] = channels.filter(
+        (channel) =>
+          channel.members &&
+          channel.members.every((user) => !usersMap[user.user_id])
       )
 
-      const sendbirdUsers = await listSendBirdUsers()
-      console.log(`Deleting ${sendbirdUsers.length} sendbird users.`)
+      // delete users who do not have a corresponding database ID.
+      const usersToDelete: Member[] = sendbirdUsers.filter(
+        (user) => !usersMap[user.user_id]
+      )
+
+      // insert providers who are not in sendbird yet
+      const providersToCreate = providers.filter(
+        (provider) => !sendbirdUsersMap[provider._id]
+      )
+
+      if (channelsToDelete.length > 0) {
+        console.log(
+          `Deleting ${channelsToDelete.length} sendbird channels whose members are all invalid (not in the database).`
+        )
+        console.log(
+          channelsToDelete
+            .map((channel) => {
+              const membersStr = channel.members
+                ? channel.members
+                    .map((user) => `${user.user_id} - ${user.nickname}`)
+                    .join(", ")
+                : "Unknown"
+              return `  * Channel - Members: ${membersStr} - ${channel.channel_url} - ${channel.custom_type}`
+            })
+            .join("\n")
+        )
+        await batchAsync(
+          channelsToDelete.map(
+            (channel) => async () =>
+              await deleteSendBirdChannel(channel.channel_url)
+          ),
+          sendbirdBatchSize
+        )
+      } else {
+        console.log("All channels are valid, nothing to delete.")
+      }
+
+      if (usersToDelete.length > 0) {
+        console.log(
+          `Deleting ${usersToDelete.length} sendbird users without corresponding database users.`
+        )
+        console.log(
+          usersToDelete
+            .map(
+              (user) =>
+                `  * ${user.user_id} - ${user.nickname} - Active: ${user.is_active}`
+            )
+            .join("\n")
+        )
+        await batchAsync(
+          usersToDelete.map(
+            (user) => async () => await deleteSendBirdUser(user.user_id)
+          ),
+          sendbirdBatchSize
+        )
+      } else {
+        console.log("All users are valid, nothing to delete.")
+      }
+
+      if (providersToCreate.length > 0) {
+        console.log(
+          `Creating the missing sendbird users for ${providersToCreate.length} providers.`
+        )
+        console.log(
+          providersToCreate
+            .map(
+              (user) => `  * ${user._id} - ${user.firstName} ${user.lastName}`
+            )
+            .join("\n")
+        )
+        await batchAsync(
+          providersToCreate.map((provider) => async () => {
+            await createSendBirdUser(
+              provider._id,
+              `${provider.firstName} ${provider.lastName}`,
+              "",
+              ""
+            )
+            await new Promise((resolve) => setTimeout(resolve, 2000))
+          }),
+          sendbirdBatchSize
+        )
+      } else {
+        console.log("All providers have sendbird users.")
+      }
+
+      console.log(
+        `Creating or updating sendbird users and channels for all ${users.length} users.`
+      )
       await batchAsync(
-        sendbirdUsers.map(
-          (user) => async () => await deleteSendBirdUser(user.user_id)
-        ),
+        users.map((user) => async () => {
+          if (user.provider?._id && user.role === Role.Patient) {
+            // create user and channel for patients, invite their provider and preset user IDs
+            await triggerEntireSendBirdFlow({
+              nickname: user.name,
+              profile_file: "",
+              profile_url: "",
+              provider: user.provider._id,
+              user_id: user._id,
+            })
+          } else {
+            // just create the user for other types of users
+            await createSendBirdUser(user._id, user.name, "", "")
+          }
+          // 10 second delay between batches
+          await new Promise((resolve) => setTimeout(resolve, 10000))
+        }),
         sendbirdBatchSize
+      )
+      console.log("All channels created and messages sent!")
+    } catch (e) {
+      console.log(
+        e,
+        "Error in findAndTriggerEntireSendBirdFlowForAllUsersAndProvider"
       )
     }
-
-    const providers = await ProviderModel.find()
-    console.log(`Creating sendbird users for ${providers.length} providers.`)
-    await batchAsync(
-      providers.map(
-        (provider) => async () =>
-          await createSendBirdUser(
-            provider._id,
-            `${provider.firstName} ${provider.lastName}`,
-            "",
-            ""
-          )
-      ),
-      sendbirdBatchSize
-    )
-
-    const users = await UserModel.find().populate<{ provider: Provider }>(
-      "provider"
-    )
-    console.log(
-      `Creating sendbird users and channels for ${users.length} users.`
-    )
-    await batchAsync(
-      users.map((user) => async () => {
-        if (user.provider?._id && user.role === Role.Patient) {
-          await triggerEntireSendBirdFlow({
-            nickname: user.name,
-            profile_file: "",
-            profile_url: "",
-            provider: user.provider._id,
-            user_id: user._id,
-          })
-        } else {
-          await createSendBirdUser(user._id, user.name, "", "")
-        }
-        await new Promise((resolve) => setTimeout(resolve, 2000))
-      }),
-      sendbirdBatchSize
-    )
-    console.log("All channels created and messages sent!")
-  } catch (e) {
-    console.log(
-      e,
-      "Error in findAndTriggerEntireSendBirdFlowForAllUsersAndProvider"
-    )
   }
-}
