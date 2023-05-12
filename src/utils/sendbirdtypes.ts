@@ -2,13 +2,20 @@ export interface Channel {
   channel_url: string
   name: string
   data: string
-  members: Member[]
+  members?: Member[]
+  member_count: number
+  created_at: number
+  joined_member_count: number
   custom_type: string
   is_distinct: boolean
   is_super: boolean
   is_public: boolean
   is_discoverable: boolean
   is_ephemeral: boolean
+  freeze: boolean
+  unread_message_count: number
+  unread_mention_count: number
+  created_by: Member
 }
 
 export interface MessageEvents {

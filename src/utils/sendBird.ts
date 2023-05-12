@@ -5,7 +5,7 @@ import { Role, UserModel } from "../schema/user.schema"
 import { Channel, Member, Message } from "./sendbirdtypes"
 import { Provider, ProviderModel } from "../schema/provider.schema"
 import batchAsync from "./batchAsync"
-import mapCollectionByField from "./mapCollectionByField"
+import { mapCollectionByField } from "./collections"
 
 const sendbirdBatchSize = 5
 
@@ -189,21 +189,15 @@ export const createSendBirdUser = async (
 export const createSendBirdChannelForNewUser = async (
   user_id: string,
   nickname: string
-): Promise<string | null> => {
+): Promise<Channel | null> => {
   // check if there is a channel with the user as a member
   const channels = await getSendBirdUserChannels(user_id)
-  if (channels.length === 0) {
-    console.log(
-      `could not find channels with user ${user_id} ${typeof user_id}`
-    )
-    process.exit(1)
-  }
 
   if (channels && channels.length !== 0) {
     console.log(
       `Returned existing channel ${channels[0].channel_url} for user ${user_id}`
     )
-    return channels[0].channel_url
+    return channels[0]
   }
 
   // if channel doesnt exist create it
@@ -216,13 +210,14 @@ export const createSendBirdChannelForNewUser = async (
     })
 
     console.log(`Created channel ${channel.channel_url} for user ${user_id}`)
-    return channel.channel_url
+    return channel
   } catch (error) {
     console.log(
       error,
       "error in createSendBirdChannelForNewUser when creating new channels"
     )
     Sentry.captureException(error)
+    return null
   }
 }
 
@@ -349,7 +344,8 @@ export const triggerEntireSendBirdFlow = async ({
     await createSendBirdUser(user_id, nickname, profile_url, profile_file)
 
     // create a channel for the user, or return the existing channel
-    const channel_url = await createSendBirdChannelForNewUser(user_id, nickname)
+    const channel = await createSendBirdChannelForNewUser(user_id, nickname)
+    const { channel_url } = channel
 
     // ensure that the provider and autoinvite users have been added to the channel
     await inviteUserToChannel(channel_url, user_id, provider)
@@ -390,6 +386,14 @@ export const findAndTriggerEntireSendBirdFlowForAllUsersAndProvider =
       const sendbirdUsers = await listSendBirdUsers()
 
       // create maps by which to reference users and channels quickly by ID/url
+      const channelsByUserId: Record<string, Channel[]> = {}
+      channels.forEach((channel) => {
+        channel.members.forEach((member) => {
+          const userChannels = channelsByUserId[member.user_id] || []
+          channelsByUserId[member.user_id] = [...userChannels, channel]
+        })
+      })
+
       const sendbirdUsersMap = mapCollectionByField(
         sendbirdUsers,
         (item) => item.user_id
@@ -479,7 +483,7 @@ export const findAndTriggerEntireSendBirdFlowForAllUsersAndProvider =
         await batchAsync(
           providersToCreate.map((provider) => async () => {
             await createSendBirdUser(
-              provider._id,
+              provider._id.toString(),
               `${provider.firstName} ${provider.lastName}`,
               "",
               ""
@@ -497,18 +501,19 @@ export const findAndTriggerEntireSendBirdFlowForAllUsersAndProvider =
       )
       await batchAsync(
         users.map((user) => async () => {
+          const userId = user._id.toString()
           if (user.provider?._id && user.role === Role.Patient) {
             // create user and channel for patients, invite their provider and preset user IDs
             await triggerEntireSendBirdFlow({
               nickname: user.name,
               profile_file: "",
               profile_url: "",
-              provider: user.provider._id,
-              user_id: user._id,
+              provider: user.provider._id.toString(),
+              user_id: userId,
             })
           } else {
             // just create the user for other types of users
-            await createSendBirdUser(user._id, user.name, "", "")
+            await createSendBirdUser(userId, user.name, "", "")
           }
           // 10 second delay between batches
           await new Promise((resolve) => setTimeout(resolve, 10000))
