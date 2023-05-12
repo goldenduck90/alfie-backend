@@ -5,6 +5,7 @@ import { Role, UserModel } from "../schema/user.schema"
 import { Channel, Member, Message } from "./sendbirdtypes"
 import { Provider, ProviderModel } from "../schema/provider.schema"
 import batchAsync from "./batchAsync"
+import mapCollectionByField from "./mapCollectionByField"
 
 const sendbirdBatchSize = 5
 
@@ -192,7 +193,9 @@ export const createSendBirdChannelForNewUser = async (
   // check if there is a channel with the user as a member
   const channels = await getSendBirdUserChannels(user_id)
   if (channels.length === 0) {
-    console.log(`could not find channels with user ${user_id}`)
+    console.log(
+      `could not find channels with user ${user_id} ${typeof user_id}`
+    )
     process.exit(1)
   }
 
@@ -387,20 +390,14 @@ export const findAndTriggerEntireSendBirdFlowForAllUsersAndProvider =
       const sendbirdUsers = await listSendBirdUsers()
 
       // create maps by which to reference users and channels quickly by ID/url
-      const mapByField = <T>(
-        collection: T[],
-        getField: (item: T) => string
-      ): Record<string, T> =>
-        collection.reduce(
-          (map, item) => ({ ...map, [getField(item)]: item }),
-          {}
-        )
-
-      const sendbirdUsersMap = mapByField(sendbirdUsers, (item) => item.user_id)
-      const usersMap = mapByField([...users, ...providers], (item) =>
+      const sendbirdUsersMap = mapCollectionByField(
+        sendbirdUsers,
+        (item) => item.user_id
+      )
+      const usersMap = mapCollectionByField([...users, ...providers], (item) =>
         item._id.toString()
       )
-      // const providersMap = mapByField(providers, (item) => item._id.toString())
+      // const providersMap = mapCollectionByField(providers, (item) => item._id.toString())
 
       // delete channels where all of the members do not correspond to database users.
       const channelsToDelete: Channel[] = channels.filter(
