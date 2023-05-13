@@ -237,19 +237,30 @@ export const inviteUserToChannel = async (
   /** The user's provider. */
   provider: string
 ): Promise<Channel | null> => {
-  const user_ids = [provider, ...sendbirdAutoinviteUsers]
+  const channel = await getSendBirdChannel(channel_url)
 
-  // POST the invite (returns the modified channel object).
-  const data = await createSendBirdEntity<Channel>(
-    `/v3/group_channels/${channel_url}/invite`,
-    { user_ids }
+  // only invite members not already in the channel
+  const user_ids = [provider, ...sendbirdAutoinviteUsers].filter(
+    (userId) => !channel.members?.some((member) => member.user_id === userId)
   )
-  if (data) {
-    console.log(`Invited user ${user_id} to channel ${data.channel_url}`)
-    return data
+
+  if (user_ids.length > 0) {
+    // POST the invite (returns the modified channel object).
+    const data = await createSendBirdEntity<Channel>(
+      `/v3/group_channels/${channel_url}/invite`,
+      { user_ids }
+    )
+    if (data) {
+      console.log(`Invited user ${user_id} to channel ${data.channel_url}`)
+      return data
+    } else {
+      console.log("error in inviteUserToChannel")
+      return null
+    }
   } else {
-    console.log("error in inviteUserToChannel")
-    return null
+    console.log(
+      `All users already added to channel ${channel_url} (including ${user_id} and preset user IDs).`
+    )
   }
 }
 
@@ -290,10 +301,17 @@ export const sendMessageToChannel = async (
   return data
 }
 
+/** Get a sendbird channel by url. */
+export const getSendBirdChannel = async (channel_url: string) =>
+  await getSendBirdEntity<Channel>(`/v3/group_channels/${channel_url}`, {
+    show_member: true,
+  })
+
 /** Get all of a sendbird user's group channels. */
 export const getSendBirdUserChannels = async (user_id: string) =>
   await getSendBirdCollection<Channel>("/v3/group_channels", "channels", {
     members_include_in: user_id,
+    show_member: true,
   })
 
 /** Gets a list of all sendbird channels. */
@@ -345,16 +363,18 @@ export const triggerEntireSendBirdFlow = async ({
 
     // create a channel for the user, or return the existing channel
     const channel = await createSendBirdChannelForNewUser(user_id, nickname)
-    const { channel_url } = channel
 
     // ensure that the provider and autoinvite users have been added to the channel
-    await inviteUserToChannel(channel_url, user_id, provider)
+    await inviteUserToChannel(channel.channel_url, user_id, provider)
 
     // send a welcome message to the channel in production
     if (process.env.NODE_ENV === "production") {
-      const messages = await getMessagesInChannel(channel_url, 1)
+      const messages = await getMessagesInChannel(channel.channel_url, 1)
       if (messages && messages.length === 0) {
-        await sendMessageToChannel(channel_url, "Welcome to Alfie Chat!")
+        await sendMessageToChannel(
+          channel.channel_url,
+          "Welcome to Alfie Chat!"
+        )
       }
     }
 
@@ -386,14 +406,6 @@ export const findAndTriggerEntireSendBirdFlowForAllUsersAndProvider =
       const sendbirdUsers = await listSendBirdUsers()
 
       // create maps by which to reference users and channels quickly by ID/url
-      const channelsByUserId: Record<string, Channel[]> = {}
-      channels.forEach((channel) => {
-        channel.members.forEach((member) => {
-          const userChannels = channelsByUserId[member.user_id] || []
-          channelsByUserId[member.user_id] = [...userChannels, channel]
-        })
-      })
-
       const sendbirdUsersMap = mapCollectionByField(
         sendbirdUsers,
         (item) => item.user_id
@@ -401,13 +413,40 @@ export const findAndTriggerEntireSendBirdFlowForAllUsersAndProvider =
       const usersMap = mapCollectionByField([...users, ...providers], (item) =>
         item._id.toString()
       )
-      // const providersMap = mapCollectionByField(providers, (item) => item._id.toString())
+      const providersMap = mapCollectionByField(providers, (item) =>
+        item._id.toString()
+      )
 
-      // delete channels where all of the members do not correspond to database users.
-      const channelsToDelete: Channel[] = channels.filter(
+      // delete channels where none of the members correspond to database users.
+      const channelsToDeleteNoDatabase: Channel[] = channels.filter(
         (channel) =>
           channel.members &&
           channel.members.every((user) => !usersMap[user.user_id])
+      )
+
+      // for each existing sendbird user, delete all but the first of their valid channels
+      const channelsToDeleteDuplicates: Channel[] = []
+      await batchAsync(
+        users.map((user) => async () => {
+          const userChannels = await getSendBirdUserChannels(
+            user._id.toString()
+          )
+          const validChannels = userChannels.filter((channel) => {
+            const hasProvider = channel.members.some(
+              (member) => providersMap[member.user_id]
+            )
+            return hasProvider
+          })
+          // remove all channels except the first valid channel (or all channels if no channels are valid)
+          const channelsToRemove =
+            validChannels.length > 0
+              ? userChannels.filter(
+                  (uc) => uc.channel_url !== validChannels[0].channel_url
+                )
+              : userChannels
+          channelsToDeleteDuplicates.push(...channelsToRemove)
+        }),
+        sendbirdBatchSize
       )
 
       // delete users who do not have a corresponding database ID.
@@ -417,35 +456,47 @@ export const findAndTriggerEntireSendBirdFlowForAllUsersAndProvider =
 
       // insert providers who are not in sendbird yet
       const providersToCreate = providers.filter(
-        (provider) => !sendbirdUsersMap[provider._id]
+        (provider) => !sendbirdUsersMap[provider._id.toString()]
       )
 
-      if (channelsToDelete.length > 0) {
-        console.log(
-          `Deleting ${channelsToDelete.length} sendbird channels whose members are all invalid (not in the database).`
-        )
-        console.log(
-          channelsToDelete
-            .map((channel) => {
-              const membersStr = channel.members
-                ? channel.members
-                    .map((user) => `${user.user_id} - ${user.nickname}`)
-                    .join(", ")
-                : "Unknown"
-              return `  * Channel - Members: ${membersStr} - ${channel.channel_url} - ${channel.custom_type}`
-            })
-            .join("\n")
-        )
-        await batchAsync(
-          channelsToDelete.map(
-            (channel) => async () =>
-              await deleteSendBirdChannel(channel.channel_url)
-          ),
-          sendbirdBatchSize
-        )
-      } else {
-        console.log("All channels are valid, nothing to delete.")
-      }
+      const deleteCategories: [Channel[], string][] = [
+        [
+          channelsToDeleteNoDatabase,
+          "sendbird channels whose members are all invalid (not in the database)",
+        ],
+        [
+          channelsToDeleteDuplicates,
+          "sendbird channels which are duplicates for a given patient user",
+        ],
+      ]
+      await Promise.all(
+        deleteCategories.map(async ([channelsToDelete, deleteMessage]) => {
+          if (channelsToDelete.length > 0) {
+            console.log(`Deleting ${channelsToDelete.length} ${deleteMessage}`)
+            console.log(
+              channelsToDelete
+                .map((channel) => {
+                  const membersStr = channel.members
+                    ? channel.members
+                        .map((user) => `${user.user_id} - ${user.nickname}`)
+                        .join(", ")
+                    : "Unknown"
+                  return `  * Channel - Members: ${membersStr} - ${channel.channel_url} - ${channel.custom_type}`
+                })
+                .join("\n")
+            )
+            await batchAsync(
+              channelsToDelete.map(
+                (channel) => async () =>
+                  await deleteSendBirdChannel(channel.channel_url)
+              ),
+              sendbirdBatchSize
+            )
+          } else {
+            console.log("All channels are valid, nothing to delete.")
+          }
+        })
+      )
 
       if (usersToDelete.length > 0) {
         console.log(
