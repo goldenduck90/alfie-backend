@@ -13,8 +13,7 @@
     "lint:fix": "npm run lint -- --fix",
     "tsc": "tsc --noEmit --project ./tsconfig.json",
     "prepare": "husky install && npx husky add .husky/pre-commit \"node_modules/.bin/lint-staged\"",
-    "sendbird:reset": "ts-node ./scripts/recreateSendBirdObjects.ts --delete",
-    "sendbird:sync": "ts-node ./scripts/recreateSendBirdObjects.ts"
+    "sendbird:sync": "ts-node ./scripts/synchronizeSendbird.ts"
   },
   "author": "",
   "license": "ISC",

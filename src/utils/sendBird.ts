@@ -398,8 +398,6 @@ export const findAndTriggerEntireSendBirdFlowForAllUsersAndProvider =
       const users = await UserModel.find().populate<{ provider: Provider }>(
         "provider"
       )
-      console.log("All users:")
-      console.log(users.map((u) => `  * ${u._id} - ${u.name}`).join("\n"))
 
       const providers = await ProviderModel.find()
       const channels = await listSendBirdChannels(true)
@@ -422,6 +420,11 @@ export const findAndTriggerEntireSendBirdFlowForAllUsersAndProvider =
         (channel) =>
           channel.members &&
           channel.members.every((user) => !usersMap[user.user_id])
+      )
+
+      // delete channels with only one member (there should be at least two).
+      const channelsToDeleteOneMember: Channel[] = channels.filter(
+        (channel) => (channel.members?.length ?? 0) < 2
       )
 
       // for each existing sendbird user, delete all but the first of their valid channels
@@ -463,6 +466,10 @@ export const findAndTriggerEntireSendBirdFlowForAllUsersAndProvider =
         [
           channelsToDeleteNoDatabase,
           "sendbird channels whose members are all invalid (not in the database)",
+        ],
+        [
+          channelsToDeleteOneMember,
+          "sendbird channels with less than two members",
         ],
         [
           channelsToDeleteDuplicates,

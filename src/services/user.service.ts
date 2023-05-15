@@ -82,7 +82,7 @@ class UserService extends EmailService {
       region: process.env.AWS_REGION,
     })
     this.stripeSdk = new stripe(process.env.STRIPE_SECRET_KEY, {
-      apiVersion: "2022-08-01",
+      apiVersion: "2022-11-15",
     })
   }
 
