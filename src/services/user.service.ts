@@ -3,6 +3,7 @@ import { ApolloError } from "apollo-server-errors"
 import * as AWS from "aws-sdk"
 import bcrypt from "bcrypt"
 import config from "config"
+import { LeanDocument } from "mongoose"
 import {
   addDays,
   addMinutes,
@@ -28,7 +29,7 @@ import {
   CreateCheckoutInput,
   CreateStripeCustomerInput,
 } from "../schema/checkout.schema"
-import { ProviderModel } from "../schema/provider.schema"
+import { Provider, ProviderModel } from "../schema/provider.schema"
 import { AllTaskEmail, TaskEmail, TaskType } from "../schema/task.schema"
 import { UserTaskModel } from "../schema/task.user.schema"
 import {
@@ -41,6 +42,7 @@ import {
   SubscribeEmailInput,
   UpdateSubscriptionInput,
   UpdateUserInput,
+  User,
   Weight,
 } from "../schema/user.schema"
 import { signJwt } from "../utils/jwt"
@@ -82,7 +84,7 @@ class UserService extends EmailService {
       region: process.env.AWS_REGION,
     })
     this.stripeSdk = new stripe(process.env.STRIPE_SECRET_KEY, {
-      apiVersion: "2022-08-01",
+      apiVersion: "2022-11-15",
     })
   }
 
@@ -621,41 +623,26 @@ class UserService extends EmailService {
     const forgotPasswordMessage = config.get("messages.forgotPassword")
 
     // Get our user by email
-    const user = await UserModel.find().findByEmail(email).lean()
+    const dbUser = await UserModel.find().findByEmail(email).lean()
+    const dbProvider = !dbUser
+      ? await ProviderModel.find().findByEmail(email).lean()
+      : null
+    const isProvider = dbProvider !== null
 
+    const user = dbUser || dbProvider
     if (!user) {
-      const provider = await ProviderModel.find().findByEmail(email).lean()
-      console.log(provider, email)
-      if (!provider) {
-        throw new ApolloError(emailNotFound.message, emailNotFound.code)
-      }
-
-      // set resetPasswordToken & resetPasswordTokenExpiresAt
-      provider.emailToken = uuidv4()
-      provider.emailTokenExpiresAt = addMinutes(new Date(), expirationInMinutes)
-
-      await ProviderModel.findByIdAndUpdate(provider._id, provider)
-
-      const sent = await this.sendForgotPasswordEmail({
-        email,
-        token: provider.emailToken,
-        provider: true,
-      })
-
-      if (!sent) {
-        throw new ApolloError(emailSendError.message, emailSendError.code)
-      }
-
-      return { message: forgotPasswordMessage }
+      throw new ApolloError(emailNotFound.message, emailNotFound.code)
     }
 
-    // set resetPasswordToken & resetPasswordTokenExpiresAt
     user.emailToken = uuidv4()
     user.emailTokenExpiresAt = addMinutes(new Date(), expirationInMinutes)
 
-    await UserModel.findByIdAndUpdate(user._id, user)
+    if (!isProvider) {
+      await UserModel.findByIdAndUpdate(user._id, user)
+    } else {
+      await ProviderModel.findByIdAndUpdate(user._id, user)
+    }
 
-    // send email with reset link
     const sent = await this.sendForgotPasswordEmail({
       email,
       token: user.emailToken,
@@ -672,7 +659,7 @@ class UserService extends EmailService {
   }
 
   async resetPassword(input: ResetPasswordInput) {
-    const { token, password, registration, provider } = input
+    const { token, password, registration } = input
     const { invalidToken, tokenExpired } = config.get(
       "errors.resetPassword"
     ) as any
@@ -681,87 +668,54 @@ class UserService extends EmailService {
       "messages.completedRegistration"
     )
 
-    if (provider) {
-      const dbProvider = await ProviderModel.find()
-        .findByEmailToken(token)
-        .lean()
-      if (!dbProvider) {
-        throw new ApolloError(invalidToken.message, invalidToken.code)
-      }
+    const dbUser = await UserModel.find().findByEmailToken(token).lean()
+    const dbProvider = dbUser
+      ? null
+      : await ProviderModel.find().findByEmailToken(token).lean()
+    const isProvider = dbProvider !== null
+    const user = dbUser || dbProvider
 
-      if (!registration && dbProvider.emailTokenExpiresAt < new Date()) {
-        throw new ApolloError(tokenExpired.message, tokenExpired.code)
-      }
+    if (!user) {
+      throw new ApolloError(invalidToken.message, invalidToken.code)
+    }
 
-      dbProvider.emailToken = null
-      dbProvider.emailTokenExpiresAt = null
-      dbProvider.password = await this.hashPassword(password)
+    if (!registration && user.emailTokenExpiresAt < new Date()) {
+      throw new ApolloError(tokenExpired.message, tokenExpired.code)
+    }
 
-      await ProviderModel.findByIdAndUpdate(dbProvider._id, dbProvider)
+    user.emailToken = null
+    user.emailTokenExpiresAt = null
+    user.password = await this.hashPassword(password)
 
-      // sign jwt
-      const jwt = signJwt(
-        {
-          _id: dbProvider._id,
-          name: dbProvider.firstName + " " + dbProvider.lastName,
-          email: dbProvider.email,
-          role: dbProvider.type,
-        },
-        {
-          expiresIn: config.get("jwtExpiration.normalExp"),
-        }
-      )
-
-      return {
-        message: registration
-          ? completedRegistrationMessage
-          : resetPasswordMessage,
-        token: jwt,
-        user: {
-          _id: dbProvider._id,
-          name: dbProvider.firstName + " " + dbProvider.lastName,
-          email: dbProvider.email,
-          role: dbProvider.type,
-        },
-      }
+    if (isProvider) {
+      await ProviderModel.findByIdAndUpdate(user._id, user)
     } else {
-      const user = await UserModel.find().findByEmailToken(token).lean()
-      if (!user) {
-        throw new ApolloError(invalidToken.message, invalidToken.code)
-      }
-
-      if (!registration && user.emailTokenExpiresAt < new Date()) {
-        throw new ApolloError(tokenExpired.message, tokenExpired.code)
-      }
-
-      // set emailToken & emailTokenExpiresAt to null
-      user.emailToken = null
-      user.emailTokenExpiresAt = null
-      user.password = await this.hashPassword(password)
-
-      // update the user
       await UserModel.findByIdAndUpdate(user._id, user)
+    }
 
-      // sign jwt
-      const jwt = signJwt(
-        {
-          _id: user._id,
-          name: user.name,
-          email: user.email,
-          role: user.role,
-        },
-        {
-          expiresIn: config.get("jwtExpiration.normalExp"),
-        }
-      )
+    const name = isProvider
+      ? dbProvider.firstName + " " + dbProvider.lastName
+      : dbUser.name
+    const role = isProvider ? dbProvider.type : dbUser.role
 
-      return {
-        message: registration
-          ? completedRegistrationMessage
-          : resetPasswordMessage,
-        token: jwt,
-        user,
-      }
+    const userSummary = {
+      _id: user._id,
+      name,
+      email: user.email,
+      role,
+    }
+
+    // sign jwt
+    const jwt = signJwt(userSummary, {
+      expiresIn: config.get("jwtExpiration.normalExp"),
+    })
+
+    return {
+      message: registration
+        ? completedRegistrationMessage
+        : resetPasswordMessage,
+      token: jwt,
+      user: userSummary,
     }
   }
 

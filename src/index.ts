@@ -67,6 +67,7 @@ async function bootstrap() {
       secret: process.env.JWT_SECRET,
       credentialsRequired: false,
       algorithms: ["HS256"],
+      ignoreExpiration: true,
     })
   )
 
