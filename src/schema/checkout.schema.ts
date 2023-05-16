@@ -138,6 +138,18 @@ export class Checkout {
   @Field(() => String)
   @prop({ required: true })
   phone: string
+
+  @Field(() => [String])
+  @prop({ required: true })
+  weightLossMotivatorV2: string[]
+
+  @Field(() => [String])
+  @prop({ required: true })
+  pastTries: string[]
+
+  @Field(() => String)
+  @prop({ required: true })
+  healthInsurance: string
 }
 
 export const CheckoutModel = getModelForClass<typeof Checkout, QueryHelpers>(
@@ -157,6 +169,7 @@ export class CreateCheckoutInput {
   email: string
 
   @Field(() => String)
+  @prop({ required: true })
   weightLossMotivator: string
 
   @Field(() => Date)
@@ -180,6 +193,18 @@ export class CreateCheckoutInput {
   @IsPhoneNumber("US", { message: phoneValidation.message })
   @Field(() => String)
   phone: string
+
+  @Field(() => [String])
+  @prop({ required: true })
+  weightLossMotivatorV2: string[]
+
+  @Field(() => [String])
+  @prop({ required: true })
+  pastTries: string[]
+
+  @Field(() => String)
+  @prop({ required: true })
+  healthInsurance: string
 }
 
 @InputType()
