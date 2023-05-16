@@ -169,7 +169,6 @@ export class CreateCheckoutInput {
   email: string
 
   @Field(() => String)
-  @prop({ required: true })
   weightLossMotivator: string
 
   @Field(() => Date)
