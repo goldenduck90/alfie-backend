@@ -364,6 +364,28 @@ class AppointmentService extends EmailService {
     }
   }
 
+  /** Marks a patient or provider as having attended the appointment. */
+  async updateAppointmentAttended(
+    authUser: Context["user"],
+    eaAppointmentId: string
+  ) {
+    const isPatient = authUser.role === Role.Patient
+    if (isPatient) {
+      try {
+        const { data } = await this.axios.put(
+          `/appointments/${eaAppointmentId}/attended`,
+          isPatient ? { patient_attended: true } : { provider_attended: true }
+        )
+        return {
+          message: data.message,
+        }
+      } catch (error) {
+        Sentry.captureException(error)
+        throw new ApolloError(error.message, "ERROR")
+      }
+    }
+  }
+
   async updateAppointment(input: UpdateAppointmentInput) {
     try {
       const { eaAppointmentId, start, end, notes, timezone, bypassNotice } =
@@ -675,7 +697,7 @@ class AppointmentService extends EmailService {
           timezone: input.timezone,
           month: input.month,
         },
-      })      
+      })
       const apps = data
         .filter((response: any) => response.customer && response.service)
         .map((response: any) => ({
@@ -708,7 +730,7 @@ class AppointmentService extends EmailService {
         }))
 
       return apps
-    } catch (error) {      
+    } catch (error) {
       Sentry.captureException(error)
       throw new ApolloError(error.message, "ERROR")
     }
