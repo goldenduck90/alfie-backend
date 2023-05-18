@@ -147,9 +147,9 @@ export class Checkout {
   @prop({ required: true })
   pastTries: string[]
 
-  @Field(() => String)
-  @prop({ required: true })
-  healthInsurance: string
+  // @Field(() => String)
+  // @prop({ required: true })
+  // healthInsurance: string
 }
 
 export const CheckoutModel = getModelForClass<typeof Checkout, QueryHelpers>(
@@ -201,9 +201,9 @@ export class CreateCheckoutInput {
   @prop({ required: true })
   pastTries: string[]
 
-  @Field(() => String)
-  @prop({ required: true })
-  healthInsurance: string
+  // @Field(() => String)
+  // @prop({ required: true })
+  // healthInsurance: string
 }
 
 @InputType()
