@@ -694,9 +694,6 @@ export class ResetPasswordInput {
 
   @Field(() => Boolean)
   registration: boolean
-
-  @Field(() => Boolean, { defaultValue: false })
-  provider: boolean
 }
 
 @ObjectType()
