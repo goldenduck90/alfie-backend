@@ -168,9 +168,6 @@ export class CreateCheckoutInput {
   @Field(() => String)
   email: string
 
-  @Field(() => String)
-  weightLossMotivator: string
-
   @Field(() => Date)
   dateOfBirth: Date
 

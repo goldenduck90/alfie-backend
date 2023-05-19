@@ -1221,7 +1221,7 @@ class UserService extends EmailService {
     const {
       name,
       email,
-      weightLossMotivator,
+      weightLossMotivatorV2,
       dateOfBirth,
       gender,
       state,
@@ -1229,6 +1229,7 @@ class UserService extends EmailService {
       weightInLbs,
       textOptIn,
       phone,
+      pastTries,
     } = input
 
     const checkout = await CheckoutModel.find().findByEmail(email).lean()
@@ -1240,7 +1241,7 @@ class UserService extends EmailService {
 
       // update values
       checkout.name = name
-      checkout.weightLossMotivator = weightLossMotivator
+      checkout.weightLossMotivatorV2 = weightLossMotivatorV2
       checkout.dateOfBirth = dateOfBirth
       checkout.gender = gender
       checkout.state = state
@@ -1248,6 +1249,7 @@ class UserService extends EmailService {
       checkout.weightInLbs = weightInLbs
       checkout.textOptIn = textOptIn
       checkout.phone = phone
+      checkout.pastTries = pastTries
 
       // update in db
       await CheckoutModel.findByIdAndUpdate(checkout._id, checkout)
@@ -1282,7 +1284,7 @@ class UserService extends EmailService {
     const newCheckout = await CheckoutModel.create({
       name,
       email,
-      weightLossMotivator,
+      weightLossMotivatorV2,
       dateOfBirth,
       gender,
       state,
@@ -1290,6 +1292,7 @@ class UserService extends EmailService {
       weightInLbs,
       textOptIn,
       phone,
+      pastTries,
     })
 
     // return new checkout
