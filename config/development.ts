@@ -6,6 +6,7 @@ export default {
   baseUrl: "https://www.staging.joinalfie.com",
   calApiUrl: "https://api.staging.cal.joinalfie.com",
   easyAppointmentsApiUrl:
+    process.env.EASY_APPOINTMENTS_API_URL ||
     "http://develop-ea.us-east-1.elasticbeanstalk.com/index.php/api/v1",
   sendBirdApiUrl:
     "https://api-D804CA81-FB1D-4078-8A98-B31AE451EAF9.sendbird.com",
