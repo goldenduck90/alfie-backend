@@ -95,10 +95,6 @@ export class Checkout {
   @prop({ required: true })
   email: string
 
-  @Field(() => String)
-  @prop({ required: true })
-  weightLossMotivator: string
-
   @Field(() => Date)
   @prop({ required: true })
   dateOfBirth: Date
