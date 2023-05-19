@@ -533,6 +533,7 @@ async function bootstrap() {
                 name: sCCheckout.name,
                 textOptIn: sCCheckout.textOptIn,
                 email: sCCheckout.email,
+                phone: sCCheckout.phone,
                 dateOfBirth: sCCheckout.dateOfBirth,
                 address: sCCheckout.shippingAddress,
                 weightInLbs: sCCheckout.weightInLbs,
