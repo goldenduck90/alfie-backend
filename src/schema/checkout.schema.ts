@@ -36,25 +36,25 @@ function findByStripeSubscriptionId(
   return this.findOne({ stripeSubscriptionId })
 }
 
-function findByStripePaymentIntentId(
+function findByStripeSetupIntentId(
   this: ReturnModelType<typeof Checkout, QueryHelpers>,
-  stripePaymentIntentId: Checkout["stripePaymentIntentId"]
+  stripeSetupIntentId: Checkout["stripeSetupIntentId"]
 ) {
-  return this.findOne({ stripePaymentIntentId })
+  return this.findOne({ stripeSetupIntentId })
 }
 
 interface QueryHelpers {
   findByEmail: AsQueryMethod<typeof findByEmail>
   findByStripeCustomerId: AsQueryMethod<typeof findByStripeCustomerId>
   findByStripeSubscriptionId: AsQueryMethod<typeof findByStripeSubscriptionId>
-  findByStripePaymentIntentId: AsQueryMethod<typeof findByStripePaymentIntentId>
+  findByStripeSetupIntentId: AsQueryMethod<typeof findByStripeSetupIntentId>
 }
 
 @index({ email: 1 })
 @queryMethod(findByEmail)
 @queryMethod(findByStripeCustomerId)
 @queryMethod(findByStripeSubscriptionId)
-@queryMethod(findByStripePaymentIntentId)
+@queryMethod(findByStripeSetupIntentId)
 @ObjectType()
 export class Checkout {
   @Field(() => String)
@@ -70,7 +70,7 @@ export class Checkout {
 
   @Field(() => String)
   @prop({ required: false })
-  stripePaymentIntentId?: string
+  stripeSetupIntentId?: string
 
   @Field(() => String)
   @prop({ required: false })
