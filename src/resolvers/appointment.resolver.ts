@@ -129,7 +129,7 @@ export default class AppointmentResolver {
   ) {
     return this.appointmentService.updateAppointmentAttended(
       context.user,
-      eaAppointmentId
+      Number(eaAppointmentId)
     )
   }
 

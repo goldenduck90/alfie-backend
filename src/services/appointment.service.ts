@@ -58,6 +58,10 @@ function eaResponseToEAAppointment(response: any): IEAAppointment {
       email: response.customer.email,
       phone: response.customer.phone,
     },
+    patientAttended: response.patientAttended,
+    providerAttended: response.providerAttended,
+    claimSubmitted: response.claimSubmitted,
+    attendanceEmailSent: response.attendanceEmailSent,
   }
 }
 
@@ -378,8 +382,9 @@ class AppointmentService extends EmailService {
    * and an insurance claim having been submitted.
    */
   async updateAppointmentAttended(
+    /** Optional: the logged in user to calculate patient_attended and provider_attended. */
     authUser: Context["user"] | null,
-    eaAppointmentId: string,
+    eaAppointmentId: number,
     /** Additional flags to set (overrides authUser-derived flags). */
     flags: (
       | "patient_attended"
@@ -776,16 +781,65 @@ class AppointmentService extends EmailService {
     }
   }
 
+  /**
+   * Handles actions that need to occur after an appointment has ended:
+   * patient/provider skipped emails, and claim submissions. The actions
+   * are marked as completed on the EA appointment to prevent duplication.
+   */
+  async handleAppointmentEnded(appointment: IEAAppointment) {
+    // patient no show.
+    if (!appointment.attendanceEmailSent && !appointment.patientAttended) {
+      await this.sendAppointmentPatientSkippedEmail({
+        eaAppointmentId: `${appointment.eaAppointmentId}`,
+        name: appointment.eaCustomer?.firstName ?? "",
+        email: appointment.eaCustomer?.email ?? null,
+        providerName: appointment.eaProvider?.name ?? null,
+        date: dayjs
+          .tz(appointment.start, appointment.timezone)
+          .format("MM/DD/YYYY"),
+        time: dayjs
+          .tz(appointment.start, appointment.timezone)
+          .format("h:mm A (z)"),
+      })
+      await this.updateAppointmentAttended(null, appointment.eaAppointmentId, [
+        "attendance_email_sent",
+      ])
+    }
+
+    // provider no show.
+    if (!appointment.attendanceEmailSent && !appointment.providerAttended) {
+      await this.sendAppointmentProviderSkippedEmail({
+        eaAppointmentId: `${appointment.eaAppointmentId}`,
+        name: appointment.eaProvider?.firstName ?? "",
+        email: appointment.eaCustomer?.email ?? null,
+        patientName: appointment.eaProvider?.name ?? null,
+        date: dayjs
+          .tz(appointment.start, appointment.timezone)
+          .format("MM/DD/YYYY"),
+        time: dayjs
+          .tz(appointment.start, appointment.timezone)
+          .format("h:mm A (z)"),
+      })
+      await this.updateAppointmentAttended(null, appointment.eaAppointmentId, [
+        "attendance_email_sent",
+      ])
+    }
+
+    // appointment ended
+    if (
+      !appointment.claimSubmitted &&
+      appointment.patientAttended &&
+      appointment.providerAttended
+    ) {
+      // TODO: submit insurance claim for attended appointment, then uncomment following line:
+      // await this.updateAppointmentAttended(null, appointment.eaAppointmentId, ["claim_submitted"])
+    }
+  }
+
   async attendedJob(): Promise<void> {
-    const timezone = "America/New_York"
-
     // get now to the nearest 30 minutes for reliable appointment object differentiation.
-    const exactNow = dayjs.tz(new Date(), timezone)
-    const now = exactNow
-      .add(exactNow.minute() > 30 ? 1 : 0, "hours") // 01:45 ->
-      .set("minutes", exactNow.minute() <= 30 ? 30 : 0)
-    const beforeNow = now.subtract(30, "minutes")
-
+    const timezone = "America/New_York"
+    const now = dayjs.tz(new Date(), timezone)
     const today = now.format("MM/DD/YYYY")
 
     const appointments = await this.getAppointmentsByDate(null, {
@@ -793,89 +847,12 @@ class AppointmentService extends EmailService {
       timezone,
     })
 
-    const pastAppointments = appointments.filter((appointment) => {
-      const endDate = dayjs.tz(appointment.end, appointment.timezone)
-      return (
-        endDate.isBefore(now) &&
-        (endDate.isAfter(beforeNow) || endDate.isSame(beforeNow))
-      )
-    })
-
-    const noShowPatientAppointments = pastAppointments.filter(
-      (appointment) =>
-        !appointment.attendanceEmailSent && !appointment.patientAttended
-    )
-    const noShowProviderAppointments = pastAppointments.filter(
-      (appointment) =>
-        !appointment.attendanceEmailSent && !appointment.providerAttended
-    )
-
-    const attendedAppointments = pastAppointments.filter(
-      (appointment) =>
-        !appointment.claimSubmitted &&
-        appointment.patientAttended &&
-        appointment.providerAttended
-    )
-
-    // submit insurance claims to candid
+    // TODO: use batchAsync from sendbird PR to scale.
     await Promise.all(
-      attendedAppointments.map(async (appointment) => {
-        // TODO: submit insurance claim for attended appointment
+      appointments.map(async (appointment) => {
+        await this.handleAppointmentEnded(appointment)
       })
     )
-
-    // send no-attendance emails
-    await Promise.all([
-      ...noShowPatientAppointments.map(
-        async (appointment) =>
-          await this.sendAppointmentPatientSkippedEmail({
-            eaAppointmentId: `${appointment.eaAppointmentId}`,
-            name: appointment.eaCustomer?.firstName ?? "",
-            email: appointment.eaCustomer?.email ?? null,
-            providerName: appointment.eaProvider?.name ?? null,
-            date: dayjs
-              .tz(appointment.start, appointment.timezone)
-              .format("MM/DD/YYYY"),
-            time: dayjs
-              .tz(appointment.start, appointment.timezone)
-              .format("h:mm A (z)"),
-          })
-      ),
-      ...noShowProviderAppointments.map(
-        async (appointment) =>
-          await this.sendAppointmentProviderSkippedEmail({
-            eaAppointmentId: `${appointment.eaAppointmentId}`,
-            name: appointment.eaProvider?.firstName ?? "",
-            email: appointment.eaCustomer?.email ?? null,
-            patientName: appointment.eaProvider?.name ?? null,
-            date: dayjs
-              .tz(appointment.start, appointment.timezone)
-              .format("MM/DD/YYYY"),
-            time: dayjs
-              .tz(appointment.start, appointment.timezone)
-              .format("h:mm A (z)"),
-          })
-      ),
-    ])
-  }
-
-  /** Mark the EA appointment to indicate that the non-attendance email was sent. */
-  async updateAppointmentAttendanceEmailSent(
-    appointment: IEAAppointment,
-    sent = true
-  ) {
-    try {
-      const { data } = await this.axios.put(
-        `/appointments/${appointment.eaAppointmentId}/attended`,
-        { email_sent: sent }
-      )
-      return {
-        message: data.message,
-      }
-    } catch (error) {
-      Sentry.captureException(error)
-      throw new ApolloError(error.message, "ERROR")
-    }
   }
 
   async updateProviderSchedule(
