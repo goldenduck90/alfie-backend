@@ -389,40 +389,7 @@ async function bootstrap() {
         // subscription created
         case "customer.subscription.created":
           const sCId = dataObject.id
-          const sCCEmail = dataObject.customer_email
           const sCCId = dataObject.customer
-
-          if (!sCCEmail) {
-            console.log(
-              `[STRIPE WEBHOOK][TIME: ${time}][EVENT: customer.subscription.created] No stripe customer email present on subscription id: ${sCId}`
-            )
-            console.log(
-              JSON.stringify({
-                stripeSubscriptionId: sCId,
-                stripeCustomerId: sCCId,
-                stripeCustomerEmail: sCCEmail,
-              })
-            )
-            Sentry.captureException(
-              `[STRIPE WEBHOOK][TIME: ${time}][EVENT: customer.subscription.created] No stripe customer email present on subscription id: ${sCId}`,
-              {
-                tags: {
-                  stripeSubscriptionId: sCId,
-                  stripeCustomerId: sCCId,
-                  stripeCustomerEmail: sCCEmail,
-                },
-              }
-            )
-            return res.status(400).send({
-              code: 400,
-              message: `[STRIPE WEBHOOK][TIME: ${time}][EVENT: customer.subscription.created] No stripe customer email present on subscription id: ${sCId}`,
-              data: {
-                stripeSubscriptionId: sCId,
-                stripeCustomerId: sCCId,
-                stripeCustomerEmail: sCCEmail,
-              },
-            })
-          }
 
           if (!sCCId) {
             console.log(
@@ -432,7 +399,6 @@ async function bootstrap() {
               JSON.stringify({
                 stripeSubscriptionId: sCId,
                 stripeCustomerId: sCCId,
-                stripeCustomerEmail: sCCEmail,
               })
             )
             Sentry.captureException(
@@ -441,7 +407,6 @@ async function bootstrap() {
                 tags: {
                   stripeSubscriptionId: sCId,
                   stripeCustomerId: sCCId,
-                  stripeCustomerEmail: sCCEmail,
                 },
               }
             )
@@ -451,7 +416,6 @@ async function bootstrap() {
               data: {
                 stripeSubscriptionId: sCId,
                 stripeCustomerId: sCCId,
-                stripeCustomerEmail: sCCEmail,
               },
             })
           }
@@ -459,7 +423,6 @@ async function bootstrap() {
           try {
             const sCExistingUser = await UserModel.findOne({
               $or: [
-                { email: sCCEmail },
                 { stripeCustomerId: sCCId },
                 { stripeSubscriptionId: sCId },
               ],
@@ -493,7 +456,6 @@ async function bootstrap() {
                 JSON.stringify({
                   stripeSubscriptionId: sCId,
                   stripeCustomerId: sCCId,
-                  stripeCustomerEmail: sCCEmail,
                 })
               )
               Sentry.captureMessage(
@@ -502,7 +464,6 @@ async function bootstrap() {
                   tags: {
                     stripeSubscriptionId: sCId,
                     stripeCustomerId: sCCId,
-                    stripeCustomerEmail: sCCEmail,
                     existingUserId: sCExistingUser._id,
                   },
                 }
@@ -513,7 +474,6 @@ async function bootstrap() {
                 data: {
                   stripeSubscriptionId: sCId,
                   stripeCustomerId: sCCId,
-                  stripeCustomerEmail: sCCEmail,
                   existingUserId: sCExistingUser._id,
                 },
               })
@@ -526,7 +486,6 @@ async function bootstrap() {
                 JSON.stringify({
                   stripeSubscriptionId: sCId,
                   stripeCustomerId: sCCId,
-                  stripeCustomerEmail: sCCEmail,
                 })
               )
             }
@@ -538,7 +497,6 @@ async function bootstrap() {
               JSON.stringify({
                 stripeSubscriptionId: sCId,
                 stripeCustomerId: sCCId,
-                stripeCustomerEmail: sCCEmail,
               })
             )
             console.log(err)
@@ -546,7 +504,6 @@ async function bootstrap() {
               tags: {
                 stripeSubscriptionId: sCId,
                 stripeCustomerId: sCCId,
-                stripeCustomerEmail: sCCEmail,
               },
             })
             return res.status(500).send({
@@ -555,7 +512,6 @@ async function bootstrap() {
               data: {
                 stripeSubscriptionId: sCId,
                 stripeCustomerId: sCCId,
-                stripeCustomerEmail: sCCEmail,
               },
             })
           }
@@ -563,12 +519,12 @@ async function bootstrap() {
           // create new user
           try {
             const sCCheckout = await CheckoutModel.findOne({
-              $or: [{ email: sCCEmail }, { stripeCustomerId: sCCId }],
+              stripeCustomerId: sCCId,
             })
 
             if (!sCCheckout) {
               throw new Error(
-                `Checkout not found for stripe customer email (${sCCEmail} and stripe customer id: ${sCCId}`
+                `Checkout not found for stripe customer id: ${sCCId}`
               )
             }
 
@@ -607,7 +563,6 @@ async function bootstrap() {
                 JSON.stringify({
                   stripeSubscriptionId: sCId,
                   stripeCustomerId: sCCId,
-                  stripeCustomerEmail: sCCEmail,
                   newUserId: newUser.user._id,
                   checkoutId: sCCheckout._id,
                 })
@@ -618,7 +573,6 @@ async function bootstrap() {
                   tags: {
                     stripeSubscriptionId: sCId,
                     stripeCustomerId: sCCId,
-                    stripeCustomerEmail: sCCEmail,
                     newUserId: newUser.user._id,
                     checkoutId: sCCheckout._id,
                   },
@@ -630,7 +584,6 @@ async function bootstrap() {
                 data: {
                   stripeSubscriptionId: sCId,
                   stripeCustomerId: sCCId,
-                  stripeCustomerEmail: sCCEmail,
                   newUserId: newUser.user._id,
                   checkoutId: sCCheckout._id,
                 },
@@ -638,65 +591,59 @@ async function bootstrap() {
             } catch (err) {
               // error occured creating new user
               console.log(
-                `[STRIPE WEBHOOK][TIME: ${time}][EVENT: customer.subscription.created] Error creating user for stripe customer email (${sCCEmail}) and id: ${sCCId}`
+                `[STRIPE WEBHOOK][TIME: ${time}][EVENT: customer.subscription.created] Error creating user for stripe customer id: ${sCCId}`
               )
               console.log(
                 JSON.stringify({
                   stripeSubscriptionId: sCId,
                   stripeCustomerId: sCCId,
-                  stripeCustomerEmail: sCCEmail,
                 })
               )
               console.log(err)
               Sentry.captureException(
-                `[STRIPE WEBHOOK][TIME: ${time}][EVENT: customer.subscription.created] Error creating user for stripe customer email (${sCCEmail}) and id: ${sCCId} ${err}`,
+                `[STRIPE WEBHOOK][TIME: ${time}][EVENT: customer.subscription.created] Error creating user for stripe customer id: ${sCCId} ${err}`,
                 {
                   tags: {
                     stripeSubscriptionId: sCId,
                     stripeCustomerId: sCCId,
-                    stripeCustomerEmail: sCCEmail,
                   },
                 }
               )
               return res.status(500).send({
                 code: 500,
-                message: `Error creating user for stripe customer email (${sCCEmail}) and id: ${sCCId}`,
+                message: `Error creating user for stripe customer id: ${sCCId}`,
                 data: {
                   stripeSubscriptionId: sCId,
                   stripeCustomerId: sCCId,
-                  stripeCustomerEmail: sCCEmail,
                 },
               })
             }
           } catch (err) {
             console.log(
-              `[STRIPE WEBHOOK][TIME: ${time}][EVENT: customer.subscription.created] Checkout not found for stripe customer email (${sCCEmail}) or id: ${sCCId}`
+              `[STRIPE WEBHOOK][TIME: ${time}][EVENT: customer.subscription.created] Checkout not found for stripe customer id: ${sCCId}`
             )
             console.log(
               JSON.stringify({
                 stripeSubscriptionId: sCId,
                 stripeCustomerId: sCCId,
-                stripeCustomerEmail: sCCEmail,
               })
             )
             console.log(err)
             Sentry.captureException(
-              `[STRIPE WEBHOOK][TIME: ${time}][EVENT: customer.subscription.created] Checkout not found for stripe customer email (${sCCEmail}) or id: ${sCCId}`,
+              `[STRIPE WEBHOOK][TIME: ${time}][EVENT: customer.subscription.created] Checkout not found for stripe customer id: ${sCCId}`,
               {
                 tags: {
                   stripeSubscriptionId: sCId,
                   stripeCustomerId: sCCId,
-                  stripeCustomerEmail: sCCEmail,
                 },
               }
             )
             return res.status(404).send({
               code: 404,
-              message: `Checkout not found for stripe customer email (${sCCEmail}) or id: ${sCCId}`,
+              message: `Checkout not found for stripe customer id: ${sCCId}`,
               data: {
                 stripeSubscriptionId: sCId,
                 stripeCustomerId: sCCId,
-                stripeCustomerEmail: sCCEmail,
               },
             })
           }
