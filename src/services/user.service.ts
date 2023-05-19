@@ -1181,7 +1181,6 @@ class UserService extends EmailService {
     const setupIntentDetails: stripe.SetupIntentCreateParams = {
       description: "Alfie Setup Intent",
       usage: "off_session",
-      confirm: true,
       metadata: {
         checkoutId: String(checkout._id),
         email: checkout.email,
