@@ -259,51 +259,6 @@ async function bootstrap() {
               stripeCustomerId = stripeCustomer.id
 
               await sECheckout.save()
-
-              // update setup intent to set new stripe customer on it
-              try {
-                await Stripe.setupIntents.update(dataObject.id, {
-                  customer: stripeCustomer.id,
-                  metadata: {
-                    UPDATED_VIA_STRIPE_WEBHOOK_ON: new Date().toString(),
-                  },
-                })
-              } catch (err) {
-                console.log(
-                  `[STRIPE WEBHOOK][TIME: ${time}][EVENT: setup_intent.succeeded] An error occured setting stripeCustomerId (${stripeCustomer.id}) on setup intent: ${sEId}`
-                )
-                console.log(
-                  JSON.stringify({
-                    setupIntentId: dataObject.id,
-                    stripeCustomerId,
-                    ignoreCheckout,
-                    ...(!ignoreCheckout &&
-                      sECheckout && { checkoutId: sECheckout._id }),
-                  })
-                )
-                console.log(err)
-                Sentry.captureException(err, {
-                  tags: {
-                    setupIntentId: dataObject.id,
-                    stripeCustomerId,
-                    ignoreCheckout,
-                    ...(!ignoreCheckout &&
-                      sECheckout && { checkoutId: sECheckout._id }),
-                  },
-                })
-                return res.status(500).send({
-                  code: 500,
-                  message: `An error occured setting stripeCustomerId (${stripeCustomer.id}) on setup intent: ${sEId}`,
-                  data: {
-                    setupIntentId: dataObject.id,
-                    stripeCustomerId,
-                    ignoreCheckout,
-                    ...(!ignoreCheckout &&
-                      sECheckout && { checkoutId: sECheckout._id }),
-                  },
-                  error: JSON.stringify(err),
-                })
-              }
             } catch (err) {
               console.log(
                 `[STRIPE WEBHOOK][TIME: ${time}][EVENT: setup_intent.succeeded] An error occured creating stripe customer for setup intent: ${sEId}`
