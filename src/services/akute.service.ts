@@ -6,10 +6,16 @@ import config from "config"
 import { format } from "date-fns"
 import FormData from "form-data"
 import {
-  AkuteDocument, CreateLabOrderResponse,
-  DocUploadInput, PharmacyLocationInput,
+  AkuteDocument,
+  CreateLabOrderResponse,
+  DocUploadInput,
+  PharmacyLocationInput,
 } from "../schema/akute.schema"
-import { CreatePatientInput, UserModel } from "../schema/user.schema"
+import {
+  CreatePatientInput,
+  UserModel,
+  InsuranceEligibilityInput,
+} from "../schema/user.schema"
 
 class AkuteService {
   public baseUrl: string
@@ -25,7 +31,7 @@ class AkuteService {
       },
     })
 
-    console.log(process.env.AKUTE_API_KEY)
+    console.log(`AKUTE API: ${process.env.AKUTE_API_KEY}`)
   }
 
   async createPatient(input: CreatePatientInput) {
@@ -369,6 +375,27 @@ class AkuteService {
       })
 
       throw new ApolloError(error.message, "ERROR")
+    }
+  }
+
+  async createInsurance(input: InsuranceEligibilityInput) {
+    try {
+      const { data } = await this.axios.post("/insurance", {
+        member_id: input.memberId,
+        patient_id: input.userId,
+        group_id: input.groupId,
+        group_name: input.groupName,
+        rx_bin: input.rxBin,
+        rx_group: input.rxGroup,
+        payor: input.payor,
+        status: "active",
+        order: 1,
+      })
+      console.log(data)
+      // NOTE: process data
+      return { eligible: true }
+    } catch (e) {
+      return { eligible: false }
     }
   }
 }

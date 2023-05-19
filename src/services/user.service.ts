@@ -43,6 +43,7 @@ import {
   UpdateUserInput,
   User,
   Weight,
+  InsuranceEligibilityInput,
 } from "../schema/user.schema"
 import { signJwt } from "../utils/jwt"
 import {
@@ -1659,6 +1660,12 @@ class UserService extends EmailService {
       console.log("error", error)
       Sentry.captureException(error)
     }
+  }
+
+  async checkInsuranceEligibility(input: InsuranceEligibilityInput) {
+    const eligibility = this.akuteService.createInsurance(input)
+    // TODO: send eligibility email to patients@joinalfie.com
+    return eligibility
   }
 }
 

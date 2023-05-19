@@ -918,3 +918,33 @@ export class UserSendbirdChannel {
   // @Field(() => Object, { nullable: true })
   // last_queried_message?: Object
 }
+
+@InputType()
+export class InsuranceEligibilityInput {
+  @Field(() => String)
+  userId: string
+
+  @Field(() => String)
+  memberId: string
+
+  @Field(() => String)
+  payor: string
+
+  @Field(() => String)
+  groupId: string
+
+  @Field(() => String)
+  groupName: string
+
+  @Field(() => String)
+  rxBin: string
+
+  @Field(() => String)
+  rxGroup: string
+}
+
+@ObjectType()
+export class InsuranceEligibilityResponse {
+  @Field(() => Boolean)
+  eligible: boolean
+}
