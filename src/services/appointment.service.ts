@@ -4,7 +4,7 @@ import axios, { AxiosInstance } from "axios"
 import config from "config"
 import { ProviderModel } from "../schema/provider.schema"
 import Context from "../types/context"
-import { IEAProvider } from "../@types/easyAppointmentTypes"
+import { IEAAppointment, IEAProvider } from "../@types/easyAppointmentTypes"
 import {
   CreateAppointmentInput,
   CreateCustomerInput,
@@ -27,6 +27,39 @@ import advanced from "dayjs/plugin/advancedFormat"
 dayjs.extend(utc)
 dayjs.extend(tz)
 dayjs.extend(advanced)
+
+function eaResponseToEAAppointment(response: any): IEAAppointment {
+  return {
+    eaAppointmentId: response.id,
+    start: response.start,
+    end: response.end,
+    location: response.location,
+    timezone: response.timezone,
+    notes: response.notes,
+    eaProvider: {
+      id: response.provider.id,
+      name: response.provider.firstName + " " + response.provider.lastName,
+      email: response.provider.email,
+      firstName: response.provider.firstName,
+      lastName: response.provider.lastName,
+      type: response.provider.type,
+    },
+    eaService: {
+      id: response.service.id,
+      name: response.service.name,
+      durationInMins: response.service.duration,
+      description: response.service.description,
+    },
+    eaCustomer: {
+      id: response.customer.id,
+      name: response.customer.firstName + " " + response.customer.lastName,
+      firstName: response.customer.firstName,
+      lastName: response.customer.lastName,
+      email: response.customer.email,
+      phone: response.customer.phone,
+    },
+  }
+}
 
 interface TimeBlock {
   start: string
@@ -331,32 +364,7 @@ class AppointmentService extends EmailService {
         })
       }
 
-      return {
-        eaAppointmentId: response.id,
-        start: response.start,
-        end: response.end,
-        location: response.location,
-        timezone: response.timezone,
-        notes: response.notes,
-        eaProvider: {
-          id: response.provider.id,
-          name: response.provider.firstName + " " + response.provider.lastName,
-          email: response.provider.email,
-          type: response.provider.type,
-        },
-        eaService: {
-          id: response.service.id,
-          name: response.service.name,
-          durationInMins: response.service.duration,
-          description: response.service.description,
-        },
-        eaCustomer: {
-          id: response.customer.id,
-          name: response.customer.firstName + " " + response.customer.lastName,
-          email: response.customer.email,
-          phone: response.customer.phone,
-        },
-      }
+      return eaResponseToEAAppointment(response)
     } catch (error) {
       console.log(error)
       Sentry.captureException(error)
@@ -364,25 +372,53 @@ class AppointmentService extends EmailService {
     }
   }
 
-  /** Marks a patient or provider as having attended the appointment. */
+  /**
+   * Flags a patient or provider as having attended the appointment.
+   * Also allows flags to be set for a non-attendance email having been sent,
+   * and an insurance claim having been submitted.
+   */
   async updateAppointmentAttended(
-    authUser: Context["user"],
-    eaAppointmentId: string
+    authUser: Context["user"] | null,
+    eaAppointmentId: string,
+    /** Additional flags to set (overrides authUser-derived flags). */
+    flags: (
+      | "patient_attended"
+      | "provider_attended"
+      | "attendance_email_sent"
+      | "claim_submitted"
+    )[] = []
   ) {
-    const isPatient = authUser.role === Role.Patient
-    if (isPatient) {
-      try {
-        const { data } = await this.axios.put(
-          `/appointments/${eaAppointmentId}/attended`,
-          isPatient ? { patient_attended: true } : { provider_attended: true }
-        )
-        return {
-          message: data.message,
-        }
-      } catch (error) {
-        Sentry.captureException(error)
-        throw new ApolloError(error.message, "ERROR")
+    const params: {
+      patient_attended?: boolean
+      provider_attended?: boolean
+      attendance_email_sent?: boolean
+      claim_submitted?: boolean
+    } = {}
+
+    // calculate patient/provider attendance from auth user
+    if (authUser) {
+      const isPatient = authUser.role === Role.Patient
+      if (isPatient) {
+        params.patient_attended = true
+      } else {
+        params.provider_attended = true
       }
+    }
+
+    // add flags to params
+    flags.forEach((flag) => (params[flag] = true))
+
+    try {
+      const { data } = await this.axios.put(
+        `/appointments/${eaAppointmentId}/attended`,
+        params
+      )
+      return {
+        message: data.message,
+      }
+    } catch (error) {
+      Sentry.captureException(error)
+      throw new ApolloError(error.message, "ERROR")
     }
   }
 
@@ -439,32 +475,7 @@ class AppointmentService extends EmailService {
         })
       }
 
-      return {
-        eaAppointmentId: response.id,
-        start: response.start,
-        end: response.end,
-        location: response.location,
-        timezone: response.timezone,
-        notes: response.notes,
-        eaProvider: {
-          id: response.provider.id,
-          name: response.provider.firstName + " " + response.provider.lastName,
-          email: response.provider.email,
-          type: response.provider.type,
-        },
-        eaService: {
-          id: response.service.id,
-          name: response.service.name,
-          durationInMins: response.service.duration,
-          description: response.service.description,
-        },
-        eaCustomer: {
-          id: response.customer.id,
-          name: response.customer.firstName + " " + response.customer.lastName,
-          email: response.customer.email,
-          phone: response.customer.phone,
-        },
-      }
+      return eaResponseToEAAppointment(response)
     } catch (error) {
       console.log(error)
       Sentry.captureException(error)
@@ -535,32 +546,7 @@ class AppointmentService extends EmailService {
       )
       const response = data
 
-      return {
-        eaAppointmentId: response.id,
-        start: response.start,
-        end: response.end,
-        location: response.location,
-        timezone: response.timezone,
-        notes: response.notes,
-        eaProvider: {
-          id: response.provider.id,
-          name: response.provider.firstName + " " + response.provider.lastName,
-          email: response.provider.email,
-          type: response.provider.type,
-        },
-        eaService: {
-          id: response.service.id,
-          name: response.service.name,
-          durationInMins: response.service.duration,
-          description: response.service.description,
-        },
-        eaCustomer: {
-          id: response.customer.id,
-          name: response.customer.firstName + " " + response.customer.lastName,
-          email: response.customer.email,
-          phone: response.customer.phone,
-        },
-      }
+      return eaResponseToEAAppointment(response)
     } catch (error) {
       Sentry.captureException(error)
       throw new ApolloError("Could not find appointment.", "NOT_FOUND")
@@ -570,7 +556,7 @@ class AppointmentService extends EmailService {
   async upcomingAppointments(
     user: Context["user"],
     input: UpcomingAppointmentsInput
-  ) {
+  ): Promise<IEAAppointment[]> {
     try {
       const { notFound, noEaCustomerId } = config.get("errors.user") as any
 
@@ -616,34 +602,7 @@ class AppointmentService extends EmailService {
 
       const apps = data
         .filter((response: any) => response.customer && response.service)
-        .map((response: any) => ({
-          eaAppointmentId: response.id,
-          start: response.start,
-          end: response.end,
-          location: response.location,
-          timezone: response.timezone,
-          notes: response.notes,
-          eaProvider: {
-            id: response.provider.id,
-            name:
-              response.provider.firstName + " " + response.provider.lastName,
-            email: response.provider.email,
-            type: response.provider.type,
-          },
-          eaService: {
-            id: response.service.id,
-            name: response.service.name,
-            durationInMins: response.service.duration,
-            description: response.service.description,
-          },
-          eaCustomer: {
-            id: response.customer.id,
-            name:
-              response.customer.firstName + " " + response.customer.lastName,
-            email: response.customer.email,
-            phone: response.customer.phone,
-          },
-        }))
+        .map((response: any) => eaResponseToEAAppointment(response))
 
       return apps
     } catch (error) {
@@ -655,7 +614,7 @@ class AppointmentService extends EmailService {
   async getAppointmentsByMonth(
     user: Context["user"],
     input: GetAppointmentsByMonthInput
-  ) {
+  ): Promise<IEAAppointment[]> {
     try {
       const { notFound, noEaCustomerId } = config.get("errors.user") as any
 
@@ -700,34 +659,7 @@ class AppointmentService extends EmailService {
       })
       const apps = data
         .filter((response: any) => response.customer && response.service)
-        .map((response: any) => ({
-          eaAppointmentId: response.id,
-          start: response.start,
-          end: response.end,
-          location: response.location,
-          timezone: response.timezone,
-          notes: response.notes,
-          eaProvider: {
-            id: response.provider.id,
-            name:
-              response.provider.firstName + " " + response.provider.lastName,
-            email: response.provider.email,
-            type: response.provider.type,
-          },
-          eaService: {
-            id: response.service.id,
-            name: response.service.name,
-            durationInMins: response.service.duration,
-            description: response.service.description,
-          },
-          eaCustomer: {
-            id: response.customer.id,
-            name:
-              response.customer.firstName + " " + response.customer.lastName,
-            email: response.customer.email,
-            phone: response.customer.phone,
-          },
-        }))
+        .map((response: any) => eaResponseToEAAppointment(response))
 
       return apps
     } catch (error) {
@@ -737,78 +669,65 @@ class AppointmentService extends EmailService {
   }
 
   async getAppointmentsByDate(
-    user: Context["user"],
+    user: Context["user"] | null,
     input: GetAppointmentsByDateInput
-  ) {
+  ): Promise<IEAAppointment[]> {
     try {
       const { notFound, noEaCustomerId } = config.get("errors.user") as any
 
       let eaUserId
 
-      if (user.role === Role.Doctor || user.role === Role.Practitioner) {
-        const provider = await ProviderModel.findById(user._id).lean()
-        if (!provider) {
-          throw new ApolloError(notFound.message, notFound.code)
-        }
+      if (user) {
+        if (user.role === Role.Doctor || user.role === Role.Practitioner) {
+          const provider = await ProviderModel.findById(user._id).lean()
+          if (!provider) {
+            throw new ApolloError(notFound.message, notFound.code)
+          }
 
-        if (!provider.eaProviderId) {
-          throw new ApolloError(noEaCustomerId.message, noEaCustomerId.code)
-        }
+          if (!provider.eaProviderId) {
+            throw new ApolloError(noEaCustomerId.message, noEaCustomerId.code)
+          }
 
-        eaUserId = provider.eaProviderId
-      } else {
-        const _user = await UserModel.findById(user._id).lean()
-        if (!_user) {
-          throw new ApolloError(notFound.message, notFound.code)
-        }
+          eaUserId = provider.eaProviderId
+        } else {
+          const _user = await UserModel.findById(user._id).lean()
+          if (!_user) {
+            throw new ApolloError(notFound.message, notFound.code)
+          }
 
-        if (!_user.eaCustomerId) {
-          throw new ApolloError(noEaCustomerId.message, noEaCustomerId.code)
-        }
+          if (!_user.eaCustomerId) {
+            throw new ApolloError(noEaCustomerId.message, noEaCustomerId.code)
+          }
 
-        eaUserId = _user.eaCustomerId
+          eaUserId = _user.eaCustomerId
+        }
+      }
+
+      const appointmentsByDateParams: {
+        eaCustomerId?: string | number
+        eaProviderId?: string | number
+      } = {}
+      if (
+        user &&
+        user.role !== Role.Practitioner &&
+        user.role !== Role.Doctor
+      ) {
+        appointmentsByDateParams.eaCustomerId = eaUserId
+      } else if (eaUserId) {
+        appointmentsByDateParams.eaProviderId = eaUserId
       }
 
       const { data } = await this.axios.get("/appointments/date", {
         params: {
-          ...(user.role !== Role.Practitioner && user.role !== Role.Doctor
-            ? {
-                eaCustomerId: eaUserId,
-              }
-            : {
-                eaProviderId: eaUserId,
-              }),
+          ...appointmentsByDateParams,
           timezone: input.timezone,
           selectedDate: input.selectedDate,
         },
       })
 
-      const apps = data.map((response: any) => ({
-        eaAppointmentId: response.id,
-        start: response.start,
-        end: response.end,
-        location: response.location,
-        timezone: response.timezone,
-        notes: response.notes,
-        eaProvider: {
-          id: response.provider.id,
-          name: response.provider.firstName + " " + response.provider.lastName,
-          email: response.provider.email,
-          type: response.provider.type,
-        },
-        eaService: {
-          id: response.service.id,
-          name: response.service.name,
-          durationInMins: response.service.duration,
-          description: response.service.description,
-        },
-        eaCustomer: {
-          id: response.customer.id,
-          name: response.customer.firstName + " " + response.customer.lastName,
-          email: response.customer.email,
-          phone: response.customer.phone,
-        },
-      }))
+      const apps = data.map((response: any) =>
+        eaResponseToEAAppointment(response)
+      )
 
       return apps
     } catch (error) {
@@ -817,7 +736,10 @@ class AppointmentService extends EmailService {
     }
   }
 
-  async updateProvider(eaProviderId: string, providerData: IEAProvider) {
+  async updateProvider(
+    eaProviderId: string,
+    providerData: IEAProvider
+  ): Promise<IEAProvider> {
     try {
       const { data } = await this.axios.put(
         `/providers/${eaProviderId}`,
@@ -829,7 +751,7 @@ class AppointmentService extends EmailService {
     }
   }
 
-  async getProvider(eaProviderId: string) {
+  async getProvider(eaProviderId: string): Promise<IEAProvider> {
     try {
       const { data } = await this.axios.get(`/providers/${eaProviderId}`)
       return data
@@ -838,7 +760,10 @@ class AppointmentService extends EmailService {
     }
   }
 
-  async getProviderSchedule(eaProviderId: string, timezone: string) {
+  async getProviderSchedule(
+    eaProviderId: string,
+    timezone: string
+  ): Promise<ScheduleObject> {
     try {
       // timezone example: America/New_York
       const schedule = await this.axios.get(
@@ -848,6 +773,108 @@ class AppointmentService extends EmailService {
     } catch (err) {
       console.log(err)
       Sentry.captureException(err)
+    }
+  }
+
+  async attendedJob(): Promise<void> {
+    const timezone = "America/New_York"
+
+    // get now to the nearest 30 minutes for reliable appointment object differentiation.
+    const exactNow = dayjs.tz(new Date(), timezone)
+    const now = exactNow
+      .add(exactNow.minute() > 30 ? 1 : 0, "hours") // 01:45 ->
+      .set("minutes", exactNow.minute() <= 30 ? 30 : 0)
+    const beforeNow = now.subtract(30, "minutes")
+
+    const today = now.format("MM/DD/YYYY")
+
+    const appointments = await this.getAppointmentsByDate(null, {
+      selectedDate: today,
+      timezone,
+    })
+
+    const pastAppointments = appointments.filter((appointment) => {
+      const endDate = dayjs.tz(appointment.end, appointment.timezone)
+      return (
+        endDate.isBefore(now) &&
+        (endDate.isAfter(beforeNow) || endDate.isSame(beforeNow))
+      )
+    })
+
+    const noShowPatientAppointments = pastAppointments.filter(
+      (appointment) =>
+        !appointment.attendanceEmailSent && !appointment.patientAttended
+    )
+    const noShowProviderAppointments = pastAppointments.filter(
+      (appointment) =>
+        !appointment.attendanceEmailSent && !appointment.providerAttended
+    )
+
+    const attendedAppointments = pastAppointments.filter(
+      (appointment) =>
+        !appointment.claimSubmitted &&
+        appointment.patientAttended &&
+        appointment.providerAttended
+    )
+
+    // submit insurance claims to candid
+    await Promise.all(
+      attendedAppointments.map(async (appointment) => {
+        // TODO: submit insurance claim for attended appointment
+      })
+    )
+
+    // send no-attendance emails
+    await Promise.all([
+      ...noShowPatientAppointments.map(
+        async (appointment) =>
+          await this.sendAppointmentPatientSkippedEmail({
+            eaAppointmentId: `${appointment.eaAppointmentId}`,
+            name: appointment.eaCustomer?.firstName ?? "",
+            email: appointment.eaCustomer?.email ?? null,
+            providerName: appointment.eaProvider?.name ?? null,
+            date: dayjs
+              .tz(appointment.start, appointment.timezone)
+              .format("MM/DD/YYYY"),
+            time: dayjs
+              .tz(appointment.start, appointment.timezone)
+              .format("h:mm A (z)"),
+          })
+      ),
+      ...noShowProviderAppointments.map(
+        async (appointment) =>
+          await this.sendAppointmentProviderSkippedEmail({
+            eaAppointmentId: `${appointment.eaAppointmentId}`,
+            name: appointment.eaProvider?.firstName ?? "",
+            email: appointment.eaCustomer?.email ?? null,
+            patientName: appointment.eaProvider?.name ?? null,
+            date: dayjs
+              .tz(appointment.start, appointment.timezone)
+              .format("MM/DD/YYYY"),
+            time: dayjs
+              .tz(appointment.start, appointment.timezone)
+              .format("h:mm A (z)"),
+          })
+      ),
+    ])
+  }
+
+  /** Mark the EA appointment to indicate that the non-attendance email was sent. */
+  async updateAppointmentAttendanceEmailSent(
+    appointment: IEAAppointment,
+    sent = true
+  ) {
+    try {
+      const { data } = await this.axios.put(
+        `/appointments/${appointment.eaAppointmentId}/attended`,
+        { email_sent: sent }
+      )
+      return {
+        message: data.message,
+      }
+    } catch (error) {
+      Sentry.captureException(error)
+      throw new ApolloError(error.message, "ERROR")
     }
   }
 

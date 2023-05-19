@@ -18,6 +18,7 @@ import Context from "./types/context"
 import { connectToMongo } from "./utils/mongo"
 import * as cron from "node-cron"
 import UserService from "./services/user.service"
+import AppointmentService from "./services/appointment.service"
 
 dotenv.config()
 
@@ -225,6 +226,13 @@ cron.schedule("0 0 * * *", async () => {
   const userService = new UserService()
   await userService.taskJob()
   console.log("[TASK JOB] COMPLETED")
+})
+
+// run appointment attendance job
+cron.schedule("*/30 * * * *", async () => {
+  console.log("[APPOINTMENT ATTENDED JOB] RUNNING...")
+  const appointmentService = new AppointmentService()
+  await appointmentService.attendedJob()
 })
 
 bootstrap()
