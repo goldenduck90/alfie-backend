@@ -342,6 +342,18 @@ export class EAAppointment {
 
   @Field(() => EACustomer)
   eaCustomer: EACustomer
+
+  @Field(() => Boolean)
+  attendanceEmailSent: boolean
+
+  @Field(() => Boolean)
+  claimSubmitted: boolean
+
+  @Field(() => Boolean)
+  patientAttended: boolean
+
+  @Field(() => Boolean)
+  providerAttended: boolean
 }
 
 @ObjectType()
