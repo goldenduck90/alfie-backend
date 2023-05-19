@@ -50,7 +50,6 @@ async function bootstrap() {
 
   // init express
   const app = express()
-  app.use(express.json())
 
   // create the apollo server
   const server = new ApolloServer({
@@ -71,6 +70,7 @@ async function bootstrap() {
   // mount jwt middleware & run before the GraphQL execution
   app.use(
     path,
+    express.json(),
     expressjwt({
       secret: process.env.JWT_SECRET,
       credentialsRequired: false,
@@ -96,7 +96,7 @@ async function bootstrap() {
 
   app.post(
     "/stripeWebhooks",
-    express.json(),
+    express.raw({ type: "application/json" }),
     async (req: Request, res: Response) => {
       const stripeSignature = req.headers["stripe-signature"]
       const stripeSubscriptonPriceId = config.get("defaultPriceId") as string
