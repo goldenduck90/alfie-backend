@@ -96,7 +96,7 @@ async function bootstrap() {
 
   app.post(
     "/stripeWebhooks",
-    express.raw({ type: "application/json" }),
+    express.json(),
     async (req: Request, res: Response) => {
       const stripeSignature = req.headers["stripe-signature"]
       const stripeSubscriptonPriceId = config.get("defaultPriceId") as string
@@ -130,7 +130,7 @@ async function bootstrap() {
           }
 
           const sECheckout = await CheckoutModel.findOne({
-            setupIntentId: dataObject.id,
+            stripeSetupIntentId: dataObject.id,
           })
 
           if (!sECheckout && !ignoreCheckout) {
