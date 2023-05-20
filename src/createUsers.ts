@@ -18,7 +18,7 @@ const STRIPE_SECRET_KEY =
   "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"
 // const STRIPE_PUBLISHABLE_KEY = "pk_live_51K4tkPDOjl0X0gOqSYMtBYVk2ONkpC1Si8nJy4Ys21CZbySE4HH851Z7AuQOB6hGs8Ygll2PFTmnSF5dbwu3i1nN003yFGBbih"
 const stripeSdk = new stripe(STRIPE_SECRET_KEY, {
-  apiVersion: "2022-11-15",
+  apiVersion: "2022-08-01",
 })
 const userService = new UserService()
 async function getAkutePatientIdByEmail(email: any) {
