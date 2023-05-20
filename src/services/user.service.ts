@@ -28,19 +28,18 @@ import {
   CreateCheckoutInput,
   CreateStripeCustomerInput,
 } from "../schema/checkout.schema"
-import { ProviderModel } from "../schema/provider.schema"
+import { Provider, ProviderModel } from "../schema/provider.schema"
 import { AllTaskEmail, TaskEmail, TaskType } from "../schema/task.schema"
 import { UserTaskModel } from "../schema/task.user.schema"
 import {
-  CompletePaymentIntentInput,
   CreateUserInput,
   ForgotPasswordInput,
   LoginInput,
   ResetPasswordInput,
   Role,
   SubscribeEmailInput,
-  UpdateSubscriptionInput,
   UpdateUserInput,
+  User,
   Weight,
 } from "../schema/user.schema"
 import { signJwt } from "../utils/jwt"
@@ -57,7 +56,6 @@ import EmailService from "./email.service"
 import ProviderService from "./provider.service"
 import TaskService from "./task.service"
 import SmsService from "./sms.service"
-import { calculatePatientScores } from "./../scripts/calculatePatientScores"
 import axios from "axios"
 
 class UserService extends EmailService {
@@ -375,162 +373,6 @@ class UserService extends EmailService {
     }
   }
 
-  async completePaymentIntent(input: CompletePaymentIntentInput) {
-    try {
-      const { paymentIntentId } = input
-      const priceId = config.get("defaultPriceId") as any
-
-      let customer
-      let subscription
-
-      const paymentIntent = await this.stripeSdk.paymentIntents.retrieve(
-        paymentIntentId
-      )
-
-      if (!paymentIntent || paymentIntent.status !== "succeeded") {
-        throw new ApolloError("Payment intent not found", "NOT_FOUND")
-      }
-
-      const stripeCustomerId = paymentIntent.customer as string
-      const stripePaymentMethodId = paymentIntent.payment_method as string
-
-      // if payment method is associated with another user, detach it for now
-      // TODO: figure out how to allow the same payment method on multiple users
-      if (stripePaymentMethodId) {
-        const paymentMethod = await this.stripeSdk.paymentMethods.retrieve(
-          stripePaymentMethodId
-        )
-        const paymentMethodCustomerId = paymentMethod.customer as string
-
-        if (paymentMethodCustomerId) {
-          customer = await this.stripeSdk.customers.retrieve(
-            paymentMethodCustomerId
-          )
-        }
-      }
-
-      if (stripeCustomerId || customer) {
-        // if customer wasnt found on the payment method, it must be on the payment intent
-        // to reach here. so lets fetch the customer from the payment intent
-        if (!customer) {
-          customer = await this.stripeSdk.customers.retrieve(stripeCustomerId)
-        }
-
-        // lets check for existing subscriptions for this customer
-        const existingSubscriptions = await this.stripeSdk.subscriptions.list({
-          customer: customer.id,
-        })
-
-        // if there is an existing subscription grab it
-        if (existingSubscriptions.data.length !== 0) {
-          subscription = existingSubscriptions.data[0]
-
-          // if the subscription isn't active or past due, lets just create a new subscription
-          if (
-            subscription.status !== "active" &&
-            subscription.status !== "past_due"
-          ) {
-            subscription = undefined
-          }
-        }
-      } else {
-        // customer doesnt exist, create a new one
-        customer = await this.stripeSdk.customers.create({
-          name: paymentIntent.shipping?.name,
-          payment_method: stripePaymentMethodId,
-          email: paymentIntent.metadata?.email,
-          phone: paymentIntent.shipping?.phone,
-          invoice_settings: {
-            default_payment_method: stripePaymentMethodId,
-          },
-          shipping: {
-            name: paymentIntent.shipping?.name,
-            address: paymentIntent.shipping?.address,
-            phone: paymentIntent.shipping?.phone,
-          },
-          metadata: {
-            checkoutId: paymentIntent.metadata?.checkoutId,
-          },
-          address: paymentIntent.shipping?.address,
-        })
-      }
-
-      // if subscription exists & isnt expired, cancel it so we can create a new one
-      if (subscription) {
-        await this.stripeSdk.subscriptions.cancel(subscription.id)
-        subscription = undefined
-      }
-
-      // if not, create a new one
-      subscription = await this.stripeSdk.subscriptions.create({
-        customer: customer.id,
-        items: [{ price: priceId }],
-        default_payment_method: stripePaymentMethodId,
-        collection_method: "charge_automatically",
-        trial_period_days: 30,
-      })
-
-      // update checkout
-      const checkout = await CheckoutModel.findByIdAndUpdate(
-        paymentIntent.metadata.checkoutId,
-        {
-          stripeCustomerId: customer.id,
-          stripeSubscriptionId: subscription.id,
-        }
-      )
-
-      if (!checkout) {
-        throw new ApolloError("Checkout not found", "NOT_FOUND")
-      }
-
-      // create or update user
-      const { message } = await this.completeCheckout(
-        subscription.id,
-        new Date(subscription.current_period_end)
-      )
-
-      return { message }
-    } catch (error) {
-      console.log(error)
-      Sentry.captureException(error)
-      throw new ApolloError("An error occured", "INTERNAL_SERVER_ERROR")
-    }
-  }
-
-  async updateSubscription(input: UpdateSubscriptionInput) {
-    const { stripeSubscriptionId, subscriptionExpiresAt } = input
-    const { notFound } = config.get("errors.updateSubscription") as any
-    const message = config.get("messages.updateSubscription")
-
-    const user = await UserModel.find()
-      .findBySubscriptionId(stripeSubscriptionId)
-      .lean()
-
-    if (!user) {
-      const subscription = await this.stripeSdk.subscriptions.retrieve(
-        stripeSubscriptionId
-      )
-
-      if (!subscription) {
-        throw new ApolloError(notFound.message, notFound.code)
-      } else {
-        const checkoutId = subscription.metadata.checkoutId
-        const checkout = await CheckoutModel.findById(checkoutId)
-
-        if (!checkout) {
-          throw new ApolloError(notFound.message, notFound.code)
-        } else {
-          return { message: "User hasn't been created yet, skipping..." }
-        }
-      }
-    } else {
-      user.subscriptionExpiresAt = subscriptionExpiresAt
-      await UserModel.findByIdAndUpdate(user._id, user)
-
-      return { message }
-    }
-  }
-
   async subscribeEmail(input: SubscribeEmailInput) {
     const { email, fullName, location, waitlist, currentMember } = input
     const { unknownError } = config.get("errors.subscribeEmail") as any
@@ -621,41 +463,26 @@ class UserService extends EmailService {
     const forgotPasswordMessage = config.get("messages.forgotPassword")
 
     // Get our user by email
-    const user = await UserModel.find().findByEmail(email).lean()
+    const dbUser = await UserModel.find().findByEmail(email).lean()
+    const dbProvider = !dbUser
+      ? await ProviderModel.find().findByEmail(email).lean()
+      : null
+    const isProvider = dbProvider !== null
 
+    const user = dbUser || dbProvider
     if (!user) {
-      const provider = await ProviderModel.find().findByEmail(email).lean()
-      console.log(provider, email)
-      if (!provider) {
-        throw new ApolloError(emailNotFound.message, emailNotFound.code)
-      }
-
-      // set resetPasswordToken & resetPasswordTokenExpiresAt
-      provider.emailToken = uuidv4()
-      provider.emailTokenExpiresAt = addMinutes(new Date(), expirationInMinutes)
-
-      await ProviderModel.findByIdAndUpdate(provider._id, provider)
-
-      const sent = await this.sendForgotPasswordEmail({
-        email,
-        token: provider.emailToken,
-        provider: true,
-      })
-
-      if (!sent) {
-        throw new ApolloError(emailSendError.message, emailSendError.code)
-      }
-
-      return { message: forgotPasswordMessage }
+      throw new ApolloError(emailNotFound.message, emailNotFound.code)
     }
 
-    // set resetPasswordToken & resetPasswordTokenExpiresAt
     user.emailToken = uuidv4()
     user.emailTokenExpiresAt = addMinutes(new Date(), expirationInMinutes)
 
-    await UserModel.findByIdAndUpdate(user._id, user)
+    if (!isProvider) {
+      await UserModel.findByIdAndUpdate(user._id, user)
+    } else {
+      await ProviderModel.findByIdAndUpdate(user._id, user)
+    }
 
-    // send email with reset link
     const sent = await this.sendForgotPasswordEmail({
       email,
       token: user.emailToken,
@@ -672,7 +499,7 @@ class UserService extends EmailService {
   }
 
   async resetPassword(input: ResetPasswordInput) {
-    const { token, password, registration, provider } = input
+    const { token, password, registration } = input
     const { invalidToken, tokenExpired } = config.get(
       "errors.resetPassword"
     ) as any
@@ -681,87 +508,54 @@ class UserService extends EmailService {
       "messages.completedRegistration"
     )
 
-    if (provider) {
-      const dbProvider = await ProviderModel.find()
-        .findByEmailToken(token)
-        .lean()
-      if (!dbProvider) {
-        throw new ApolloError(invalidToken.message, invalidToken.code)
-      }
+    const dbUser = await UserModel.find().findByEmailToken(token).lean()
+    const dbProvider = dbUser
+      ? null
+      : await ProviderModel.find().findByEmailToken(token).lean()
+    const isProvider = dbProvider !== null
+    const user = dbUser || dbProvider
 
-      if (!registration && dbProvider.emailTokenExpiresAt < new Date()) {
-        throw new ApolloError(tokenExpired.message, tokenExpired.code)
-      }
+    if (!user) {
+      throw new ApolloError(invalidToken.message, invalidToken.code)
+    }
 
-      dbProvider.emailToken = null
-      dbProvider.emailTokenExpiresAt = null
-      dbProvider.password = await this.hashPassword(password)
+    if (!registration && user.emailTokenExpiresAt < new Date()) {
+      throw new ApolloError(tokenExpired.message, tokenExpired.code)
+    }
 
-      await ProviderModel.findByIdAndUpdate(dbProvider._id, dbProvider)
+    user.emailToken = null
+    user.emailTokenExpiresAt = null
+    user.password = await this.hashPassword(password)
 
-      // sign jwt
-      const jwt = signJwt(
-        {
-          _id: dbProvider._id,
-          name: dbProvider.firstName + " " + dbProvider.lastName,
-          email: dbProvider.email,
-          role: dbProvider.type,
-        },
-        {
-          expiresIn: config.get("jwtExpiration.normalExp"),
-        }
-      )
-
-      return {
-        message: registration
-          ? completedRegistrationMessage
-          : resetPasswordMessage,
-        token: jwt,
-        user: {
-          _id: dbProvider._id,
-          name: dbProvider.firstName + " " + dbProvider.lastName,
-          email: dbProvider.email,
-          role: dbProvider.type,
-        },
-      }
+    if (isProvider) {
+      await ProviderModel.findByIdAndUpdate(user._id, user)
     } else {
-      const user = await UserModel.find().findByEmailToken(token).lean()
-      if (!user) {
-        throw new ApolloError(invalidToken.message, invalidToken.code)
-      }
-
-      if (!registration && user.emailTokenExpiresAt < new Date()) {
-        throw new ApolloError(tokenExpired.message, tokenExpired.code)
-      }
-
-      // set emailToken & emailTokenExpiresAt to null
-      user.emailToken = null
-      user.emailTokenExpiresAt = null
-      user.password = await this.hashPassword(password)
-
-      // update the user
       await UserModel.findByIdAndUpdate(user._id, user)
+    }
 
-      // sign jwt
-      const jwt = signJwt(
-        {
-          _id: user._id,
-          name: user.name,
-          email: user.email,
-          role: user.role,
-        },
-        {
-          expiresIn: config.get("jwtExpiration.normalExp"),
-        }
-      )
+    const name = isProvider
+      ? dbProvider.firstName + " " + dbProvider.lastName
+      : dbUser.name
+    const role = isProvider ? dbProvider.type : dbUser.role
 
-      return {
-        message: registration
-          ? completedRegistrationMessage
-          : resetPasswordMessage,
-        token: jwt,
-        user,
-      }
+    const userSummary = {
+      _id: user._id,
+      name,
+      email: user.email,
+      role,
+    }
+
+    // sign jwt
+    const jwt = signJwt(userSummary, {
+      expiresIn: config.get("jwtExpiration.normalExp"),
+    })
+
+    return {
+      message: registration
+        ? completedRegistrationMessage
+        : resetPasswordMessage,
+      token: jwt,
+      user: userSummary,
     }
   }
 
@@ -1354,7 +1148,7 @@ class UserService extends EmailService {
 
     // vars to add stripe details to
     let customer
-    let paymentIntent
+    let setupIntent
 
     const stripeShipping = {
       line1: shipping.line1,
@@ -1377,48 +1171,37 @@ class UserService extends EmailService {
       })
     }
 
-    if (checkout.stripePaymentIntentId) {
-      paymentIntent = await this.stripeSdk.paymentIntents.retrieve(
-        checkout.stripePaymentIntentId
+    if (checkout.stripeSetupIntentId) {
+      setupIntent = await this.stripeSdk.setupIntents.retrieve(
+        checkout.stripeSetupIntentId
       )
     }
 
     // payment intent details
-    const paymentIntentDetails = {
-      description: "Alfie Subscription - First Payment",
-      amount: 12000,
-      currency: "usd",
+    const setupIntentDetails: stripe.SetupIntentCreateParams = {
+      description: "Alfie Setup Intent",
+      usage: "off_session",
       metadata: {
         checkoutId: String(checkout._id),
         email: checkout.email,
       },
       ...(customer && { customer: customer.id }),
-      shipping: {
-        name: checkout.name,
-        address: stripeShipping,
-        phone: checkout.phone,
-      },
     }
 
     // create payment intent
-    if (paymentIntent && paymentIntent.status !== "canceled") {
-      paymentIntent = await this.stripeSdk.paymentIntents.update(
-        paymentIntent.id,
-        {
-          ...paymentIntentDetails,
-          setup_future_usage: "off_session",
-        }
-      )
+    if (setupIntent && setupIntent.status !== "canceled") {
+      setupIntent = await this.stripeSdk.setupIntents.update(setupIntent.id, {
+        ...setupIntentDetails,
+      })
     } else {
-      paymentIntent = await this.stripeSdk.paymentIntents.create({
-        ...paymentIntentDetails,
-        setup_future_usage: "off_session",
+      setupIntent = await this.stripeSdk.setupIntents.create({
+        ...setupIntentDetails,
       })
     }
 
     // update checkout with stripe info
-    checkout.stripePaymentIntentId = paymentIntent.id
-    checkout.stripeClientSecret = paymentIntent.client_secret
+    checkout.stripeSetupIntentId = setupIntent.id
+    checkout.stripeClientSecret = setupIntent.client_secret
     checkout.shippingAddress = shipping
     checkout.billingAddress = sameAsShipping ? shipping : billing
     if (customer) checkout.stripeCustomerId = customer.id
@@ -1437,7 +1220,7 @@ class UserService extends EmailService {
     const {
       name,
       email,
-      weightLossMotivator,
+      weightLossMotivatorV2,
       dateOfBirth,
       gender,
       state,
@@ -1445,6 +1228,7 @@ class UserService extends EmailService {
       weightInLbs,
       textOptIn,
       phone,
+      pastTries,
     } = input
 
     const checkout = await CheckoutModel.find().findByEmail(email).lean()
@@ -1456,7 +1240,7 @@ class UserService extends EmailService {
 
       // update values
       checkout.name = name
-      checkout.weightLossMotivator = weightLossMotivator
+      checkout.weightLossMotivatorV2 = weightLossMotivatorV2
       checkout.dateOfBirth = dateOfBirth
       checkout.gender = gender
       checkout.state = state
@@ -1464,6 +1248,7 @@ class UserService extends EmailService {
       checkout.weightInLbs = weightInLbs
       checkout.textOptIn = textOptIn
       checkout.phone = phone
+      checkout.pastTries = pastTries
 
       // update in db
       await CheckoutModel.findByIdAndUpdate(checkout._id, checkout)
@@ -1498,7 +1283,7 @@ class UserService extends EmailService {
     const newCheckout = await CheckoutModel.create({
       name,
       email,
-      weightLossMotivator,
+      weightLossMotivatorV2,
       dateOfBirth,
       gender,
       state,
@@ -1506,6 +1291,7 @@ class UserService extends EmailService {
       weightInLbs,
       textOptIn,
       phone,
+      pastTries,
     })
 
     // return new checkout
