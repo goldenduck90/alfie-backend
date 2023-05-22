@@ -672,6 +672,59 @@ class EmailService {
     const result = await this.awsSes.sendEmail(params).promise()
     return result.MessageId
   }
+
+  async sendEligibilityCheckResultEmail({
+    patientName,
+    patientEmail,
+    patientPhone,
+    eligible,
+    reason,
+  }: {
+    patientEmail: string
+    patientName: string
+    patientPhone: string
+    eligible: boolean
+    reason?: string
+  }) {
+    /**
+     * Send email to patients@joinalfie.com
+     * Send email to patient's email
+     */
+    const subject = `${patientName}  Eligible for Insurance`
+    let emailBody = `
+    <b>Patient Name:</b> ${patientName}<br/>
+    <b>Patient Email:</b> ${patientEmail}<br/>
+    <b>Patient Phone:</b> ${patientPhone}<br/>
+    <b>Eligibility Status:</b> ${eligible ? "Approved" : "Denied"}<br/>
+    `
+
+    if (!eligible) {
+      emailBody += `<b>Reason:</b> ${reason}<br/>`
+    }
+
+    const params = {
+      Source: this.noReplyEmail,
+      Destination: {
+        ToAddresses: ["patients@joinalfie.com"],
+      },
+      ReplyToAddresses: [] as string[],
+      Message: {
+        Body: {
+          Html: {
+            Charset: "UTF-8",
+            Data: emailBody, // TODO: build email template & copy
+          },
+        },
+        Subject: {
+          Charset: "UTF-8",
+          Data: subject,
+        },
+      },
+    }
+
+    const result = await this.awsSes.sendEmail(params).promise()
+    return result.MessageId
+  }
 }
 
 export default EmailService

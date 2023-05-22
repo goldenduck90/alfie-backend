@@ -378,11 +378,11 @@ class AkuteService {
     }
   }
 
-  async createInsurance(input: InsuranceEligibilityInput) {
+  async createInsurance(akuteId: string, input: InsuranceEligibilityInput) {
     try {
       const { data } = await this.axios.post("/insurance", {
+        patient_id: akuteId,
         member_id: input.memberId,
-        patient_id: input.userId,
         group_id: input.groupId,
         group_name: input.groupName,
         rx_bin: input.rxBin,

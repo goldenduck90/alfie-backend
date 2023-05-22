@@ -68,6 +68,7 @@ class UserService extends EmailService {
   private akuteService: AkuteService
   private appointmentService: AppointmentService
   private smsService: SmsService
+  private emailService: EmailService
   public awsDynamo: AWS.DynamoDB
   private stripeSdk: stripe
 
@@ -78,6 +79,7 @@ class UserService extends EmailService {
     this.akuteService = new AkuteService()
     this.appointmentService = new AppointmentService()
     this.smsService = new SmsService()
+    this.emailService = new EmailService()
     this.awsDynamo = new AWS.DynamoDB({
       accessKeyId: process.env.AWS_ACCESS_KEY_ID,
       secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
@@ -1663,9 +1665,26 @@ class UserService extends EmailService {
   }
 
   async checkInsuranceEligibility(input: InsuranceEligibilityInput) {
-    const eligibility = this.akuteService.createInsurance(input)
-    // TODO: send eligibility email to patients@joinalfie.com
-    return eligibility
+    try {
+      const user = await UserModel.findById(input.userId)
+      if (!user) throw new Error("User not found")
+
+      const eligibility = await this.akuteService.createInsurance(
+        user.akutePatientId,
+        input
+      )
+      // TODO: send eligibility email to patients@joinalfie.com
+      this.emailService.sendEligibilityCheckResultEmail({
+        patientName: user.name,
+        patientEmail: user.email,
+        patientPhone: user.phone,
+        eligible: eligibility.eligible,
+        reason: "N/A (Candid API not ready)",
+      })
+      return eligibility
+    } catch (e) {
+      throw new ApolloError(e.message, "ERROR")
+    }
   }
 }
 
