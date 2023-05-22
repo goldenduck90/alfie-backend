@@ -3,7 +3,7 @@ import {
   index,
   prop,
   queryMethod,
-  ReturnModelType
+  ReturnModelType,
 } from "@typegoose/typegoose"
 import { AsQueryMethod } from "@typegoose/typegoose/lib/types"
 import mongoose from "mongoose"

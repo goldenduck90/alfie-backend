@@ -713,6 +713,7 @@ class AppointmentService extends EmailService {
         eaProviderId?: string | number
       } = {}
       if (
+        eaUserId &&
         user &&
         user.role !== Role.Practitioner &&
         user.role !== Role.Doctor
@@ -787,8 +788,15 @@ class AppointmentService extends EmailService {
    * are marked as completed on the EA appointment to prevent duplication.
    */
   async handleAppointmentEnded(appointment: IEAAppointment) {
+    console.log(
+      `Processing ended appointment: [${appointment.eaCustomer?.id}] ${appointment.eaCustomer?.name}, provider [${appointment.eaProvider?.id}] ${appointment.eaProvider?.name}, ${appointment.start} to ${appointment.end} ${appointment.timezone}.`
+    )
+
     // patient no show.
     if (!appointment.attendanceEmailSent && !appointment.patientAttended) {
+      console.log(
+        `Sending patient appointment (id: ${appointment.eaAppointmentId}) no-show email: ${appointment.eaCustomer?.firstName} ${appointment.eaCustomer?.lastName}`
+      )
       await this.sendAppointmentPatientSkippedEmail({
         eaAppointmentId: `${appointment.eaAppointmentId}`,
         name: appointment.eaCustomer?.firstName ?? "",
@@ -808,6 +816,9 @@ class AppointmentService extends EmailService {
 
     // provider no show.
     if (!appointment.attendanceEmailSent && !appointment.providerAttended) {
+      console.log(
+        `Sending provider appointment (id: ${appointment.eaAppointmentId}) no-show email: ${appointment.eaProvider?.firstName} ${appointment.eaProvider?.lastName}`
+      )
       await this.sendAppointmentProviderSkippedEmail({
         eaAppointmentId: `${appointment.eaAppointmentId}`,
         name: appointment.eaProvider?.firstName ?? "",
@@ -831,6 +842,7 @@ class AppointmentService extends EmailService {
       appointment.patientAttended &&
       appointment.providerAttended
     ) {
+      // console.log("Submitting insurance claim for attended appointment")
       // TODO: submit insurance claim for attended appointment, then uncomment following line:
       // await this.updateAppointmentAttended(null, appointment.eaAppointmentId, ["claim_submitted"])
     }
@@ -868,7 +880,6 @@ class AppointmentService extends EmailService {
           exceptions: [],
         }
       )
-      console.log(data)
       return data
     } catch (err) {
       Sentry.captureException(err)

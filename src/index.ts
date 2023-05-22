@@ -233,6 +233,7 @@ cron.schedule("*/30 * * * *", async () => {
   console.log("[APPOINTMENT ATTENDED JOB] RUNNING...")
   const appointmentService = new AppointmentService()
   await appointmentService.attendedJob()
+  console.log("[APPOINTMENT ATTENDED JOB] COMPLETED")
 })
 
 bootstrap()

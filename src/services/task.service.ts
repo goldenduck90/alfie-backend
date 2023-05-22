@@ -154,7 +154,8 @@ class TaskService {
           isReadyForProfiling: any
           completed: any
         }) =>
-          (tasksEligibleForProfiling.includes(task.type) || task._id === currentTask._id) &&
+          (tasksEligibleForProfiling.includes(task.type) ||
+            task._id === currentTask._id) &&
           isReadyForProfiling &&
           completed
       )
@@ -183,7 +184,7 @@ class TaskService {
           await userTask.save()
         }
       } else {
-        console.log("not ready for profiling")       
+        console.log("not ready for profiling")
       }
     } catch (error) {
       Sentry.captureException(error)
