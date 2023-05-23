@@ -789,11 +789,26 @@ class AppointmentService extends EmailService {
    */
   async handleAppointmentEnded(appointment: IEAAppointment) {
     console.log(
-      `Processing ended appointment: [${appointment.eaCustomer?.id}] ${appointment.eaCustomer?.name}, provider [${appointment.eaProvider?.id}] ${appointment.eaProvider?.name}, ${appointment.start} to ${appointment.end} ${appointment.timezone}.`
+      `Processing ended appointment [${appointment.eaAppointmentId}]: ${appointment.eaCustomer?.name} [${appointment.eaCustomer?.id}], provider ${appointment.eaProvider?.name} [${appointment.eaProvider?.id}], ${appointment.start} to ${appointment.end} ${appointment.timezone}.`
     )
 
+    // Reasons to process an appointment:
+    const patientNoShow =
+      !appointment.attendanceEmailSent && !appointment.patientAttended
+    const providerNoShow =
+      !appointment.attendanceEmailSent && !appointment.providerAttended
+    const claimNotSubmitted =
+      !appointment.claimSubmitted &&
+      appointment.patientAttended &&
+      appointment.providerAttended
+
+    if (!patientNoShow && !providerNoShow && !claimNotSubmitted) {
+      console.log("No action taken.")
+      return
+    }
+
     // patient no show.
-    if (!appointment.attendanceEmailSent && !appointment.patientAttended) {
+    if (patientNoShow) {
       console.log(
         `Sending patient appointment (id: ${appointment.eaAppointmentId}) no-show email: ${appointment.eaCustomer?.firstName} ${appointment.eaCustomer?.lastName}`
       )
@@ -815,7 +830,7 @@ class AppointmentService extends EmailService {
     }
 
     // provider no show.
-    if (!appointment.attendanceEmailSent && !appointment.providerAttended) {
+    if (providerNoShow) {
       console.log(
         `Sending provider appointment (id: ${appointment.eaAppointmentId}) no-show email: ${appointment.eaProvider?.firstName} ${appointment.eaProvider?.lastName}`
       )
@@ -837,11 +852,7 @@ class AppointmentService extends EmailService {
     }
 
     // appointment ended
-    if (
-      !appointment.claimSubmitted &&
-      appointment.patientAttended &&
-      appointment.providerAttended
-    ) {
+    if (claimNotSubmitted) {
       // console.log("Submitting insurance claim for attended appointment")
       // TODO: submit insurance claim for attended appointment, then uncomment following line:
       // await this.updateAppointmentAttended(null, appointment.eaAppointmentId, ["claim_submitted"])
@@ -852,18 +863,36 @@ class AppointmentService extends EmailService {
     // get now to the nearest 30 minutes for reliable appointment object differentiation.
     const timezone = "America/New_York"
     const now = dayjs.tz(new Date(), timezone)
-    const today = now.format("MM/DD/YYYY")
 
-    const appointments = await this.getAppointmentsByDate(null, {
-      selectedDate: today,
-      timezone,
+    // queries to EasyAppointments for yesterday, today and tomorrow to account for possible
+    // time zone discrepancies (EA appointment dates are in the time zone of the provider, not UTC).
+    const appointmentQueries = [now.subtract(1, "day"), now, now.add(1, "day")]
+      .map((day) => day.format("MM/DD/YYYY"))
+      .map(
+        (selectedDate) => () =>
+          this.getAppointmentsByDate(null, { selectedDate, timezone })
+      )
+
+    const appointments = []
+    for (const appointmentQuery of appointmentQueries) {
+      const appointmentSet = await appointmentQuery()
+      appointments.push(...appointmentSet)
+    }
+
+    const pastAppointments = appointments.filter((appointment) => {
+      const appointmentEndTime = dayjs.tz(appointment.end, appointment.timezone)
+      return appointmentEndTime.isBefore(now)
     })
 
-    // TODO: use batchAsync from sendbird PR to scale.
+    console.log(
+      `Queried ${appointments.length} appointments, ${pastAppointments.length} have ended:`
+    )
+
+    // TODO: use batchAsync from sendbird PR to scale, once merged.
     await Promise.all(
-      appointments.map(async (appointment) => {
-        await this.handleAppointmentEnded(appointment)
-      })
+      pastAppointments.map(
+        async (appointment) => await this.handleAppointmentEnded(appointment)
+      )
     )
   }
 
