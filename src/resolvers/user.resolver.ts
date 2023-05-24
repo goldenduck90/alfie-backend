@@ -1,5 +1,6 @@
 import { Arg, Authorized, Ctx, Mutation, Query, Resolver } from "type-graphql"
 import { CreateLabOrderResponse } from "../schema/akute.schema"
+import { MetriportConnectResponse } from "../schema/metriport.schema"
 import {
   CheckoutResponse,
   CreateCheckoutInput,
@@ -21,16 +22,19 @@ import {
 } from "../schema/user.schema"
 import AkuteService from "../services/akute.service"
 import UserService from "../services/user.service"
+import MetriportService from "../services/metriport.service"
 import Context from "../types/context"
 
 @Resolver()
 export default class UserResolver {
   constructor(
     private userService: UserService,
-    private akuteService: AkuteService
+    private akuteService: AkuteService,
+    private metriportService: MetriportService
   ) {
     this.userService = new UserService()
     this.akuteService = new AkuteService()
+    this.metriportService = new MetriportService()
   }
 
   @Authorized([Role.Admin])
@@ -138,5 +142,10 @@ export default class UserResolver {
   @Query(() => [UserSendbirdChannel])
   userSendbirdChannel(@Arg("userId") userId: string) {
     return this.userService.sendbirdChannels(userId)
+  }
+
+  @Mutation(() => MetriportConnectResponse)
+  generateMetriportConnectUrl(@Arg("userId") userId: string) {
+    return this.metriportService.createConnectToken(userId)
   }
 }
