@@ -53,6 +53,10 @@ class TaskService {
       throw new ApolloError(notFound.message, notFound.code)
     }
 
+    if (!userTask.task) {
+      throw new ApolloError(notFound.message, notFound.code)
+    }
+
     if (userId && userTask.user.toString() !== userId) {
       throw new ApolloError(notPermitted.message, notPermitted.code)
     }
@@ -85,10 +89,12 @@ class TaskService {
       total: userTasksCount,
       limit,
       offset,
-      userTasks: userTasks.map((userTask) => ({
-        ...userTask.toObject(),
-        ...(userTask.dueAt && { pastDue: isPast(userTask.dueAt) }),
-      })),
+      userTasks: userTasks
+        .filter((u) => u.task)
+        .map((userTask) => ({
+          ...userTask.toObject(),
+          ...(userTask.dueAt && { pastDue: isPast(userTask.dueAt) }),
+        })),
     }
   }
   async checkEligibilityForAppointment(userId: any) {
@@ -154,7 +160,8 @@ class TaskService {
           isReadyForProfiling: any
           completed: any
         }) =>
-          (tasksEligibleForProfiling.includes(task.type) || task._id === currentTask._id) &&
+          (tasksEligibleForProfiling.includes(task.type) ||
+            task._id === currentTask._id) &&
           isReadyForProfiling &&
           completed
       )
@@ -183,7 +190,7 @@ class TaskService {
           await userTask.save()
         }
       } else {
-        console.log("not ready for profiling")       
+        console.log("not ready for profiling")
       }
     } catch (error) {
       Sentry.captureException(error)
