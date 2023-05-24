@@ -455,6 +455,10 @@ export class User {
   @prop()
   externalPatientId?: string
 
+  @Field(() => String, { nullable: true })
+  @prop()
+  metriportUserId?: string
+
   @Field(() => Date)
   @prop({ default: Date.now(), required: true })
   subscriptionExpiresAt: Date
