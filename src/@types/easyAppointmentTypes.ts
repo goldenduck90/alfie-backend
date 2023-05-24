@@ -52,3 +52,25 @@ export interface IEAProvider {
   services?: number[]
   settings?: Settings
 }
+
+export interface IEAAppointment {
+  eaAppointmentId: string
+  start: string
+  end: string
+  location: string
+  timezone: string
+  notes: string
+  eaProvider: IEAProvider
+  eaService: {
+    id: string
+    name: string
+    durationInMins: number
+    description: string
+  }
+  eaCustomer: {
+    id: string
+    name: string
+    email: string
+    phone: string
+  }
+}

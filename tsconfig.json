@@ -8,6 +8,7 @@
     "sourceMap": true,
     "outDir": "build",
     "baseUrl": ".",
+    "resolveJsonModule": true,
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
     "paths": {
@@ -15,5 +16,5 @@
     },
     "lib": ["es2018", "esnext.asynciterable", "dom"]
   },
-  "include": ["src/**/*", "config/*", "assets/*"]
+  "include": ["src/**/*", "config/*", "assets/*", "scripts/*"]
 }

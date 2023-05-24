@@ -9,6 +9,11 @@ export default {
     "http://develop-ea.us-east-1.elasticbeanstalk.com/index.php/api/v1",
   sendBirdApiUrl:
     "https://api-D804CA81-FB1D-4078-8A98-B31AE451EAF9.sendbird.com",
+  candidHealth: {
+    apiUrl: "https://api-staging.joincandidhealth.com/api",
+    clientId: process.env.CANDID_HEALTH_CLIENT_ID,
+    clientSecret: process.env.CANDID_HEALTH_CLIENT_SECRET,
+  },
   defaultPriceId: "price_1KMviXDOjl0X0gOq9Pk7gRFE",
   dynamoDb: {
     emailSubscribersTable: "develop-platform-email-subscribers",

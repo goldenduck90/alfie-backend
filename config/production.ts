@@ -7,6 +7,11 @@ export default {
   easyAppointmentsApiUrl: "https://ea.prod.joinalfie.com/index.php/api/v1",
   sendBirdApiUrl:
     "https://api-56D883B9-B30F-428B-8B7A-31184E513DF4.sendbird.com",
+  candidHealth: {
+    apiUrl: "https://api.joincandidhealth.com/api",
+    clientId: process.env.CANDID_HEALTH_CLIENT_ID,
+    clientSecret: process.env.CANDID_HEALTH_CLIENT_SECRET,
+  },
   defaultPriceId: "price_1KMv4hDOjl0X0gOqRIWXpGVz",
   s3: {
     patientBucketName: "production-platform-patient-storage",
