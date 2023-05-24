@@ -18,6 +18,8 @@ import {
   SubscribeEmailInput,
   User,
   UserSendbirdChannel,
+  InsuranceEligibilityInput,
+  InsuranceEligibilityResponse,
 } from "../schema/user.schema"
 import AkuteService from "../services/akute.service"
 import UserService from "../services/user.service"
@@ -138,5 +140,10 @@ export default class UserResolver {
   @Query(() => [UserSendbirdChannel])
   userSendbirdChannel(@Arg("userId") userId: string) {
     return this.userService.sendbirdChannels(userId)
+  }
+
+  @Query(() => InsuranceEligibilityResponse)
+  async insuranceEligibility(@Arg("input") input: InsuranceEligibilityInput) {
+    return await this.userService.checkInsuranceEligibility(input)
   }
 }
