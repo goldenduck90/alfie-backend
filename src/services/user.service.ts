@@ -1,5 +1,6 @@
 import * as Sentry from "@sentry/node"
 import { ApolloError } from "apollo-server-errors"
+import { LeanDocument } from "mongoose"
 import * as AWS from "aws-sdk"
 import bcrypt from "bcrypt"
 import config from "config"
@@ -24,6 +25,7 @@ import {
 import stripe from "stripe"
 import { v4 as uuidv4 } from "uuid"
 import {
+  Checkout,
   CheckoutModel,
   CreateCheckoutInput,
   CreateStripeCustomerInput,
@@ -39,7 +41,6 @@ import {
   Role,
   SubscribeEmailInput,
   UpdateUserInput,
-  User,
   Weight,
   InsuranceEligibilityInput,
 } from "../schema/user.schema"
@@ -58,6 +59,7 @@ import ProviderService from "./provider.service"
 import TaskService from "./task.service"
 import SmsService from "./sms.service"
 import axios from "axios"
+import * as candid from "../utils/candid"
 
 class UserService extends EmailService {
   private taskService: TaskService
@@ -1012,7 +1014,6 @@ class UserService extends EmailService {
       const userTasks: any = await UserTaskModel.find({
         user: userId,
       }).populate("task")
-      const users = await UserModel.find()
       // users.forEach(async (u) => {
       //   const classify = await this.classifyPatient(u._id)
       //   console.log(classify, "score")
@@ -1110,7 +1111,9 @@ class UserService extends EmailService {
       "errors.checkout"
     ) as any
 
-    const checkout = await CheckoutModel.findById(checkoutId).lean()
+    const checkout = (await CheckoutModel.findById(
+      checkoutId
+    ).lean()) as LeanDocument<Checkout>
     if (!checkout) {
       throw new ApolloError(checkoutNotFound.message, checkoutNotFound.code)
     }
@@ -1499,20 +1502,39 @@ class UserService extends EmailService {
 
   async checkInsuranceEligibility(input: InsuranceEligibilityInput) {
     try {
-      const user = await UserModel.findById(input.userId)
-      if (!user) throw new Error("User not found")
+      const user = await UserModel.findById(input.userId).populate<{
+        provider: Provider
+      }>("provider")
+      if (!user) throw new Error(`User ${input.userId} not found.`)
 
-      const eligibility = await this.akuteService.createInsurance(
+      const { provider } = user
+      if (!provider)
+        throw new Error(`No provider associated with user ${input.userId}.`)
+
+      const insuranceResult = await this.akuteService.createInsurance(
         user.akutePatientId,
         input
       )
-      // TODO: send eligibility email to patients@joinalfie.com
-      this.emailService.sendEligibilityCheckResultEmail({
+
+      console.log(`Insurance result: ${JSON.stringify(insuranceResult)}`)
+
+      await candid.authenticate()
+      const eligibility = await candid.checkInsuranceEligibility(
+        user,
+        provider,
+        input
+      )
+      const eligible = eligibility.benefitsInformation?.some(
+        (benefit) => benefit.code === "1"
+      )
+      const notEligibleReason = !eligible ? "TODO" : null
+
+      await this.emailService.sendEligibilityCheckResultEmail({
         patientName: user.name,
         patientEmail: user.email,
         patientPhone: user.phone,
-        eligible: eligibility.eligible,
-        reason: "N/A (Candid API not ready)",
+        eligible,
+        reason: notEligibleReason, // TODO
       })
       return eligibility
     } catch (e) {

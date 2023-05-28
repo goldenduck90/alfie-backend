@@ -17,6 +17,12 @@ import {
   InsuranceEligibilityInput,
 } from "../schema/user.schema"
 
+/** Response from a POST to /insurance */
+export interface AkuteInsuranceResponse {
+  rx_id: string
+  medical_id: string
+}
+
 class AkuteService {
   public baseUrl: string
   public axios: AxiosInstance
@@ -378,24 +384,30 @@ class AkuteService {
     }
   }
 
-  async createInsurance(akuteId: string, input: InsuranceEligibilityInput) {
+  async createInsurance(
+    akuteId: string,
+    input: InsuranceEligibilityInput
+  ): Promise<AkuteInsuranceResponse> {
     try {
-      const { data } = await this.axios.post("/insurance", {
-        patient_id: akuteId,
-        member_id: input.memberId,
-        group_id: input.groupId,
-        group_name: input.groupName,
-        rx_bin: input.rxBin,
-        rx_group: input.rxGroup,
-        payor: input.payor,
-        status: "active",
-        order: 1,
-      })
-      console.log(data)
-      // NOTE: process data
-      return { eligible: true }
-    } catch (e) {
-      return { eligible: false }
+      const { data } = await this.axios.post<AkuteInsuranceResponse>(
+        "/insurance",
+        {
+          patient_id: akuteId,
+          member_id: input.memberId,
+          group_id: input.groupId,
+          group_name: input.groupName,
+          rx_bin: input.rxBin,
+          rx_group: input.rxGroup,
+          payor: input.payor,
+          status: "active",
+          order: 1,
+        }
+      )
+      console.log("createInsurance response", data)
+      return data
+    } catch (error) {
+      Sentry.captureException(error)
+      return null
     }
   }
 }

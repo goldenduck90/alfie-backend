@@ -9,8 +9,8 @@ export default {
     "https://api-56D883B9-B30F-428B-8B7A-31184E513DF4.sendbird.com",
   candidHealth: {
     apiUrl: "https://api.joincandidhealth.com/api",
-    clientId: process.env.CANDID_HEALTH_CLIENT_ID,
-    clientSecret: process.env.CANDID_HEALTH_CLIENT_SECRET,
+    clientId: process.env.CANDID_CLIENT_ID,
+    clientSecret: process.env.CANDID_CLIENT_SECRET,
   },
   defaultPriceId: "price_1KMv4hDOjl0X0gOqRIWXpGVz",
   s3: {
