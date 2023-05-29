@@ -188,6 +188,9 @@ export class GetUserTasksInput {
   @Field(() => String, { nullable: true })
   @prop({ required: false })
   userId?: boolean
+
+  @Field(() => TaskType)
+  taskType?: TaskType
 }
 
 @InputType()

@@ -4,7 +4,12 @@ import config from "config"
 import { addDays, isPast } from "date-fns"
 import { calculateScore } from "../PROAnalysis"
 import { ProviderModel } from "../schema/provider.schema"
-import { CreateTaskInput, TaskModel, TaskType } from "../schema/task.schema"
+import {
+  CreateTaskInput,
+  Task,
+  TaskModel,
+  TaskType,
+} from "../schema/task.schema"
 import {
   CompleteUserTaskInput,
   CreateUserTaskInput,
@@ -14,7 +19,7 @@ import {
   UserTask,
   UserTaskModel,
 } from "../schema/task.user.schema"
-import { UserModel } from "../schema/user.schema"
+import { User, UserModel } from "../schema/user.schema"
 import AkuteService from "./akute.service"
 import { classifyUser } from "../PROAnalysis/classification"
 import { calculatePatientScores } from "../scripts/calculatePatientScores"
@@ -60,10 +65,21 @@ class TaskService {
     return userTask
   }
 
-  async getUserTasks(userId: string, input: GetUserTasksInput) {
-    const { limit, offset, completed } = input
+  async getUserTasks(
+    userId: string,
+    input: GetUserTasksInput
+  ): Promise<{
+    userTasks: UserTask[]
+    total: number
+    limit: number
+    offset: number
+  }> {
+    const { limit, offset, completed, taskType } = input
     const { noTasks } = config.get("errors.tasks") as any
-    const where = { ...(completed !== undefined && { completed }) }
+    const where = {
+      ...(completed !== undefined && { completed }),
+      ...(taskType !== undefined && { type: taskType }),
+    }
 
     const userTasksCount = await UserTaskModel.find({
       user: userId,
@@ -79,8 +95,9 @@ class TaskService {
       .skip(offset)
       .limit(limit)
       .sort({ highPriority: -1, dueAt: -1, createdAt: 1 })
-      .populate("task")
-      .populate("user")
+      .populate<{ task: Task }>("task")
+      .populate<{ user: User }>("user")
+
     return {
       total: userTasksCount,
       limit,
@@ -154,7 +171,8 @@ class TaskService {
           isReadyForProfiling: any
           completed: any
         }) =>
-          (tasksEligibleForProfiling.includes(task.type) || task._id === currentTask._id) &&
+          (tasksEligibleForProfiling.includes(task.type) ||
+            task._id === currentTask._id) &&
           isReadyForProfiling &&
           completed
       )
@@ -183,7 +201,7 @@ class TaskService {
           await userTask.save()
         }
       } else {
-        console.log("not ready for profiling")       
+        console.log("not ready for profiling")
       }
     } catch (error) {
       Sentry.captureException(error)

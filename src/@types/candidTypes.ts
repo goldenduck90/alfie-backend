@@ -649,6 +649,8 @@ export interface CandidCreateCodedEncounterRequest {
      */
     patient_relationship_to_subscriber_code: string
 
+    address?: CandidAddressPlusFour
+
     insurance_card: {
       group_number?: string
       plan_name?: string
@@ -705,7 +707,7 @@ export interface CandidCreateCodedEncounterRequest {
       author_npi?: string
       /** ISO 8601 timestamp. */
       timestamp: string
-    }
+    }[]
   }[]
 
   /** Spot to store misc, human - readable, notes about this encounter to be used in the billing process. */

@@ -1,5 +1,5 @@
 import prepareShellEnvironment from "./utils/prepareShellEnvironment"
-import * as candid from "../src/utils/candid"
+import CandidService from "../src/services/candid.service"
 import { InsuranceEligibilityInput, UserModel } from "../src/schema/user.schema"
 import { Provider } from "../src/schema/provider.schema"
 import AppointmentService from "../src/services/appointment.service"
@@ -9,6 +9,9 @@ console.log("Starting test insurance script.")
 async function testInsurance() {
   await prepareShellEnvironment()
 
+  const candidService = new CandidService()
+
+  // prepare user sandbox values.
   const user = await UserModel.findOne({
     email: "john-paul+user@joinalfie.com",
   }).populate<{ provider: Provider }>("provider")
@@ -22,14 +25,11 @@ async function testInsurance() {
   user.phone = "123456789"
   user.email = "email@email.com"
 
+  // prepare provider sandbo values
   const { provider } = user
   provider.npi = "1760854442"
   provider.firstName = "johnone"
   provider.lastName = "doetwo"
-  // TODO: provider address?
-
-  await candid.authenticate()
-  // console.log("saved auth token", JSON.stringify(await candid.getSavedAuthorizationToken()))
 
   const input: InsuranceEligibilityInput = {
     groupId: "0000000000",
@@ -41,7 +41,7 @@ async function testInsurance() {
     userId: user._id.toString(),
   }
 
-  const eligibility = await candid.checkInsuranceEligibility(
+  const eligibility = await candidService.checkInsuranceEligibility(
     user,
     provider,
     input,
@@ -55,9 +55,18 @@ async function testInsurance() {
     eaAppointmentId: "2",
     timezone: "America/New_York",
   })
-  await candid.createCodedEncounter(user, provider, appointment, input)
+  const encounter = await candidService.createCodedEncounter(
+    user,
+    provider,
+    appointment,
+    input
+  )
+  console.log(`Encounter: ${JSON.stringify(encounter, null, "  ")}`)
 
   process.exit(0)
 }
 
-testInsurance().catch((error) => console.error(error))
+testInsurance().catch((error) => {
+  console.error(error?.message || error)
+  process.exit(1)
+})
