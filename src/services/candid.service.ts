@@ -314,9 +314,10 @@ export default class CandidService {
         insurance_card: {
           member_id: input.memberId,
           payer_id: input.payor,
-          payer_name: input.payor, // TODO: Payer Name source?
+          payer_name: input.insuranceCompany,
           group_number: input.groupId,
           rx_bin: input.rxBin,
+          rx_pcn: input.rxGroup,
         },
       },
       patient: {
