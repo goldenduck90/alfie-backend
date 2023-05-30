@@ -36,25 +36,25 @@ function findByStripeSubscriptionId(
   return this.findOne({ stripeSubscriptionId })
 }
 
-function findByStripePaymentIntentId(
+function findByStripeSetupIntentId(
   this: ReturnModelType<typeof Checkout, QueryHelpers>,
-  stripePaymentIntentId: Checkout["stripePaymentIntentId"]
+  stripeSetupIntentId: Checkout["stripeSetupIntentId"]
 ) {
-  return this.findOne({ stripePaymentIntentId })
+  return this.findOne({ stripeSetupIntentId })
 }
 
 interface QueryHelpers {
   findByEmail: AsQueryMethod<typeof findByEmail>
   findByStripeCustomerId: AsQueryMethod<typeof findByStripeCustomerId>
   findByStripeSubscriptionId: AsQueryMethod<typeof findByStripeSubscriptionId>
-  findByStripePaymentIntentId: AsQueryMethod<typeof findByStripePaymentIntentId>
+  findByStripeSetupIntentId: AsQueryMethod<typeof findByStripeSetupIntentId>
 }
 
 @index({ email: 1 })
 @queryMethod(findByEmail)
 @queryMethod(findByStripeCustomerId)
 @queryMethod(findByStripeSubscriptionId)
-@queryMethod(findByStripePaymentIntentId)
+@queryMethod(findByStripeSetupIntentId)
 @ObjectType()
 export class Checkout {
   @Field(() => String)
@@ -70,7 +70,7 @@ export class Checkout {
 
   @Field(() => String)
   @prop({ required: false })
-  stripePaymentIntentId?: string
+  stripeSetupIntentId?: string
 
   @Field(() => String)
   @prop({ required: false })
@@ -94,10 +94,6 @@ export class Checkout {
   @Field(() => String)
   @prop({ required: true })
   email: string
-
-  @Field(() => String)
-  @prop({ required: true })
-  weightLossMotivator: string
 
   @Field(() => Date)
   @prop({ required: true })
@@ -138,6 +134,18 @@ export class Checkout {
   @Field(() => String)
   @prop({ required: true })
   phone: string
+
+  @Field(() => [String])
+  @prop({ required: true })
+  weightLossMotivatorV2: string[]
+
+  @Field(() => [String])
+  @prop({ required: true })
+  pastTries: string[]
+
+  // @Field(() => String)
+  // @prop({ required: true })
+  // healthInsurance: string
 }
 
 export const CheckoutModel = getModelForClass<typeof Checkout, QueryHelpers>(
@@ -155,9 +163,6 @@ export class CreateCheckoutInput {
   @IsEmail({}, { message: emailValidation.message })
   @Field(() => String)
   email: string
-
-  @Field(() => String)
-  weightLossMotivator: string
 
   @Field(() => Date)
   dateOfBirth: Date
@@ -180,6 +185,18 @@ export class CreateCheckoutInput {
   @IsPhoneNumber("US", { message: phoneValidation.message })
   @Field(() => String)
   phone: string
+
+  @Field(() => [String])
+  @prop({ required: true })
+  weightLossMotivatorV2: string[]
+
+  @Field(() => [String])
+  @prop({ required: true })
+  pastTries: string[]
+
+  // @Field(() => String)
+  // @prop({ required: true })
+  // healthInsurance: string
 }
 
 @InputType()

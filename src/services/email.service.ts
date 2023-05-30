@@ -50,15 +50,13 @@ class EmailService {
   async sendForgotPasswordEmail({
     email,
     token,
-    provider = false,
   }: {
     email: string
     token: string
-    provider?: boolean
   }) {
     const { path, subject } = config.get("emails.forgotPassword") as any
     const baseUrl = config.get("baseUrl") as any
-    const url = `${baseUrl}/${path}?token=${token}&provider=${provider}`
+    const url = `${baseUrl}/${path}?token=${token}`
 
     const result = await this.sendEmail(subject, url, [email])
     return result.MessageId
