@@ -123,6 +123,25 @@ export default class AppointmentResolver {
     Role.Nutritionist,
   ])
   @Mutation(() => MessageResponse)
+  updateAppointmentAttended(
+    @Ctx() context: Context,
+    @Arg("eaAppointmentId") eaAppointmentId: string
+  ) {
+    return this.appointmentService.updateAppointmentAttended(
+      context.user,
+      eaAppointmentId
+    )
+  }
+
+  @Authorized([
+    Role.Patient,
+    Role.Practitioner,
+    Role.Doctor,
+    Role.CareCoordinator,
+    Role.HealthCoach,
+    Role.Nutritionist,
+  ])
+  @Mutation(() => MessageResponse)
   cancelAppointment(@Arg("input") input: GetAppointmentInput) {
     return this.appointmentService.cancelAppointment(input)
   }
