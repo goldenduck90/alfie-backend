@@ -14,6 +14,20 @@ export default {
     clientId: process.env.CANDID_CLIENT_ID,
     clientSecret: process.env.CANDID_CLIENT_SECRET,
     serviceTypeCode: "88",
+    chargeAmountCents: 20000,
+    billingProvider: {
+      organization_name: "Alfie",
+      tax_id: "000000001",
+      npi: "1942788757",
+      address: {
+        address1: "123 address1",
+        address2: "000",
+        city: "city2",
+        state: "WA",
+        zip_code: "37203",
+        zip_plus_four_code: "0000",
+      },
+    },
   },
   defaultPriceId: "price_1KMviXDOjl0X0gOq9Pk7gRFE",
   dynamoDb: {

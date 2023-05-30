@@ -14,6 +14,7 @@ import type {
   CandidEncodedEncounterResponse,
   CandidEligibilityCheckRequest,
   CandidEligibilityCheckResponse,
+  CandidRequestBillingProvider,
 } from "../@types/candidTypes"
 import dayjs from "../utils/dayjs"
 import { InsuranceEligibilityInput, User } from "../schema/user.schema"
@@ -281,6 +282,13 @@ export default class CandidService {
       zip_plus_four_code: (user.address.postalCode || "").slice(5),
     }
 
+    const billingProvider: CandidRequestBillingProvider = config.get(
+      "candidHealth.billingProvider"
+    )
+    const chargeAmountCents: number = config.get(
+      "candidHealth.chargeAmountCents"
+    )
+
     // TODO should an eligibility check occur before individual insurance/encounter billing occurs after an appointment?
     const encounterRequest: CandidCreateCodedEncounterRequest = {
       external_id: `${user._id.toString()}-${appointment.eaAppointmentId}`,
@@ -291,20 +299,7 @@ export default class CandidService {
       benefits_assigned_to_provider: true,
       provider_accepts_assignment: true,
       appointment_type: "Obesity Management",
-      billing_provider: {
-        // TODO: replace with real information for Alfie.
-        organization_name: "Alfie",
-        tax_id: "000000001",
-        npi: "1942788757",
-        address: {
-          address1: "123 address1",
-          address2: "000",
-          city: "city2",
-          state: "WA",
-          zip_code: "37203",
-          zip_plus_four_code: "0000",
-        },
-      },
+      billing_provider: billingProvider,
       rendering_provider: {
         first_name: provider.firstName,
         last_name: provider.lastName,
@@ -348,7 +343,7 @@ export default class CandidService {
           procedure_code: "99401", // TODO: CPT code for obesity management procedure?
           quantity: "1",
           units: "UN",
-          // charge_amount_cents: 0,
+          charge_amount_cents: chargeAmountCents,
           diagnosis_pointers: [0],
         },
       ],

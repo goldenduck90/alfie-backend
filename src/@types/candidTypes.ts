@@ -21,6 +21,46 @@ export interface CandidRequestSubscriberV0 {
   ssn?: string
 }
 
+/**
+ * The billing provider is the provider or business entity submitting
+ * the claim. Billing provider may be, but is not necessarily, the same
+ * person/NPI as the rendering provider. From a payer's perspective, this
+ * represents the person or entity being reimbursed. When a contract exists
+ * with the target payer, the billing provider should be the entity
+ * contracted with the payer. In some circumstances, this will be an
+ * individual provider. In that case, submit that provider's NPI and the
+ * tax ID (TIN) that the provider gave to the payer during contracting.
+ * In other cases, the billing entity will be a medical group. If so,
+ * submit the group NPI and the group's tax ID. Box 33 on the CMS-1500
+ * claim form.
+ */
+export interface CandidRequestBillingProvider {
+  /** If the billing provider is an individual, this should be set instead of organization name. */
+  first_name?: string
+
+  /** If the billing provider is an individual, this should be set instead of organization name. */
+  last_name?: string
+
+  /** If the billing provider is an organization, this should be set instead of first + last name. */
+  organization_name?: string
+
+  address: {
+    address1: string
+    address2?: string
+    city: string
+    state: string
+    zip_code: string
+    zip_plus_four_code: string
+  }
+
+  /** If the provider has a contract with insurance, this must be the same tax ID given to the payer on an IRS W-9 form completed during contracting. */
+  tax_id: string
+
+  npi: string
+
+  taxonomy_code?: string
+}
+
 export interface CandidAddressPlusFour {
   address1: string
   address2?: string
@@ -53,6 +93,8 @@ export interface CandidServiceLine {
   procedure_code: string
 
   quantity: string
+
+  charge_amount_cents?: number
 
   /** MJ or UN. */
   units: string
@@ -530,45 +572,7 @@ export interface CandidCreateCodedEncounterRequest {
   /** Should be set to true if Candid should not create or submit a claim but you'd like us to track this encounter anyway (ex: patient is paying cash) */
   do_not_bill?: boolean
 
-  /**
-   * The billing provider is the provider or business entity submitting
-   * the claim. Billing provider may be, but is not necessarily, the same
-   * person/NPI as the rendering provider. From a payer's perspective, this
-   * represents the person or entity being reimbursed. When a contract exists
-   * with the target payer, the billing provider should be the entity
-   * contracted with the payer. In some circumstances, this will be an
-   * individual provider. In that case, submit that provider's NPI and the
-   * tax ID (TIN) that the provider gave to the payer during contracting.
-   * In other cases, the billing entity will be a medical group. If so,
-   * submit the group NPI and the group's tax ID. Box 33 on the CMS-1500
-   * claim form.
-   */
-  billing_provider: {
-    /** If the billing provider is an individual, this should be set instead of organization name. */
-    first_name?: string
-
-    /** If the billing provider is an individual, this should be set instead of organization name. */
-    last_name?: string
-
-    /** If the billing provider is an organization, this should be set instead of first + last name. */
-    organization_name?: string
-
-    address: {
-      address1: string
-      address2?: string
-      city: string
-      state: string
-      zip_code: string
-      zip_plus_four_code: string
-    }
-
-    /** If the provider has a contract with insurance, this must be the same tax ID given to the payer on an IRS W-9 form completed during contracting. */
-    tax_id: string
-
-    npi: string
-
-    taxonomy_code?: string
-  }
+  billing_provider?: CandidRequestBillingProvider
 
   /** For telehealth services, the rendering provider performs the visit, asynchronous communication, or other service. The rendering provider address should generally be the same as the service facility address. */
   rendering_provider: {
@@ -770,7 +774,7 @@ export interface CandidEncodedEncounterResponse {
     clearinghouse_claim_id?: string
     payer_claim_id: string | null
     service_lines: CandidServiceLineResponse[]
-    eras: []
+    eras: any[]
   }[]
   patient: {
     first_name: string
