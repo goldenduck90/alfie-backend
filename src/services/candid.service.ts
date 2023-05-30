@@ -1,7 +1,7 @@
 import * as Sentry from "@sentry/node"
 import axios, { AxiosInstance } from "axios"
 import config from "config"
-import { addMinutes, addSeconds, isPast } from "date-fns"
+import { addSeconds, isPast } from "date-fns"
 import type { LeanDocument } from "mongoose"
 import type { IEAAppointment } from "../@types/easyAppointmentTypes"
 import {
@@ -22,6 +22,8 @@ import { TaskType } from "../schema/task.schema"
 import TaskService from "../services/task.service"
 import lookupCPID from "../utils/lookupCPID"
 
+export const authorizationTokenProvider = "candidhealth"
+
 interface CandidAuthResponse {
   /** The access token to use in authorization headers. */
   access_token: string
@@ -34,7 +36,6 @@ export default class CandidService {
   private baseUrl: string
   private clientId: string
   private clientSecret: string
-  private cachedToken: AuthorizationToken
 
   private taskService: TaskService
 
@@ -71,8 +72,9 @@ export default class CandidService {
   public async authenticate() {
     let token: LeanDocument<AuthorizationToken>
 
+    // retrieve the existing token and check if it is still valid
     const existingToken = await this.getSavedAuthorizationToken()
-    if (existingToken && !isPast(addMinutes(existingToken.expiresAt, -10))) {
+    if (existingToken && !isPast(addSeconds(existingToken.expiresAt, -60))) {
       token = existingToken
     } else {
       try {
@@ -83,11 +85,11 @@ export default class CandidService {
             client_secret: this.clientSecret,
           }
         )
-        const expiresAt = addSeconds(new Date(), data.expires_in - 60)
+        const expiresAt = addSeconds(new Date(), data.expires_in)
         await this.saveAuthorizationToken(data.access_token, expiresAt)
         token = await this.getSavedAuthorizationToken()
       } catch (error) {
-        Sentry.captureException(error)
+        Sentry.captureException(error.response?.data)
         console.log(
           `CandidService.authenticate error: ${JSON.stringify(
             error.response?.data
@@ -97,23 +99,16 @@ export default class CandidService {
       }
     }
 
-    this.cachedToken = token
     this.setAuthorizationBearer(token.token)
 
     return token
   }
 
-  /** Gets a saved non-expired authorization token from the database, or null if none exists. */
+  /** Gets an authorization token for candidhealth from the database, or null if none exists. */
   public async getSavedAuthorizationToken(): Promise<LeanDocument<AuthorizationToken> | null> {
-    const existingToken = (await AuthorizationTokenModel.findOne({
-      provider: "candid",
+    return (await AuthorizationTokenModel.findOne({
+      provider: authorizationTokenProvider,
     }).lean()) as LeanDocument<AuthorizationToken>
-
-    if (existingToken && !isPast(existingToken.expiresAt)) {
-      return existingToken
-    } else {
-      return null
-    }
   }
 
   /** Saves the given OAuth 2.0 token to the authorizationTokens collection, updating any previously saved token if it exists. */
@@ -126,14 +121,14 @@ export default class CandidService {
       const tokenObj: LeanDocument<AuthorizationToken> = {
         token,
         expiresAt,
-        provider: "candid",
+        provider: authorizationTokenProvider,
         refreshToken: null,
         refreshTokenExpiresAt: null,
       }
 
       if (existingToken) {
         await AuthorizationTokenModel.findOneAndReplace(
-          { provider: "candid" },
+          { provider: authorizationTokenProvider },
           tokenObj
         )
       } else {
@@ -152,38 +147,40 @@ export default class CandidService {
     input: InsuranceEligibilityInput,
     /** Optional. The CPID. Otherwise, uses fields from `input` to calculate. */
     cpid?: string
-  ): Promise<CandidEligibilityCheckResponse> {
+  ): Promise<{
+    eligible: boolean
+    reason?: string
+    response: CandidEligibilityCheckResponse
+  }> {
     await this.authenticate()
+
+    const eligibleServiceTypeCode = config.get(
+      "candidHealth.serviceTypeCode"
+    ) as string
 
     try {
       const [userFirstName, userLastName] = user.name.split(" ")
 
       // @todo which inputs to send to CPID lookup.
-      cpid = cpid || lookupCPID(input.payor, "")
+      cpid = cpid || lookupCPID(input.payor, input.insuranceCompany)
       if (!cpid) {
         throw new Error("Could not infer CPID from payor.")
       }
 
-      const request: any = {
-        trading_partner_service_id: cpid,
+      const request: CandidEligibilityCheckRequest = {
         tradingPartnerServiceId: cpid,
         provider: {
           firstName: provider.firstName,
-          FirstName: provider.firstName,
-          first_name: provider.firstName,
           lastName: provider.lastName,
-          last_name: provider.lastName,
-          name: `${provider.firstName} ${provider.lastName}`,
           npi: provider.npi,
-          organization_name: "extra healthy insurance",
-          organizationName: "extra healthy insurance",
+          providerCode: "AD",
         },
         subscriber: {
-          date_of_birth: dayjs.utc(user.dateOfBirth).format("YYYYMMDD"),
-          first_name: userFirstName?.trim() || "",
-          last_name: userLastName?.trim() || "",
+          dateOfBirth: dayjs.utc(user.dateOfBirth).format("YYYYMMDD"),
+          firstName: userFirstName?.trim() || "",
+          lastName: userLastName?.trim() || "",
           gender: user.gender.toLowerCase().startsWith("m") ? "M" : "F",
-          member_id: input.memberId,
+          memberId: input.memberId,
         },
       }
 
@@ -197,7 +194,27 @@ export default class CandidService {
           request
         )
 
-      return data
+      const hasInsurance = data.subscriber.insuredIndicator === "Y"
+      const benefits = data.benefitsInformation.filter((item) =>
+        item.serviceTypeCodes.includes(eligibleServiceTypeCode)
+      )
+      const activeBenefits = benefits.filter((item) => item.code === "1")
+      const inactiveBenefits = benefits.filter((item) => item.code !== "1")
+      const ineligibleReasons = inactiveBenefits
+        .map((item) => item.name)
+        .filter((reason) => reason && reason.trim())
+
+      const eligible = hasInsurance && activeBenefits.length > 0
+
+      return {
+        eligible,
+        reason: eligible
+          ? undefined
+          : ineligibleReasons.length > 0
+          ? ineligibleReasons.join(", ")
+          : "Not Covered",
+        response: data,
+      }
     } catch (error) {
       console.log(
         "Candid eligibility request error",
@@ -350,19 +367,23 @@ export default class CandidService {
             },
           ],
         },
-        {
-          category: "health_record",
-          notes: [
-            {
-              author_name: `${provider.firstName} ${provider.lastName}`,
-              text: previousConditionsText,
-              timestamp: dayjs
-                .tz(appointment.end, appointment.timezone)
-                .toISOString(),
-              author_npi: provider.npi,
-            },
-          ],
-        },
+        ...(previousConditionsText
+          ? [
+              {
+                category: "health_record",
+                notes: [
+                  {
+                    author_name: `${provider.firstName} ${provider.lastName}`,
+                    text: previousConditionsText,
+                    timestamp: dayjs
+                      .tz(appointment.end, appointment.timezone)
+                      .toISOString(),
+                    author_npi: provider.npi,
+                  },
+                ],
+              },
+            ]
+          : []),
       ],
     }
 
@@ -391,7 +412,10 @@ export default class CandidService {
         message: "Candid Create Coded Encounter Error",
         errorData,
       })
-      console.log("Candid Create Coded Encounter Error", errorData)
+      console.log(
+        "Candid Create Coded Encounter Error",
+        JSON.stringify(errorData)
+      )
 
       throw new Error("Candid Create Coded Encounter Error")
     }

@@ -1,35 +1,24 @@
+/** A provider described in a request. */
 export interface CandidRequestProviderV0 {
   organization_name?: string
-  // organizationName?: string
-  first_name?: string
-  // firstName?: string
-  last_name?: string
-  // lastName?: string
+  organizationName?: string
+  firstName?: string
+  lastName?: string
   npi: string
-  // npi: string
-  service_provider_number?: string
-  // serviceProviderNumber?: string
-  provider_code?: string
-  // providerCode?: string
-  reference_identification?: string
-  // referenceIdentification?: string
-  federal_taxpayers_id_number?: string
-  // federalTaxpayersIdNumber?: string
+  serviceProviderNumber?: string
+  providerCode?: string
+  referenceIdentification?: string
+  federalTaxpayersIdNumber?: string
 }
 
+/** A subscriber described in a request. */
 export interface CandidRequestSubscriberV0 {
-  member_id: string
-  // memberId: string
-  first_name: string
-  // firstName: string
-  last_name: string
-  // lastName: string
+  memberId: string
+  firstName: string
+  lastName: string
   gender: string | "M" | "F"
-  // gender: string | "M" | "F"
-  date_of_birth: string
-  // dateOfBirth: string
+  dateOfBirth: string
   ssn?: string
-  // ssn?: string
 }
 
 export interface CandidAddressPlusFour {
@@ -346,7 +335,7 @@ export interface CandidEncounterV0 {
 
 export interface CandidEligibilityCheckRequest {
   /** The CPID of the insurance company (payer). */
-  trading_partner_service_id: string
+  tradingPartnerServiceId: string
   // tradingPartnerServiceId: string
 
   /** The provider. */

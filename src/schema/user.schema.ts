@@ -6,6 +6,7 @@ import {
   prop,
   queryMethod,
   ReturnModelType,
+  Severity,
 } from "@typegoose/typegoose"
 import { AsQueryMethod, Ref } from "@typegoose/typegoose/lib/types"
 import bcrypt from "bcrypt"
@@ -27,6 +28,9 @@ import {
   registerEnumType,
 } from "type-graphql"
 import { Provider } from "./provider.schema"
+import UserRole from "./enums/Role"
+export type Role = UserRole
+export const Role = UserRole
 
 const {
   email: emailValidation,
@@ -56,16 +60,6 @@ registerEnumType(Gender, {
   name: "Gender",
   description: "",
 })
-
-export enum Role {
-  Patient = "Patient",
-  Practitioner = "Practitioner",
-  Doctor = "Doctor",
-  HealthCoach = "HealthCoach",
-  Nutritionist = "Nutritionist",
-  CareCoordinator = "CareCoordinator",
-  Admin = "Admin",
-}
 
 registerEnumType(Role, {
   name: "Role",
@@ -345,6 +339,7 @@ interface QueryHelpers {
 @queryMethod(findByEmail)
 @queryMethod(findByEmailToken)
 @queryMethod(findBySubscriptionId)
+@ModelOptions({ options: { allowMixed: Severity.ALLOW } })
 @ObjectType()
 export class User {
   @Field(() => String)
@@ -926,6 +921,9 @@ export class InsuranceEligibilityInput {
 
   @Field(() => String)
   memberId: string
+
+  @Field(() => String)
+  insuranceCompany: string
 
   @Field(() => String)
   payor: string

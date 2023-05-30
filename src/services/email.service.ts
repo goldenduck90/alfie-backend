@@ -690,7 +690,7 @@ class EmailService {
      * Send email to patients@joinalfie.com
      * Send email to patient's email
      */
-    const subject = `${patientName}  Eligible for Insurance`
+    const subject = `${patientName} Eligible for Insurance`
     let emailBody = `
     <b>Patient Name:</b> ${patientName}<br/>
     <b>Patient Email:</b> ${patientEmail}<br/>

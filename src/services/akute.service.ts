@@ -17,6 +17,18 @@ import {
   InsuranceEligibilityInput,
 } from "../schema/user.schema"
 
+export interface AkuteCreateInsuranceRequest {
+  patient_id: string
+  member_id: string
+  group_id: string
+  group_name: string
+  rx_bin: string
+  rx_group: string
+  payor: string
+  status: string
+  order: number
+}
+
 /** Response from a POST to /insurance */
 export interface AkuteInsuranceResponse {
   rx_id: string
@@ -389,19 +401,20 @@ class AkuteService {
     input: InsuranceEligibilityInput
   ): Promise<AkuteInsuranceResponse> {
     try {
+      const createInsuranceRequest: AkuteCreateInsuranceRequest = {
+        patient_id: akuteId,
+        member_id: input.memberId,
+        group_id: input.groupId,
+        group_name: input.groupName,
+        rx_bin: input.rxBin,
+        rx_group: input.rxGroup,
+        payor: input.payor,
+        status: "active",
+        order: 1,
+      }
       const { data } = await this.axios.post<AkuteInsuranceResponse>(
         "/insurance",
-        {
-          patient_id: akuteId,
-          member_id: input.memberId,
-          group_id: input.groupId,
-          group_name: input.groupName,
-          rx_bin: input.rxBin,
-          rx_group: input.rxGroup,
-          payor: input.payor,
-          status: "active",
-          order: 1,
-        }
+        createInsuranceRequest
       )
       console.log("createInsurance response", data)
       return data

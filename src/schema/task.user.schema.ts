@@ -4,6 +4,7 @@ import {
   prop,
   queryMethod,
   ReturnModelType,
+  Severity,
 } from "@typegoose/typegoose"
 import { AsQueryMethod, Ref } from "@typegoose/typegoose/lib/types"
 import { Field, InputType, ObjectType, registerEnumType } from "type-graphql"
@@ -26,7 +27,10 @@ registerEnumType(AnswerType, {
 
 @ObjectType()
 @InputType("UserAnswersInput")
-@ModelOptions({ schemaOptions: { _id: false } })
+@ModelOptions({
+  schemaOptions: { _id: false },
+  options: { allowMixed: Severity.ALLOW },
+})
 export class UserAnswer {
   @Field(() => String)
   @prop({ required: true })

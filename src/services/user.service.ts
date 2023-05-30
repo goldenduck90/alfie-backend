@@ -1520,24 +1520,30 @@ class UserService extends EmailService {
 
       console.log(`Insurance result: ${JSON.stringify(insuranceResult)}`)
 
-      const eligibility = await this.candidService.checkInsuranceEligibility(
-        user,
-        provider,
-        input
-      )
-      const eligible = eligibility.benefitsInformation?.some(
-        (benefit) => benefit.code === "1"
-      )
-      const notEligibleReason = !eligible ? "TODO" : null
+      const { eligible, reason: ineligibleReason } =
+        await this.candidService.checkInsuranceEligibility(
+          user,
+          provider,
+          input
+        )
+
+      Sentry.captureEvent({
+        message: `[CANDID HEALTH][TIME: ${new Date().toISOString()}][EVENT: eligibility] ${
+          eligible
+            ? "Eligible Determination"
+            : `Ineligible: ${ineligibleReason}`
+        }`,
+      })
 
       await this.emailService.sendEligibilityCheckResultEmail({
         patientName: user.name,
         patientEmail: user.email,
         patientPhone: user.phone,
         eligible,
-        reason: notEligibleReason, // TODO
+        reason: ineligibleReason,
       })
-      return eligibility
+
+      return eligible
     } catch (e) {
       throw new ApolloError(e.message, "ERROR")
     }

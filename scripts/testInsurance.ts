@@ -27,15 +27,16 @@ async function testInsurance() {
 
   // prepare provider sandbo values
   const { provider } = user
-  provider.npi = "1760854442"
+  provider.npi = "0123456789"
   provider.firstName = "johnone"
-  provider.lastName = "doetwo"
+  provider.lastName = "doeone"
 
   const input: InsuranceEligibilityInput = {
     groupId: "0000000000",
     groupName: "group name",
     memberId: "0000000000",
     payor: "00019", // https://developers.changehealthcare.com/eligibilityandclaims/docs/use-the-test-payers-in-the-sandbox-api
+    insuranceCompany: "extra healthy insurance",
     rxBin: "12345",
     rxGroup: "abcdefg",
     userId: user._id.toString(),
@@ -45,10 +46,13 @@ async function testInsurance() {
     user,
     provider,
     input,
-    "00001"
+    "00007" // active coverage
+    // "000031" // inactive coverage
+    // "000040" // non covered
   )
 
-  console.log("eligibility", JSON.stringify(eligibility))
+  console.log("candid eligibility result")
+  console.log(JSON.stringify(eligibility, null, "  "))
 
   const appointmentService = new AppointmentService()
   const appointment = await appointmentService.getAppointment({
@@ -61,7 +65,8 @@ async function testInsurance() {
     appointment,
     input
   )
-  console.log(`Encounter: ${JSON.stringify(encounter, null, "  ")}`)
+  console.log("candid coded encounter result")
+  console.log(JSON.stringify(encounter, null, "  "))
 
   process.exit(0)
 }
