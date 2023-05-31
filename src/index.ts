@@ -873,6 +873,41 @@ async function bootstrap() {
     }
   })
 
+  app.post("/metriportWebhooks", express.json(), async (req, res) => {
+    try {
+      const key = req.get("x-webhook-key")
+      console.log(key, req.body)
+
+      if (key !== process.env.METRIPORT_WEBHOOK_KEY) {
+        return res.status(401).send({ message: "Unauthorized" })
+      }
+
+      const { ping, meta, users } = req.body
+
+      if (ping) {
+        return res.status(200).send({
+          pong: ping,
+        })
+      }
+
+      if (!meta || !users) {
+        return res.status(400).send({
+          message: "Bad Request",
+        })
+      }
+
+      await Promise.all(
+        users.map(async (user: any) => {
+          console.log(user)
+        })
+      )
+      return res.status(200).send({ message: "Webhook processed successfully" })
+    } catch (error) {
+      console.log(error, "error")
+      res.sendStatus(500)
+    }
+  })
+
   // app.listen on express server
   app.listen({ port: process.env.PORT || 4000 }, async () => {
     console.log(
