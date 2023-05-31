@@ -1,5 +1,6 @@
 import * as Sentry from "@sentry/node"
 import axios, { AxiosInstance } from "axios"
+import { ApolloError } from "apollo-server-errors"
 import config from "config"
 import { addSeconds, isPast } from "date-fns"
 import type { LeanDocument } from "mongoose"
@@ -17,7 +18,11 @@ import type {
   CandidRequestBillingProvider,
 } from "../@types/candidTypes"
 import dayjs from "../utils/dayjs"
-import { InsuranceEligibilityInput, User } from "../schema/user.schema"
+import {
+  InsuranceEligibilityInput,
+  User,
+  UserModel,
+} from "../schema/user.schema"
 import { Provider } from "../schema/provider.schema"
 import { TaskType } from "../schema/task.schema"
 import TaskService from "../services/task.service"
@@ -162,7 +167,6 @@ export default class CandidService {
     try {
       const [userFirstName, userLastName] = user.name.split(" ")
 
-      // @todo which inputs to send to CPID lookup.
       cpid = cpid || lookupCPID(input.payor, input.insuranceCompany)
       if (!cpid) {
         throw new Error("Could not infer CPID from payor.")
@@ -224,6 +228,29 @@ export default class CandidService {
       Sentry.captureException(error.response?.data)
       throw new Error("Candid Check Eligibility Error")
     }
+  }
+
+  /** Create a coded encounter, retrieving inputs based on the given `appointment` for `createCodedEncounter`. */
+  async createCodedEncounterForAppointment(appointment: IEAAppointment) {
+    const user = await UserModel.findById(appointment.eaCustomer.id).populate<{
+      provider: Provider
+    }>("provider")
+
+    if (!user)
+      throw new ApolloError(
+        `User ${appointment.eaCustomer.id} on appointment not found during insurance billing.`
+      )
+
+    const { provider } = user
+    if (!provider)
+      throw new ApolloError(`User ${user._id.toString()} has no provider.`)
+
+    const input: InsuranceEligibilityInput = {
+      ...user.insurance,
+      userId: user._id.toString(),
+    }
+
+    return await this.createCodedEncounter(user, provider, appointment, input)
   }
 
   /**
@@ -289,7 +316,6 @@ export default class CandidService {
       "candidHealth.chargeAmountCents"
     )
 
-    // TODO should an eligibility check occur before individual insurance/encounter billing occurs after an appointment?
     const encounterRequest: CandidCreateCodedEncounterRequest = {
       external_id: `${user._id.toString()}-${appointment.eaAppointmentId}`,
       date_of_service: dayjs
@@ -341,7 +367,7 @@ export default class CandidService {
       service_lines: [
         {
           modifiers: ["95"], // 95 - Synchronous Telemedicine Service Rendered via a Real-Time Interactive Audio and Video Telecommunications System
-          procedure_code: "99401", // TODO: CPT code for obesity management procedure?
+          procedure_code: "99401",
           quantity: "1",
           units: "UN",
           charge_amount_cents: chargeAmountCents,

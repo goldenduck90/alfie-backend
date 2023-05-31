@@ -27,6 +27,7 @@ import dayjs from "dayjs"
 import tz from "dayjs/plugin/timezone"
 import utc from "dayjs/plugin/utc"
 import advanced from "dayjs/plugin/advancedFormat"
+import CandidService from "./candid.service"
 
 dayjs.extend(utc)
 dayjs.extend(tz)
@@ -108,10 +109,12 @@ interface ScheduleObject {
 class AppointmentService extends EmailService {
   public eaUrl: string
   public axios: AxiosInstance
+  private candidService: CandidService
 
   constructor() {
     super()
     const eaUrl = config.get("easyAppointmentsApiUrl") as string
+    this.candidService = new CandidService()
 
     this.eaUrl = eaUrl
     this.axios = axios.create({
@@ -841,13 +844,13 @@ class AppointmentService extends EmailService {
     // provider no show.
     if (providerNoShow) {
       console.log(
-        `Sending provider appointment (id: ${appointment.eaAppointmentId}) no-show email: ${appointment.eaProvider?.firstName} ${appointment.eaProvider?.lastName}`
+        `Sending provider appointment (id: ${appointment.eaAppointmentId}) no-show email: ${appointment.eaProvider.firstName} ${appointment.eaProvider.lastName}`
       )
       await this.sendAppointmentProviderSkippedEmail({
         eaAppointmentId: `${appointment.eaAppointmentId}`,
-        name: appointment.eaProvider?.firstName ?? "",
-        email: appointment.eaCustomer?.email ?? null,
-        patientName: appointment.eaProvider?.name ?? null,
+        name: appointment.eaProvider.firstName ?? "",
+        email: appointment.eaCustomer.email ?? null,
+        patientName: appointment.eaProvider.name ?? null,
         date: dayjs
           .tz(appointment.start, appointment.timezone)
           .format("MM/DD/YYYY"),
@@ -862,14 +865,24 @@ class AppointmentService extends EmailService {
 
     // appointment ended
     if (claimNotSubmitted) {
-      // console.log("Submitting insurance claim for attended appointment")
-      // TODO: submit insurance claim for attended appointment, then uncomment following line:
-      // await this.updateAppointmentAttended(null, appointment.eaAppointmentId, ["claim_submitted"])
+      console.log("Submitting insurance claim for attended appointment")
+      try {
+        await this.candidService.createCodedEncounterForAppointment(appointment)
+        await this.updateAppointmentAttended(
+          null,
+          appointment.eaAppointmentId,
+          ["claim_submitted"]
+        )
+      } catch (error) {
+        Sentry.captureException(error)
+        console.log(
+          `Error creating a coded encounter for appointment ${appointment.eaAppointmentId}.`
+        )
+      }
     }
   }
 
-  async attendedJob(): Promise<void> {
-    // get now to the nearest 30 minutes for reliable appointment object differentiation.
+  async postAppointmentJob(): Promise<void> {
     const timezone = "America/New_York"
     const now = dayjs.tz(new Date(), timezone)
 
@@ -897,7 +910,7 @@ class AppointmentService extends EmailService {
       `Queried ${appointments.length} appointments, ${pastAppointments.length} have ended:`
     )
 
-    // TODO: use batchAsync from sendbird PR to scale, once merged.
+    // TODO: use batchAsync from sendbird PR to scale
     await Promise.all(
       pastAppointments.map(
         async (appointment) => await this.handleAppointmentEnded(appointment)

@@ -43,6 +43,7 @@ import {
   UpdateUserInput,
   Weight,
   InsuranceEligibilityInput,
+  User,
 } from "../schema/user.schema"
 import { signJwt } from "../utils/jwt"
 import {
@@ -1500,6 +1501,31 @@ class UserService extends EmailService {
       console.log("error", error)
       Sentry.captureException(error)
     }
+  }
+
+  /** Updates insurance information for a given user. */
+  async updateInsurance(input: InsuranceEligibilityInput): Promise<void> {
+    const { userId } = input
+    const notFound = config.get("errors.user.notFound") as any
+
+    // Get the user by ID
+    const user: LeanDocument<User> = await UserModel.findById(userId).lean()
+    if (!user) {
+      throw new ApolloError(notFound.message, notFound.code)
+    }
+
+    // update insurance fields
+    user.insurance = {
+      memberId: input.memberId,
+      groupId: input.groupId,
+      groupName: input.groupName,
+      insuranceCompany: input.insuranceCompany,
+      rxBin: input.rxBin,
+      rxGroup: input.rxGroup,
+      payor: input.payor,
+    }
+
+    await UserModel.findByIdAndUpdate(user._id, user)
   }
 
   async checkInsuranceEligibility(input: InsuranceEligibilityInput) {

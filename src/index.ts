@@ -896,7 +896,7 @@ cron.schedule("0 0 * * *", async () => {
 cron.schedule("*/30 * * * *", async () => {
   console.log("[APPOINTMENT ATTENDED JOB] RUNNING...")
   const appointmentService = new AppointmentService()
-  await appointmentService.attendedJob()
+  await appointmentService.postAppointmentJob()
   console.log("[APPOINTMENT ATTENDED JOB] COMPLETED")
 })
 

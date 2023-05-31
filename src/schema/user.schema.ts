@@ -73,6 +73,41 @@ export class RoleResponse {
 }
 
 @ObjectType()
+@InputType("InsuranceInput")
+@ModelOptions({ schemaOptions: { _id: false } })
+export class Insurance {
+  @Field(() => String)
+  @prop({ required: true })
+  memberId: string
+
+  @Field(() => String)
+  @prop({ required: true })
+  insuranceCompany: string
+
+  /** The payer ID. */
+  @Field(() => String)
+  @prop({ required: true })
+  payor: string
+
+  @Field(() => String)
+  @prop({ required: true })
+  groupId: string
+
+  @Field(() => String)
+  @prop({ required: true })
+  groupName: string
+
+  @Field(() => String)
+  @prop({ required: true })
+  rxBin: string
+
+  /** Also called RxPCN. */
+  @Field(() => String)
+  @prop({ required: true })
+  rxGroup: string
+}
+
+@ObjectType()
 @InputType("AddressInput")
 @ModelOptions({ schemaOptions: { _id: false } })
 export class Address {
@@ -401,6 +436,10 @@ export class User {
   @Field(() => Address)
   @prop()
   address: Address
+
+  @Field(() => Insurance, { nullable: true })
+  @prop({ required: false })
+  insurance?: Insurance
 
   @Field(() => Number, { nullable: true })
   @prop()

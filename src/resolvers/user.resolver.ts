@@ -144,6 +144,10 @@ export default class UserResolver {
 
   @Query(() => InsuranceEligibilityResponse)
   async insuranceEligibility(@Arg("input") input: InsuranceEligibilityInput) {
-    return await this.userService.checkInsuranceEligibility(input)
+    const eligible = await this.userService.checkInsuranceEligibility(input)
+    if (eligible) {
+      // only save insurance if it is currently eligible
+      await this.userService.updateInsurance(input)
+    }
   }
 }
