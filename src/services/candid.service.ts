@@ -201,7 +201,7 @@ export default class CandidService {
 
       const hasInsurance = data.subscriber.insuredIndicator === "Y"
       const benefits = data.benefitsInformation.filter((item) =>
-        item.serviceTypeCodes.includes(eligibleServiceTypeCode)
+        item.serviceTypeCodes?.includes(eligibleServiceTypeCode)
       )
       const activeBenefits = benefits.filter((item) => item.code === "1")
       const inactiveBenefits = benefits.filter((item) => item.code !== "1")
@@ -223,10 +223,10 @@ export default class CandidService {
     } catch (error) {
       console.log(
         "Candid eligibility request error",
-        JSON.stringify(error.response?.data)
+        JSON.stringify(error.response?.data ?? error)
       )
-      Sentry.captureException(error.response?.data)
-      throw new Error("Candid Check Eligibility Error")
+      Sentry.captureException(error.response?.data ?? error)
+      throw error
     }
   }
 

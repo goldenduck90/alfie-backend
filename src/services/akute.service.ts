@@ -48,8 +48,6 @@ class AkuteService {
         "X-API-Key": process.env.AKUTE_API_KEY,
       },
     })
-
-    console.log(`AKUTE API: ${process.env.AKUTE_API_KEY}`)
   }
 
   async createPatient(input: CreatePatientInput) {

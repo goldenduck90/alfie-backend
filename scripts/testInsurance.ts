@@ -35,8 +35,8 @@ async function testInsurance() {
     groupId: "0000000000",
     groupName: "group name",
     memberId: "0000000000",
-    payor: "00019", // https://developers.changehealthcare.com/eligibilityandclaims/docs/use-the-test-payers-in-the-sandbox-api
-    insuranceCompany: "extra healthy insurance",
+    payor: "00803", // https://developers.changehealthcare.com/eligibilityandclaims/docs/use-the-test-payers-in-the-sandbox-api
+    insuranceCompany: "NEW YORK EMPIRE BLUE SHIELD",
     rxBin: "12345",
     rxGroup: "abcdefg",
     userId: user._id.toString(),
@@ -46,9 +46,10 @@ async function testInsurance() {
     user,
     provider,
     input,
-    "00007" // active coverage
+    // "00007" // active coverage
     // "000031" // inactive coverage
     // "000040" // non covered
+    "000047" // deductible
   )
 
   console.log("candid eligibility result")
