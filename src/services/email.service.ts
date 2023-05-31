@@ -649,7 +649,6 @@ class EmailService {
   }) {
     /**
      * Send email to patients@joinalfie.com
-     * Send email to patient's email
      */
     const subject = `${patientName} Eligible for Insurance`
     let emailBody = `
@@ -662,29 +661,32 @@ class EmailService {
     if (!eligible) {
       emailBody += `<b>Reason:</b> ${reason}<br/>`
     }
+    const providerEmailResult = await this.sendEmail(subject, emailBody, [
+      "patients@joinalfie.com",
+    ])
 
-    const params = {
-      Source: this.noReplyEmail,
-      Destination: {
-        ToAddresses: ["patients@joinalfie.com"],
-      },
-      ReplyToAddresses: [] as string[],
-      Message: {
-        Body: {
-          Html: {
-            Charset: "UTF-8",
-            Data: emailBody, // TODO: build email template & copy
-          },
-        },
-        Subject: {
-          Charset: "UTF-8",
-          Data: subject,
-        },
-      },
+    /**
+     * Send email to patient's email
+     */
+    const patientSubject = "Your eligibility results have come in!"
+    const patientEmailBody = `
+      ${patientName},
+      <br /><br />
+      Based on the information you provided, your insurance covers visits with your Alfie provider.
+      Please make sure to login to <a href="https://app.joinalfie.com" target="_blank">app.joinalfie.com</a>
+      and complete your current tasks. Once complete, you'll receive a new task to schedule with the provider!
+    `
+
+    const patientEmailResult = await this.sendEmail(
+      patientSubject,
+      patientEmailBody,
+      [patientEmail]
+    )
+
+    return {
+      providerEmailId: providerEmailResult.MessageId,
+      patientEmailId: patientEmailResult.MessageId,
     }
-
-    const result = await this.awsSes.sendEmail(params).promise()
-    return result.MessageId
   }
 }
 
