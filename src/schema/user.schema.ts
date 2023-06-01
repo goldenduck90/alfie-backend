@@ -490,6 +490,10 @@ export class User {
   @Field(() => Number, { nullable: true })
   @prop()
   bmi?: number
+
+  @Field(() => Boolean, { defaultValue: false })
+  @prop()
+  hasScale?: boolean
 }
 
 export const UserModel = getModelForClass<typeof User, QueryHelpers>(User, {
