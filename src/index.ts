@@ -15,6 +15,12 @@ import authChecker from "./middleware/authChecker"
 import resolvers from "./resolvers"
 import { ProviderModel } from "./schema/provider.schema"
 import { Role, UserModel } from "./schema/user.schema"
+import {
+  AnswerType,
+  UserAnswer,
+  UserTaskModel,
+} from "./schema/task.user.schema"
+import { TaskType, Task, TaskModel } from "./schema/task.schema"
 import Context from "./types/context"
 import { connectToMongo } from "./utils/mongo"
 import * as cron from "node-cron"
@@ -23,7 +29,6 @@ import stripe from "stripe"
 import { CheckoutModel } from "./schema/checkout.schema"
 dotenv.config()
 import config from "config"
-import { Weight } from "./schema/user.schema"
 
 // import * as Tracing from '@sentry/tracing';
 Sentry.init({
@@ -899,22 +904,56 @@ async function bootstrap() {
         users.map(async (user: any) => {
           const { userId, body } = user
           if (body?.[0]?.weight_kg) {
+            const weightLbs = Math.floor(body[0].weight_kg * 2.2)
             const weight = {
-              value: (body[0].weight_kg * 2.2 * 100) / 100,
+              value: weightLbs,
               date: new Date(),
             }
 
-            await UserModel.updateOne(
+            const _user = await UserModel.findOneAndUpdate(
               { metriportUserId: userId },
-              { $push: { weights: weight } },
-              { $set: { hasScale: true } }
+              { $push: { weights: weight }, $set: { hasScale: true } },
+              { returnDocument: "after" }
             )
+
+            const userTasks = await UserTaskModel.find({
+              user: _user._id,
+            }).populate("task")
+            const weightLogTask = userTasks.find((userTask) => {
+              const task = userTask.task as Task
+              task.type === TaskType.WEIGHT_LOG && !userTask.completed
+            })
+            const userAnswer = {
+              key: "Weight from withings",
+              value: weightLbs,
+              type: AnswerType.NUMBER,
+            } as UserAnswer
+            if (weightLogTask) {
+              weightLogTask.completed = true
+              weightLogTask.answers = [...weightLogTask.answers, userAnswer]
+              await weightLogTask.save()
+            } else {
+              const task = await TaskModel.create({
+                name: "Enter your weight",
+                type: TaskType.WEIGHT_LOG,
+              })
+
+              const userTask = {
+                user: _user,
+                task: task,
+                completed: true,
+                answers: [userAnswer],
+              }
+              await UserTaskModel.create(userTask)
+            }
+            console.log(weightLogTask)
           }
         })
       )
       return res.status(200).send({ message: "Webhook processed successfully" })
-    } catch (error) {
-      console.log(error, "error")
+    } catch (err) {
+      console.log(err)
+      Sentry.captureException(err)
       res.sendStatus(500)
     }
   })
