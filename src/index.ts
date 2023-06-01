@@ -23,6 +23,7 @@ import stripe from "stripe"
 import { CheckoutModel } from "./schema/checkout.schema"
 dotenv.config()
 import config from "config"
+import { Weight } from "./schema/user.schema"
 
 // import * as Tracing from '@sentry/tracing';
 Sentry.init({
@@ -876,8 +877,6 @@ async function bootstrap() {
   app.post("/metriportWebhooks", express.json(), async (req, res) => {
     try {
       const key = req.get("x-webhook-key")
-      console.log(key, req.body)
-
       if (key !== process.env.METRIPORT_WEBHOOK_KEY) {
         return res.status(401).send({ message: "Unauthorized" })
       }
@@ -898,7 +897,19 @@ async function bootstrap() {
 
       await Promise.all(
         users.map(async (user: any) => {
-          console.log(user)
+          const { userId, body } = user
+          if (body?.[0]?.weight_kg) {
+            const weight = {
+              value: (body[0].weight_kg * 2.2 * 100) / 100,
+              date: new Date(),
+            }
+
+            await UserModel.updateOne(
+              { metriportUserId: userId },
+              { $push: { weights: weight } },
+              { $set: { hasScale: true } }
+            )
+          }
         })
       )
       return res.status(200).send({ message: "Webhook processed successfully" })
