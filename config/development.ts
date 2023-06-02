@@ -14,7 +14,7 @@ export default {
     apiUrl: "https://api-staging.joincandidhealth.com/api",
     clientId: process.env.CANDID_CLIENT_ID,
     clientSecret: process.env.CANDID_CLIENT_SECRET,
-    serviceTypeCode: "98",
+    serviceTypeCode: "90",
     chargeAmountCents: 20000,
     billingProvider: {
       organization_name: "Alfie",

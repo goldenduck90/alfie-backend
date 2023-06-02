@@ -11,7 +11,7 @@ export default {
     apiUrl: "https://api.joincandidhealth.com/api",
     clientId: process.env.CANDID_CLIENT_ID,
     clientSecret: process.env.CANDID_CLIENT_SECRET,
-    serviceTypeCode: "99",
+    serviceTypeCode: "3",
     chargeAmountCents: 20000,
     billingProvider: {
       organization_name: "Alfie",

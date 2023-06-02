@@ -35,7 +35,8 @@ async function testInsurance() {
     groupId: "0000000000",
     groupName: "group name",
     memberId: "0000000000",
-    payor: "00803", // https://developers.changehealthcare.com/eligibilityandclaims/docs/use-the-test-payers-in-the-sandbox-api
+    // https://developers.changehealthcare.com/eligibilityandclaims/docs/use-the-test-payers-in-the-sandbox-api
+    payor: "00803",
     insuranceCompany: "NEW YORK EMPIRE BLUE SHIELD",
     rxBin: "12345",
     rxGroup: "abcdefg",
@@ -46,10 +47,14 @@ async function testInsurance() {
     user,
     provider,
     input,
-    // "00007" // active coverage
+    /**
+     * The CPID here is optional and used for sandbox testing purposes.
+     * Normally, the CPID will be looked up in cpids.json from the payer ID/name.
+     */
+    "00007" // active coverage
     // "000031" // inactive coverage
     // "000040" // non covered
-    "000047" // deductible
+    // "000047" // deductible
   )
 
   console.log("candid eligibility result")

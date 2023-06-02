@@ -650,17 +650,17 @@ class EmailService {
     /**
      * Send email to patients@joinalfie.com
      */
-    const subject = `${patientName} Eligible for Insurance`
-    let emailBody = `
+    const subject = `${patientName} ${
+      eligible ? "Eligible" : "Ineligible"
+    } for Insurance`
+    const emailBody = `
     <b>Patient Name:</b> ${patientName}<br/>
     <b>Patient Email:</b> ${patientEmail}<br/>
     <b>Patient Phone:</b> ${patientPhone}<br/>
     <b>Eligibility Status:</b> ${eligible ? "Approved" : "Denied"}<br/>
+    ${!eligible ? `<b>Reason:</b> ${reason}<br/>` : ""}
     `
 
-    if (!eligible) {
-      emailBody += `<b>Reason:</b> ${reason}<br/>`
-    }
     const providerEmailResult = await this.sendEmail(subject, emailBody, [
       "patients@joinalfie.com",
     ])
@@ -668,13 +668,43 @@ class EmailService {
     /**
      * Send email to patient's email
      */
-    const patientSubject = "Your eligibility results have come in!"
-    const patientEmailBody = `
+    const patientSubject = `Your eligibility results have come in${
+      eligible ? "!" : "."
+    }`
+    const patientEmailBody = eligible
+      ? `
       ${patientName},
       <br /><br />
       Based on the information you provided, your insurance covers visits with your Alfie provider.
       Please make sure to login to <a href="https://app.joinalfie.com" target="_blank">app.joinalfie.com</a>
       and complete your current tasks. Once complete, you'll receive a new task to schedule with the provider!
+    `
+      : `
+      <p>Hi ${patientName},</p>
+      <p>It seems like the insurance information you gave us is not being accepted, but don't worry! It could be because:</p>
+
+      <ol>
+        <li>The insurance information you entered was incorrect or had a typo</li>
+        <li>Your insurance doesn't have coverage for services given by Alfie</li>
+      </ol>
+
+      <p>
+        If you think there was a typo or error, please tell us by replying to this email with your full insurance information
+        again, or with that of a spouse whose insurance you may be under. If you think you did enter it correctly and we do
+        not serve your insurance, you can still continue with Alfie via cash pay at $120 a month.
+      </p>
+
+      <p>
+        At this moment, you have 48 hours to respond with a valid insurance card, or we will assume you are okay with cash pay.
+        Please let us know if otherwise.
+      </p>
+
+      <p>Have a wonderful rest of your day!</p>
+
+      <p>
+        Sincerely,<br />
+        Your Alfie Care Team
+      </p>
     `
 
     const patientEmailResult = await this.sendEmail(

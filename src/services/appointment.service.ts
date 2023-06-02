@@ -882,6 +882,12 @@ class AppointmentService extends EmailService {
     }
   }
 
+  /**
+   * Work that runs every 30 minutes to perform actions after each appointment ends.
+   * Sends no-show emails to patients and providers who did not attend (attendance is marked
+   * by the updateAppointmentAttended mutation), and submits insurance claims for
+   * appointments that were attended by both patient and provider.
+   */
   async postAppointmentJob(): Promise<void> {
     const timezone = "America/New_York"
     const now = dayjs.tz(new Date(), timezone)
