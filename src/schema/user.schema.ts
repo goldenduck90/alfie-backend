@@ -943,14 +943,8 @@ export class UserSendbirdChannel {
   @Field(() => String, { nullable: true })
   hidden_state?: string
 
-  // @Field(() => Object, { nullable: true })
-  // last_message?: Object
-
   @Field(() => Number, { nullable: true })
   joined_ts?: number
-
-  // @Field(() => Object, { nullable: true })
-  // last_queried_message?: Object
 }
 
 @InputType()
@@ -978,6 +972,12 @@ export class InsuranceEligibilityInput {
 
   @Field(() => String)
   rxGroup: string
+
+  /**
+   * The patient's completed initial appointment, unless the insurance action is for the initial consultation.
+   */
+  @Field(() => String, { nullable: true })
+  initialAppointmentId?: string
 }
 
 @ObjectType()

@@ -16,6 +16,7 @@ import {
   UserModel,
   InsuranceEligibilityInput,
 } from "../schema/user.schema"
+import { calculateBMI } from "../utils/calculateBMI"
 
 export interface AkuteCreateInsuranceRequest {
   patient_id: string
@@ -251,9 +252,7 @@ class AkuteService {
         throw new ApolloError("Provider not found", "NOT_FOUND")
       }
 
-      const bmi =
-        (user.weights[0].value / user.heightInInches / user.heightInInches) *
-        703.071720346
+      const bmi = calculateBMI(user.weights[0].value, user.heightInInches)
 
       const icdCode = 27 < bmi && bmi < 30 ? "E66.3" : "E66.9"
 

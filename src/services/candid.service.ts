@@ -25,8 +25,11 @@ import {
 } from "../schema/user.schema"
 import { Provider } from "../schema/provider.schema"
 import { TaskType } from "../schema/task.schema"
+import { UserTask } from "../schema/task.user.schema"
 import TaskService from "../services/task.service"
 import lookupCPID from "../utils/lookupCPID"
+import calculateSetting, { SettingsList } from "../utils/calculateSetting"
+import { calculateBMI } from "../utils/calculateBMI"
 
 export const authorizationTokenProvider = "candidhealth"
 
@@ -146,6 +149,30 @@ export default class CandidService {
     }
   }
 
+  /** Gets the candid encounter for the given appointment and user. */
+  public async getEncounterForAppointment(
+    appointment: IEAAppointment,
+    user: User
+  ): Promise<CandidEncodedEncounterResponse> {
+    await this.authenticate()
+    try {
+      const { data } = await this.candidInstance.get("/v1/encounters", {
+        params: {
+          external_id: `${user._id.toString()}-${appointment.eaAppointmentId}`,
+        },
+      })
+      return data[0]
+    } catch (error) {
+      Sentry.captureException(error.response?.data || error)
+      console.log(
+        `getEncounterForAppointment error: ${JSON.stringify(
+          error.response?.data
+        )}`
+      )
+      throw error
+    }
+  }
+
   /** Check insurance eligibility for the patient with the given insurance card information. */
   public async checkInsuranceEligibility(
     user: User,
@@ -230,8 +257,11 @@ export default class CandidService {
     }
   }
 
-  /** Create a coded encounter, retrieving inputs based on the given `appointment` for `createCodedEncounter`. */
-  async createCodedEncounterForAppointment(appointment: IEAAppointment) {
+  /** Create a coded encounter. */
+  async createCodedEncounterForAppointment(
+    appointment: IEAAppointment,
+    initialAppointment?: IEAAppointment
+  ) {
     const user = await UserModel.findById(appointment.eaCustomer.id).populate<{
       provider: Provider
     }>("provider")
@@ -248,6 +278,7 @@ export default class CandidService {
     const input: InsuranceEligibilityInput = {
       ...user.insurance,
       userId: user._id.toString(),
+      initialAppointmentId: initialAppointment?.eaAppointmentId ?? null,
     }
 
     return await this.createCodedEncounter(user, provider, appointment, input)
@@ -264,6 +295,15 @@ export default class CandidService {
   ) {
     await this.authenticate()
 
+    const settings: SettingsList = config.get("candidHealth.settings")
+    const {
+      billingProvider,
+    }: { billingProvider?: CandidRequestBillingProvider } = calculateSetting(
+      settings,
+      ["billingProvider"],
+      { state: user.address.state.toUpperCase() }
+    )
+
     const [userFirstName, userLastName] = user.name.split(" ")
 
     const userTasksResult = await this.taskService.getUserTasks(
@@ -273,22 +313,93 @@ export default class CandidService {
 
     const userIntake = userTasksResult.userTasks[0]
 
+    const comorbidities = await this.getConditions(
+      user,
+      "conditions",
+      userIntake
+    )
+    const disqualifiers = await this.getConditions(
+      user,
+      "previousConditions",
+      userIntake
+    )
+
+    const latestWeight =
+      Number(user.weights[user.weights.length - 1]?.value) ?? null
+
+    const isInitialAppointment =
+      !input.initialAppointmentId ||
+      input.initialAppointmentId === appointment.eaAppointmentId
+
+    if (disqualifiers.length > 0 && !isInitialAppointment) {
+      Sentry.captureMessage(
+        `createCodedEncounter: Patient ${
+          user.name
+        } [${user._id.toString()}] has the following disqualifiers: ${disqualifiers.join(
+          ", "
+        )}, and is being billed for a follow-up appointment.`
+      )
+    }
+
+    // calculate BMI
+    const bmi = calculateBMI(latestWeight, user.heightInInches)
+
+    let procedureCode: string
+    let costInCents: number
+    const { diagnosis: diagnosisCode } = calculateSetting<{
+      diagnosis: string
+    }>(settings, ["diagnosis"], { bmi })
+
+    if (isInitialAppointment) {
+      const { procedure, cost } = calculateSetting(
+        settings,
+        ["procedure", "cost"],
+        {
+          bmi,
+          comorbidities: comorbidities.length,
+          initial:
+            !input.initialAppointmentId ||
+            input.initialAppointmentId === appointment.eaAppointmentId,
+        }
+      )
+      procedureCode = procedure
+      costInCents = cost
+    } else {
+      const initialEncounter = await this.getEncounterForAppointment(
+        appointment,
+        user
+      )
+      console.log("initial encounter", initialEncounter.external_id)
+      const initialProcedureCode =
+        initialEncounter.claims[0]?.service_lines[0]?.procedure_code
+      const { followUpProcedure, followUpCost } = calculateSetting(
+        settings,
+        ["followUpProcedure", "followUpCost"],
+        { initialProcedureCode }
+      )
+
+      procedureCode = followUpProcedure
+      costInCents = followUpCost
+    }
+
     const conditionTypeReplacements: Record<string, string> = {
       conditions: "Conditions",
       previousConditions: "Previous Conditions",
       medications: "Medications",
       hasSurgicalHistory: "Has Surgical History",
       allergies: "Allergies",
+      weightManagementMethods: "Previous Weight Management Methods",
     }
 
-    const previousConditionsText: string = userIntake
-      .answers!.filter((answer) =>
+    const previousConditionsText: string = (userIntake.answers ?? [])
+      .filter((answer) =>
         [
           "conditions",
           "previousConditions",
           "medications",
           "hasSurgicalHistory",
           "allergies",
+          "weightManagementMethods",
         ].includes(answer.key)
       )
       .filter((answer) => answer.value)
@@ -297,7 +408,7 @@ export default class CandidService {
           `${conditions}\n${conditionTypeReplacements[answer.key]}: ${
             answer.value
           }`,
-        ""
+        `Current BMI: ${bmi}`
       )
 
     const patientAddress: CandidAddressPlusFour = {
@@ -308,13 +419,6 @@ export default class CandidService {
       zip_code: (user.address.postalCode || "").slice(0, 5),
       zip_plus_four_code: (user.address.postalCode || "").slice(5),
     }
-
-    const billingProvider: CandidRequestBillingProvider = config.get(
-      "candidHealth.billingProvider"
-    )
-    const chargeAmountCents: number = config.get(
-      "candidHealth.chargeAmountCents"
-    )
 
     const encounterRequest: CandidCreateCodedEncounterRequest = {
       external_id: `${user._id.toString()}-${appointment.eaAppointmentId}`,
@@ -335,7 +439,7 @@ export default class CandidService {
         first_name: userFirstName || "",
         last_name: userLastName || "",
         gender: user.gender?.toLowerCase() || "unknown",
-        patient_relationship_to_subscriber_code: "18", // Self
+        patient_relationship_to_subscriber_code: "18", // Self (TODO)
         address: patientAddress,
         insurance_card: {
           member_id: input.memberId,
@@ -358,8 +462,8 @@ export default class CandidService {
       },
       diagnoses: [
         {
-          code: "Z71.3", // Dietary counseling and surveillance
-          code_type: "ABK",
+          code: diagnosisCode,
+          code_type: "ABK", // ICD-10
         },
       ],
       // See https://www.cms.gov/Medicare/Coding/place-of-service-codes/Place_of_Service_Code_Set
@@ -367,10 +471,10 @@ export default class CandidService {
       service_lines: [
         {
           modifiers: ["95"], // 95 - Synchronous Telemedicine Service Rendered via a Real-Time Interactive Audio and Video Telecommunications System
-          procedure_code: "99401",
+          procedure_code: procedureCode,
           quantity: "1",
           units: "UN",
-          charge_amount_cents: chargeAmountCents,
+          charge_amount_cents: costInCents,
           diagnosis_pointers: [0],
         },
       ],
@@ -441,5 +545,34 @@ export default class CandidService {
 
       throw new Error("Candid Create Coded Encounter Error")
     }
+  }
+
+  /** Get answers from the medical questionnaire. */
+  private async getConditions(
+    user: User,
+    questionnaire: "conditions" | "previousConditions",
+    userTask?: UserTask
+  ): Promise<string[]> {
+    const { userTasks } = userTask
+      ? { userTasks: [userTask] }
+      : await this.taskService.getUserTasks(user._id.toString(), {
+          completed: true,
+          taskType: TaskType.NEW_PATIENT_INTAKE_FORM,
+        })
+
+    if (userTasks.length > 0) {
+      const task = userTasks[0]
+      const conditionsAnswer = task.answers?.find(
+        (answer) => answer.key === questionnaire
+      )
+      if (conditionsAnswer) {
+        const conditions = String(conditionsAnswer.value || "")
+          .split(",")
+          .map((s) => s.trim())
+        return conditions
+      }
+    }
+
+    return []
   }
 }

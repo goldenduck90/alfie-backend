@@ -570,6 +570,24 @@ class AppointmentService extends EmailService {
     }
   }
 
+  /**
+   * Returns the completed initial appointment for the given customer, or null
+   * if no appointment has been completed yet.
+   */
+  async getInitialAppointment(
+    eaCustomerId: string
+  ): Promise<IEAAppointment | null> {
+    try {
+      const { data } = await this.axios.get("/appointments/initial", {
+        params: { eaCustomerId },
+      })
+
+      return eaResponseToEAAppointment(data)
+    } catch (error) {
+      return null
+    }
+  }
+
   async upcomingAppointments(
     user: Context["user"],
     input: UpcomingAppointmentsInput
@@ -867,7 +885,13 @@ class AppointmentService extends EmailService {
     if (claimNotSubmitted) {
       console.log("Submitting insurance claim for attended appointment")
       try {
-        await this.candidService.createCodedEncounterForAppointment(appointment)
+        const initialAppointment = await this.getInitialAppointment(
+          appointment.eaCustomer.id
+        )
+        await this.candidService.createCodedEncounterForAppointment(
+          appointment,
+          initialAppointment
+        )
         await this.updateAppointmentAttended(
           null,
           appointment.eaAppointmentId,
