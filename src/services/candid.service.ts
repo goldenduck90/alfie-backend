@@ -48,9 +48,8 @@ export default class CandidService {
   private clientSecret: string
 
   private taskService: TaskService
-  private appointmentService: AppointmentService
 
-  constructor() {
+  constructor(private appointmentService: AppointmentService) {
     this.baseUrl = config.get("candidHealth.apiUrl") as string
     this.clientId = config.get("candidHealth.clientId") as string
     this.clientSecret = config.get("candidHealth.clientSecret") as string
@@ -63,7 +62,6 @@ export default class CandidService {
     })
 
     this.taskService = new TaskService()
-    this.appointmentService = new AppointmentService()
   }
 
   /**
@@ -454,7 +452,7 @@ export default class CandidService {
     }
 
     const encounterRequest: CandidCreateCodedEncounterRequest = {
-      external_id: `${user._id.toString()}-${appointment.eaAppointmentId}-10`,
+      external_id: `${user._id.toString()}-${appointment.eaAppointmentId}`,
       date_of_service: dayjs
         .tz(appointment.start, appointment.timezone)
         .format("YYYY-MM-DD"),

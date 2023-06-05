@@ -81,7 +81,7 @@ class UserService extends EmailService {
     this.appointmentService = new AppointmentService()
     this.smsService = new SmsService()
     this.emailService = new EmailService()
-    this.candidService = new CandidService()
+    this.candidService = new CandidService(this.appointmentService)
     this.awsDynamo = new AWS.DynamoDB({
       accessKeyId: process.env.AWS_ACCESS_KEY_ID,
       secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,

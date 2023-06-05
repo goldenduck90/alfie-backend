@@ -14,8 +14,8 @@ async function testGetEncounter() {
     email: "john-paul+user@joinalfie.com",
   }).populate<{ provider: Provider }>("provider")
 
-  const candidService = new CandidService()
   const appointmentService = new AppointmentService()
+  const candidService = new CandidService(appointmentService)
 
   const appointment = await appointmentService.getAppointment({
     eaAppointmentId: "2",

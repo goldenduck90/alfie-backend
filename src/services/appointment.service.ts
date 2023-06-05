@@ -27,7 +27,7 @@ import dayjs from "dayjs"
 import tz from "dayjs/plugin/timezone"
 import utc from "dayjs/plugin/utc"
 import advanced from "dayjs/plugin/advancedFormat"
-// import CandidService from "./candid.service"
+import CandidService from "./candid.service"
 
 dayjs.extend(utc)
 dayjs.extend(tz)
@@ -109,12 +109,12 @@ interface ScheduleObject {
 class AppointmentService extends EmailService {
   public eaUrl: string
   public axios: AxiosInstance
-  // private candidService: CandidService
+  private candidService: CandidService
 
   constructor() {
     super()
     const eaUrl = config.get("easyAppointmentsApiUrl") as string
-    // this.candidService = new CandidService()
+    this.candidService = new CandidService(this)
 
     this.eaUrl = eaUrl
     this.axios = axios.create({
@@ -885,7 +885,7 @@ class AppointmentService extends EmailService {
     if (claimNotSubmitted) {
       console.log("Submitting insurance claim for attended appointment")
       try {
-        // await this.candidService.createCodedEncounterForAppointment(appointment)
+        await this.candidService.createCodedEncounterForAppointment(appointment)
         await this.updateAppointmentAttended(
           null,
           appointment.eaAppointmentId,

@@ -9,7 +9,8 @@ console.log("Starting test insurance script.")
 async function testInsurance() {
   await prepareShellEnvironment()
 
-  const candidService = new CandidService()
+  const appointmentService = new AppointmentService()
+  const candidService = new CandidService(appointmentService)
 
   // prepare user sandbox values.
   const user = await UserModel.findOne({
@@ -61,7 +62,6 @@ async function testInsurance() {
   console.log("candid eligibility result")
   console.log(JSON.stringify(eligibility, null, "  "))
 
-  const appointmentService = new AppointmentService()
   const appointment = await appointmentService.getAppointment({
     eaAppointmentId: "3",
     timezone: "America/New_York",
