@@ -972,12 +972,6 @@ export class InsuranceEligibilityInput {
 
   @Field(() => String)
   rxGroup: string
-
-  /**
-   * The patient's completed initial appointment, unless the insurance action is for the initial consultation.
-   */
-  @Field(() => String, { nullable: true })
-  initialAppointmentId?: string
 }
 
 @ObjectType()

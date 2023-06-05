@@ -24,6 +24,7 @@ async function testInsurance() {
   user.address.postalCode = "981010000"
   user.phone = "123456789"
   user.email = "email@email.com"
+  user.eaCustomerId = "3"
 
   // prepare provider sandbo values
   const { provider } = user
@@ -62,9 +63,12 @@ async function testInsurance() {
 
   const appointmentService = new AppointmentService()
   const appointment = await appointmentService.getAppointment({
-    eaAppointmentId: "2",
+    eaAppointmentId: "3",
     timezone: "America/New_York",
   })
+  const initialAppointment = await appointmentService.getInitialAppointment(
+    user.eaCustomerId
+  )
   const encounter = await candidService.createCodedEncounter(
     user,
     provider,

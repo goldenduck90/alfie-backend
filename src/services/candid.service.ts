@@ -27,6 +27,7 @@ import { Provider } from "../schema/provider.schema"
 import { TaskType } from "../schema/task.schema"
 import { UserTask } from "../schema/task.user.schema"
 import TaskService from "../services/task.service"
+import AppointmentService from "../services/appointment.service"
 import lookupCPID from "../utils/lookupCPID"
 import calculateSetting, { SettingsList } from "../utils/calculateSetting"
 import { calculateBMI } from "../utils/calculateBMI"
@@ -47,6 +48,7 @@ export default class CandidService {
   private clientSecret: string
 
   private taskService: TaskService
+  private appointmentService: AppointmentService
 
   constructor() {
     this.baseUrl = config.get("candidHealth.apiUrl") as string
@@ -61,6 +63,7 @@ export default class CandidService {
     })
 
     this.taskService = new TaskService()
+    this.appointmentService = new AppointmentService()
   }
 
   /**
@@ -258,10 +261,7 @@ export default class CandidService {
   }
 
   /** Create a coded encounter. */
-  async createCodedEncounterForAppointment(
-    appointment: IEAAppointment,
-    initialAppointment?: IEAAppointment
-  ) {
+  async createCodedEncounterForAppointment(appointment: IEAAppointment) {
     const user = await UserModel.findById(appointment.eaCustomer.id).populate<{
       provider: Provider
     }>("provider")
@@ -275,13 +275,22 @@ export default class CandidService {
     if (!provider)
       throw new ApolloError(`User ${user._id.toString()} has no provider.`)
 
+    const initialAppointment =
+      await this.appointmentService.getInitialAppointment(
+        appointment.eaCustomer.id
+      )
     const input: InsuranceEligibilityInput = {
       ...user.insurance,
       userId: user._id.toString(),
-      initialAppointmentId: initialAppointment?.eaAppointmentId ?? null,
     }
 
-    return await this.createCodedEncounter(user, provider, appointment, input)
+    return await this.createCodedEncounter(
+      user,
+      provider,
+      appointment,
+      input,
+      initialAppointment
+    )
   }
 
   /**
@@ -291,11 +300,13 @@ export default class CandidService {
     user: User,
     provider: Provider,
     appointment: IEAAppointment,
-    input: InsuranceEligibilityInput
+    input: InsuranceEligibilityInput,
+    initialAppointment?: IEAAppointment
   ) {
     await this.authenticate()
 
     const settings: SettingsList = config.get("candidHealth.settings")
+    console.log(`Settings: ${JSON.stringify(settings, null, "  ")}`)
     const {
       billingProvider,
     }: { billingProvider?: CandidRequestBillingProvider } = calculateSetting(
@@ -304,6 +315,11 @@ export default class CandidService {
       { state: user.address.state.toUpperCase() }
     )
 
+    console.log(
+      `selected billing provider for ${user.address.state}: ${JSON.stringify(
+        billingProvider
+      )}`
+    )
     const [userFirstName, userLastName] = user.name.split(" ")
 
     const userTasksResult = await this.taskService.getUserTasks(
@@ -324,13 +340,24 @@ export default class CandidService {
       userIntake
     )
 
+    console.log(
+      `user intake answers: ${JSON.stringify(
+        { comorbidities, disqualifiers },
+        null,
+        "  "
+      )}`
+    )
+
     const latestWeight =
       Number(user.weights[user.weights.length - 1]?.value) ?? null
 
-    const isInitialAppointment =
-      !input.initialAppointmentId ||
-      input.initialAppointmentId === appointment.eaAppointmentId
+    console.log(`latest weight from questionnaire: ${latestWeight}`)
 
+    const isInitialAppointment =
+      !initialAppointment ||
+      initialAppointment.eaAppointmentId === appointment.eaAppointmentId
+
+    console.log(`is initial appointment: ${isInitialAppointment}`)
     if (disqualifiers.length > 0 && !isInitialAppointment) {
       Sentry.captureMessage(
         `createCodedEncounter: Patient ${
@@ -343,6 +370,8 @@ export default class CandidService {
 
     // calculate BMI
     const bmi = calculateBMI(latestWeight, user.heightInInches)
+
+    console.log(`bmi: ${bmi}`)
 
     let procedureCode: string
     let costInCents: number
@@ -358,15 +387,16 @@ export default class CandidService {
           bmi,
           comorbidities: comorbidities.length,
           initial:
-            !input.initialAppointmentId ||
-            input.initialAppointmentId === appointment.eaAppointmentId,
+            !initialAppointment ||
+            initialAppointment.eaAppointmentId === appointment.eaAppointmentId,
         }
       )
+      console.log(`initial appointment, retrieved ${procedure}, ${cost}`)
       procedureCode = procedure
       costInCents = cost
     } else {
       const initialEncounter = await this.getEncounterForAppointment(
-        appointment,
+        initialAppointment,
         user
       )
       console.log("initial encounter", initialEncounter.external_id)
@@ -378,6 +408,9 @@ export default class CandidService {
         { initialProcedureCode }
       )
 
+      console.log(
+        `follow up appointment, retrieved ${followUpProcedure} ${followUpCost}`
+      )
       procedureCode = followUpProcedure
       costInCents = followUpCost
     }
@@ -421,7 +454,7 @@ export default class CandidService {
     }
 
     const encounterRequest: CandidCreateCodedEncounterRequest = {
-      external_id: `${user._id.toString()}-${appointment.eaAppointmentId}`,
+      external_id: `${user._id.toString()}-${appointment.eaAppointmentId}-10`,
       date_of_service: dayjs
         .tz(appointment.start, appointment.timezone)
         .format("YYYY-MM-DD"),

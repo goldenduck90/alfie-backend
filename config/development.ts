@@ -67,8 +67,17 @@ export default {
         vars: { cost: 11284, procedure: "99203" },
         conditions: [
           { initial: true, bmi: { range: [30, Infinity] } },
-          { initial: true, bmi: { range: [27, 30], comorbidities: [1, 1] } },
+          { initial: true, bmi: { range: [27, 30] }, comorbidities: 1 },
         ],
+      },
+      // cost and procedure for repeat consultations
+      {
+        vars: { followUpCost: 9082, followUpProcedure: "99213" },
+        conditions: [{ initialProcedureCode: "99203" }],
+      },
+      {
+        vars: { followUpCost: 9082, followUpProcedure: "99213" },
+        conditions: [{ initialProcedureCode: "99203" }],
       },
     ] as SettingsList,
   },
