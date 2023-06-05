@@ -880,10 +880,12 @@ async function bootstrap() {
   })
 
   app.post("/metriportWebhooks", express.json(), async (req, res) => {
+    console.log(req.body)
+    const time = new Date().toString()
     try {
       const key = req.get("x-webhook-key")
       if (key !== process.env.METRIPORT_WEBHOOK_KEY) {
-        return res.status(401).send({ message: "Unauthorized" })
+        return res.sendStatus(401)
       }
 
       const { ping, meta, users } = req.body
@@ -919,7 +921,7 @@ async function bootstrap() {
             const userTasks = await UserTaskModel.find({
               user: _user._id,
             }).populate("task")
-            const weightLogTask = userTasks.find((userTask) => {
+            let weightLogTask = userTasks.find((userTask) => {
               const task = userTask.task as Task
               task.type === TaskType.WEIGHT_LOG && !userTask.completed
             })
@@ -933,20 +935,21 @@ async function bootstrap() {
               weightLogTask.answers = [...weightLogTask.answers, userAnswer]
               await weightLogTask.save()
             } else {
-              const task = await TaskModel.create({
-                name: "Enter your weight",
+              const task = await TaskModel.findOne({
                 type: TaskType.WEIGHT_LOG,
               })
-
               const userTask = {
                 user: _user,
                 task: task,
                 completed: true,
                 answers: [userAnswer],
               }
-              await UserTaskModel.create(userTask)
+              weightLogTask = await UserTaskModel.create(userTask)
             }
-            console.log(weightLogTask)
+
+            const message = `[METRIPORT WEBHOOK][TIME: ${time}] Successfully updated weight for user: ${_user._id} - ${weightLbs}lbs`
+            console.log(message)
+            Sentry.captureMessage(message)
           }
         })
       )
