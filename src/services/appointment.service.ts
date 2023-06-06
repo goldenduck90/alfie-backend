@@ -675,7 +675,7 @@ class AppointmentService extends EmailService {
           timezone: input.timezone,
           month: input.month,
         },
-      })      
+      })
       const apps = data
         .filter((response: any) => response.customer && response.service)
         .map((response: any) => ({
@@ -708,7 +708,7 @@ class AppointmentService extends EmailService {
         }))
 
       return apps
-    } catch (error) {      
+    } catch (error) {
       Sentry.captureException(error)
       throw new ApolloError(error.message, "ERROR")
     }

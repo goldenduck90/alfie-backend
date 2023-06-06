@@ -6,8 +6,10 @@ import config from "config"
 import { format } from "date-fns"
 import FormData from "form-data"
 import {
-  AkuteDocument, CreateLabOrderResponse,
-  DocUploadInput, PharmacyLocationInput,
+  AkuteDocument,
+  CreateLabOrderResponse,
+  DocUploadInput,
+  PharmacyLocationInput,
 } from "../schema/akute.schema"
 import { CreatePatientInput, UserModel } from "../schema/user.schema"
 
@@ -89,7 +91,7 @@ class AkuteService {
     addressCity: string,
     addressState: string,
     addressZipCode: string
-  ): Promise<{ lat: number, lng: number }> {
+  ): Promise<{ lat: number; lng: number }> {
     try {
       const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${addressLine1},${addressCity},${addressState},${addressZipCode}&key=${process.env.GOOGLE_API_KEY}`
       const response = await axios.get(url)

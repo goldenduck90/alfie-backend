@@ -4,14 +4,18 @@ import config from "config"
 import { addDays, isPast } from "date-fns"
 import { calculateScore } from "../PROAnalysis"
 import { ProviderModel } from "../schema/provider.schema"
-import { CreateTaskInput, TaskModel, TaskType } from "../schema/task.schema"
+import {
+  CreateTaskInput,
+  Task,
+  TaskModel,
+  TaskType,
+} from "../schema/task.schema"
 import {
   CompleteUserTaskInput,
   CreateUserTaskInput,
   CreateUserTasksInput,
   GetUserTasksInput,
   UpdateUserTaskInput,
-  UserBooleanAnswer,
   UserNumberAnswer,
   UserStringAnswer,
   UserTask,
@@ -642,6 +646,41 @@ class TaskService {
     } catch (error) {
       Sentry.captureException(error)
       throw new ApolloError(error.message, error.code)
+    }
+  }
+
+  /**
+   * Converts answers in UserTask.answers to the correct format specified in Task.questions, if present.
+   */
+  async cleanupUserTaskAnswersFromTaskQuestions(
+    /** Whether to log but not execute changes that would be made. */
+    preview = true
+  ) {
+    if (preview) {
+      console.log("Preview mode.")
+    }
+    const tasks = await this.getAllTasks()
+    const tasksById: Record<string, Task> = tasks.reduce(
+      (map, task) => ({ ...map, [task._id.toString()]: task }),
+      {}
+    )
+    const userTasks = await this.getAllUserTasks()
+
+    for (const userTask of userTasks) {
+      const task =
+        tasksById[userTask.task?.toString() ?? (userTask.task as string)]
+      if (!task) throw new Error(`Invalid task: ${userTask.task}`)
+
+      const { answers } = userTask
+      const { questions } = task
+      if (questions && answers) {
+        for (const answer of answers || []) {
+          const question = questions.find((q) => q.key === answer.key)
+          if (!question) {
+            console.log(`No corresponding question for answer ${answer.key}`)
+          }
+        }
+      }
     }
   }
 }

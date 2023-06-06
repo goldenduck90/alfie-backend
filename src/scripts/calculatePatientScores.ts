@@ -52,15 +52,17 @@ export async function calculatePatientScores(patient: string) {
     try {
       const scores = await Promise.all(scorePromises)
       // remove duplicate scores by date match using date-fns however somes score won't have anything to compare to so we need to filter out undefined
-      const uniqueScores = scores.filter((score) => score).filter(
-        (score, index, self) =>
-          index ===
-          self.findIndex(
-            (s) =>
-              s.date.getTime() === score.date.getTime() &&
-              s.task === score.task
-          )
-      )
+      const uniqueScores = scores
+        .filter((score) => score)
+        .filter(
+          (score, index, self) =>
+            index ===
+            self.findIndex(
+              (s) =>
+                s.date.getTime() === score.date.getTime() &&
+                s.task === score.task
+            )
+        )
 
       // add new scores to user score array
       user.score.push(...uniqueScores.filter((score) => score))

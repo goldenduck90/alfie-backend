@@ -28,7 +28,7 @@ import {
   CreateCheckoutInput,
   CreateStripeCustomerInput,
 } from "../schema/checkout.schema"
-import { Provider, ProviderModel } from "../schema/provider.schema"
+import { ProviderModel } from "../schema/provider.schema"
 import { AllTaskEmail, TaskEmail, TaskType } from "../schema/task.schema"
 import { UserTaskModel } from "../schema/task.user.schema"
 import {
@@ -39,7 +39,6 @@ import {
   Role,
   SubscribeEmailInput,
   UpdateUserInput,
-  User,
   Weight,
 } from "../schema/user.schema"
 import { signJwt } from "../utils/jwt"

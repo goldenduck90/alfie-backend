@@ -70,7 +70,7 @@ async function cancelStripeSubscription(stripeCustomerId: any, email: any) {
   }
 }
 
-async function deleteUsers(results: User[]) {
+export async function deleteUsers(results: User[]) {
   // Add the stripeSubscriptionId and the subscriptionExpiresAt to the results
   console.log(results.length)
   for (let i = 0; i < results.length; i++) {
