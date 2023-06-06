@@ -6,18 +6,17 @@ import {
   ReturnModelType,
 } from "@typegoose/typegoose"
 import { AsQueryMethod, Ref } from "@typegoose/typegoose/lib/types"
-import { Field, InputType, ObjectType, registerEnumType } from "type-graphql"
+import {
+  createUnionType,
+  Field,
+  InputType,
+  ObjectType,
+  registerEnumType,
+} from "type-graphql"
 import { Task, TaskType } from "./task.schema"
 import { User } from "./user.schema"
-
-export enum AnswerType {
-  STRING = "STRING",
-  NUMBER = "NUMBER",
-  BOOLEAN = "BOOLEAN",
-  ARRAY = "ARRAY",
-  DATE = "DATE",
-  FILE = "FILE",
-}
+import { AnswerType } from "./enums/AnswerType"
+import { GraphQLAnyScalar } from "./enums/GraphQLAnyScalar"
 
 registerEnumType(AnswerType, {
   name: "AnswerType",
@@ -26,23 +25,93 @@ registerEnumType(AnswerType, {
 
 @ObjectType()
 @InputType("UserAnswersInput")
-@ModelOptions({ schemaOptions: { _id: false } })
+@ModelOptions({ schemaOptions: { _id: false, discriminatorKey: "type" } })
 export class UserAnswer {
   @Field(() => String)
   @prop({ required: true })
   key: string
 
+  @Field(() => AnswerType)
+  @prop({ required: true, default: () => AnswerType.STRING })
+  type: AnswerType
+
+  @Field(() => GraphQLAnyScalar)
+  value: boolean | string | number | Date
+}
+
+@ObjectType()
+export class UserStringAnswer extends UserAnswer {
+  @Field(() => AnswerType)
+  @prop({ required: true })
+  type: AnswerType.STRING
+
   @Field(() => String)
   @prop({ required: true })
-  value: any // TODO: make this more specific
-
-  @Field(() => AnswerType)
-  @prop({
-    required: true,
-    default: AnswerType.STRING,
-  })
-  type: AnswerType
+  value: string
 }
+
+@ObjectType()
+export class UserNumberAnswer extends UserAnswer {
+  @Field(() => AnswerType)
+  @prop({ required: true })
+  type: AnswerType.NUMBER
+
+  @Field(() => Number)
+  @prop({ required: true })
+  value: number
+}
+
+@ObjectType()
+export class UserArrayAnswer extends UserAnswer {
+  @Field(() => AnswerType)
+  @prop({ required: true })
+  type: AnswerType.ARRAY
+
+  @Field(() => String)
+  @prop({ required: true })
+  value: string // TODO: string[]
+}
+
+@ObjectType()
+export class UserBooleanAnswer extends UserAnswer {
+  @Field(() => AnswerType)
+  @prop({ required: true })
+  type: AnswerType.BOOLEAN
+
+  @Field(() => Boolean)
+  @prop({ required: true })
+  value: boolean
+}
+
+@ObjectType()
+export class UserDateAnswer extends UserAnswer {
+  @Field(() => AnswerType)
+  @prop({ required: true })
+  type: AnswerType.DATE
+
+  @Field(() => Date)
+  @prop({ required: true })
+  value: Date
+}
+
+const UserAnswerClasses = [
+  UserStringAnswer,
+  UserNumberAnswer,
+  UserArrayAnswer,
+  UserBooleanAnswer,
+  UserDateAnswer,
+] as const
+export type UserAnswerTypes =
+  | UserStringAnswer
+  | UserNumberAnswer
+  | UserArrayAnswer
+  | UserBooleanAnswer
+  | UserDateAnswer
+
+export const UserAnswerUnion = createUnionType({
+  name: "UserAnswer",
+  types: () => UserAnswerClasses,
+})
 
 function findByTaskId(
   this: ReturnModelType<typeof UserTask, QueryHelpers>,
@@ -96,9 +165,19 @@ export class UserTask {
   @prop({ ref: () => User, required: true })
   user: Ref<User>
 
-  @Field(() => [UserAnswer], { nullable: true })
-  @prop({ type: () => [UserAnswer], required: false })
-  answers?: UserAnswer[]
+  @Field(() => [UserAnswerUnion], { nullable: true })
+  @prop({
+    required: false,
+    type: UserAnswer,
+    discriminators: () => [
+      { type: UserStringAnswer, value: AnswerType.STRING },
+      { type: UserNumberAnswer, value: AnswerType.NUMBER },
+      { type: UserBooleanAnswer, value: AnswerType.BOOLEAN },
+      { type: UserDateAnswer, value: AnswerType.DATE },
+      { type: UserArrayAnswer, value: AnswerType.ARRAY },
+    ],
+  })
+  answers?: UserAnswerTypes[]
 
   @Field(() => Boolean)
   @prop({ required: true, default: false })
@@ -196,7 +275,7 @@ export class CompleteUserTaskInput {
   _id: string
 
   @Field(() => [UserAnswer])
-  answers: UserAnswer[]
+  answers: UserAnswerTypes[]
 }
 
 @ObjectType()
