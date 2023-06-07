@@ -194,6 +194,9 @@ export class CreateCheckoutInput {
   @prop({ required: true })
   pastTries: string[]
 
+  @Field(() => String, { nullable: true })
+  signupPartner: string
+
   // @Field(() => String)
   // @prop({ required: true })
   // healthInsurance: string

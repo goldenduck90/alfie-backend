@@ -487,6 +487,10 @@ export class User {
   @Field(() => Boolean, { defaultValue: false })
   @prop()
   hasScale?: boolean
+  
+  @Field(() => String, { nullable: true })
+  @prop()
+  signupPartner?: string
 }
 
 export const UserModel = getModelForClass<typeof User, QueryHelpers>(User, {
