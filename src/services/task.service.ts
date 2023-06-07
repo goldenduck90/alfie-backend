@@ -7,8 +7,8 @@ import { calculateScore } from "../PROAnalysis"
 import { ProviderModel } from "../schema/provider.schema"
 import {
   CreateTaskInput,
-  Task,
   TaskModel,
+  TaskQuestion,
   TaskType,
 } from "../schema/task.schema"
 import {
@@ -17,6 +17,8 @@ import {
   CreateUserTasksInput,
   GetUserTasksInput,
   UpdateUserTaskInput,
+  UserAnswer,
+  UserAnswerTypes,
   UserNumberAnswer,
   UserStringAnswer,
   UserTask,
@@ -342,11 +344,24 @@ class TaskService {
       // Get the user and task documents
       const user = await UserModel.findById(userTask.user)
       const task = await TaskModel.findById(userTask.task)
+
+      // correct answers from the questions schema
+      const { correctedAnswers, isChanged } = this.getCorrectedUserAnswers(
+        answers,
+        task.questions
+      )
+      if (isChanged) {
+        console.log(
+          `Corrected answers format from ${JSON.stringify(
+            answers
+          )} to ${JSON.stringify(correctedAnswers)}`
+        )
+      }
       // Mark the user task as completed and save it
       userTask.completed = true
       userTask.completedAt = new Date()
       userTask.answers = []
-      userTask.answers = answers
+      userTask.answers = correctedAnswers
       await userTask.save()
       const lastTask = await UserTaskModel.findOne({
         user: userTask.user,
@@ -652,88 +667,133 @@ class TaskService {
   }
 
   /**
-   * Converts answers in UserTask.answers to the correct format specified in Task.questions, if present.
+   * Corrects answer formats in UserTask.answers to the correct format specified in Task.questions, if present.
    */
-  async cleanupUserTaskAnswersFromTaskQuestions(
+  async correctUserAnswersFromTaskQuestions(
     /** Whether to log but not execute changes that would be made. */
     preview = true
   ) {
     if (preview) {
-      console.log("Preview mode.")
+      console.log(
+        "Synchronize user answers to task questions templates, preview mode."
+      )
     }
     const tasks = await this.getAllTasks()
-    const tasksById: Record<string, Task> = tasks.reduce(
-      (map, task) => ({ ...map, [task._id.toString()]: task }),
-      {}
-    )
     const userTasks = await this.getAllUserTasks()
-    console.log(`Tasks: ${JSON.stringify(tasksById, null, "  ")}`)
 
     for (const userTask of userTasks) {
-      const task = tasksById[userTask.task?.toString()]
+      const task = tasks.find(
+        (t) => t._id.toString() === userTask.task.toString()
+      )
       if (!task) {
-        console.log(`No corresponding task for UserTask.task ${userTask.task}`)
+        console.log(
+          `No corresponding task for UserTask [${userTask._id.toString()}] .task ${
+            userTask.task
+          }`
+        )
         continue
       }
 
       const { answers } = userTask
       const { questions } = task
       if (questions && answers) {
-        answers.forEach((answer, answerIndex) => {
-          const question = questions.find((q) => q.key === answer.key)
-          if (question) {
-            const originalAnswerType = answer.type
-            const originalAnswerValue = answer.value
-            answer.type = question.type as any
+        const { correctedAnswers, isChanged } = this.getCorrectedUserAnswers(
+          answers,
+          questions
+        )
+        const originalAnswers = userTask.answers
 
-            // cast or convert answer.value except for files, strings and arrays,
-            // which are all stored as strings
-            switch (question.type) {
-              case AnswerType.BOOLEAN:
-                answer.value =
-                  typeof answer.value === "boolean"
-                    ? answer.value
-                    : /true|yes|on|t|1/i.test(`${answer.value}`)
-                break
-              case AnswerType.NUMBER: {
-                const asNumber = Number(answer.value)
-                if (Number.isFinite(asNumber)) {
-                  answer.value = Number.isFinite(asNumber)
-                } else {
-                  const asNumbers = String(answer.value)
-                    .split(/[^0-9]/)
-                    .map((s) => Number(s.trim()))
-                    .filter((n) => Number.isFinite(n))
-                  const sum = asNumbers.reduce((memo, v) => memo + v, 0)
-                  const average = sum / asNumbers.length
-                  answer.value = average
-                }
-                break
-              }
-              case AnswerType.DATE:
-                answer.value = dayjs(answer.value as any).toISOString()
-                break
-            }
+        if (isChanged) {
+          userTask.answers = correctedAnswers
 
-            if (answer.type !== originalAnswerType) {
-              console.log(
-                `* Change ${userTask._id.toString()} answer [${answerIndex}] type from ${originalAnswerType} to ${
-                  answer.type
-                }`
-              )
-            }
-            if (answer.value !== originalAnswerValue) {
-              console.log(
-                `* Change ${userTask._id.toString()} answer [${answerIndex}] value from ${originalAnswerValue} to ${
-                  answer.value
-                }`
-              )
-            }
-          } else {
-            console.log(`No corresponding question for answer ${answer.key}`)
+          console.log(
+            `* ${preview ? "Will update" : "Updating"} user task [${
+              userTask._id
+            }] for user [${userTask.user}]`
+          )
+          console.log(`  From ${JSON.stringify(originalAnswers)}`)
+          console.log(`  To   ${JSON.stringify(correctedAnswers)}`)
+          if (!preview) {
+            await userTask.save()
           }
-        })
+        }
       }
+    }
+  }
+
+  /**
+   * Gets a corrected `answers` array so that the answer objects match the spec in `questions`
+   * from the Task object.
+   */
+  public getCorrectedUserAnswers(
+    answers: UserAnswerTypes[],
+    questions: TaskQuestion[]
+  ): { correctedAnswers: UserAnswerTypes[]; isChanged: boolean } {
+    const correctedAnswers: UserAnswer[] = []
+    let isChanged = false
+
+    if (questions && answers) {
+      answers.forEach((answer) => {
+        const question = questions.find((q) => q.key === answer.key)
+        if (question) {
+          const originalType = answer.type
+          const originalValue = answer.value
+          const updatedType = question.type
+          let updatedValue = answer.value
+
+          // cast or convert answer.value except for files, strings and arrays,
+          // which are all stored as strings
+          switch (question.type) {
+            case AnswerType.STRING:
+              if (answer.value === "null") {
+                updatedValue = null
+              } else if (answer.value === "undefined") {
+                updatedValue = null
+              }
+              break
+            case AnswerType.BOOLEAN:
+              updatedValue =
+                typeof answer.value === "boolean"
+                  ? answer.value
+                  : /true|yes|on|t|1/i.test(`${answer.value}`)
+              break
+            case AnswerType.NUMBER: {
+              const asNumber = Number(answer.value)
+              if (Number.isFinite(asNumber)) {
+                updatedValue = asNumber
+              } else {
+                const asNumbers = String(answer.value)
+                  .split(/[^0-9]/)
+                  .map((s) => Number(s.trim()))
+                  .filter((n) => Number.isFinite(n))
+                const sum = asNumbers.reduce((memo, v) => memo + v, 0)
+                const average = sum / asNumbers.length
+                updatedValue = average
+              }
+              break
+            }
+            case AnswerType.DATE:
+              updatedValue = dayjs(answer.value as any).toISOString()
+              break
+          }
+
+          if (updatedValue !== originalValue || updatedType !== originalType) {
+            isChanged = true
+          }
+          correctedAnswers.push({
+            key: answer.key,
+            value: updatedValue,
+            type: updatedType,
+          })
+        } else {
+          correctedAnswers.push(answer)
+        }
+      })
+    }
+
+    return {
+      correctedAnswers: correctedAnswers as any as UserAnswerTypes[],
+      isChanged,
     }
   }
 }
