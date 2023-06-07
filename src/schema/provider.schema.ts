@@ -3,12 +3,12 @@ import {
   index,
   prop,
   queryMethod,
-  ReturnModelType
+  ReturnModelType,
 } from "@typegoose/typegoose"
 import { AsQueryMethod } from "@typegoose/typegoose/lib/types"
 import mongoose from "mongoose"
 import { Field, InputType, Int, ObjectType } from "type-graphql"
-import { Role } from "./user.schema"
+import Role from "./enums/Role"
 
 function findByEmail(
   this: ReturnModelType<typeof Provider, QueryHelpers>,

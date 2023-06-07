@@ -1,20 +1,29 @@
 import * as Sentry from "@sentry/node"
 import { ApolloError } from "apollo-server"
 import config from "config"
+import dayjs from "dayjs"
 import { addDays, isPast } from "date-fns"
 import { calculateScore } from "../PROAnalysis"
 import { ProviderModel } from "../schema/provider.schema"
-import { CreateTaskInput, TaskModel, TaskType } from "../schema/task.schema"
+import {
+  CreateTaskInput,
+  Task,
+  TaskModel,
+  TaskType,
+} from "../schema/task.schema"
 import {
   CompleteUserTaskInput,
   CreateUserTaskInput,
   CreateUserTasksInput,
   GetUserTasksInput,
   UpdateUserTaskInput,
+  UserNumberAnswer,
+  UserStringAnswer,
   UserTask,
   UserTaskModel,
 } from "../schema/task.user.schema"
 import { UserModel } from "../schema/user.schema"
+import { AnswerType } from "../schema/enums/AnswerType"
 import AkuteService from "./akute.service"
 import { classifyUser } from "../PROAnalysis/classification"
 import { calculatePatientScores } from "../scripts/calculatePatientScores"
@@ -30,14 +39,7 @@ class TaskService {
   }
 
   async createTask(input: CreateTaskInput) {
-    const { name, type, interval } = input
-
-    const task = await TaskModel.create({
-      name,
-      type,
-      interval,
-    })
-
+    const task = await TaskModel.create(input)
     return task
   }
 
@@ -134,27 +136,32 @@ class TaskService {
     }
   }
 
-  async handleIsReadyForProfiling(userId: any, scores: any, currentTask: any, originalTaskProfilingStatus: boolean) {
+  async handleIsReadyForProfiling(
+    userId: any,
+    scores: any,
+    currentTask: any,
+    originalTaskProfilingStatus: boolean
+  ) {
     try {
       const userTasks: any = await UserTaskModel.find({
         user: userId,
       }).populate("task")
-  
+
       const user: any = await UserModel.find({
         _id: userId,
       })
-  
+
       const userScores = scores
-  
+
       const tasksEligibleForProfiling = [
         TaskType.MP_HUNGER,
         TaskType.MP_FEELING,
         TaskType.AD_LIBITUM,
         TaskType.MP_ACTIVITY,
       ]
-  
+
       console.log(userTasks, "userTasks")
-  
+
       const completedTasks = userTasks.filter(
         ({
           task,
@@ -170,12 +177,16 @@ class TaskService {
           isReadyForProfiling &&
           completed
       )
-  
+
       // If the currentTask has not been considered in the completedTasks, add it manually.
-      if (currentTask && originalTaskProfilingStatus && !completedTasks.some((task: any) => task._id === currentTask._id)) {
+      if (
+        currentTask &&
+        originalTaskProfilingStatus &&
+        !completedTasks.some((task: any) => task._id === currentTask._id)
+      ) {
         completedTasks.push(currentTask)
       }
-  
+
       if (
         userScores.length === 0 &&
         completedTasks.length >= tasksEligibleForProfiling.length
@@ -368,7 +379,12 @@ class TaskService {
       if (tasksEligibleForProfiling.includes(task.type)) {
         userTask.isReadyForProfiling = true
         await userTask.save()
-        await this.handleIsReadyForProfiling(userTask.user, scores, task, userTask.isReadyForProfiling)
+        await this.handleIsReadyForProfiling(
+          userTask.user,
+          scores,
+          task,
+          userTask.isReadyForProfiling
+        )
       }
 
       // Handle different task types
@@ -385,16 +401,19 @@ class TaskService {
         case TaskType.DAILY_METRICS_LOG: {
           const weight = {
             date: new Date(),
-            value: answers.find((a) => a.key === "weightInLbs").value,
+            value: (
+              answers.find((a) => a.key === "weightInLbs") as UserNumberAnswer
+            ).value,
           }
           user.weights.push(weight)
           await user.save()
           break
         }
         case TaskType.NEW_PATIENT_INTAKE_FORM: {
-          const pharmacyId = answers.find(
+          const pharmacyAnswer = answers.find(
             (a) => a.key === "pharmacyLocation"
-          ).value
+          ) as UserStringAnswer
+          const pharmacyId = pharmacyAnswer.value
           const patientId = user?.akutePatientId
           if (pharmacyId !== "null") {
             await this.akuteService.createPharmacyListForPatient(
@@ -415,7 +434,8 @@ class TaskService {
         case TaskType.WEIGHT_LOG: {
           const weight = {
             date: new Date(),
-            value: answers.find((a) => a.key === "weight").value,
+            value: (answers.find((a) => a.key === "weight") as UserNumberAnswer)
+              .value,
           }
           const bmi =
             (weight.value / user.heightInInches / user.heightInInches) *
@@ -628,6 +648,92 @@ class TaskService {
     } catch (error) {
       Sentry.captureException(error)
       throw new ApolloError(error.message, error.code)
+    }
+  }
+
+  /**
+   * Converts answers in UserTask.answers to the correct format specified in Task.questions, if present.
+   */
+  async cleanupUserTaskAnswersFromTaskQuestions(
+    /** Whether to log but not execute changes that would be made. */
+    preview = true
+  ) {
+    if (preview) {
+      console.log("Preview mode.")
+    }
+    const tasks = await this.getAllTasks()
+    const tasksById: Record<string, Task> = tasks.reduce(
+      (map, task) => ({ ...map, [task._id.toString()]: task }),
+      {}
+    )
+    const userTasks = await this.getAllUserTasks()
+    console.log(`Tasks: ${JSON.stringify(tasksById, null, "  ")}`)
+
+    for (const userTask of userTasks) {
+      const task = tasksById[userTask.task?.toString()]
+      if (!task) {
+        console.log(`No corresponding task for UserTask.task ${userTask.task}`)
+        continue
+      }
+
+      const { answers } = userTask
+      const { questions } = task
+      if (questions && answers) {
+        answers.forEach((answer, answerIndex) => {
+          const question = questions.find((q) => q.key === answer.key)
+          if (question) {
+            const originalAnswerType = answer.type
+            const originalAnswerValue = answer.value
+            answer.type = question.type as any
+
+            // cast or convert answer.value except for files, strings and arrays,
+            // which are all stored as strings
+            switch (question.type) {
+              case AnswerType.BOOLEAN:
+                answer.value =
+                  typeof answer.value === "boolean"
+                    ? answer.value
+                    : /true|yes|on|t|1/i.test(`${answer.value}`)
+                break
+              case AnswerType.NUMBER: {
+                const asNumber = Number(answer.value)
+                if (Number.isFinite(asNumber)) {
+                  answer.value = Number.isFinite(asNumber)
+                } else {
+                  const asNumbers = String(answer.value)
+                    .split(/[^0-9]/)
+                    .map((s) => Number(s.trim()))
+                    .filter((n) => Number.isFinite(n))
+                  const sum = asNumbers.reduce((memo, v) => memo + v, 0)
+                  const average = sum / asNumbers.length
+                  answer.value = average
+                }
+                break
+              }
+              case AnswerType.DATE:
+                answer.value = dayjs(answer.value as any).toISOString()
+                break
+            }
+
+            if (answer.type !== originalAnswerType) {
+              console.log(
+                `* Change ${userTask._id.toString()} answer [${answerIndex}] type from ${originalAnswerType} to ${
+                  answer.type
+                }`
+              )
+            }
+            if (answer.value !== originalAnswerValue) {
+              console.log(
+                `* Change ${userTask._id.toString()} answer [${answerIndex}] value from ${originalAnswerValue} to ${
+                  answer.value
+                }`
+              )
+            }
+          } else {
+            console.log(`No corresponding question for answer ${answer.key}`)
+          }
+        })
+      }
     }
   }
 }
