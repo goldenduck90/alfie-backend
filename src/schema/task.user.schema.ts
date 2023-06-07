@@ -36,7 +36,8 @@ export class UserAnswer {
   type: AnswerType
 
   @Field(() => GraphQLAnyScalar)
-  value: boolean | string | number | Date
+  @prop({ required: false })
+  value: boolean | string | number | null
 }
 
 @ObjectType()
@@ -46,7 +47,18 @@ export class UserStringAnswer extends UserAnswer {
   type: AnswerType.STRING
 
   @Field(() => String)
+  @prop({ required: false })
+  value: string
+}
+
+@ObjectType()
+export class UserFileAnswer extends UserAnswer {
+  @Field(() => AnswerType)
   @prop({ required: true })
+  type: AnswerType.FILE
+
+  @Field(() => String)
+  @prop({ required: false })
   value: string
 }
 
@@ -57,7 +69,7 @@ export class UserNumberAnswer extends UserAnswer {
   type: AnswerType.NUMBER
 
   @Field(() => Number)
-  @prop({ required: true })
+  @prop({ required: false })
   value: number
 }
 
@@ -68,7 +80,7 @@ export class UserArrayAnswer extends UserAnswer {
   type: AnswerType.ARRAY
 
   @Field(() => String)
-  @prop({ required: true })
+  @prop({ required: false })
   value: string // TODO: string[]
 }
 
@@ -79,7 +91,7 @@ export class UserBooleanAnswer extends UserAnswer {
   type: AnswerType.BOOLEAN
 
   @Field(() => Boolean)
-  @prop({ required: true })
+  @prop({ required: false })
   value: boolean
 }
 
@@ -89,9 +101,9 @@ export class UserDateAnswer extends UserAnswer {
   @prop({ required: true })
   type: AnswerType.DATE
 
-  @Field(() => Date)
-  @prop({ required: true })
-  value: Date
+  @Field(() => String)
+  @prop({ required: false })
+  value: string
 }
 
 const UserAnswerClasses = [
@@ -100,6 +112,7 @@ const UserAnswerClasses = [
   UserArrayAnswer,
   UserBooleanAnswer,
   UserDateAnswer,
+  UserFileAnswer,
 ] as const
 export type UserAnswerTypes =
   | UserStringAnswer
@@ -107,6 +120,7 @@ export type UserAnswerTypes =
   | UserArrayAnswer
   | UserBooleanAnswer
   | UserDateAnswer
+  | UserFileAnswer
 
 export const UserAnswerUnion = createUnionType({
   name: "UserAnswer",
@@ -175,6 +189,7 @@ export class UserTask {
       { type: UserBooleanAnswer, value: AnswerType.BOOLEAN },
       { type: UserDateAnswer, value: AnswerType.DATE },
       { type: UserArrayAnswer, value: AnswerType.ARRAY },
+      { type: UserFileAnswer, value: AnswerType.FILE },
     ],
   })
   answers?: UserAnswerTypes[]

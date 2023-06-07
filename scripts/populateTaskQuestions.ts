@@ -1,12 +1,33 @@
 import prepareShellEnvironment from "./utils/prepareShellEnvironment"
-import { TaskQuestion } from "../src/schema/task.schema"
+import { TaskQuestion, TaskModel } from "../src/schema/task.schema"
 import { AnswerType } from "../src/schema/enums/AnswerType"
 
 async function populateTaskQuestions() {
   await prepareShellEnvironment()
 
+  console.log("Updating Task.questions fields.")
   const questionsData = taskQuestionsData()
-  console.log(questionsData)
+
+  await Promise.all(
+    Object.entries(questionsData).map(async ([taskType, questions]) => {
+      const updatedTask = await TaskModel.findOneAndUpdate(
+        { type: taskType },
+        { questions: questions },
+        { new: true }
+      )
+      if (updatedTask) {
+        console.log(
+          `* Updated task ${taskType}: ${JSON.stringify(
+            updatedTask.toObject()
+          )}`
+        )
+      } else {
+        console.log(
+          `# Could not update task ${taskType} (does not exist in database)`
+        )
+      }
+    })
+  )
 }
 
 populateTaskQuestions()
@@ -91,5 +112,27 @@ function taskQuestionsData(): Record<string, TaskQuestion[]> {
       { key: "eatingBinges", type: AnswerType.STRING },
       { key: "restraint", type: AnswerType.NUMBER },
     ],
+    GSRS: [
+      { key: "painOrDiscomfort", type: AnswerType.STRING },
+      { key: "heartBurn", type: AnswerType.STRING },
+      { key: "acidReflux", type: AnswerType.STRING },
+      { key: "hungerPains", type: AnswerType.STRING },
+      { key: "nausea", type: AnswerType.STRING },
+      { key: "rumbling", type: AnswerType.STRING },
+      { key: "bloated", type: AnswerType.STRING },
+      { key: "burping", type: AnswerType.STRING },
+      { key: "gas", type: AnswerType.STRING },
+      { key: "constipation", type: AnswerType.STRING },
+      { key: "diarrhea", type: AnswerType.STRING },
+      { key: "looseStools", type: AnswerType.STRING },
+      { key: "hardStools", type: AnswerType.STRING },
+      { key: "urgentBowel", type: AnswerType.STRING },
+      { key: "completeBowels", type: AnswerType.STRING },
+    ],
+    LAB_SELECTION: [
+      { key: "labCorpLocation", type: AnswerType.STRING },
+      { key: "hasRequiredLabs", type: AnswerType.BOOLEAN },
+    ],
+    AD_LIBITUM: [{ key: "calories", type: AnswerType.NUMBER }],
   }
 }

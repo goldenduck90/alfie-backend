@@ -5,7 +5,7 @@ async function fixMongoUserAnswers() {
   await prepareShellEnvironment()
 
   const taskService = new TaskService()
-  await taskService.cleanupUserTaskAnswersFromTaskQuestions()
+  await taskService.correctUserAnswersFromTaskQuestions(false)
 }
 
 fixMongoUserAnswers()
