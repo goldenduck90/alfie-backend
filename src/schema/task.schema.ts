@@ -7,13 +7,7 @@ import {
   ReturnModelType,
 } from "@typegoose/typegoose"
 import { AsQueryMethod } from "@typegoose/typegoose/lib/types"
-import {
-  createUnionType,
-  Field,
-  InputType,
-  ObjectType,
-  registerEnumType,
-} from "type-graphql"
+import { Field, InputType, ObjectType, registerEnumType } from "type-graphql"
 import { AnswerType } from "./enums/AnswerType"
 
 export interface TaskEmail {
@@ -83,60 +77,6 @@ export class TaskQuestion {
   type: AnswerType
 }
 
-@ObjectType()
-export class TaskStringQuestion extends TaskQuestion {
-  @Field(() => AnswerType)
-  @prop({ required: true })
-  type: AnswerType.STRING
-}
-
-@ObjectType()
-export class TaskNumberQuestion extends TaskQuestion {
-  @Field(() => AnswerType)
-  @prop({ required: true })
-  type: AnswerType.NUMBER
-}
-
-@ObjectType()
-export class TaskArrayQuestion extends TaskQuestion {
-  @Field(() => AnswerType)
-  @prop({ required: true })
-  type: AnswerType.ARRAY
-}
-
-@ObjectType()
-export class TaskBooleanQuestion extends TaskQuestion {
-  @Field(() => AnswerType)
-  @prop({ required: true })
-  type: AnswerType.BOOLEAN
-}
-
-@ObjectType()
-export class TaskDateQuestion extends TaskQuestion {
-  @Field(() => AnswerType)
-  @prop({ required: true })
-  type: AnswerType.DATE
-}
-
-const TaskQuestionClasses = [
-  TaskStringQuestion,
-  TaskNumberQuestion,
-  TaskArrayQuestion,
-  TaskBooleanQuestion,
-  TaskDateQuestion,
-] as const
-export type TaskQuestionTypes =
-  | TaskStringQuestion
-  | TaskNumberQuestion
-  | TaskArrayQuestion
-  | TaskBooleanQuestion
-  | TaskDateQuestion
-
-export const TaskQuestionUnion = createUnionType({
-  name: "TaskQuestion",
-  types: () => TaskQuestionClasses,
-})
-
 @index({ name: 1, type: 1 }, { unique: true })
 @queryMethod(findByType)
 @ObjectType()
@@ -184,19 +124,9 @@ export class Task {
   @prop({ required: false })
   interval?: number
 
-  @Field(() => [TaskQuestionUnion], { nullable: true })
-  @prop({
-    required: false,
-    type: TaskQuestion,
-    discriminators: () => [
-      { type: TaskStringQuestion, value: AnswerType.STRING },
-      { type: TaskNumberQuestion, value: AnswerType.NUMBER },
-      { type: TaskBooleanQuestion, value: AnswerType.BOOLEAN },
-      { type: TaskDateQuestion, value: AnswerType.DATE },
-      { type: TaskArrayQuestion, value: AnswerType.ARRAY },
-    ],
-  })
-  questions?: TaskQuestionTypes[]
+  @Field(() => [TaskQuestion], { nullable: true })
+  @prop({ required: false })
+  questions?: TaskQuestion[]
 }
 
 export const TaskModel = getModelForClass<typeof Task, QueryHelpers>(Task, {
@@ -277,5 +207,5 @@ export class CreateTaskInput {
     description:
       "If set, the task will have answers that must conform to these questions.",
   })
-  questions?: TaskQuestionTypes[]
+  questions?: TaskQuestion[]
 }

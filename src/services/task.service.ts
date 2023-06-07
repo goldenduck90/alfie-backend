@@ -1,6 +1,7 @@
 import * as Sentry from "@sentry/node"
 import { ApolloError } from "apollo-server"
 import config from "config"
+import dayjs from "dayjs"
 import { addDays, isPast } from "date-fns"
 import { calculateScore } from "../PROAnalysis"
 import { ProviderModel } from "../schema/provider.schema"
@@ -22,6 +23,7 @@ import {
   UserTaskModel,
 } from "../schema/task.user.schema"
 import { UserModel } from "../schema/user.schema"
+import { AnswerType } from "../schema/enums/AnswerType"
 import AkuteService from "./akute.service"
 import { classifyUser } from "../PROAnalysis/classification"
 import { calculatePatientScores } from "../scripts/calculatePatientScores"
@@ -665,21 +667,72 @@ class TaskService {
       {}
     )
     const userTasks = await this.getAllUserTasks()
+    console.log(`Tasks: ${JSON.stringify(tasksById, null, "  ")}`)
 
     for (const userTask of userTasks) {
-      const task =
-        tasksById[userTask.task?.toString() ?? (userTask.task as string)]
-      if (!task) throw new Error(`Invalid task: ${userTask.task}`)
+      const task = tasksById[userTask.task?.toString()]
+      if (!task) {
+        console.log(`No corresponding task for UserTask.task ${userTask.task}`)
+        continue
+      }
 
       const { answers } = userTask
       const { questions } = task
       if (questions && answers) {
-        for (const answer of answers || []) {
+        answers.forEach((answer, answerIndex) => {
           const question = questions.find((q) => q.key === answer.key)
-          if (!question) {
+          if (question) {
+            const originalAnswerType = answer.type
+            const originalAnswerValue = answer.value
+            answer.type = question.type as any
+
+            // cast or convert answer.value except for files, strings and arrays,
+            // which are all stored as strings
+            switch (question.type) {
+              case AnswerType.BOOLEAN:
+                answer.value =
+                  typeof answer.value === "boolean"
+                    ? answer.value
+                    : /true|yes|on|t|1/i.test(`${answer.value}`)
+                break
+              case AnswerType.NUMBER: {
+                const asNumber = Number(answer.value)
+                if (Number.isFinite(asNumber)) {
+                  answer.value = Number.isFinite(asNumber)
+                } else {
+                  const asNumbers = String(answer.value)
+                    .split(/[^0-9]/)
+                    .map((s) => Number(s.trim()))
+                    .filter((n) => Number.isFinite(n))
+                  const sum = asNumbers.reduce((memo, v) => memo + v, 0)
+                  const average = sum / asNumbers.length
+                  answer.value = average
+                }
+                break
+              }
+              case AnswerType.DATE:
+                answer.value = dayjs(answer.value as any).toISOString()
+                break
+            }
+
+            if (answer.type !== originalAnswerType) {
+              console.log(
+                `* Change ${userTask._id.toString()} answer [${answerIndex}] type from ${originalAnswerType} to ${
+                  answer.type
+                }`
+              )
+            }
+            if (answer.value !== originalAnswerValue) {
+              console.log(
+                `* Change ${userTask._id.toString()} answer [${answerIndex}] value from ${originalAnswerValue} to ${
+                  answer.value
+                }`
+              )
+            }
+          } else {
             console.log(`No corresponding question for answer ${answer.key}`)
           }
-        }
+        })
       }
     }
   }

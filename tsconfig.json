@@ -15,5 +15,5 @@
     },
     "lib": ["es2018", "esnext.asynciterable", "dom"]
   },
-  "include": ["src/**/*", "config/*", "assets/*"]
+  "include": ["src/**/*", "config/*", "assets/*", "scripts/*"]
 }
