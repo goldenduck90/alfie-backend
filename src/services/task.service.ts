@@ -82,8 +82,10 @@ class TaskService {
     const { limit, offset, completed, taskType } = input
     const { noTasks } = config.get("errors.tasks") as any
 
-    const task = await TaskModel.findOne({ type: input.taskType })
-    const taskId = task._id.toString()
+    const task = taskType
+      ? await TaskModel.findOne({ type: input.taskType })
+      : null
+    const taskId = task?._id?.toString()
 
     const where = {
       ...(completed !== undefined && { completed }),
