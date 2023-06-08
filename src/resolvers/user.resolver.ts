@@ -29,11 +29,11 @@ import Context from "../types/context"
 
 @Resolver()
 export default class UserResolver {
-  constructor(
-    private userService: UserService,
-    private akuteService: AkuteService,
-    private metriportService: MetriportService
-  ) {
+  private userService: UserService
+  private akuteService: AkuteService
+  private metriportService: MetriportService
+
+  constructor() {
     this.userService = new UserService()
     this.akuteService = new AkuteService()
     this.metriportService = new MetriportService()

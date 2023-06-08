@@ -4,7 +4,6 @@ import {
   prop,
   queryMethod,
   ReturnModelType,
-  Severity,
 } from "@typegoose/typegoose"
 import { AsQueryMethod, Ref } from "@typegoose/typegoose/lib/types"
 import {

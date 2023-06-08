@@ -1,13 +1,6 @@
-import { ApolloError } from "apollo-server"
 import { S3 } from "aws-sdk"
 import config from "config"
-import {
-  File,
-  SignedUrlRequest,
-  SignedUrlResponse,
-  User,
-  UserModel,
-} from "../schema/user.schema"
+import { SignedUrlRequest, SignedUrlResponse } from "../schema/user.schema"
 
 class S3Service {
   private s3: S3
@@ -23,26 +16,6 @@ class S3Service {
       secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
       region: process.env.AWS_REGION,
     })
-  }
-
-  async completeUpload(input: File[], userId: string): Promise<User> {
-    const { notFound } = config.get("errors.user") as any
-    const user = await UserModel.findById(userId).countDocuments()
-    if (!user) {
-      throw new ApolloError(notFound.message, notFound.code)
-    }
-    const update = await UserModel.findOneAndUpdate(
-      {
-        _id: userId,
-      },
-      {
-        $push: {
-          files: { $each: input },
-        },
-      }
-    )
-
-    return update
   }
 
   async requestSignedUrls(

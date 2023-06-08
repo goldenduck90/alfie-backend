@@ -4,7 +4,7 @@ import config from "config"
 import dayjs from "dayjs"
 import { addDays, isPast } from "date-fns"
 import { calculateScore } from "../PROAnalysis"
-import { Provider, ProviderModel } from "../schema/provider.schema"
+import { Provider } from "../schema/provider.schema"
 import {
   CreateTaskInput,
   Task,

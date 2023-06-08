@@ -40,9 +40,11 @@ import {
   ResetPasswordInput,
   SubscribeEmailInput,
   UpdateUserInput,
-  Weight,
   InsuranceEligibilityInput,
+  Weight,
+  File,
   User,
+  FileType,
 } from "../schema/user.schema"
 import Role from "../schema/enums/Role"
 import { signJwt } from "../utils/jwt"
@@ -61,6 +63,7 @@ import TaskService from "./task.service"
 import SmsService from "./sms.service"
 import CandidService from "./candid.service"
 import axios from "axios"
+import { analyzeS3InsuranceCardImage } from "../utils/textract"
 
 class UserService extends EmailService {
   private taskService: TaskService
@@ -1501,6 +1504,53 @@ class UserService extends EmailService {
       console.log("error", error)
       Sentry.captureException(error)
     }
+  }
+
+  /** Completes an upload by saving the files uploaded to S3 to the database. */
+  async completeUpload(input: File[], userId: string): Promise<User> {
+    const { notFound } = config.get("errors.user") as any
+    const user = await UserModel.findById(userId).countDocuments()
+    if (!user) {
+      throw new ApolloError(notFound.message, notFound.code)
+    }
+    const update = await UserModel.findOneAndUpdate(
+      {
+        _id: userId,
+      },
+      {
+        $push: {
+          files: { $each: input },
+        },
+      },
+      { new: true }
+    )
+
+    const insuranceFile = input.find(
+      (file) => file.type === FileType.InsuranceCard
+    )
+    if (insuranceFile) {
+      const bucket: string = config.get("s3.patientBucketName")
+      const insuranceData = await analyzeS3InsuranceCardImage(
+        bucket,
+        insuranceFile.key
+      )
+      const insuranceInput: InsuranceEligibilityInput = {
+        userId,
+        memberId: insuranceData.member_id,
+        groupId: insuranceData.group_number,
+        groupName: insuranceData.group_name,
+        payor: insuranceData.payer_id,
+        insuranceCompany: insuranceData.payer_name,
+        rxBin: insuranceData.rx_bin,
+        rxGroup: insuranceData.rx_pcn,
+      }
+      const eligible = await this.checkInsuranceEligibility(insuranceInput)
+      if (eligible) {
+        await this.updateInsurance(insuranceInput)
+      }
+    }
+
+    return update
   }
 
   /** Updates insurance information for a given user. */
