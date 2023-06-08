@@ -30,7 +30,7 @@ import {
   CreateCheckoutInput,
   CreateStripeCustomerInput,
 } from "../schema/checkout.schema"
-import { Provider, ProviderModel } from "../schema/provider.schema"
+import { ProviderModel, Provider } from "../schema/provider.schema"
 import { AllTaskEmail, TaskEmail, TaskType } from "../schema/task.schema"
 import { UserTaskModel } from "../schema/task.user.schema"
 import {
@@ -38,13 +38,13 @@ import {
   ForgotPasswordInput,
   LoginInput,
   ResetPasswordInput,
-  Role,
   SubscribeEmailInput,
   UpdateUserInput,
   Weight,
   InsuranceEligibilityInput,
   User,
 } from "../schema/user.schema"
+import Role from "../schema/enums/Role"
 import { signJwt } from "../utils/jwt"
 import {
   getSendBirdUserChannelUrl,

@@ -6,7 +6,8 @@ import {
   Settings,
   WorkingPlan,
 } from "./../@types/easyAppointmentTypes"
-import { Role } from "./user.schema"
+import Role from "./enums/Role"
+
 @ObjectType()
 @InputType("TimeBlockInput")
 class TimeBlock {

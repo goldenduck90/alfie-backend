@@ -28,9 +28,7 @@ import {
   registerEnumType,
 } from "type-graphql"
 import { Provider } from "./provider.schema"
-import UserRole from "./enums/Role"
-export type Role = UserRole
-export const Role = UserRole
+import Role from "./enums/Role"
 
 const {
   email: emailValidation,
@@ -488,6 +486,10 @@ export class User {
   @Field(() => String, { nullable: true })
   @prop()
   externalPatientId?: string
+
+  @Field(() => String, { nullable: true })
+  @prop()
+  metriportUserId?: string
 
   @Field(() => Date)
   @prop({ default: Date.now(), required: true })

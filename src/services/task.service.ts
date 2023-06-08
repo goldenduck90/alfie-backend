@@ -1,13 +1,15 @@
 import * as Sentry from "@sentry/node"
 import { ApolloError } from "apollo-server"
 import config from "config"
+import dayjs from "dayjs"
 import { addDays, isPast } from "date-fns"
 import { calculateScore } from "../PROAnalysis"
-import { Provider } from "../schema/provider.schema"
+import { Provider, ProviderModel } from "../schema/provider.schema"
 import {
   CreateTaskInput,
   Task,
   TaskModel,
+  TaskQuestion,
   TaskType,
 } from "../schema/task.schema"
 import {
@@ -16,10 +18,15 @@ import {
   CreateUserTasksInput,
   GetUserTasksInput,
   UpdateUserTaskInput,
+  UserAnswer,
+  UserAnswerTypes,
+  UserNumberAnswer,
+  UserStringAnswer,
   UserTask,
   UserTaskModel,
 } from "../schema/task.user.schema"
 import { User, UserModel } from "../schema/user.schema"
+import { AnswerType } from "../schema/enums/AnswerType"
 import AkuteService from "./akute.service"
 import { classifyUser } from "../PROAnalysis/classification"
 import { calculatePatientScores } from "../scripts/calculatePatientScores"
@@ -36,14 +43,7 @@ class TaskService {
   }
 
   async createTask(input: CreateTaskInput) {
-    const { name, type, interval } = input
-
-    const task = await TaskModel.create({
-      name,
-      type,
-      interval,
-    })
-
+    const task = await TaskModel.create(input)
     return task
   }
 
@@ -56,6 +56,10 @@ class TaskService {
     const { notFound, notPermitted } = config.get("errors.tasks") as any
     const userTask = await UserTaskModel.findById(id).populate("task")
     if (!userTask) {
+      throw new ApolloError(notFound.message, notFound.code)
+    }
+
+    if (!userTask.task) {
       throw new ApolloError(notFound.message, notFound.code)
     }
 
@@ -107,10 +111,12 @@ class TaskService {
       total: userTasksCount,
       limit,
       offset,
-      userTasks: userTasks.map((userTask) => ({
-        ...userTask.toObject(),
-        ...(userTask.dueAt && { pastDue: isPast(userTask.dueAt) }),
-      })),
+      userTasks: userTasks
+        .filter((u) => u.task)
+        .map((userTask) => ({
+          ...userTask.toObject(),
+          ...(userTask.dueAt && { pastDue: isPast(userTask.dueAt) }),
+        })),
     }
   }
   async checkEligibilityForAppointment(userId: any) {
@@ -150,22 +156,32 @@ class TaskService {
     }
   }
 
-  async handleIsReadyForProfiling(userId: any, scores: any, currentTask: any) {
+  async handleIsReadyForProfiling(
+    userId: any,
+    scores: any,
+    currentTask: any,
+    originalTaskProfilingStatus: boolean
+  ) {
     try {
       const userTasks: any = await UserTaskModel.find({
         user: userId,
       }).populate("task")
+
       const user: any = await UserModel.find({
         _id: userId,
       })
+
       const userScores = scores
+
       const tasksEligibleForProfiling = [
         TaskType.MP_HUNGER,
         TaskType.MP_FEELING,
         TaskType.AD_LIBITUM,
         TaskType.MP_ACTIVITY,
       ]
+
       console.log(userTasks, "userTasks")
+
       const completedTasks = userTasks.filter(
         ({
           task,
@@ -181,6 +197,16 @@ class TaskService {
           isReadyForProfiling &&
           completed
       )
+
+      // If the currentTask has not been considered in the completedTasks, add it manually.
+      if (
+        currentTask &&
+        originalTaskProfilingStatus &&
+        !completedTasks.some((task: any) => task._id === currentTask._id)
+      ) {
+        completedTasks.push(currentTask)
+      }
+
       if (
         userScores.length === 0 &&
         completedTasks.length >= tasksEligibleForProfiling.length
@@ -336,11 +362,24 @@ class TaskService {
       // Get the user and task documents
       const user = await UserModel.findById(userTask.user)
       const task = await TaskModel.findById(userTask.task)
+
+      // correct answers from the questions schema
+      const { correctedAnswers, isChanged } = this.getCorrectedUserAnswers(
+        answers,
+        task.questions
+      )
+      if (isChanged) {
+        console.log(
+          `Corrected answers format from ${JSON.stringify(
+            answers
+          )} to ${JSON.stringify(correctedAnswers)}`
+        )
+      }
       // Mark the user task as completed and save it
       userTask.completed = true
       userTask.completedAt = new Date()
       userTask.answers = []
-      userTask.answers = answers
+      userTask.answers = correctedAnswers
       await userTask.save()
       const lastTask = await UserTaskModel.findOne({
         user: userTask.user,
@@ -373,7 +412,12 @@ class TaskService {
       if (tasksEligibleForProfiling.includes(task.type)) {
         userTask.isReadyForProfiling = true
         await userTask.save()
-        await this.handleIsReadyForProfiling(userTask.user, scores, task)
+        await this.handleIsReadyForProfiling(
+          userTask.user,
+          scores,
+          task,
+          userTask.isReadyForProfiling
+        )
       }
 
       // Handle different task types
@@ -390,16 +434,19 @@ class TaskService {
         case TaskType.DAILY_METRICS_LOG: {
           const weight = {
             date: new Date(),
-            value: answers.find((a) => a.key === "weightInLbs").value,
+            value: (
+              answers.find((a) => a.key === "weightInLbs") as UserNumberAnswer
+            ).value,
           }
           user.weights.push(weight)
           await user.save()
           break
         }
         case TaskType.NEW_PATIENT_INTAKE_FORM: {
-          const pharmacyId = answers.find(
+          const pharmacyAnswer = answers.find(
             (a) => a.key === "pharmacyLocation"
-          ).value
+          ) as UserStringAnswer
+          const pharmacyId = pharmacyAnswer.value
           const patientId = user?.akutePatientId
           if (pharmacyId !== "null") {
             await this.akuteService.createPharmacyListForPatient(
@@ -420,7 +467,8 @@ class TaskService {
         case TaskType.WEIGHT_LOG: {
           const weight = {
             date: new Date(),
-            value: answers.find((a) => a.key === "weight").value,
+            value: (answers.find((a) => a.key === "weight") as UserNumberAnswer)
+              .value,
           }
           const bmi = calculateBMI(weight.value, user.heightInInches)
           user.weights.push(weight)
@@ -629,6 +677,137 @@ class TaskService {
     } catch (error) {
       Sentry.captureException(error)
       throw new ApolloError(error.message, error.code)
+    }
+  }
+
+  /**
+   * Corrects answer formats in UserTask.answers to the correct format specified in Task.questions, if present.
+   */
+  async correctUserAnswersFromTaskQuestions(
+    /** Whether to log but not execute changes that would be made. */
+    preview = true
+  ) {
+    if (preview) {
+      console.log(
+        "Synchronize user answers to task questions templates, preview mode."
+      )
+    }
+    const tasks = await this.getAllTasks()
+    const userTasks = await this.getAllUserTasks()
+
+    for (const userTask of userTasks) {
+      const task = tasks.find(
+        (t) => t._id.toString() === userTask.task.toString()
+      )
+      if (!task) {
+        console.log(
+          `No corresponding task for UserTask [${userTask._id.toString()}] .task ${
+            userTask.task
+          }`
+        )
+        continue
+      }
+
+      const { answers } = userTask
+      const { questions } = task
+      if (questions && answers) {
+        const { correctedAnswers, isChanged } = this.getCorrectedUserAnswers(
+          answers,
+          questions
+        )
+        const originalAnswers = userTask.answers
+
+        if (isChanged) {
+          userTask.answers = correctedAnswers
+
+          console.log(
+            `* ${preview ? "Will update" : "Updating"} user task [${
+              userTask._id
+            }] for user [${userTask.user}]`
+          )
+          console.log(`  From ${JSON.stringify(originalAnswers)}`)
+          console.log(`  To   ${JSON.stringify(correctedAnswers)}`)
+          if (!preview) {
+            await userTask.save()
+          }
+        }
+      }
+    }
+  }
+
+  /**
+   * Gets a corrected `answers` array so that the answer objects match the spec in `questions`
+   * from the Task object.
+   */
+  public getCorrectedUserAnswers(
+    answers: UserAnswerTypes[],
+    questions: TaskQuestion[]
+  ): { correctedAnswers: UserAnswerTypes[]; isChanged: boolean } {
+    const correctedAnswers: UserAnswer[] = []
+    let isChanged = false
+
+    if (questions && answers) {
+      answers.forEach((answer) => {
+        const question = questions.find((q) => q.key === answer.key)
+        if (question) {
+          const originalType = answer.type
+          const originalValue = answer.value
+          const updatedType = question.type
+          let updatedValue = answer.value
+
+          // cast or convert answer.value except for files, strings and arrays,
+          // which are all stored as strings
+          switch (question.type) {
+            case AnswerType.STRING:
+              if (answer.value === "null") {
+                updatedValue = null
+              } else if (answer.value === "undefined") {
+                updatedValue = null
+              }
+              break
+            case AnswerType.BOOLEAN:
+              updatedValue =
+                typeof answer.value === "boolean"
+                  ? answer.value
+                  : /true|yes|on|t|1/i.test(`${answer.value}`)
+              break
+            case AnswerType.NUMBER: {
+              const asNumber = Number(answer.value)
+              if (Number.isFinite(asNumber)) {
+                updatedValue = asNumber
+              } else {
+                const asNumbers = String(answer.value)
+                  .split(/[^0-9]/)
+                  .map((s) => Number(s.trim()))
+                  .filter((n) => Number.isFinite(n))
+                const sum = asNumbers.reduce((memo, v) => memo + v, 0)
+                const average = sum / asNumbers.length
+                updatedValue = average
+              }
+              break
+            }
+            case AnswerType.DATE:
+              updatedValue = dayjs(answer.value as any).toISOString()
+              break
+          }
+
+          if (updatedValue !== originalValue || updatedType !== originalType) {
+            isChanged = true
+          }
+          correctedAnswers.push({
+            key: answer.key,
+            value: updatedValue,
+            type: updatedType,
+          })
+        } else {
+          correctedAnswers.push(answer)
+        }
+      })
+    }
+
+    return {
+      correctedAnswers: correctedAnswers as any as UserAnswerTypes[],
+      isChanged,
     }
   }
 }

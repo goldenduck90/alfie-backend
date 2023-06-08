@@ -2,11 +2,11 @@ import Context from "../types/context"
 import { Arg, Authorized, Ctx, Mutation, Resolver } from "type-graphql"
 import {
   File,
-  Role,
   SignedUrlRequest,
   SignedUrlResponse,
   User,
 } from "../schema/user.schema"
+import Role from "../schema/enums/Role"
 import S3Service from "../services/s3.service"
 import AkuteService from "../services/akute.service"
 import { AkuteDocument, DocUploadInput } from "../schema/akute.schema"

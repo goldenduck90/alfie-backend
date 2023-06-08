@@ -5,7 +5,7 @@ import {
   BatchCreateOrUpdateProvidersInput,
   ProviderModel,
 } from "../schema/provider.schema"
-import { Role } from "./../schema/user.schema"
+import Role from "./../schema/enums/Role"
 import EmailService from "./email.service"
 
 class ProviderService {

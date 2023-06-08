@@ -1,5 +1,5 @@
 import { TaskType } from "../schema/task.schema"
-import { UserTask } from "../schema/task.user.schema"
+import { UserNumberAnswer, UserTask } from "../schema/task.user.schema"
 import { gsrsQuestions, mpFeelingQuestions, tefqQuestions } from "./questions"
 
 function getPercentageChange(oldNumber: number, newNumber: number) {
@@ -181,8 +181,12 @@ function calculateActivityScore(
 ) {
   // The tasks in this category are all activity based tasks so their values for each task are simple numbers
   // For Example: [{"key": "weight", "value": "333", "type": "DATE"}]
-  const lastTaskScore = Number(lastTask?.answers[0]?.value)
-  const currentTaskScore = Number(currentTask?.answers[0]?.value)
+  const lastTaskScore = Number(
+    (lastTask?.answers[0] as UserNumberAnswer)?.value
+  )
+  const currentTaskScore = Number(
+    (currentTask?.answers[0] as UserNumberAnswer)?.value
+  )
   if (!lastTaskScore || !currentTaskScore) {
     return {}
   }
@@ -248,7 +252,9 @@ function calculateActivityScore(
   }
 }
 function calculateSingleMPActivity(currentTask: UserTask, task: TaskType) {
-  const currentTaskScore = Number(currentTask.answers[0].value)
+  const currentTaskScore = Number(
+    (currentTask.answers[0] as UserNumberAnswer).value
+  )
   const percentileDifferenceStepsPercentile = Object.keys(
     stepsPercentile
   ).reduce((acc, key) => {
@@ -277,12 +283,18 @@ function calculateSingleMPActivity(currentTask: UserTask, task: TaskType) {
 }
 function calculateSingleMPHunger(currentTask: UserTask, task: TaskType) {
   const currentHungerLevel1Hour = Number(
-    currentTask.answers.find((answer) => answer.key === "hungerLevel1Hour")
-      .value
+    (
+      currentTask.answers.find(
+        (answer) => answer.key === "hungerLevel1Hour"
+      ) as UserNumberAnswer
+    ).value
   )
   const currentHungerLevel30Mins = Number(
-    currentTask.answers.find((answer) => answer.key === "hungerLevel30Mins")
-      .value
+    (
+      currentTask.answers.find(
+        (answer) => answer.key === "hungerLevel30Mins"
+      ) as UserNumberAnswer
+    ).value
   )
   const percentile1hour =
     currentHungerLevel1Hour <= 45
@@ -699,8 +711,10 @@ function calculateAdLibitumScore(
   task: TaskType
 ) {
   // [{"key": "calories", "value": "60", "type": "NUMBER"}]
-  const lastCalories = Number(lastTask.answers[0].value)
-  const currentCalories = Number(currentTask.answers[0].value)
+  const lastCalories = Number((lastTask.answers[0] as UserNumberAnswer).value)
+  const currentCalories = Number(
+    (currentTask.answers[0] as UserNumberAnswer).value
+  )
   const currentCaloriesPercentDifference = getPercentageChange(
     lastCalories,
     currentCalories
@@ -736,7 +750,9 @@ function calculateAdLibitumScore(
   }
 }
 function calculateSingleAdLibitum(currentTask: UserTask, task: TaskType) {
-  const currentCalories = Number(currentTask.answers[0].value)
+  const currentCalories = Number(
+    (currentTask.answers[0] as UserNumberAnswer).value
+  )
   const message = `Current calories consumed is: ${currentCalories}`
   const percentileKey =
     currentCalories > 1283

@@ -1,6 +1,7 @@
 import Context from "../types/context"
 import { MiddlewareFn } from "type-graphql"
-import { Role, UserModel } from "../schema/user.schema"
+import { UserModel } from "../schema/user.schema"
+import Role from "../schema/enums/Role"
 import { ApolloError } from "apollo-server"
 
 export const SubscriptionChecker: MiddlewareFn<Context> = async (

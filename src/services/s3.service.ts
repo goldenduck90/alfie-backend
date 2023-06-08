@@ -56,7 +56,7 @@ class S3Service {
             metadata: item.metadata.reduce(
               (
                 accumulator: S3.Metadata,
-                meta: { key: string, value: string }
+                meta: { key: string; value: string }
               ) => {
                 return {
                   ...accumulator,

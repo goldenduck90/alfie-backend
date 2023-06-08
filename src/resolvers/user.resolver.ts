@@ -1,5 +1,6 @@
 import { Arg, Authorized, Ctx, Mutation, Query, Resolver } from "type-graphql"
 import { CreateLabOrderResponse } from "../schema/akute.schema"
+import { MetriportConnectResponse } from "../schema/metriport.schema"
 import {
   CheckoutResponse,
   CreateCheckoutInput,
@@ -13,7 +14,6 @@ import {
   LoginResponse,
   MessageResponse,
   ResetPasswordInput,
-  Role,
   RoleResponse,
   SubscribeEmailInput,
   User,
@@ -21,18 +21,22 @@ import {
   InsuranceEligibilityInput,
   InsuranceEligibilityResponse,
 } from "../schema/user.schema"
+import Role from "../schema/enums/Role"
 import AkuteService from "../services/akute.service"
 import UserService from "../services/user.service"
+import MetriportService from "../services/metriport.service"
 import Context from "../types/context"
 
 @Resolver()
 export default class UserResolver {
   constructor(
     private userService: UserService,
-    private akuteService: AkuteService
+    private akuteService: AkuteService,
+    private metriportService: MetriportService
   ) {
     this.userService = new UserService()
     this.akuteService = new AkuteService()
+    this.metriportService = new MetriportService()
   }
 
   @Authorized([Role.Admin])
@@ -149,5 +153,10 @@ export default class UserResolver {
       // only save insurance if it is currently eligible
       await this.userService.updateInsurance(input)
     }
+  }
+
+  @Mutation(() => MetriportConnectResponse)
+  generateMetriportConnectUrl(@Arg("userId") userId: string) {
+    return this.metriportService.createConnectToken(userId)
   }
 }

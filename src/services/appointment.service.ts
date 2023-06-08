@@ -7,6 +7,7 @@ import Context from "../types/context"
 import {
   IEAAppointment,
   IEAAppointmentResponse,
+  IEACustomer,
   IEAProvider,
 } from "../@types/easyAppointmentTypes"
 import {
@@ -20,7 +21,8 @@ import {
   UpdateAppointmentInput,
 } from "../schema/appointment.schema"
 import { UserTaskModel } from "../schema/task.user.schema"
-import { Role, UserModel } from "../schema/user.schema"
+import { UserModel } from "../schema/user.schema"
+import Role from "../schema/enums/Role"
 import { createMeetingAndToken } from "../utils/daily"
 import EmailService from "./email.service"
 import dayjs from "dayjs"
@@ -162,7 +164,7 @@ class AppointmentService extends EmailService {
         return eaCustomer[0].id
       }
 
-      const { data } = await this.axios.post("/customers", {
+      const { data } = await this.axios.post<IEACustomer>("/customers", {
         firstName,
         lastName,
         email,
@@ -679,22 +681,25 @@ class AppointmentService extends EmailService {
         eaUserId = _user.eaCustomerId
       }
 
-      const { data } = await this.axios.get("/appointments/month", {
-        params: {
-          ...(user.role !== Role.Practitioner && user.role !== Role.Doctor
-            ? {
-                eaCustomerId: eaUserId,
-              }
-            : {
-                eaProviderId: eaUserId,
-              }),
-          timezone: input.timezone,
-          month: input.month,
-        },
-      })
+      const { data } = await this.axios.get<IEAAppointmentResponse[]>(
+        "/appointments/month",
+        {
+          params: {
+            ...(user.role !== Role.Practitioner && user.role !== Role.Doctor
+              ? {
+                  eaCustomerId: eaUserId,
+                }
+              : {
+                  eaProviderId: eaUserId,
+                }),
+            timezone: input.timezone,
+            month: input.month,
+          },
+        }
+      )
       const apps = data
-        .filter((response: any) => response.customer && response.service)
-        .map((response: any) => eaResponseToEAAppointment(response))
+        .filter((response) => response.customer && response.service)
+        .map((response) => eaResponseToEAAppointment(response))
 
       return apps
     } catch (error) {
@@ -753,17 +758,18 @@ class AppointmentService extends EmailService {
         appointmentsByDateParams.eaProviderId = eaUserId
       }
 
-      const { data } = await this.axios.get("/appointments/date", {
-        params: {
-          ...appointmentsByDateParams,
-          timezone: input.timezone,
-          selectedDate: input.selectedDate,
-        },
-      })
-
-      const apps = data.map((response: any) =>
-        eaResponseToEAAppointment(response)
+      const { data } = await this.axios.get<IEAAppointmentResponse[]>(
+        "/appointments/date",
+        {
+          params: {
+            ...appointmentsByDateParams,
+            timezone: input.timezone,
+            selectedDate: input.selectedDate,
+          },
+        }
       )
+
+      const apps = data.map((response) => eaResponseToEAAppointment(response))
 
       return apps
     } catch (error) {
@@ -777,7 +783,7 @@ class AppointmentService extends EmailService {
     providerData: IEAProvider
   ): Promise<IEAProvider> {
     try {
-      const { data } = await this.axios.put(
+      const { data } = await this.axios.put<IEAProvider>(
         `/providers/${eaProviderId}`,
         providerData
       )
@@ -789,7 +795,9 @@ class AppointmentService extends EmailService {
 
   async getProvider(eaProviderId: string): Promise<IEAProvider> {
     try {
-      const { data } = await this.axios.get(`/providers/${eaProviderId}`)
+      const { data } = await this.axios.get<IEAProvider>(
+        `/providers/${eaProviderId}`
+      )
       return data
     } catch (err) {
       Sentry.captureException(err)
@@ -802,7 +810,7 @@ class AppointmentService extends EmailService {
   ): Promise<ScheduleObject> {
     try {
       // timezone example: America/New_York
-      const schedule = await this.axios.get(
+      const schedule = await this.axios.get<ScheduleObject>(
         `/providers/schedule?eaProviderId=${eaProviderId}&timezone=${timezone}`
       )
       return schedule.data

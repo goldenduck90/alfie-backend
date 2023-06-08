@@ -17,7 +17,8 @@ import {
   UpcomingAppointmentsInput,
   UpdateAppointmentInput,
 } from "../schema/appointment.schema"
-import { MessageResponse, Role } from "../schema/user.schema"
+import { MessageResponse } from "../schema/user.schema"
+import Role from "../schema/enums/Role"
 import AppointmentService from "../services/appointment.service"
 import Context from "../types/context"
 
