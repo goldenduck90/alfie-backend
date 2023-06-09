@@ -32,8 +32,8 @@ export const analyzeS3InsuranceCardImage = async (
           {
             Document: {
               S3Object: {
-                Bucket: "",
-                Name: "",
+                Bucket: bucket,
+                Name: objectName,
               },
             },
             FeatureTypes: ["QUERIES"],
@@ -41,15 +41,18 @@ export const analyzeS3InsuranceCardImage = async (
               Queries: [
                 { Text: "What is the Group Number?", Alias: "group_number" },
                 { Text: "What is the Group Name?", Alias: "group_name" },
-                { Text: "What is the Plan Name?", Alias: "plan_name" },
-                { Text: "What is the Plan Type?", Alias: "plan_type" },
-                {
-                  Text: "What is the Insurance Type?",
-                  Alias: "insurance_type",
-                },
+                // { Text: "What is the Plan Name?", Alias: "plan_name" },
+                // { Text: "What is the Plan Type?", Alias: "plan_type" },
+                // {
+                //   Text: "What is the Insurance Type?",
+                //   Alias: "insurance_type",
+                // },
                 { Text: "What is the Member ID?", Alias: "member_id" },
                 { Text: "What is the Payer ID?", Alias: "payer_id" },
-                { Text: "What is the Payer Name?", Alias: "payer_name" },
+                {
+                  Text: "What is the Insurance Company Name?",
+                  Alias: "payer_name",
+                },
                 { Text: "What is the Rx Bin?", Alias: "rx_bin" },
                 { Text: "What is the Rx PCN?", Alias: "rx_pcn" },
               ],
@@ -57,7 +60,7 @@ export const analyzeS3InsuranceCardImage = async (
           },
           (err, res) => {
             if (err) {
-              reject(err)
+              return reject(err)
             }
 
             const idToText: Record<string, string> = {}
