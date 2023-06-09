@@ -1,7 +1,7 @@
 import dotenv from "dotenv"
-import candidHealth from "./includes/candidHealth"
-
 dotenv.config()
+
+import { production as candidHealth } from "./includes/candidHealth"
 
 export default {
   dbUri: `mongodb+srv://joinalfie_dev_user:${process.env.DB_PASSWORD}@platform-production-clu.wnd0f.mongodb.net/?retryWrites=true&w=majority`,

@@ -200,6 +200,30 @@ export default class CandidService {
         throw new Error("Could not infer CPID from payor.")
       }
 
+      if (process.env.NODE_ENV === "development") {
+        // use sandbox data for request
+        cpid = "00007"
+        user.name = "johnone doeone"
+        user.dateOfBirth = new Date("1980-01-02")
+        user.address.line1 = "123 address1"
+        user.address.line2 = "123"
+        user.address.city = "city1"
+        user.address.state = "WA"
+        user.address.postalCode = "981010000"
+        user.phone = "123456789"
+        user.email = "email@email.com"
+
+        provider.npi = "0123456789"
+        provider.firstName = "johnone"
+        provider.lastName = "doeone"
+
+        input.groupId = "0000000000"
+        input.groupName = "group name"
+        input.memberId = "0000000000"
+        input.rxBin = "12345"
+        input.rxGroup = "abcdefg"
+      }
+
       const request: CandidEligibilityCheckRequest = {
         tradingPartnerServiceId: cpid,
         provider: {

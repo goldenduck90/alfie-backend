@@ -73,7 +73,8 @@ async function testInsurance() {
     user,
     provider,
     appointment,
-    input
+    input,
+    initialAppointment
   )
   console.log("candid coded encounter result")
   console.log(JSON.stringify(encounter, null, "  "))
