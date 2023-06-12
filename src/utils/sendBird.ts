@@ -20,7 +20,8 @@ if (process.env.SENDBIRD_AUTOINVITE_USERS) {
   sendbirdAutoinviteUsers.push(
     "63b85fa8ab80d27bb1af6d43",
     "639ba07cb937527a0c43484e",
-    "63bd8d61af58147c29a7c272"
+    "63bd8d61af58147c29a7c272",
+    "64875fd443f7374fe0e162e7"
   )
 }
 
@@ -394,14 +395,20 @@ export const triggerEntireSendBirdFlow = async ({
 /** Recreates the entire sendbird state, including users (patients and providers), and channels. */
 export const findAndTriggerEntireSendBirdFlowForAllUsersAndProvider = async (
   /** Whether to only log an intended deletion. If set to false, actually deletes broken channels and users. */
-  dryDelete = true
+  dryDelete = true,
+  userEmail: string = null
 ) => {
   try {
     console.log("Synchronizing sendbird state with the database.")
+    if (userEmail) {
+      console.log(` * For user ${userEmail}`)
+    }
 
-    const users = await UserModel.find().populate<{ provider: Provider }>(
-      "provider"
-    )
+    const users = (
+      await UserModel.find()
+        .sort({ createdAt: -1 })
+        .populate<{ provider: Provider }>("provider")
+    ).filter((user) => !userEmail || user.email === userEmail)
 
     const providers = await ProviderModel.find()
     const channels = await listSendBirdChannels(true)
