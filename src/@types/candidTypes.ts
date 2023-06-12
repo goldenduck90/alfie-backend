@@ -879,8 +879,8 @@ export interface CandidEncodedEncounterResponse {
       updated_at: string
     }
   ]
-  /** Enum: "clinical" "care_plan" "diagnoses" "vitals" "physical_exam" "review_of_systems" "medical_decisions" "history_of_present_illness" "patient_info" "chief_complaint" "health_record" "consent" "procedure" "time_in_appointment" */
   clinical_notes: {
+    /** Enum: "clinical" "care_plan" "diagnoses" "vitals" "physical_exam" "review_of_systems" "medical_decisions" "history_of_present_illness" "patient_info" "chief_complaint" "health_record" "consent" "procedure" "time_in_appointment" */
     category: string
     notes: string[]
     notes_structured: {

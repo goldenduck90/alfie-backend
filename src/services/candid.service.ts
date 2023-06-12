@@ -34,6 +34,8 @@ import { calculateBMI } from "../utils/calculateBMI"
 
 export const authorizationTokenProvider = "candidhealth"
 
+export class CandidError extends ApolloError {}
+
 interface CandidAuthResponse {
   /** The access token to use in authorization headers. */
   access_token: string
@@ -99,12 +101,15 @@ export default class CandidService {
         await this.saveAuthorizationToken(data.access_token, expiresAt)
         token = await this.getSavedAuthorizationToken()
       } catch (error) {
-        Sentry.captureException(error.response?.data)
-        console.log(
-          `CandidService.authenticate error: ${JSON.stringify(
-            error.response?.data
-          )}`
-        )
+        const logErrorMessage = `CandidService.authenticate error: ${JSON.stringify(
+          error.response?.data
+        )}`
+
+        Sentry.captureEvent({
+          message: logErrorMessage,
+          level: "error",
+        })
+        console.log(logErrorMessage)
         throw error
       }
     }
@@ -156,6 +161,7 @@ export default class CandidService {
     user: User
   ): Promise<CandidEncodedEncounterResponse> {
     await this.authenticate()
+
     try {
       const { data } = await this.candidInstance.get("/v1/encounters", {
         params: {
@@ -164,13 +170,14 @@ export default class CandidService {
       })
       return data[0]
     } catch (error) {
-      Sentry.captureException(error.response?.data || error)
-      console.log(
-        `getEncounterForAppointment error: ${JSON.stringify(
-          error.response?.data
-        )}`
-      )
-      throw error
+      const errorLogMessage = `CandidService.getEncounterForAppointment error: ${JSON.stringify(
+        error.response?.data
+      )}`
+      Sentry.captureEvent({
+        message: errorLogMessage,
+        level: "error",
+      })
+      throw new CandidError(errorLogMessage)
     }
   }
 
@@ -188,16 +195,18 @@ export default class CandidService {
   }> {
     await this.authenticate()
 
-    const eligibleServiceTypeCode = config.get(
+    const eligibleServiceTypeCode: string = config.get(
       "candidHealth.serviceTypeCode"
-    ) as string
+    )
 
     try {
       const [userFirstName, userLastName] = user.name.split(" ")
 
       cpid = cpid || lookupCPID(input.payor, input.insuranceCompany)
       if (!cpid) {
-        throw new Error("Could not infer CPID from payor.")
+        throw new CandidError(
+          `Could not infer CPID from payor ${input.payor}/${input.insuranceCompany}.`
+        )
       }
 
       if (process.env.NODE_ENV === "development") {
@@ -241,15 +250,32 @@ export default class CandidService {
         },
       }
 
-      console.log(
-        `Eligibility Request Param: ${JSON.stringify(request, null, "  ")}`
-      )
+      const requestLogMessage = `Candid Eligibility Request Object: ${JSON.stringify(
+        request,
+        null,
+        "  "
+      )}`
+      console.log(requestLogMessage)
+      Sentry.captureEvent({
+        message: requestLogMessage,
+        level: "info",
+      })
 
       const { data } =
         await this.candidInstance.post<CandidEligibilityCheckResponse>(
           "/v0/eligibility",
           request
         )
+      const responseLogMessage = `Candid Eligibility Response Object: ${JSON.stringify(
+        data,
+        null,
+        "  "
+      )}`
+      console.log(responseLogMessage)
+      Sentry.captureEvent({
+        message: responseLogMessage,
+        level: "info",
+      })
 
       const hasInsurance = data.subscriber.insuredIndicator === "Y"
       const benefits = data.benefitsInformation.filter((item) =>
@@ -273,12 +299,15 @@ export default class CandidService {
         response: data,
       }
     } catch (error) {
-      console.log(
-        "Candid eligibility request error",
-        JSON.stringify(error.response?.data ?? error)
-      )
-      Sentry.captureException(error.response?.data ?? error)
-      throw error
+      const errorLogMessage = `Candid eligibility request error: ${JSON.stringify(
+        error.response?.data ?? error
+      )}`
+      Sentry.captureEvent({
+        message: errorLogMessage,
+        level: "error",
+      })
+
+      throw new CandidError(errorLogMessage)
     }
   }
 
@@ -316,7 +345,7 @@ export default class CandidService {
   }
 
   /**
-   * Create a insurance billing request for an encounter (appointment).
+   * Create a insurance billing request for a coded encounter (from appointment).
    */
   async createCodedEncounter(
     user: User,
@@ -327,8 +356,8 @@ export default class CandidService {
   ) {
     await this.authenticate()
 
+    // calculate the billing provider for the claim
     const settings: SettingsList = config.get("candidHealth.settings")
-    console.log(`Settings: ${JSON.stringify(settings, null, "  ")}`)
     const {
       billingProvider,
     }: { billingProvider?: CandidRequestBillingProvider } = calculateSetting(
@@ -337,16 +366,18 @@ export default class CandidService {
       { state: user.address.state.toUpperCase() }
     )
 
-    console.log(
-      `selected billing provider for ${user.address.state}: ${JSON.stringify(
-        billingProvider
-      )}`
-    )
-    const [userFirstName, userLastName] = user.name.split(" ")
+    const billingLogMessage = `Candid selected billing provider for state ${
+      user.address.state
+    }: ${JSON.stringify(billingProvider)}`
+    console.log(billingLogMessage)
+    Sentry.captureEvent({
+      message: billingLogMessage,
+      level: "info",
+    })
 
     const userTasksResult = await this.taskService.getUserTasks(
       user._id.toString(),
-      { taskType: TaskType.NEW_PATIENT_INTAKE_FORM }
+      { taskType: TaskType.NEW_PATIENT_INTAKE_FORM, completed: true, limit: 1 }
     )
 
     const userIntake = userTasksResult.userTasks[0]
@@ -356,87 +387,66 @@ export default class CandidService {
       "conditions",
       userIntake
     )
-    const disqualifiers = await this.getConditions(
-      user,
-      "previousConditions",
-      userIntake
-    )
-
-    console.log(
-      `user intake answers: ${JSON.stringify(
-        { comorbidities, disqualifiers },
-        null,
-        "  "
-      )}`
-    )
 
     const latestWeight =
       Number(user.weights[user.weights.length - 1]?.value) ?? null
-
-    console.log(`latest weight from questionnaire: ${latestWeight}`)
 
     const isInitialAppointment =
       !initialAppointment ||
       initialAppointment.eaAppointmentId === appointment.eaAppointmentId
 
-    console.log(`is initial appointment: ${isInitialAppointment}`)
-    if (disqualifiers.length > 0 && !isInitialAppointment) {
-      Sentry.captureMessage(
-        `createCodedEncounter: Patient ${
-          user.name
-        } [${user._id.toString()}] has the following disqualifiers: ${disqualifiers.join(
-          ", "
-        )}, and is being billed for a follow-up appointment.`
-      )
-    }
-
     // calculate BMI
     const bmi = calculateBMI(latestWeight, user.heightInInches)
 
-    console.log(`bmi: ${bmi}`)
+    // if a follow-up appointment, retrieve the initial claim to find the procedure code.
+    const initialEncounter = isInitialAppointment
+      ? null
+      : await this.getEncounterForAppointment(initialAppointment, user)
 
-    let procedureCode: string
-    let costInCents: number
-    const { diagnosis: diagnosisCode } = calculateSetting<{
-      diagnosis: string
-    }>(settings, ["diagnosis"], { bmi })
+    initialEncounter.clinical_notes.push({
+      category: "procedure",
+      notes: ["99213"],
+    } as any)
+    const initialProcedureCode: string | undefined =
+      initialEncounter?.clinical_notes
+        ?.find((note) => note.category === "procedure")
+        ?.notes[0]?.trim() ?? null
 
-    if (isInitialAppointment) {
-      const { procedure, cost } = calculateSetting(
-        settings,
-        ["procedure", "cost"],
-        {
-          bmi,
-          comorbidities: comorbidities.length,
-          initial:
-            !initialAppointment ||
-            initialAppointment.eaAppointmentId === appointment.eaAppointmentId,
-        }
-      )
-      console.log(`initial appointment, retrieved ${procedure}, ${cost}`)
-      procedureCode = procedure
-      costInCents = cost
-    } else {
-      const initialEncounter = await this.getEncounterForAppointment(
-        initialAppointment,
-        user
-      )
-      console.log("initial encounter", initialEncounter.external_id)
-      const initialProcedureCode =
-        initialEncounter.claims[0]?.service_lines[0]?.procedure_code
-      const { followUpProcedure, followUpCost } = calculateSetting(
-        settings,
-        ["followUpProcedure", "followUpCost"],
-        { initialProcedureCode }
-      )
-
-      console.log(
-        `follow up appointment, retrieved ${followUpProcedure} ${followUpCost}`
-      )
-      procedureCode = followUpProcedure
-      costInCents = followUpCost
+    const calculationCriteria = {
+      bmi,
+      comorbidities: comorbidities.length,
+      initial: isInitialAppointment,
+      initialProcedureCode,
     }
 
+    const {
+      procedure: procedureCode,
+      cost: costInCents,
+      diagnosis: diagnosisCode,
+    } = calculateSetting(
+      settings,
+      ["procedure", "cost", "diagnosis"],
+      calculationCriteria
+    )
+
+    if (!procedureCode || !costInCents) {
+      const logMessage = `Candid Create Coded Encounter Error: No procedure code or cost matches the following criteria: ${JSON.stringify(
+        calculationCriteria
+      )}.`
+      Sentry.captureEvent({ level: "warning", message: logMessage })
+      throw new CandidError(logMessage)
+    } else {
+      const criteriaLog = `Procedure code ${procedureCode}, diagnosis code ${diagnosisCode} and cost ${costInCents} calculated from ${JSON.stringify(
+        calculationCriteria
+      )}.`
+      console.log(criteriaLog)
+      Sentry.captureEvent({
+        message: criteriaLog,
+        level: "info",
+      })
+    }
+
+    // compile clinical notes
     const conditionTypeReplacements: Record<string, string> = {
       conditions: "Conditions",
       previousConditions: "Previous Conditions",
@@ -466,6 +476,8 @@ export default class CandidService {
         `Current BMI: ${bmi}`
       )
 
+    const [userFirstName, userLastName] = user.name.split(" ")
+
     const patientAddress: CandidAddressPlusFour = {
       address1: user.address.line1,
       address2: user.address.line2,
@@ -476,7 +488,7 @@ export default class CandidService {
     }
 
     const encounterRequest: CandidCreateCodedEncounterRequest = {
-      external_id: `${user._id.toString()}-${appointment.eaAppointmentId}`,
+      external_id: `${user._id.toString()}-${appointment.eaAppointmentId}-2`,
       date_of_service: dayjs
         .tz(appointment.start, appointment.timezone)
         .format("YYYY-MM-DD"),
@@ -494,7 +506,7 @@ export default class CandidService {
         first_name: userFirstName || "",
         last_name: userLastName || "",
         gender: user.gender?.toLowerCase() || "unknown",
-        patient_relationship_to_subscriber_code: "18", // Self (TODO)
+        patient_relationship_to_subscriber_code: "18", // Self
         address: patientAddress,
         insurance_card: {
           member_id: input.memberId,
@@ -548,6 +560,18 @@ export default class CandidService {
             },
           ],
         },
+        {
+          category: "procedure",
+          notes: [
+            {
+              text: procedureCode,
+              author_name: "System Generated Notes",
+              timestamp: dayjs
+                .tz(new Date(), appointment.timezone)
+                .toISOString(),
+            },
+          ],
+        },
         ...(previousConditionsText
           ? [
               {
@@ -572,17 +596,18 @@ export default class CandidService {
       const logRequest = `Encoded encounter request: ${JSON.stringify(
         encounterRequest
       )}`
-      console.log(logRequest)
       Sentry.captureMessage(logRequest)
+
+      // Candid API POST
       const { data } =
         await this.candidInstance.post<CandidEncodedEncounterResponse>(
           "/v1/coded_encounters",
           encounterRequest
         )
+
+      // log results
       const logResponse = `Create encoded encounter result: ${JSON.stringify(
-        data,
-        null,
-        "  "
+        data
       )}`
       console.log(logResponse)
       Sentry.captureMessage(logResponse)
@@ -593,26 +618,28 @@ export default class CandidService {
         message: "Candid Create Coded Encounter Error",
         errorData,
       })
-      console.log(
-        "Candid Create Coded Encounter Error",
-        JSON.stringify(errorData)
-      )
 
-      throw new Error("Candid Create Coded Encounter Error")
+      throw new CandidError(
+        `Candid Create Coded Encounter Error: ${JSON.stringify(errorData)}`
+      )
     }
   }
 
-  /** Get answers from the medical questionnaire. */
+  /** Get answers from the medical (or any other) questionnaire. Returns an empty array if no tasks were found. */
   private async getConditions(
     user: User,
-    questionnaire: "conditions" | "previousConditions",
-    userTask?: UserTask
+    /** Which answer key to retrieve answers from, e.g. "conditions" or "previousconditions". */
+    questionnaire: string,
+    /** If specified, uses this user task to retrieve answers instead of querying the database */
+    userTask: UserTask = null,
+    /** The task type. Defaults to `TaskType.NEW_PATIENT_INTAKE_FORM`. */
+    taskType: TaskType = TaskType.NEW_PATIENT_INTAKE_FORM
   ): Promise<string[]> {
     const { userTasks } = userTask
       ? { userTasks: [userTask] }
       : await this.taskService.getUserTasks(user._id.toString(), {
           completed: true,
-          taskType: TaskType.NEW_PATIENT_INTAKE_FORM,
+          taskType,
         })
 
     if (userTasks.length > 0) {

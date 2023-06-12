@@ -580,13 +580,24 @@ class AppointmentService extends EmailService {
     eaCustomerId: string
   ): Promise<IEAAppointment | null> {
     try {
-      const { data } = await this.axios.get("/appointments/initial", {
-        params: { eaCustomerId },
-      })
+      const { data } = await this.axios.get<IEAAppointmentResponse>(
+        "/appointments/initial",
+        {
+          params: { eaCustomerId, timezone: "America/New_York" },
+        }
+      )
 
-      return eaResponseToEAAppointment(data)
+      if (data) {
+        return eaResponseToEAAppointment(data)
+      } else {
+        return null
+      }
     } catch (error) {
-      return null
+      if (error.response?.data?.code === 404) {
+        return null
+      } else {
+        throw error
+      }
     }
   }
 
@@ -830,6 +841,10 @@ class AppointmentService extends EmailService {
       `Processing ended appointment [${appointment.eaAppointmentId}]: ${appointment.eaCustomer?.name} [${appointment.eaCustomer?.id}], provider ${appointment.eaProvider?.name} [${appointment.eaProvider?.id}], ${appointment.start} to ${appointment.end} ${appointment.timezone}.`
     )
 
+    const user = await UserModel.findOne({
+      eaCustomerId: appointment.eaCustomer.id,
+    })
+
     // Reasons to process an appointment:
     const patientNoShow =
       !appointment.attendanceEmailSent && !appointment.patientAttended
@@ -841,15 +856,15 @@ class AppointmentService extends EmailService {
       appointment.providerAttended
 
     if (!patientNoShow && !providerNoShow && !claimNotSubmitted) {
-      console.log("No action taken.")
+      console.log("- No action taken.")
       return
     }
 
     // patient no show.
     if (patientNoShow) {
-      console.log(
-        `Sending patient appointment (id: ${appointment.eaAppointmentId}) no-show email: ${appointment.eaCustomer?.firstName} ${appointment.eaCustomer?.lastName}`
-      )
+      const logMessage = `- Sending patient appointment (id: ${appointment.eaAppointmentId}) no-show email: ${appointment.eaCustomer?.firstName} ${appointment.eaCustomer?.lastName}`
+      console.log(logMessage)
+      Sentry.captureMessage(logMessage)
       await this.sendAppointmentPatientSkippedEmail({
         eaAppointmentId: `${appointment.eaAppointmentId}`,
         name: appointment.eaCustomer?.firstName ?? "",
@@ -869,9 +884,10 @@ class AppointmentService extends EmailService {
 
     // provider no show.
     if (providerNoShow) {
-      console.log(
-        `Sending provider appointment (id: ${appointment.eaAppointmentId}) no-show email: ${appointment.eaProvider.firstName} ${appointment.eaProvider.lastName}`
-      )
+      const logMessage = `- Sending provider appointment (id: ${appointment.eaAppointmentId}) no-show email: ${appointment.eaProvider.firstName} ${appointment.eaProvider.lastName}`
+      console.log(logMessage)
+      Sentry.captureMessage(logMessage)
+
       await this.sendAppointmentProviderSkippedEmail({
         eaAppointmentId: `${appointment.eaAppointmentId}`,
         name: appointment.eaProvider.firstName ?? "",
@@ -889,11 +905,15 @@ class AppointmentService extends EmailService {
       ])
     }
 
-    // appointment ended
+    // appointment ended, but no claim submitted
     if (claimNotSubmitted) {
-      console.log("Submitting insurance claim for attended appointment")
+      console.log("- Submitting insurance claim for attended appointment")
       try {
-        await this.candidService.createCodedEncounterForAppointment(appointment)
+        if (user.insurance) {
+          await this.candidService.createCodedEncounterForAppointment(
+            appointment
+          )
+        }
         await this.updateAppointmentAttended(
           null,
           appointment.eaAppointmentId,

@@ -45,7 +45,7 @@ async function testInsurance() {
     userId: user._id.toString(),
   }
 
-  const eligibility = await candidService.checkInsuranceEligibility(
+  await candidService.checkInsuranceEligibility(
     user,
     provider,
     input,
@@ -59,25 +59,29 @@ async function testInsurance() {
     // "000047" // deductible
   )
 
-  console.log("candid eligibility result")
-  console.log(JSON.stringify(eligibility, null, "  "))
-
   const appointment = await appointmentService.getAppointment({
-    eaAppointmentId: "3",
+    eaAppointmentId: "4",
     timezone: "America/New_York",
   })
   const initialAppointment = await appointmentService.getInitialAppointment(
     user.eaCustomerId
   )
-  const encounter = await candidService.createCodedEncounter(
+  console.log(
+    "Appointments used for CandidService.createCodedEncounter",
+    JSON.stringify({
+      userId: user.eaCustomerId,
+      appointment,
+      initialAppointment,
+    })
+  )
+
+  await candidService.createCodedEncounter(
     user,
     provider,
     appointment,
     input,
     initialAppointment
   )
-  console.log("candid coded encounter result")
-  console.log(JSON.stringify(encounter, null, "  "))
 
   process.exit(0)
 }
