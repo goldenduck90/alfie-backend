@@ -484,7 +484,7 @@ export default class CandidService {
     }
 
     const encounterRequest: CandidCreateCodedEncounterRequest = {
-      external_id: `${user._id.toString()}-${appointment.eaAppointmentId}-2`,
+      external_id: `${user._id.toString()}-${appointment.eaAppointmentId}`,
       date_of_service: dayjs
         .tz(appointment.start, appointment.timezone)
         .format("YYYY-MM-DD"),
