@@ -6,8 +6,10 @@ import config from "config"
 import { format } from "date-fns"
 import FormData from "form-data"
 import {
-  AkuteDocument, CreateLabOrderResponse,
-  DocUploadInput, PharmacyLocationInput,
+  AkuteDocument,
+  CreateLabOrderResponse,
+  DocUploadInput,
+  PharmacyLocationInput,
 } from "../schema/akute.schema"
 import { CreatePatientInput, UserModel } from "../schema/user.schema"
 
@@ -44,6 +46,21 @@ class AkuteService {
       sex,
       dateOfBirth,
     } = input
+
+    let parsedPhone = primary_phone_number
+      .replace("+1", "")
+      .replace("+0", "")
+      .replace("+", "")
+      .replace(/-/g, "")
+      .replace(" ", "")
+      .replace(")", "")
+      .replace("(", "")
+
+    const slicedPhone = parsedPhone.slice(0, 1)
+
+    if (slicedPhone === "1" || slicedPhone === "0") {
+      parsedPhone = parsedPhone.slice(1, parsedPhone.length - 1)
+    }
 
     try {
       const { status, data: patientData } = await this.axios.get(
