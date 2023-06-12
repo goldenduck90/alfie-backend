@@ -403,10 +403,6 @@ export default class CandidService {
       ? null
       : await this.getEncounterForAppointment(initialAppointment, user)
 
-    initialEncounter.clinical_notes.push({
-      category: "procedure",
-      notes: ["99213"],
-    } as any)
     const initialProcedureCode: string | undefined =
       initialEncounter?.clinical_notes
         ?.find((note) => note.category === "procedure")
