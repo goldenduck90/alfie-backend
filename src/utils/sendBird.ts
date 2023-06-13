@@ -124,10 +124,19 @@ const inviteUserToChannel = async (
   const user_ids = [provider]
 
   if (process.env.NODE_ENV === "production") {
-    // Gabrielle H is the first ID then Alex then rohit then Rachel
-    user_ids.push("63b85fa8ab80d27bb1af6d43")
-    user_ids.push("639ba07cb937527a0c43484e")
-    user_ids.push("63bd8d61af58147c29a7c272")
+    if (process.env.SENDBIRD_AUTOINVITE_USERS) {
+      user_ids.push(
+        ...process.env.SENDBIRD_AUTOINVITE_USERS.split(",")
+          .map((id) => id.trim())
+          .filter((id) => id)
+      )
+    } else {
+      // Gabrielle H is the first ID then Alex then rohit then Rachel
+      user_ids.push("63b85fa8ab80d27bb1af6d43")
+      user_ids.push("639ba07cb937527a0c43484e")
+      user_ids.push("63bd8d61af58147c29a7c272")
+      user_ids.push("64875fd443f7374fe0e162e7")
+    }
   }
 
   try {
