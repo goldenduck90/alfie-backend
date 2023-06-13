@@ -1201,15 +1201,22 @@ class UserService extends EmailService {
     const {
       name,
       email,
-      weightLossMotivatorV2,
       dateOfBirth,
       gender,
+      line1,
+      line2,
+      city,
       state,
+      postalCode,
       heightInInches,
       weightInLbs,
       textOptIn,
       phone,
       pastTries,
+      weightLossMotivatorV2,
+      insurancePlan,
+      insuranceType,
+      signupPartner,
     } = input
 
     const checkout = await CheckoutModel.find().findByEmail(email).lean()

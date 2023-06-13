@@ -143,9 +143,13 @@ export class Checkout {
   @prop({ required: true })
   pastTries: string[]
 
-  // @Field(() => String)
-  // @prop({ required: true })
-  // healthInsurance: string
+  @Field(() => String, { nullable: true })
+  @prop({ required: false })
+  insurancePlan?: string
+
+  @Field(() => String, { nullable: true })
+  @prop({ required: false })
+  insuranceType?: string
 }
 
 export const CheckoutModel = getModelForClass<typeof Checkout, QueryHelpers>(
@@ -170,8 +174,20 @@ export class CreateCheckoutInput {
   @Field(() => Gender)
   gender: Gender
 
+  @Field(() => String, { nullable: true })
+  line1: string
+
+  @Field(() => String, { nullable: true })
+  line2?: string
+
+  @Field(() => String, { nullable: true })
+  city: string
+
   @Field(() => String)
   state: string
+
+  @Field(() => String, { nullable: true })
+  postalCode: string
 
   @Field(() => Number)
   heightInInches: number
@@ -186,20 +202,20 @@ export class CreateCheckoutInput {
   @Field(() => String)
   phone: string
 
-  @Field(() => [String])
-  @prop({ required: true })
+  @Field(() => [String], { nullable: true })
   weightLossMotivatorV2: string[]
 
   @Field(() => [String])
-  @prop({ required: true })
   pastTries: string[]
 
   @Field(() => String, { nullable: true })
-  signupPartner: string
+  insurancePlan: string
 
-  // @Field(() => String)
-  // @prop({ required: true })
-  // healthInsurance: string
+  @Field(() => String, { nullable: true })
+  insuranceType: string
+
+  @Field(() => String, { nullable: true })
+  signupPartner: string
 }
 
 @InputType()
