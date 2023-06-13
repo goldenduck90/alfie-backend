@@ -31,7 +31,7 @@ import {
   CreateStripeCustomerInput,
 } from "../schema/checkout.schema"
 import { ProviderModel, Provider } from "../schema/provider.schema"
-import { AllTaskEmail, TaskEmail, TaskType } from "../schema/task.schema"
+import { AllTaskEmail, Task, TaskEmail, TaskType } from "../schema/task.schema"
 import { UserTaskModel } from "../schema/task.user.schema"
 import {
   CreateUserInput,
@@ -1017,27 +1017,10 @@ class UserService extends EmailService {
 
   async getAllUserTasksByUser(userId: string) {
     try {
-      const userTasks: any = await UserTaskModel.find({
-        user: userId,
-      }).populate("task")
-      // users.forEach(async (u) => {
-      //   const classify = await this.classifyPatient(u._id)
-      //   console.log(classify, "score")
-      // })
-      // const scores = await calculatePatientScores(userId)
-      // console.log(scores, "scores")
-      // const scores2 = await calculateAllScores()
-      // console.log(scores2, "scores")
+      const userTasks = await UserTaskModel.find({ user: userId }).populate<{
+        task: Task
+      }>("task")
 
-      // const allPatientTasks = await UserTaskModel.find({
-      //   completed: true
-      // })
-
-      // allPatientTasks.forEach(async (task) => {
-      //   const scores = await calculatePatientScores(String(task.user))
-      //   console.log(scores, "scores")
-      // })
-      // findAndTriggerEntireSendBirdFlowForAllUSersAndProvider()
       return userTasks
     } catch (error) {
       console.log("error", error)
