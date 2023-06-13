@@ -1497,9 +1497,7 @@ class UserService extends EmailService {
       throw new ApolloError(notFound.message, notFound.code)
     }
     const update = await UserModel.findOneAndUpdate(
-      {
-        _id: userId,
-      },
+      { _id: userId },
       {
         $push: {
           files: { $each: input },
@@ -1527,9 +1525,21 @@ class UserService extends EmailService {
         rxBin: insuranceData.rx_bin,
         rxGroup: insuranceData.rx_pcn,
       }
-      const eligible = await this.checkInsuranceEligibility(insuranceInput)
-      if (eligible) {
-        await this.updateInsurance(insuranceInput)
+
+      const logMessage = `Parsed insurance data from card: ${JSON.stringify(
+        insuranceInput
+      )}`
+      console.log(logMessage)
+      Sentry.captureMessage(logMessage)
+
+      try {
+        const eligible = await this.checkInsuranceEligibility(insuranceInput)
+        if (eligible) {
+          await this.updateInsurance(insuranceInput)
+        }
+      } catch (error) {
+        // error is Sentry captured in checkInsuranceEligibility.
+        console.log("Error during eligibility check.", error)
       }
     }
 

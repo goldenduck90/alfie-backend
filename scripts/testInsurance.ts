@@ -14,24 +14,10 @@ async function testInsurance() {
 
   // prepare user sandbox values.
   const user = await UserModel.findOne({
-    email: "john-paul+user@joinalfie.com",
+    email: "test+insurance1@joinalfie.com",
   }).populate<{ provider: Provider }>("provider")
-  user.name = "johnone doeone"
-  user.dateOfBirth = new Date("1980-01-02")
-  user.address.line1 = "123 address1"
-  user.address.line2 = "123"
-  user.address.city = "city1"
-  user.address.state = "WA"
-  user.address.postalCode = "981010000"
-  user.phone = "123456789"
-  user.email = "email@email.com"
-  user.eaCustomerId = "3"
 
-  // prepare provider sandbo values
   const { provider } = user
-  provider.npi = "0123456789"
-  provider.firstName = "johnone"
-  provider.lastName = "doeone"
 
   const input: InsuranceEligibilityInput = {
     groupId: "0000000000",

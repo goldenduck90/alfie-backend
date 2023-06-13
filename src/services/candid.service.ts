@@ -200,19 +200,16 @@ export default class CandidService {
     )
 
     try {
-      const [userFirstName, userLastName] = user.name.split(" ")
+      let [userFirstName, userLastName] = user.name.split(" ")
 
       cpid = cpid || lookupCPID(input.payor, input.insuranceCompany)
-      if (!cpid) {
-        throw new CandidError(
-          `Could not infer CPID from payor ${input.payor}/${input.insuranceCompany}.`
-        )
-      }
 
       if (process.env.NODE_ENV === "development") {
         // use sandbox data for request
         cpid = "00007"
         user.name = "johnone doeone"
+        userFirstName = "johnone"
+        userLastName = "doeone"
         user.dateOfBirth = new Date("1980-01-02")
         user.address.line1 = "123 address1"
         user.address.line2 = "123"
@@ -231,6 +228,12 @@ export default class CandidService {
         input.memberId = "0000000000"
         input.rxBin = "12345"
         input.rxGroup = "abcdefg"
+      }
+
+      if (!cpid) {
+        throw new CandidError(
+          `Could not infer CPID from payor ${input.payor}/${input.insuranceCompany}.`
+        )
       }
 
       const request: CandidEligibilityCheckRequest = {
@@ -277,6 +280,19 @@ export default class CandidService {
         level: "info",
       })
 
+      if ((data as any).errors?.length > 0) {
+        const errorData = (data as any).errors
+        const errorMessage = `Candid eligibility request error: ${JSON.stringify(
+          errorData
+        )}`
+        Sentry.captureEvent({
+          message: errorMessage,
+          level: "error",
+        })
+        console.log(errorMessage)
+        throw new CandidError(errorMessage)
+      }
+
       const hasInsurance = data.subscriber.insuredIndicator === "Y"
       const benefits = data.benefitsInformation.filter((item) =>
         item.serviceTypeCodes?.includes(eligibleServiceTypeCode)
@@ -300,7 +316,7 @@ export default class CandidService {
       }
     } catch (error) {
       const errorLogMessage = `Candid eligibility request error: ${JSON.stringify(
-        error.response?.data ?? error
+        error.response?.data ?? error.message
       )}`
       Sentry.captureEvent({
         message: errorLogMessage,
@@ -313,9 +329,9 @@ export default class CandidService {
 
   /** Create a coded encounter. */
   async createCodedEncounterForAppointment(appointment: IEAAppointment) {
-    const user = await UserModel.findById(appointment.eaCustomer.id).populate<{
-      provider: Provider
-    }>("provider")
+    const user = await UserModel.findOne({
+      eaCustomerId: appointment.eaCustomer.id,
+    }).populate<{ provider: Provider }>("provider")
 
     if (!user)
       throw new ApolloError(
@@ -331,7 +347,14 @@ export default class CandidService {
         appointment.eaCustomer.id
       )
     const input: InsuranceEligibilityInput = {
-      ...user.insurance,
+      ...(user.insurance as any)?.toJSON(),
+      // groupId: user.insurance.groupId,
+      // groupName: user.insurance.groupName,
+      // memberId: user.insurance.memberId,
+      // insuranceCompany: user.insurance.insuranceCompany,
+      // rxBin: user.insurance.rxBin,
+      // rxGroup: user.insurance.rxGroup,
+      // payor: user.insurance.payor,
       userId: user._id.toString(),
     }
 
@@ -480,7 +503,7 @@ export default class CandidService {
       city: user.address.city,
       state: user.address.state,
       zip_code: (user.address.postalCode || "").slice(0, 5),
-      zip_plus_four_code: (user.address.postalCode || "").slice(5),
+      zip_plus_four_code: (user.address.postalCode || "").slice(5).slice(-4),
     }
 
     const encounterRequest: CandidCreateCodedEncounterRequest = {
@@ -592,6 +615,7 @@ export default class CandidService {
       const logRequest = `Encoded encounter request: ${JSON.stringify(
         encounterRequest
       )}`
+      console.log(logRequest)
       Sentry.captureMessage(logRequest)
 
       // Candid API POST
