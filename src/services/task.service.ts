@@ -7,6 +7,7 @@ import { calculateScore } from "../PROAnalysis"
 import { ProviderModel } from "../schema/provider.schema"
 import {
   CreateTaskInput,
+  Task,
   TaskModel,
   TaskQuestion,
   TaskType,
@@ -24,7 +25,7 @@ import {
   UserTask,
   UserTaskModel,
 } from "../schema/task.user.schema"
-import { UserModel } from "../schema/user.schema"
+import { Score, UserModel } from "../schema/user.schema"
 import { AnswerType } from "../schema/enums/AnswerType"
 import AkuteService from "./akute.service"
 import { classifyUser } from "../PROAnalysis/classification"
@@ -139,21 +140,22 @@ class TaskService {
   }
 
   async handleIsReadyForProfiling(
-    userId: any,
-    scores: any,
-    currentTask: any,
+    userId: string,
+    userScores: Score[],
+    currentTask: Task,
+    currentUserTask: UserTask,
     originalTaskProfilingStatus: boolean
   ) {
     try {
-      const userTasks: any = await UserTaskModel.find({
-        user: userId,
-      }).populate("task")
+      const userTasks = (
+        await UserTaskModel.find({ user: userId }).populate<{ task: Task }>(
+          "task"
+        )
+      ).filter((userTask) => userTask.task)
 
-      const user: any = await UserModel.find({
-        _id: userId,
-      })
+      console.log("userTasks", userTasks)
 
-      const userScores = scores
+      const user = await UserModel.findById(userId)
 
       const tasksEligibleForProfiling = [
         TaskType.MP_HUNGER,
@@ -162,20 +164,10 @@ class TaskService {
         TaskType.MP_ACTIVITY,
       ]
 
-      console.log(userTasks, "userTasks")
-
-      const completedTasks = userTasks.filter(
-        ({
-          task,
-          isReadyForProfiling,
-          completed,
-        }: {
-          task: any
-          isReadyForProfiling: any
-          completed: any
-        }) =>
+      const completedTasks: UserTask[] = userTasks.filter(
+        ({ task, isReadyForProfiling, completed }) =>
           (tasksEligibleForProfiling.includes(task.type) ||
-            task._id === currentTask._id) &&
+            task._id.toString() === currentTask._id.toString()) &&
           isReadyForProfiling &&
           completed
       )
@@ -184,9 +176,12 @@ class TaskService {
       if (
         currentTask &&
         originalTaskProfilingStatus &&
-        !completedTasks.some((task: any) => task._id === currentTask._id)
+        !completedTasks.some(
+          (userTask) =>
+            userTask._id.toString() === currentUserTask._id.toString()
+        )
       ) {
-        completedTasks.push(currentTask)
+        completedTasks.push(currentUserTask)
       }
 
       if (
@@ -194,14 +189,16 @@ class TaskService {
         completedTasks.length >= tasksEligibleForProfiling.length
       ) {
         const newScores = await this.scorePatient(userId)
-        user.score = newScores
+        user.score = newScores as any
         await user.save()
         await this.classifySinglePatient(userId)
         // set those tasks to not ready for profiling
         for (const task of completedTasks) {
           const userTask = await UserTaskModel.findById(task._id)
-          userTask.isReadyForProfiling = false
-          await userTask.save()
+          if (userTask) {
+            userTask.isReadyForProfiling = false
+            await userTask.save()
+          }
         }
       } else if (
         userScores.length > 0 &&
@@ -210,8 +207,10 @@ class TaskService {
         await this.classifySinglePatient(userId)
         for (const task of completedTasks) {
           const userTask = await UserTaskModel.findById(task._id)
-          userTask.isReadyForProfiling = false
-          await userTask.save()
+          if (userTask) {
+            userTask.isReadyForProfiling = false
+            await userTask.save()
+          }
         }
       } else {
         console.log("not ready for profiling")
@@ -221,7 +220,7 @@ class TaskService {
     }
   }
 
-  async scorePatient(userId: string) {
+  async scorePatient(userId: string): Promise<Score[]> {
     try {
       const scores = await calculatePatientScores(userId)
       return scores
@@ -281,7 +280,7 @@ class TaskService {
 
   async classifySinglePatient(userId: string) {
     try {
-      console.log(userId) // TODO: classify specific patient
+      console.log("classifySinglePatient", userId)
       const user = await UserModel.findById(userId)
 
       if (user && user.score.length > 0 && user.score[0] !== null) {
@@ -395,9 +394,10 @@ class TaskService {
         userTask.isReadyForProfiling = true
         await userTask.save()
         await this.handleIsReadyForProfiling(
-          userTask.user,
+          userTask.user.toString(),
           scores,
           task,
+          userTask,
           userTask.isReadyForProfiling
         )
       }

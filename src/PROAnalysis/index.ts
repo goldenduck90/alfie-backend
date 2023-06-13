@@ -1,5 +1,10 @@
 import { TaskType } from "../schema/task.schema"
-import { UserNumberAnswer, UserTask } from "../schema/task.user.schema"
+import { Score } from "../schema/user.schema"
+import {
+  UserNumberAnswer,
+  UserStringAnswer,
+  UserTask,
+} from "../schema/task.user.schema"
 import { gsrsQuestions, mpFeelingQuestions, tefqQuestions } from "./questions"
 
 function getPercentageChange(oldNumber: number, newNumber: number) {
@@ -178,7 +183,7 @@ function calculateActivityScore(
   lastTask: UserTask,
   currentTask: UserTask,
   task: TaskType
-) {
+): Score {
   // The tasks in this category are all activity based tasks so their values for each task are simple numbers
   // For Example: [{"key": "weight", "value": "333", "type": "DATE"}]
   const lastTaskScore = Number(
@@ -188,8 +193,9 @@ function calculateActivityScore(
     (currentTask?.answers[0] as UserNumberAnswer)?.value
   )
   if (!lastTaskScore || !currentTaskScore) {
-    return {}
+    return {} as Score // TODO use a null value instead for type guarantees
   }
+
   const score = currentTaskScore - lastTaskScore
   const percentDifferenceBetweenLastAndCurrentTaskScore = getPercentageChange(
     lastTaskScore,
@@ -227,7 +233,7 @@ function calculateActivityScore(
       increased ? "increased" : "decreased"
     } by ${percentDifferenceBetweenLastAndCurrentTaskScore}%`
     return {
-      latest: String(currentTaskScore),
+      latest: String(currentTaskScore ?? ""),
       score,
       date: currentTask.completedAt,
       increased,
@@ -241,7 +247,7 @@ function calculateActivityScore(
       increased ? "increased" : "decreased"
     } by ${percentDifferenceBetweenLastAndCurrentTaskScore}%`
     return {
-      latest: currentTaskScore,
+      latest: String(currentTaskScore ?? ""),
       score,
       date: currentTask.completedAt,
       increased,
@@ -251,7 +257,11 @@ function calculateActivityScore(
     }
   }
 }
-function calculateSingleMPActivity(currentTask: UserTask, task: TaskType) {
+
+function calculateSingleMPActivity(
+  currentTask: UserTask,
+  task: TaskType
+): Score {
   const currentTaskScore = Number(
     (currentTask.answers[0] as UserNumberAnswer).value
   )
@@ -281,7 +291,7 @@ function calculateSingleMPActivity(currentTask: UserTask, task: TaskType) {
     percentile: String(percentileDifferenceStepsPercentile),
   }
 }
-function calculateSingleMPHunger(currentTask: UserTask, task: TaskType) {
+function calculateSingleMPHunger(currentTask: UserTask, task: TaskType): Score {
   const currentHungerLevel1Hour = Number(
     (
       currentTask.answers.find(
@@ -324,14 +334,15 @@ function calculateSingleMPHunger(currentTask: UserTask, task: TaskType) {
     task,
   }
 }
+
 function calculateHungerScore(
   lastTask: UserTask,
   currentTask: UserTask,
   task: TaskType
-) {
+): Score {
   // [{"key": "foodEaten", "value": "mushrooms and rice", "type": "STRING"}, {"key": "hungerLevel1Hour", "value": "65", "type": "DATE"}, {"key": "hungerLevel30Mins", "value": "32", "type": "DATE"}]
   if (!lastTask || !currentTask) {
-    return {}
+    return {} as Score // TODO use null
   }
   const currentHungerLevel1Hour = Number(
     currentTask.answers.find((answer) => answer.key === "hungerLevel1Hour")
@@ -382,10 +393,10 @@ function calculateHungerScore(
     return acc
   }, 0)
 
-  const increased1Hour = currentHungerLevel1Hour > lastHungerLevel1Hour
+  const increased1hour = currentHungerLevel1Hour > lastHungerLevel1Hour
   const increased30Mins = currentHungerLevel30Mins > lastHungerLevel30Mins
   const message = `Your hunger level has ${
-    increased1Hour ? "increased" : "decreased"
+    increased1hour ? "increased" : "decreased"
   } by ${currentHungerLevel1HourPercentDifference}% for 1 hour and ${
     increased30Mins ? "increased" : "decreased"
   } by ${currentHungerLevel30MinsPercentDifference}% for 30 mins and you scored within the ${percentileDifferenceHungerPercentile1hour} percentile for 1 hour and ${percentileDifferenceHungerPercentile30mins} percentile for 30 mins`
@@ -442,10 +453,10 @@ function calculateHungerScore(
     percentile1hour: String(percentile1hour),
     percentile30mins: String(percentile30mins),
     latest: `2 hour: ${currentHungerLevel1Hour}, 30 mins: ${currentHungerLevel30Mins}`,
-    score1hour: score1hourIsFinite,
-    score30mins: score30minsIsFinite,
+    score1hour: String(score1hourIsFinite),
+    score30mins: String(score30minsIsFinite),
     date: currentTask.completedAt,
-    increased1Hour,
+    increased1hour,
     increased30Mins,
     percentDifference1Hour: percentDifference1HourIsFinite,
     percentDifference30Mins: percentDifference30MinsIsFinite,
@@ -453,11 +464,12 @@ function calculateHungerScore(
     task,
   }
 }
+
 function calculateBPLogScore(
   lastTask: UserTask,
   currentTask: UserTask,
   task: TaskType
-) {
+): Score {
   // // Answers follow this structure: [{"key": "systolic", "value": "120", "type": "NUMBER"}, {"key": "diastolic", "value": "80", "type": "NUMBER"}]
   // If systolic is > 140 or diastolic is > 90, go to next highest category. If above 130/80, ask if they are taking htn drugs.
   // If it ever hit systolic > 140, diastolic >90, must stop phentermine/bupropion, doctor to independantly review if they are taking htn drugs.
@@ -518,7 +530,7 @@ function calculateBPLogScore(
     providerMessage,
   }
 }
-function calculateSingleBPLog(currentTask: UserTask, task: TaskType) {
+function calculateSingleBPLog(currentTask: UserTask, task: TaskType): Score {
   const currentSystolic = Number(
     currentTask.answers.find((answer) => answer.key === "systolicBp").value
   )
@@ -547,11 +559,12 @@ function calculateSingleBPLog(currentTask: UserTask, task: TaskType) {
     providerMessage,
   }
 }
+
 function calculateGsrs(
   lastTask: UserTask,
   currentTask: UserTask,
   task: TaskType
-) {
+): Score {
   // lastTask.answers is an array of objects and each object has a key and value
   const lastGsrs = Object.keys(lastTask.answers).reduce((acc, key: any) => {
     const answer: any = lastTask.answers[key]
@@ -590,16 +603,15 @@ function calculateGsrs(
     task,
   }
 }
-function calculateSingleGsrs(currentTask: UserTask, task: TaskType) {
+
+function calculateSingleGsrs(currentTask: UserTask, task: TaskType): Score {
   // lastTask.answers is an array of objects and each object has a key and value
-  const currentGsrs = Object.keys(currentTask.answers).reduce(
-    (acc, key: any) => {
-      const answer: any = currentTask.answers[key]
-      const score = gsrsQuestions[answer.key][answer.value]
-      return acc + score
-    },
-    0
-  )
+  const numericAnswers: UserStringAnswer[] = (currentTask.answers ||
+    []) as any[]
+  const currentGsrs = numericAnswers.reduce((acc, answer) => {
+    const score = gsrsQuestions[answer.key][answer.value]
+    return acc + (score || 0)
+  }, 0)
   const message = `Your GSRS is ${currentGsrs}`
 
   return {
@@ -612,26 +624,27 @@ function calculateSingleGsrs(currentTask: UserTask, task: TaskType) {
     task,
   }
 }
+
 function calculateTefq(
   lastTask: UserTask,
   currentTask: UserTask,
   task: TaskType
-) {
+): Score {
   const lastTefq = Object.keys(lastTask.answers).reduce((acc, key: any) => {
     const answer: any = lastTask.answers[key]
     if (answer.key === "restraint") {
-      return acc + Number(answer.value)
+      return acc + Number(answer.value || 0)
     }
     const score = tefqQuestions[answer.key][answer.value]
     return acc + score
   }, 0)
   const currentTefq = Object.keys(currentTask.answers).reduce(
     (acc, key: any) => {
-      const answer: any = currentTask.answers[key]
+      const answer: UserNumberAnswer = currentTask.answers[key] as any
       if (answer.key === "restraint") {
-        return acc + Number(answer.value)
+        return acc + Number(answer.value || 0)
       }
-      const score = tefqQuestions[answer.key][answer.value]
+      const score = tefqQuestions[answer.key][answer.value] || 0
       return acc + score
     },
     0
@@ -671,7 +684,8 @@ function calculateTefq(
     percentile: String(percentileKey),
   }
 }
-function calculateSingleTefq(currentTask: UserTask, task: TaskType) {
+
+function calculateSingleTefq(currentTask: UserTask, task: TaskType): Score {
   const currentTefq = Object.keys(currentTask.answers).reduce(
     (acc, key: any) => {
       const answer: any = currentTask.answers[key]
@@ -709,7 +723,7 @@ function calculateAdLibitumScore(
   lastTask: UserTask,
   currentTask: UserTask,
   task: TaskType
-) {
+): Score {
   // [{"key": "calories", "value": "60", "type": "NUMBER"}]
   const lastCalories = Number((lastTask.answers[0] as UserNumberAnswer).value)
   const currentCalories = Number(
@@ -749,7 +763,10 @@ function calculateAdLibitumScore(
     task,
   }
 }
-function calculateSingleAdLibitum(currentTask: UserTask, task: TaskType) {
+function calculateSingleAdLibitum(
+  currentTask: UserTask,
+  task: TaskType
+): Score {
   const currentCalories = Number(
     (currentTask.answers[0] as UserNumberAnswer).value
   )
@@ -782,7 +799,7 @@ export function calculateScore(
   lastTask: UserTask,
   currentTask: UserTask,
   taskType: TaskType
-) {
+): Score {
   if (taskType === TaskType.MP_FEELING) {
     if (lastTask) {
       return calculateMPFeelingScore(lastTask, currentTask, taskType)
