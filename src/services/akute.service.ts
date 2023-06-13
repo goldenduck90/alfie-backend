@@ -60,6 +60,7 @@ class AkuteService {
 
     if (slicedPhone === "1" || slicedPhone === "0") {
       parsedPhone = parsedPhone.slice(1, parsedPhone.length - 1)
+      console.log(parsedPhone)
     }
 
     try {
@@ -84,12 +85,7 @@ class AkuteService {
           ? address_zipcode.split("-")[0]
           : address_zipcode,
         email,
-        primary_phone_number: primary_phone_number
-          .replace("+1", "")
-          .replace(/-/g, "")
-          .replace(" ", "")
-          .replace(")", "")
-          .replace("(", ""),
+        primary_phone_number: parsedPhone,
         primary_phone_type: "mobile",
         appointment_state: address_state,
       })
