@@ -6,13 +6,7 @@ import {
   ReturnModelType,
 } from "@typegoose/typegoose"
 import { AsQueryMethod, Ref } from "@typegoose/typegoose/lib/types"
-import {
-  createUnionType,
-  Field,
-  InputType,
-  ObjectType,
-  registerEnumType,
-} from "type-graphql"
+import { Field, InputType, ObjectType, registerEnumType } from "type-graphql"
 import { Task, TaskType } from "./task.schema"
 import { User } from "./user.schema"
 import { AnswerType } from "./enums/AnswerType"
@@ -35,9 +29,9 @@ export class UserAnswer {
   @prop({ required: true, default: () => AnswerType.STRING })
   type: AnswerType
 
-  @Field(() => GraphQLAnyScalar)
+  @Field(() => GraphQLAnyScalar, { nullable: true })
   @prop({ required: false })
-  value: boolean | string | number | null
+  value?: boolean | string | number | null
 }
 
 @ObjectType()
@@ -106,14 +100,6 @@ export class UserDateAnswer extends UserAnswer {
   value: string
 }
 
-const UserAnswerClasses = [
-  UserStringAnswer,
-  UserNumberAnswer,
-  UserArrayAnswer,
-  UserBooleanAnswer,
-  UserDateAnswer,
-  UserFileAnswer,
-] as const
 export type UserAnswerTypes =
   | UserStringAnswer
   | UserNumberAnswer
@@ -121,11 +107,6 @@ export type UserAnswerTypes =
   | UserBooleanAnswer
   | UserDateAnswer
   | UserFileAnswer
-
-export const UserAnswerUnion = createUnionType({
-  name: "UserAnswer",
-  types: () => UserAnswerClasses,
-})
 
 function findByTaskId(
   this: ReturnModelType<typeof UserTask, QueryHelpers>,
@@ -179,7 +160,7 @@ export class UserTask {
   @prop({ ref: () => User, required: true })
   user: Ref<User>
 
-  @Field(() => [UserAnswerUnion], { nullable: true })
+  @Field(() => [UserAnswer], { nullable: true })
   @prop({
     required: false,
     type: UserAnswer,
