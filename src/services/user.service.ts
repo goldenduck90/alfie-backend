@@ -1203,21 +1203,20 @@ class UserService extends EmailService {
       email,
       dateOfBirth,
       gender,
-      line1,
-      line2,
-      city,
       state,
-      postalCode,
       heightInInches,
       weightInLbs,
       textOptIn,
       phone,
       pastTries,
       weightLossMotivatorV2,
+      address,
       insurancePlan,
       insuranceType,
       signupPartner,
     } = input
+
+    console.log(input)
 
     const checkout = await CheckoutModel.find().findByEmail(email).lean()
     if (checkout) {
@@ -1237,6 +1236,10 @@ class UserService extends EmailService {
       checkout.textOptIn = textOptIn
       checkout.phone = phone
       checkout.pastTries = pastTries
+      checkout.shippingAddress = address
+      checkout.insurancePlan = insurancePlan
+      checkout.insuranceType = insuranceType
+      checkout.signupPartner = signupPartner
 
       // update in db
       await CheckoutModel.findByIdAndUpdate(checkout._id, checkout)
@@ -1280,6 +1283,10 @@ class UserService extends EmailService {
       textOptIn,
       phone,
       pastTries,
+      insurancePlan,
+      insuranceType,
+      signupPartner,
+      shippingAddress: address,
     })
 
     // return new checkout

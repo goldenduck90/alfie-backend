@@ -9,7 +9,14 @@ import { AsQueryMethod, Ref } from "@typegoose/typegoose/lib/types"
 import { IsEmail, IsPhoneNumber } from "class-validator"
 import { Field, InputType, ObjectType } from "type-graphql"
 import config from "config"
-import { Address, Gender, User } from "./user.schema"
+import {
+  Address,
+  Gender,
+  User,
+  Partner,
+  InsurancePlan,
+  InsuranceType,
+} from "./user.schema"
 
 const { email: emailValidation, phone: phoneValidation } = config.get(
   "validations"
@@ -143,13 +150,17 @@ export class Checkout {
   @prop({ required: true })
   pastTries: string[]
 
-  @Field(() => String, { nullable: true })
-  @prop({ required: false })
-  insurancePlan?: string
+  @Field(() => InsurancePlan, { nullable: true })
+  @prop({ enum: InsurancePlan, type: String, required: false })
+  insurancePlan?: InsurancePlan
 
-  @Field(() => String, { nullable: true })
-  @prop({ required: false })
-  insuranceType?: string
+  @Field(() => InsuranceType, { nullable: true })
+  @prop({ enum: InsuranceType, type: String, required: false })
+  insuranceType?: InsuranceType
+
+  @Field(() => Partner, { nullable: true })
+  @prop({ enum: Partner, type: String, required: false })
+  signupPartner?: Partner
 }
 
 export const CheckoutModel = getModelForClass<typeof Checkout, QueryHelpers>(
@@ -174,20 +185,8 @@ export class CreateCheckoutInput {
   @Field(() => Gender)
   gender: Gender
 
-  @Field(() => String, { nullable: true })
-  line1: string
-
-  @Field(() => String, { nullable: true })
-  line2?: string
-
-  @Field(() => String, { nullable: true })
-  city: string
-
   @Field(() => String)
   state: string
-
-  @Field(() => String, { nullable: true })
-  postalCode: string
 
   @Field(() => Number)
   heightInInches: number
@@ -208,14 +207,17 @@ export class CreateCheckoutInput {
   @Field(() => [String])
   pastTries: string[]
 
-  @Field(() => String, { nullable: true })
-  insurancePlan: string
+  @Field(() => Address, { nullable: true })
+  address?: Address
 
-  @Field(() => String, { nullable: true })
-  insuranceType: string
+  @Field(() => InsurancePlan, { nullable: true })
+  insurancePlan?: InsurancePlan
 
-  @Field(() => String, { nullable: true })
-  signupPartner: string
+  @Field(() => InsuranceType, { nullable: true })
+  insuranceType?: InsuranceType
+
+  @Field(() => Partner, { nullable: true })
+  signupPartner?: Partner
 }
 
 @InputType()
