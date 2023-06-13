@@ -47,7 +47,7 @@ class AkuteService {
       dateOfBirth,
     } = input
 
-    let parsedPhone = primary_phone_number
+    const parsedPhone = primary_phone_number
       .replace("+1", "")
       .replace("+0", "")
       .replace("+", "")
@@ -55,13 +55,6 @@ class AkuteService {
       .replace(" ", "")
       .replace(")", "")
       .replace("(", "")
-
-    const slicedPhone = parsedPhone.slice(0, 1)
-
-    if (slicedPhone === "1" || slicedPhone === "0") {
-      parsedPhone = parsedPhone.slice(1, parsedPhone.length - 1)
-      console.log(parsedPhone)
-    }
 
     try {
       const { status, data: patientData } = await this.axios.get(
@@ -92,6 +85,7 @@ class AkuteService {
 
       return data.data.id
     } catch (error) {
+      console.log(error)
       Sentry.captureException(error)
       throw new ApolloError(error.message, "ERROR")
     }
