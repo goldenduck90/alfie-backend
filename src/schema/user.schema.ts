@@ -27,6 +27,9 @@ import {
   registerEnumType,
 } from "type-graphql"
 import { Provider } from "./provider.schema"
+import UserRole from "./enums/Role"
+export const Role = UserRole
+export type Role = UserRole
 
 const {
   email: emailValidation,
@@ -56,16 +59,6 @@ registerEnumType(Gender, {
   name: "Gender",
   description: "",
 })
-
-export enum Role {
-  Patient = "Patient",
-  Practitioner = "Practitioner",
-  Doctor = "Doctor",
-  HealthCoach = "HealthCoach",
-  Nutritionist = "Nutritionist",
-  CareCoordinator = "CareCoordinator",
-  Admin = "Admin",
-}
 
 registerEnumType(Role, {
   name: "Role",
@@ -454,6 +447,10 @@ export class User {
   @Field(() => String, { nullable: true })
   @prop()
   externalPatientId?: string
+
+  @Field(() => String, { nullable: true })
+  @prop()
+  metriportUserId?: string
 
   @Field(() => Date)
   @prop({ default: Date.now(), required: true })

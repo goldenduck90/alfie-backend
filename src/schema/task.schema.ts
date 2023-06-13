@@ -1,12 +1,14 @@
 import {
   getModelForClass,
   index,
+  ModelOptions,
   prop,
   queryMethod,
   ReturnModelType,
 } from "@typegoose/typegoose"
 import { AsQueryMethod } from "@typegoose/typegoose/lib/types"
 import { Field, InputType, ObjectType, registerEnumType } from "type-graphql"
+import { AnswerType } from "./enums/AnswerType"
 
 export interface TaskEmail {
   taskName: string
@@ -43,6 +45,7 @@ export enum TaskType {
   LAB_SELECTION = "LAB_SELECTION",
   AD_LIBITUM = "AD_LIBITUM",
   SCHEDULE_HEALTH_COACH_APPOINTMENT = "SCHEDULE_HEALTH_COACH_APPOINTMENT",
+  TEST = "TEST",
 }
 
 registerEnumType(TaskType, {
@@ -59,6 +62,19 @@ function findByType(
 
 interface QueryHelpers {
   findByType: AsQueryMethod<typeof findByType>
+}
+
+@ObjectType()
+@InputType("TaskQuestionsInput")
+@ModelOptions({ schemaOptions: { _id: false, discriminatorKey: "type" } })
+export class TaskQuestion {
+  @Field(() => String)
+  @prop({ required: true })
+  key: string
+
+  @Field(() => AnswerType)
+  @prop({ required: true, default: () => AnswerType.STRING })
+  type: AnswerType
 }
 
 @index({ name: 1, type: 1 }, { unique: true })
@@ -107,6 +123,10 @@ export class Task {
   @Field(() => Number, { nullable: true })
   @prop({ required: false })
   interval?: number
+
+  @Field(() => [TaskQuestion], { nullable: true })
+  @prop({ required: false })
+  questions?: TaskQuestion[]
 }
 
 export const TaskModel = getModelForClass<typeof Task, QueryHelpers>(Task, {
@@ -181,4 +201,11 @@ export class CreateTaskInput {
       "If set, this task will be assigned on a recurring interval. This is a cron expression.",
   })
   interval?: number
+
+  @Field(() => [TaskQuestion], {
+    nullable: true,
+    description:
+      "If set, the task will have answers that must conform to these questions.",
+  })
+  questions?: TaskQuestion[]
 }
