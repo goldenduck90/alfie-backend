@@ -134,22 +134,27 @@ class TaskService {
     }
   }
 
-  async handleIsReadyForProfiling(userId: any, scores: any, currentTask: any) {
+  async handleIsReadyForProfiling(userId: any, scores: any, currentTask: any, originalTaskProfilingStatus: boolean) {
     try {
       const userTasks: any = await UserTaskModel.find({
         user: userId,
       }).populate("task")
+  
       const user: any = await UserModel.find({
         _id: userId,
       })
+  
       const userScores = scores
+  
       const tasksEligibleForProfiling = [
         TaskType.MP_HUNGER,
         TaskType.MP_FEELING,
         TaskType.AD_LIBITUM,
         TaskType.MP_ACTIVITY,
       ]
+  
       console.log(userTasks, "userTasks")
+  
       const completedTasks = userTasks.filter(
         ({
           task,
@@ -165,6 +170,12 @@ class TaskService {
           isReadyForProfiling &&
           completed
       )
+  
+      // If the currentTask has not been considered in the completedTasks, add it manually.
+      if (currentTask && originalTaskProfilingStatus && !completedTasks.some((task: any) => task._id === currentTask._id)) {
+        completedTasks.push(currentTask)
+      }
+  
       if (
         userScores.length === 0 &&
         completedTasks.length >= tasksEligibleForProfiling.length
@@ -357,7 +368,7 @@ class TaskService {
       if (tasksEligibleForProfiling.includes(task.type)) {
         userTask.isReadyForProfiling = true
         await userTask.save()
-        await this.handleIsReadyForProfiling(userTask.user, scores, task)
+        await this.handleIsReadyForProfiling(userTask.user, scores, task, userTask.isReadyForProfiling)
       }
 
       // Handle different task types
