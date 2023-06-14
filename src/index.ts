@@ -15,11 +15,8 @@ import authChecker from "./middleware/authChecker"
 import resolvers from "./resolvers"
 import { ProviderModel } from "./schema/provider.schema"
 import { Role, UserModel } from "./schema/user.schema"
-import {
-  AnswerType,
-  UserAnswer,
-  UserTaskModel,
-} from "./schema/task.user.schema"
+import { UserNumberAnswer, UserTaskModel } from "./schema/task.user.schema"
+import { AnswerType } from "./schema/enums/AnswerType"
 import { TaskType, Task, TaskModel } from "./schema/task.schema"
 import Context from "./types/context"
 import { connectToMongo } from "./utils/mongo"
@@ -929,7 +926,7 @@ async function bootstrap() {
               key: "Weight from withings",
               value: weightLbs,
               type: AnswerType.NUMBER,
-            } as UserAnswer
+            } as UserNumberAnswer
             if (weightLogTask) {
               weightLogTask.completed = true
               weightLogTask.answers = [...weightLogTask.answers, userAnswer]
