@@ -226,6 +226,14 @@ export class Score {
   @prop({ required: false })
   increased1hour?: boolean
 
+  @Field(() => Boolean, { nullable: true })
+  @prop({ required: false })
+  increased30Mins?: boolean
+
+  @Field(() => Number, { nullable: true })
+  @prop({ required: false })
+  currentScore?: number
+
   @Field(() => Float, { nullable: true })
   @prop({ required: false })
   percentDifference1Hour?: number
