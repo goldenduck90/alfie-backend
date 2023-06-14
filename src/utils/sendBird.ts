@@ -393,210 +393,222 @@ export const triggerEntireSendBirdFlow = async ({
 }
 
 /** Recreates the entire sendbird state, including users (patients and providers), and channels. */
-export const findAndTriggerEntireSendBirdFlowForAllUsersAndProvider = async (
-  /** Whether to only log an intended deletion. If set to false, actually deletes broken channels and users. */
-  dryDelete = true,
-  userEmail: string = null
-) => {
-  try {
-    console.log("Synchronizing sendbird state with the database.")
-    if (userEmail) {
-      console.log(` * For user ${userEmail}`)
-    }
+export const findAndTriggerEntireSendBirdFlowForAllUsersAndProvider =
+  async (options: {
+    /** Whether to only log an intended deletion. If set to false, actually deletes broken channels and users. */
+    dryDelete?: boolean
+    /** The user email or ID to synchronize. */
+    userEmail?: string
+    /** Whether to remove unused group channels. */
+    removeUnusedChannels?: boolean
+    /** Whether to remove users without DB entries. */
+    removeUnusedUsers?: boolean
+  }) => {
+    try {
+      console.log("Synchronizing sendbird state with the database.")
 
-    const users = (
-      await UserModel.find()
-        .sort({ createdAt: -1 })
-        .populate<{ provider: Provider }>("provider")
-    ).filter((user) => !userEmail || user.email === userEmail)
+      const users = (
+        await UserModel.find()
+          .sort({ createdAt: -1 })
+          .populate<{ provider: Provider }>("provider")
+      ).filter(
+        (user) =>
+          !options.userEmail ||
+          user.email === options.userEmail ||
+          user._id.toString() === options.userEmail
+      )
 
-    const providers = await ProviderModel.find()
-    const channels = await listSendBirdChannels(true)
-    const sendbirdUsers = await listSendBirdUsers()
+      const providers = await ProviderModel.find()
+      const channels = await listSendBirdChannels(true)
+      const sendbirdUsers = await listSendBirdUsers()
 
-    // create maps by which to reference users and channels quickly by ID/url
-    const sendbirdUsersMap = mapCollectionByField(
-      sendbirdUsers,
-      (item) => item.user_id
-    )
-    const usersMap = mapCollectionByField([...users, ...providers], (item) =>
-      item._id.toString()
-    )
-    const providersMap = mapCollectionByField(providers, (item) =>
-      item._id.toString()
-    )
+      // create maps by which to reference users and channels quickly by ID/url
+      const sendbirdUsersMap = mapCollectionByField(
+        sendbirdUsers,
+        (item) => item.user_id
+      )
+      const usersMap = mapCollectionByField([...users, ...providers], (item) =>
+        item._id.toString()
+      )
+      const providersMap = mapCollectionByField(providers, (item) =>
+        item._id.toString()
+      )
 
-    // delete channels where none of the members correspond to database users.
-    const channelsToDeleteNoDatabase: Channel[] = channels.filter(
-      (channel) =>
-        channel.members &&
-        channel.members.every((user) => !usersMap[user.user_id])
-    )
+      // delete channels where none of the members correspond to database users.
+      const channelsToDeleteNoDatabase: Channel[] = channels.filter(
+        (channel) =>
+          channel.members &&
+          channel.members.every((user) => !usersMap[user.user_id])
+      )
 
-    // delete channels with only one member (there should be at least two).
-    const channelsToDeleteOneMember: Channel[] = channels.filter(
-      (channel) => (channel.members?.length ?? 0) < 2
-    )
+      // delete channels with only one member (there should be at least two).
+      const channelsToDeleteOneMember: Channel[] = channels.filter(
+        (channel) => (channel.members?.length ?? 0) < 2
+      )
 
-    // for each existing sendbird user, delete all but the first of their valid channels
-    const channelsToDeleteDuplicates: Channel[] = []
-    await batchAsync(
-      users.map((user) => async () => {
-        const userChannels = await getSendBirdUserChannels(user._id.toString())
-        const validChannels = userChannels.filter((channel) => {
-          const hasProvider = channel.members.some(
-            (member) => providersMap[member.user_id]
+      // for each existing sendbird user, delete all but the first of their valid channels
+      const channelsToDeleteDuplicates: Channel[] = []
+      await batchAsync(
+        users.map((user) => async () => {
+          const userChannels = await getSendBirdUserChannels(
+            user._id.toString()
           )
-          return hasProvider
-        })
-        // remove all channels except the first valid channel (or all channels if no channels are valid)
-        const channelsToRemove =
-          validChannels.length > 0
-            ? userChannels.filter(
-                (uc) => uc.channel_url !== validChannels[0].channel_url
-              )
-            : userChannels
-        channelsToDeleteDuplicates.push(...channelsToRemove)
-      }),
-      sendbirdBatchSize
-    )
+          const validChannels = userChannels.filter((channel) => {
+            const hasProvider = channel.members.some(
+              (member) => providersMap[member.user_id]
+            )
+            return hasProvider
+          })
+          // remove all channels except the first valid channel (or all channels if no channels are valid)
+          const channelsToRemove =
+            validChannels.length > 0
+              ? userChannels.filter(
+                  (uc) => uc.channel_url !== validChannels[0].channel_url
+                )
+              : userChannels
+          channelsToDeleteDuplicates.push(...channelsToRemove)
+        }),
+        sendbirdBatchSize
+      )
 
-    // delete users who do not have a corresponding database ID.
-    const usersToDelete: Member[] = sendbirdUsers.filter(
-      (user) => !usersMap[user.user_id]
-    )
+      // delete users who do not have a corresponding database ID.
+      const usersToDelete: Member[] = sendbirdUsers.filter(
+        (user) => !usersMap[user.user_id]
+      )
 
-    // insert providers who are not in sendbird yet
-    const providersToCreate = providers.filter(
-      (provider) => !sendbirdUsersMap[provider._id.toString()]
-    )
+      // insert providers who are not in sendbird yet
+      const providersToCreate = providers.filter(
+        (provider) => !sendbirdUsersMap[provider._id.toString()]
+      )
 
-    const deleteCategories: [Channel[], string][] = [
-      [
-        channelsToDeleteNoDatabase,
-        "sendbird channels whose members are all invalid (not in the database)",
-      ],
-      [
-        channelsToDeleteOneMember,
-        "sendbird channels with less than two members",
-      ],
-      [
-        channelsToDeleteDuplicates,
-        "sendbird channels which are duplicates for a given patient user",
-      ],
-    ]
-    await Promise.all(
-      deleteCategories.map(async ([channelsToDelete, deleteMessage]) => {
-        if (channelsToDelete.length > 0) {
-          console.log(`Deleting ${channelsToDelete.length} ${deleteMessage}`)
-          console.log(
-            channelsToDelete
-              .map((channel) => {
+      const deleteCategories: [Channel[], string][] =
+        options.removeUnusedChannels
+          ? [
+              [
+                channelsToDeleteNoDatabase,
+                "sendbird channels whose members are all invalid (not in the database)",
+              ],
+              [
+                channelsToDeleteOneMember,
+                "sendbird channels with less than two members",
+              ],
+              [
+                channelsToDeleteDuplicates,
+                "sendbird channels which are duplicates for a given patient user",
+              ],
+            ]
+          : []
+      await Promise.all(
+        deleteCategories.map(async ([channelsToDelete, deleteMessage]) => {
+          if (channelsToDelete.length > 0) {
+            console.log(`Deleting ${channelsToDelete.length} ${deleteMessage}`)
+            await batchAsync(
+              channelsToDelete.map((channel) => async () => {
                 const membersStr = channel.members
                   ? channel.members
                       .map((user) => `${user.user_id} - ${user.nickname}`)
                       .join(", ")
                   : "Unknown"
-                return `  * Channel - Members: ${membersStr} - ${channel.channel_url} - ${channel.custom_type}`
-              })
-              .join("\n")
-          )
-          await batchAsync(
-            channelsToDelete.map(
-              (channel) => async () =>
-                dryDelete
-                  ? console.log(
-                      `* To delete: group channel ${channel.channel_url}`
-                    )
-                  : await deleteSendBirdChannel(channel.channel_url)
-            ),
-            sendbirdBatchSize
-          )
-        } else {
-          console.log("All channels are valid, nothing to delete.")
-        }
-      })
-    )
-
-    if (usersToDelete.length > 0) {
-      console.log(
-        `Deleting ${usersToDelete.length} sendbird users without corresponding database users.`
+                const log = `  * Delete Channel - Members: ${membersStr} - ${channel.channel_url} - ${channel.custom_type}`
+                if (!options.dryDelete) {
+                  console.log(log)
+                  await deleteSendBirdChannel(channel.channel_url)
+                } else {
+                  console.log(`* Preview Delete: ${log}`)
+                }
+              }),
+              sendbirdBatchSize
+            )
+          } else {
+            console.log("All channels are valid, nothing to delete.")
+          }
+        })
       )
+
+      if (options.removeUnusedUsers && usersToDelete.length > 0) {
+        console.log(
+          `Deleting ${usersToDelete.length} sendbird users without corresponding database users.`
+        )
+        console.log(
+          usersToDelete
+            .map(
+              (user) =>
+                `  * ${user.user_id} - ${user.nickname} - Active: ${user.is_active}`
+            )
+            .join("\n")
+        )
+        await batchAsync(
+          usersToDelete.map((user) => async () => {
+            const log = `  * ${user.user_id} - ${user.nickname} - Active: ${user.is_active}`
+            if (options.dryDelete) {
+              console.log(`* Preview Delete: ${log}`)
+            } else {
+              console.log(log)
+              await deleteSendBirdUser(user.user_id)
+            }
+          }),
+          sendbirdBatchSize
+        )
+      } else if (options.removeUnusedUsers) {
+        console.log("All users are valid, nothing to delete.")
+      }
+
+      if (providersToCreate.length > 0) {
+        console.log(
+          `Creating the missing sendbird users for ${providersToCreate.length} providers.`
+        )
+        console.log(
+          providersToCreate
+            .map(
+              (user) => `  * ${user._id} - ${user.firstName} ${user.lastName}`
+            )
+            .join("\n")
+        )
+        await batchAsync(
+          providersToCreate.map((provider) => async () => {
+            await createSendBirdUser(
+              provider._id.toString(),
+              `${provider.firstName} ${provider.lastName}`,
+              "",
+              ""
+            )
+            await new Promise((resolve) => setTimeout(resolve, 2000))
+          }),
+          sendbirdBatchSize
+        )
+      } else {
+        console.log("All providers have sendbird users.")
+      }
+
       console.log(
-        usersToDelete
-          .map(
-            (user) =>
-              `  * ${user.user_id} - ${user.nickname} - Active: ${user.is_active}`
-          )
-          .join("\n")
+        `Creating or updating sendbird users and channels for all ${users.length} users.`
       )
       await batchAsync(
-        usersToDelete.map(
-          (user) => async () =>
-            dryDelete
-              ? console.log(`To delete: user ${user.user_id}`)
-              : await deleteSendBirdUser(user.user_id)
-        ),
-        sendbirdBatchSize
-      )
-    } else {
-      console.log("All users are valid, nothing to delete.")
-    }
-
-    if (providersToCreate.length > 0) {
-      console.log(
-        `Creating the missing sendbird users for ${providersToCreate.length} providers.`
-      )
-      console.log(
-        providersToCreate
-          .map((user) => `  * ${user._id} - ${user.firstName} ${user.lastName}`)
-          .join("\n")
-      )
-      await batchAsync(
-        providersToCreate.map((provider) => async () => {
-          await createSendBirdUser(
-            provider._id.toString(),
-            `${provider.firstName} ${provider.lastName}`,
-            "",
-            ""
-          )
-          await new Promise((resolve) => setTimeout(resolve, 2000))
+        users.map((user) => async () => {
+          const userId = user._id.toString()
+          if (user.provider?._id && user.role === Role.Patient) {
+            // create user and channel for patients, invite their provider and preset user IDs
+            await triggerEntireSendBirdFlow({
+              nickname: user.name,
+              profile_file: "",
+              profile_url: "",
+              provider: user.provider._id.toString(),
+              user_id: userId,
+            })
+          } else {
+            // just create the user for other types of users
+            await createSendBirdUser(userId, user.name, "", "")
+          }
+          // 10 second delay between batches
+          await new Promise((resolve) => setTimeout(resolve, 10000))
         }),
         sendbirdBatchSize
       )
-    } else {
-      console.log("All providers have sendbird users.")
+      console.log("All channels created and messages sent!")
+    } catch (e) {
+      console.log(
+        e,
+        "Error in findAndTriggerEntireSendBirdFlowForAllUsersAndProvider"
+      )
     }
-
-    console.log(
-      `Creating or updating sendbird users and channels for all ${users.length} users.`
-    )
-    await batchAsync(
-      users.map((user) => async () => {
-        const userId = user._id.toString()
-        if (user.provider?._id && user.role === Role.Patient) {
-          // create user and channel for patients, invite their provider and preset user IDs
-          await triggerEntireSendBirdFlow({
-            nickname: user.name,
-            profile_file: "",
-            profile_url: "",
-            provider: user.provider._id.toString(),
-            user_id: userId,
-          })
-        } else {
-          // just create the user for other types of users
-          await createSendBirdUser(userId, user.name, "", "")
-        }
-        // 10 second delay between batches
-        await new Promise((resolve) => setTimeout(resolve, 10000))
-      }),
-      sendbirdBatchSize
-    )
-    console.log("All channels created and messages sent!")
-  } catch (e) {
-    console.log(
-      e,
-      "Error in findAndTriggerEntireSendBirdFlowForAllUsersAndProvider"
-    )
   }
-}
