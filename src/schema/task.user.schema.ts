@@ -107,6 +107,7 @@ export type UserAnswerTypes =
   | UserBooleanAnswer
   | UserDateAnswer
   | UserFileAnswer
+  | UserAnswer
 
 function findByTaskId(
   this: ReturnModelType<typeof UserTask, QueryHelpers>,
