@@ -640,11 +640,11 @@ function calculateTefq(
   }, 0)
   const currentTefq = Object.keys(currentTask.answers).reduce(
     (acc, key: any) => {
-      const answer: UserNumberAnswer = currentTask.answers[key] as any
+      const answer = currentTask.answers[key]
       if (answer.key === "restraint") {
         return acc + Number(answer.value || 0)
       }
-      const score = tefqQuestions[answer.key][answer.value] || 0
+      const score = tefqQuestions[answer.key][answer.value as string] || 0
       return acc + score
     },
     0
