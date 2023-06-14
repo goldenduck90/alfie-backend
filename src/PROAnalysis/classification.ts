@@ -1,6 +1,5 @@
 /* eslint-disable no-case-declarations */
 
-
 // Given this array of objects we need to classify a patient as each of the following and their percentile for each classification:
 // 1. Growler
 // 2. Empath
@@ -24,7 +23,6 @@
 // If the person is in the top 25 % for ad libitum (task: AD_LIBITUM) calories eaten, they are classified as a rover
 // If the person is in the bottom 25 % for hunger(30 minutes) (task: MP_HUNGER), they can also be classified as rover
 // If your bottom 25th percentile then really we need to display 75th percentile
-
 
 type Score = {
   percentile30mins: any
@@ -50,7 +48,7 @@ type Score = {
 
 export function classifyUser(
   scores: Score[]
-): { classification: string, percentile: string }[] {
+): { classification: string; percentile: string }[] {
   const classifications: {
     classification: string
     percentile: string
@@ -100,8 +98,10 @@ export function classifyUser(
           classifications.push({
             classification: "Growler",
             percentile: score.percentile1hour,
-            calculatedPercentile30Mins: score.calculated30minsPercent ?? score.percentile30mins,
-            calculatedPercentile2Hour: score.calculated1hourPercent ?? score.percentile1hour,
+            calculatedPercentile30Mins:
+              score.calculated30minsPercent ?? score.percentile30mins,
+            calculatedPercentile2Hour:
+              score.calculated1hourPercent ?? score.percentile1hour,
             displayPercentile:
               Number(hungerPercentile1hour) === 25
                 ? "75"
@@ -110,8 +110,10 @@ export function classifyUser(
           })
         } else if (Number(hungerPercentile30) >= 75) {
           classifications.push({
-            calculatedPercentile30Mins: score.calculated30minsPercent ?? score.percentile30mins,
-            calculatedPercentile2Hour: score.calculated1hourPercent ?? score.percentile1hour,
+            calculatedPercentile30Mins:
+              score.calculated30minsPercent ?? score.percentile30mins,
+            calculatedPercentile2Hour:
+              score.calculated1hourPercent ?? score.percentile1hour,
             classification: "Rover",
             percentile: score.percentile30mins,
             date: score.date,

@@ -27,6 +27,9 @@ import {
   registerEnumType,
 } from "type-graphql"
 import { Provider } from "./provider.schema"
+import UserRole from "./enums/Role"
+export const Role = UserRole
+export type Role = UserRole
 
 const {
   email: emailValidation,
@@ -56,16 +59,6 @@ registerEnumType(Gender, {
   name: "Gender",
   description: "",
 })
-
-export enum Role {
-  Patient = "Patient",
-  Practitioner = "Practitioner",
-  Doctor = "Doctor",
-  HealthCoach = "HealthCoach",
-  Nutritionist = "Nutritionist",
-  CareCoordinator = "CareCoordinator",
-  Admin = "Admin",
-}
 
 registerEnumType(Role, {
   name: "Role",
@@ -191,6 +184,14 @@ export class Score {
   @Field(() => Boolean, { nullable: true })
   @prop({ required: false })
   increased1hour?: boolean
+
+  @Field(() => Boolean, { nullable: true })
+  @prop({ required: false })
+  increased30Mins?: boolean
+
+  @Field(() => Number, { nullable: true })
+  @prop({ required: false })
+  currentScore?: number
 
   @Field(() => Float, { nullable: true })
   @prop({ required: false })
@@ -455,6 +456,10 @@ export class User {
   @prop()
   externalPatientId?: string
 
+  @Field(() => String, { nullable: true })
+  @prop()
+  metriportUserId?: string
+
   @Field(() => Date)
   @prop({ default: Date.now(), required: true })
   subscriptionExpiresAt: Date
@@ -486,6 +491,10 @@ export class User {
   @Field(() => Number, { nullable: true })
   @prop()
   bmi?: number
+
+  @Field(() => Boolean, { defaultValue: false })
+  @prop()
+  hasScale?: boolean
 }
 
 export const UserModel = getModelForClass<typeof User, QueryHelpers>(User, {
