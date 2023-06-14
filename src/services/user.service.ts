@@ -1216,8 +1216,6 @@ class UserService extends EmailService {
       signupPartner,
     } = input
 
-    console.log(input)
-
     const checkout = await CheckoutModel.find().findByEmail(email).lean()
     if (checkout) {
       // check if already checked out
