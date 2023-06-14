@@ -7,6 +7,8 @@
     "build": "tsc",
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
     "prod": "NODE_ENV=production ts-node-dev --respawn --transpile-only src/index.ts",
+    "provider:fix-count": "NODE_ENV=production ts-node-dev --respawn --transpile-only src/fixProviderPatientCount.ts",
+    "provider:fix-assignment": "NODE_ENV=production ts-node-dev --respawn --transpile-only src/fixProviderPatientAssignment.ts",
     "format": "prettier --check . --config ./.prettierrc",
     "format:fix": "prettier --write . --config ./.prettierrc",
     "lint": "eslint . --ext .js,.ts",
