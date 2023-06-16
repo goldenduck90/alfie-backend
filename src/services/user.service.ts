@@ -45,6 +45,7 @@ import {
   File,
   User,
   FileType,
+  Partner,
 } from "../schema/user.schema"
 import Role from "../schema/enums/Role"
 import { signJwt } from "../utils/jwt"
@@ -133,11 +134,22 @@ class UserService extends EmailService {
     await user.save()
 
     // send email with link to set password
-    const sent = await this.sendRegistrationEmailTemplate({
-      email: user.email,
-      token: emailToken,
-      name: user.name,
-    })
+    let sent
+    if (user.signupPartner === Partner.OPTAVIA) {
+      //TODO: Send OPTAVIA specific registration email, use the same email for now
+      sent = await this.sendRegistrationEmailTemplate({
+        email: user.email,
+        token: emailToken,
+        name: user.name,
+      })
+    } else {
+      sent = await this.sendRegistrationEmailTemplate({
+        email: user.email,
+        token: emailToken,
+        name: user.name,
+      })
+    }
+
     if (!sent) {
       throw new ApolloError(emailSendError.message, emailSendError.code)
     }
@@ -176,6 +188,9 @@ class UserService extends EmailService {
       stripeSubscriptionId,
       providerId,
       textOptIn,
+      insurancePlan,
+      insuranceType,
+      signupPartner,
     } = input
 
     const existingUser = await UserModel.find().findByEmail(email).lean()
@@ -270,6 +285,9 @@ class UserService extends EmailService {
       akutePatientId: patientId,
       provider: provider._id,
       textOptIn,
+      insurancePlan,
+      insuranceType,
+      signupPartner,
     })
     if (!user) {
       throw new ApolloError(unknownError.message, unknownError.code)
@@ -346,6 +364,7 @@ class UserService extends EmailService {
       manual,
       name,
     })
+
     if (!sent) {
       throw new ApolloError(emailSendError.message, emailSendError.code)
     }
