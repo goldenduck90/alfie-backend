@@ -4,7 +4,7 @@ import config from "config"
 import dayjs from "dayjs"
 import { addDays, isPast } from "date-fns"
 import { calculateScore } from "../PROAnalysis"
-import { ProviderModel } from "../schema/provider.schema"
+import { Provider } from "../schema/provider.schema"
 import {
   CreateTaskInput,
   Task,
@@ -25,12 +25,13 @@ import {
   UserTask,
   UserTaskModel,
 } from "../schema/task.user.schema"
-import { Score, UserModel } from "../schema/user.schema"
+import { User, Score, UserModel } from "../schema/user.schema"
 import { AnswerType } from "../schema/enums/AnswerType"
 import AkuteService from "./akute.service"
 import { classifyUser } from "../PROAnalysis/classification"
 import { calculatePatientScores } from "../scripts/calculatePatientScores"
 import EmailService from "./email.service"
+import { calculateBMI } from "../utils/calculateBMI"
 
 class TaskService {
   private akuteService: AkuteService
@@ -69,10 +70,27 @@ class TaskService {
     return userTask
   }
 
-  async getUserTasks(userId: string, input: GetUserTasksInput) {
-    const { limit, offset, completed } = input
+  async getUserTasks(
+    userId: string,
+    input: GetUserTasksInput
+  ): Promise<{
+    userTasks: UserTask[]
+    total: number
+    limit: number
+    offset: number
+  }> {
+    const { limit, offset, completed, taskType } = input
     const { noTasks } = config.get("errors.tasks") as any
-    const where = { ...(completed !== undefined && { completed }) }
+
+    const task = taskType
+      ? await TaskModel.findOne({ type: input.taskType })
+      : null
+    const taskId = task?._id?.toString()
+
+    const where = {
+      ...(completed !== undefined && { completed }),
+      ...(taskType !== undefined && { task: taskId }),
+    }
 
     const userTasksCount = await UserTaskModel.find({
       user: userId,
@@ -88,8 +106,9 @@ class TaskService {
       .skip(offset)
       .limit(limit)
       .sort({ highPriority: -1, dueAt: -1, createdAt: 1 })
-      .populate("task")
-      .populate("user")
+      .populate<{ task: Task }>("task")
+      .populate<{ user: User }>("user")
+
     return {
       total: userTasksCount,
       limit,
@@ -452,9 +471,7 @@ class TaskService {
             value: (answers.find((a) => a.key === "weight") as UserNumberAnswer)
               .value,
           }
-          const bmi =
-            (weight.value / user.heightInInches / user.heightInInches) *
-            703.071720346
+          const bmi = calculateBMI(weight.value, user.heightInInches)
           user.weights.push(weight)
           user.bmi = bmi
           await user.save()
@@ -617,17 +634,15 @@ class TaskService {
   }
   async getAllUserTasksByUserId(userId: string) {
     try {
-      const userTasks: any = await UserTaskModel.find({ user: userId })
-        .populate("task")
-        .populate("user")
-      const providerId = userTasks[0]?.user.provider.toHexString()
-      const lookUpProviderEmail = await ProviderModel.findOne({
-        _id: providerId,
-      })
-      const arrayOfUserTasksWithProviderEmail = userTasks.map((task: any) => {
+      const userTasks = await UserTaskModel.find({ user: userId })
+        .populate<{ task: Task }>("task")
+        .populate<{ user: User }>("user")
+        .populate<{ user: { provider: Provider } }>("user.provider")
+      const provider = userTasks[0]?.user.provider
+      const arrayOfUserTasksWithProviderEmail = userTasks.map((task) => {
         return {
           ...task.toObject(),
-          providerEmail: lookUpProviderEmail.email,
+          providerEmail: provider.email,
         }
       })
       return arrayOfUserTasksWithProviderEmail

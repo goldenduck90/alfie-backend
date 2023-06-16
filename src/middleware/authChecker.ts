@@ -1,6 +1,6 @@
 import { AuthChecker } from "type-graphql"
 import Context from "../types/context"
-import { Role } from "../schema/user.schema"
+import Role from "../schema/enums/Role"
 
 const authChecker: AuthChecker<Context> = ({ context }, roles: Role[]) => {
   // here we can read the user from context

@@ -11,7 +11,30 @@ import {
   DocUploadInput,
   PharmacyLocationInput,
 } from "../schema/akute.schema"
-import { CreatePatientInput, UserModel } from "../schema/user.schema"
+import {
+  CreatePatientInput,
+  UserModel,
+  InsuranceEligibilityInput,
+} from "../schema/user.schema"
+import { calculateBMI } from "../utils/calculateBMI"
+
+export interface AkuteCreateInsuranceRequest {
+  patient_id: string
+  member_id: string
+  group_id: string
+  group_name: string
+  rx_bin: string
+  rx_group: string
+  payor: string
+  status: string
+  order: number
+}
+
+/** Response from a POST to /insurance */
+export interface AkuteInsuranceResponse {
+  rx_id: string
+  medical_id: string
+}
 
 class AkuteService {
   public baseUrl: string
@@ -26,8 +49,6 @@ class AkuteService {
         "X-API-Key": process.env.AKUTE_API_KEY,
       },
     })
-
-    console.log(process.env.AKUTE_API_KEY)
   }
 
   async createPatient(input: CreatePatientInput) {
@@ -231,9 +252,7 @@ class AkuteService {
         throw new ApolloError("Provider not found", "NOT_FOUND")
       }
 
-      const bmi =
-        (user.weights[0].value / user.heightInInches / user.heightInInches) *
-        703.071720346
+      const bmi = calculateBMI(user.weights[0].value, user.heightInInches)
 
       const icdCode = 27 < bmi && bmi < 30 ? "E66.3" : "E66.9"
 
@@ -371,6 +390,34 @@ class AkuteService {
       })
 
       throw new ApolloError(error.message, "ERROR")
+    }
+  }
+
+  async createInsurance(
+    akuteId: string,
+    input: InsuranceEligibilityInput
+  ): Promise<AkuteInsuranceResponse> {
+    try {
+      const createInsuranceRequest: AkuteCreateInsuranceRequest = {
+        patient_id: akuteId,
+        member_id: input.memberId,
+        group_id: input.groupId,
+        group_name: input.groupName,
+        rx_bin: input.rxBin,
+        rx_group: input.rxGroup,
+        payor: input.payor,
+        status: "active",
+        order: 1,
+      }
+      const { data } = await this.axios.post<AkuteInsuranceResponse>(
+        "/insurance",
+        createInsuranceRequest
+      )
+      console.log("createInsurance response", data)
+      return data
+    } catch (error) {
+      Sentry.captureException(error)
+      return null
     }
   }
 }

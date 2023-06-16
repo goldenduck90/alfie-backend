@@ -14,12 +14,14 @@ import {
   LoginResponse,
   MessageResponse,
   ResetPasswordInput,
-  Role,
   RoleResponse,
   SubscribeEmailInput,
   User,
   UserSendbirdChannel,
+  InsuranceEligibilityInput,
+  InsuranceEligibilityResponse,
 } from "../schema/user.schema"
+import Role from "../schema/enums/Role"
 import AkuteService from "../services/akute.service"
 import UserService from "../services/user.service"
 import MetriportService from "../services/metriport.service"
@@ -27,11 +29,11 @@ import Context from "../types/context"
 
 @Resolver()
 export default class UserResolver {
-  constructor(
-    private userService: UserService,
-    private akuteService: AkuteService,
-    private metriportService: MetriportService
-  ) {
+  private userService: UserService
+  private akuteService: AkuteService
+  private metriportService: MetriportService
+
+  constructor() {
     this.userService = new UserService()
     this.akuteService = new AkuteService()
     this.metriportService = new MetriportService()
@@ -142,6 +144,18 @@ export default class UserResolver {
   @Query(() => [UserSendbirdChannel])
   userSendbirdChannel(@Arg("userId") userId: string) {
     return this.userService.sendbirdChannels(userId)
+  }
+
+  @Query(() => InsuranceEligibilityResponse)
+  async insuranceEligibility(
+    @Arg("input") input: InsuranceEligibilityInput
+  ): Promise<InsuranceEligibilityResponse> {
+    const eligible = await this.userService.checkInsuranceEligibility(input)
+    if (eligible) {
+      // only save insurance if it is currently eligible
+      await this.userService.updateInsurance(input)
+    }
+    return { eligible }
   }
 
   @Mutation(() => MetriportConnectResponse)

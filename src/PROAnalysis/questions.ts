@@ -266,7 +266,7 @@ export const tefqQuestions: QuestionType = {
     "Mostly true": 2,
     "Definitely true": 3,
   },
-  conciouslyEatLess: {
+  consciouslyEatLess: {
     "Unlikely": 0,
     "Slightly likely": 1,
     "Moderately likely": 2,

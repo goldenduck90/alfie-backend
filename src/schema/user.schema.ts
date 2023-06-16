@@ -28,9 +28,7 @@ import {
   registerEnumType,
 } from "type-graphql"
 import { Provider } from "./provider.schema"
-import UserRole from "./enums/Role"
-export const Role = UserRole
-export type Role = UserRole
+import Role from "./enums/Role"
 
 const {
   email: emailValidation,
@@ -111,6 +109,41 @@ registerEnumType(InsuranceType, {
 export class RoleResponse {
   @Field(() => Role)
   role: Role
+}
+
+@ObjectType()
+@InputType("InsuranceInput")
+@ModelOptions({ schemaOptions: { _id: false } })
+export class Insurance {
+  @Field(() => String)
+  @prop({ required: true })
+  memberId: string
+
+  @Field(() => String)
+  @prop({ required: true })
+  insuranceCompany: string
+
+  /** The payer ID. */
+  @Field(() => String)
+  @prop({ required: true })
+  payor: string
+
+  @Field(() => String)
+  @prop({ required: true })
+  groupId: string
+
+  @Field(() => String)
+  @prop({ required: true })
+  groupName: string
+
+  @Field(() => String)
+  @prop({ required: true })
+  rxBin: string
+
+  /** Also called RxPCN. */
+  @Field(() => String)
+  @prop({ required: true })
+  rxGroup: string
 }
 
 @ObjectType()
@@ -388,6 +421,7 @@ interface QueryHelpers {
 @queryMethod(findByEmail)
 @queryMethod(findByEmailToken)
 @queryMethod(findBySubscriptionId)
+@ModelOptions({ options: { allowMixed: Severity.ALLOW } })
 @ObjectType()
 @ModelOptions({ options: { allowMixed: Severity.ALLOW } })
 export class User {
@@ -538,6 +572,10 @@ export class User {
   @Field(() => Boolean, { defaultValue: false })
   @prop()
   hasScale?: boolean
+
+  @Field(() => Insurance, { nullable: true })
+  @prop({ required: false })
+  insurance?: Insurance
 
   @Field(() => InsurancePlan, { nullable: true })
   @prop({ enum: InsurancePlan, type: String, required: false })
@@ -973,12 +1011,39 @@ export class UserSendbirdChannel {
   @Field(() => String, { nullable: true })
   hidden_state?: string
 
-  // @Field(() => Object, { nullable: true })
-  // last_message?: Object
-
   @Field(() => Number, { nullable: true })
   joined_ts?: number
+}
 
-  // @Field(() => Object, { nullable: true })
-  // last_queried_message?: Object
+@InputType()
+export class InsuranceEligibilityInput {
+  @Field(() => String)
+  userId: string
+
+  @Field(() => String)
+  memberId: string
+
+  @Field(() => String)
+  insuranceCompany: string
+
+  @Field(() => String)
+  payor: string
+
+  @Field(() => String)
+  groupId: string
+
+  @Field(() => String)
+  groupName: string
+
+  @Field(() => String)
+  rxBin: string
+
+  @Field(() => String)
+  rxGroup: string
+}
+
+@ObjectType()
+export class InsuranceEligibilityResponse {
+  @Field(() => Boolean)
+  eligible: boolean
 }

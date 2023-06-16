@@ -6,7 +6,8 @@ import {
   Settings,
   WorkingPlan,
 } from "./../@types/easyAppointmentTypes"
-import { Role } from "./user.schema"
+import Role from "./enums/Role"
+
 @ObjectType()
 @InputType("TimeBlockInput")
 class TimeBlock {
@@ -342,6 +343,18 @@ export class EAAppointment {
 
   @Field(() => EACustomer)
   eaCustomer: EACustomer
+
+  @Field(() => Boolean)
+  attendanceEmailSent: boolean
+
+  @Field(() => Boolean)
+  claimSubmitted: boolean
+
+  @Field(() => Boolean)
+  patientAttended: boolean
+
+  @Field(() => Boolean)
+  providerAttended: boolean
 }
 
 @ObjectType()

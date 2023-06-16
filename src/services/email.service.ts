@@ -3,6 +3,7 @@ import * as AWS from "aws-sdk"
 import config from "config"
 import { format } from "date-fns"
 import { AllTaskEmail, TaskEmail } from "../schema/task.schema"
+
 class EmailService {
   noReplyEmail: string
   awsSes: AWS.SES
@@ -16,6 +17,36 @@ class EmailService {
     })
   }
 
+  private async sendEmail(
+    subject: string,
+    body: string,
+    toEmails: string[],
+    replyTo?: string
+  ) {
+    const params: AWS.SES.SendEmailRequest = {
+      Source: replyTo ?? this.noReplyEmail,
+      Destination: {
+        ToAddresses: toEmails,
+      },
+      ReplyToAddresses: [] as string[],
+      Message: {
+        Body: {
+          Html: {
+            Charset: "UTF-8",
+            Data: body,
+          },
+        },
+        Subject: {
+          Charset: "UTF-8",
+          Data: subject,
+        },
+      },
+    }
+
+    const result = await this.awsSes.sendEmail(params).promise()
+    return result
+  }
+
   async sendForgotPasswordEmail({
     email,
     token,
@@ -27,27 +58,7 @@ class EmailService {
     const baseUrl = config.get("baseUrl") as any
     const url = `${baseUrl}/${path}?token=${token}`
 
-    const params = {
-      Source: this.noReplyEmail,
-      Destination: {
-        ToAddresses: [email],
-      },
-      ReplyToAddresses: [] as string[],
-      Message: {
-        Body: {
-          Html: {
-            Charset: "UTF-8",
-            Data: url, // TODO: build email template & copy
-          },
-        },
-        Subject: {
-          Charset: "UTF-8",
-          Data: subject,
-        },
-      },
-    }
-
-    const result = await this.awsSes.sendEmail(params).promise()
+    const result = await this.sendEmail(subject, url, [email])
     return result.MessageId
   }
   async sendRegistrationEmailTemplate({
@@ -113,27 +124,7 @@ class EmailService {
     // TODO: change email content based on manual flag
     console.log(manual)
 
-    const params = {
-      Source: this.noReplyEmail,
-      Destination: {
-        ToAddresses: [email],
-      },
-      ReplyToAddresses: [] as string[],
-      Message: {
-        Body: {
-          Html: {
-            Charset: "UTF-8",
-            Data: url, // TODO: build email template & copy
-          },
-        },
-        Subject: {
-          Charset: "UTF-8",
-          Data: subject,
-        },
-      },
-    }
-
-    const result = await this.awsSes.sendEmail(params).promise()
+    const result = await this.sendEmail(subject, url, [email])
     return result.MessageId
   }
 
@@ -171,27 +162,8 @@ class EmailService {
       Alfie Team
     `
 
-    const params = {
-      Source: this.noReplyEmail,
-      Destination: {
-        ToAddresses: [email],
-      },
-      ReplyToAddresses: [] as string[],
-      Message: {
-        Body: {
-          Html: {
-            Charset: "UTF-8",
-            Data: emailBody, // TODO: build email template & copy
-          },
-        },
-        Subject: {
-          Charset: "UTF-8",
-          Data: subject,
-        },
-      },
-    }
+    const result = await this.sendEmail(subject, emailBody, [email])
 
-    const result = await this.awsSes.sendEmail(params).promise()
     return result.MessageId
   }
 
@@ -237,29 +209,12 @@ class EmailService {
       Alfie Team
     `
 
-    const params = {
-      Source: this.noReplyEmail,
-      Destination: {
-        ToAddresses: [email],
-      },
-      ReplyToAddresses: [] as string[],
-      Message: {
-        Body: {
-          Html: {
-            Charset: "UTF-8",
-            Data: emailBody, // TODO: build email template & copy
-          },
-        },
-        Subject: {
-          Charset: "UTF-8",
-          Data: `Appointment with ${
-            provider ? "patient," : ""
-          } ${otherName} scheduled`,
-        },
-      },
-    }
+    const subject = `Appointment with ${
+      provider ? "patient," : ""
+    } ${otherName} scheduled`
 
-    const result = await this.awsSes.sendEmail(params).promise()
+    const result = await this.sendEmail(subject, emailBody, [email])
+
     return result.MessageId
   }
 
@@ -305,29 +260,12 @@ class EmailService {
       Alfie Team
     `
 
-    const params = {
-      Source: this.noReplyEmail,
-      Destination: {
-        ToAddresses: [email],
-      },
-      ReplyToAddresses: [] as string[],
-      Message: {
-        Body: {
-          Html: {
-            Charset: "UTF-8",
-            Data: emailBody, // TODO: build email template & copy
-          },
-        },
-        Subject: {
-          Charset: "UTF-8",
-          Data: `Appointment with ${
-            provider ? "patient," : ""
-          } ${otherName} scheduled`,
-        },
-      },
-    }
+    const subject = `Appointment with ${
+      provider ? "patient," : ""
+    } ${otherName} scheduled`
 
-    const result = await this.awsSes.sendEmail(params).promise()
+    const result = await this.sendEmail(subject, emailBody, [email])
+
     return result.MessageId
   }
 
@@ -365,29 +303,12 @@ class EmailService {
       Alfie Team
     `
 
-    const params = {
-      Source: this.noReplyEmail,
-      Destination: {
-        ToAddresses: [email],
-      },
-      ReplyToAddresses: [] as string[],
-      Message: {
-        Body: {
-          Html: {
-            Charset: "UTF-8",
-            Data: emailBody, // TODO: build email template & copy
-          },
-        },
-        Subject: {
-          Charset: "UTF-8",
-          Data: `Appointment with ${
-            provider ? "patient," : ""
-          } ${otherName} cancelled`,
-        },
-      },
-    }
+    const subject = `Appointment with ${
+      provider ? "patient," : ""
+    } ${otherName} cancelled`
 
-    const result = await this.awsSes.sendEmail(params).promise()
+    const result = await this.sendEmail(subject, emailBody, [email])
+
     return result.MessageId
   }
 
@@ -519,31 +440,12 @@ class EmailService {
       Alfie Team
     `
 
-    const params = {
-      Source: this.noReplyEmail,
-      Destination: {
-        ToAddresses: [
-          "robert@joinalfie.com",
-          "alexander@joinalfie.com",
-          "rohit@joinalfie.com",
-        ],
-      },
-      ReplyToAddresses: [] as string[],
-      Message: {
-        Body: {
-          Html: {
-            Charset: "UTF-8",
-            Data: emailBody,
-          },
-        },
-        Subject: {
-          Charset: "UTF-8",
-          Data: "Daily Task Report",
-        },
-      },
-    }
+    const result = await this.sendEmail("Daily Task Report", emailBody, [
+      "robert@joinalfie.com",
+      "alexander@joinalfie.com",
+      "rohit@joinalfie.com",
+    ])
 
-    const result = await this.awsSes.sendEmail(params).promise()
     return result.MessageId
   }
 
@@ -649,28 +551,172 @@ class EmailService {
       Alfie Team
     `
 
-    const params = {
-      Source: this.noReplyEmail,
-      Destination: {
-        ToAddresses: [email],
-      },
-      ReplyToAddresses: [] as string[],
-      Message: {
-        Body: {
-          Html: {
-            Charset: "UTF-8",
-            Data: emailBody,
-          },
-        },
-        Subject: {
-          Charset: "UTF-8",
-          Data: "You have tasks to complete with Alfie",
-        },
-      },
-    }
+    const result = await this.sendEmail(
+      "You have tasks to complete with Alfie",
+      emailBody,
+      [email]
+    )
 
-    const result = await this.awsSes.sendEmail(params).promise()
     return result.MessageId
+  }
+
+  async sendAppointmentPatientSkippedEmail({
+    eaAppointmentId,
+    name,
+    providerName,
+    email,
+    date,
+    time,
+  }: {
+    eaAppointmentId: string
+    name: string
+    providerName: string
+    email: string
+    date: string
+    time: string
+  }) {
+    const baseUrl = config.get("baseUrl") as string
+    const url = `${baseUrl}/dashboard/appointments/${eaAppointmentId}`
+    const emailBody = `
+      Hello ${name},<br/><br/>
+      
+      It looks like we missed you at your virtual appointment on ${date} at ${time} with ${providerName}.
+      Don't worry, it's not an issue!
+      <br /><br />
+      You can reschedule <a href="${url}">here</a>. In the future, if you know you won't be able to make an appointment,
+      try and let us know 24 hours in advance. Have a wonderful rest of your day!
+      <br />br />
+
+      Sincerely,<br />
+      Your Alfie Care Team
+    `
+
+    const result = await this.sendEmail("Missed Alfie Appointment", emailBody, [
+      email,
+    ])
+
+    return result.MessageId
+  }
+
+  async sendAppointmentProviderSkippedEmail({
+    eaAppointmentId,
+    name,
+    patientName,
+    email,
+    date,
+    time,
+  }: {
+    eaAppointmentId: string
+    name: string
+    patientName: string
+    email: string
+    date: string
+    time: string
+  }) {
+    const baseUrl = config.get("baseUrl") as string
+    const url = `${baseUrl}/dashboard/appointments/${eaAppointmentId}`
+
+    const emailBody = `
+      Hello ${name},<br /><br />
+      You missed your appointment with ${patientName} on ${date} at ${time}.<br /><br />
+      You can reschedule <a href="${url}">here</a>.
+
+      Thanks,<br />
+      Your Alfie Care Team
+    `
+
+    const result = await this.sendEmail(
+      "Missed Alfie Patient Appointment",
+      emailBody,
+      [email]
+    )
+
+    return result.MessageId
+  }
+
+  async sendEligibilityCheckResultEmail({
+    patientName,
+    patientEmail,
+    patientPhone,
+    eligible,
+    reason,
+  }: {
+    patientEmail: string
+    patientName: string
+    patientPhone: string
+    eligible: boolean
+    reason?: string
+  }) {
+    /**
+     * Send email to patients@joinalfie.com
+     */
+    const subject = `${patientName} ${
+      eligible ? "Eligible" : "Ineligible"
+    } for Insurance`
+    const emailBody = `
+    <b>Patient Name:</b> ${patientName}<br/>
+    <b>Patient Email:</b> ${patientEmail}<br/>
+    <b>Patient Phone:</b> ${patientPhone}<br/>
+    <b>Eligibility Status:</b> ${eligible ? "Approved" : "Denied"}<br/>
+    ${!eligible ? `<b>Reason:</b> ${reason}<br/>` : ""}
+    `
+
+    const providerEmailResult = await this.sendEmail(subject, emailBody, [
+      "patients@joinalfie.com",
+    ])
+
+    /**
+     * Send email to patient's email
+     */
+    const patientSubject = `Your eligibility results have come in${
+      eligible ? "!" : "."
+    }`
+    const patientEmailBody = eligible
+      ? `
+      ${patientName},
+      <br /><br />
+      Based on the information you provided, your insurance covers visits with your Alfie provider.
+      Please make sure to login to <a href="https://app.joinalfie.com" target="_blank">app.joinalfie.com</a>
+      and complete your current tasks. Once complete, you'll receive a new task to schedule with the provider!
+    `
+      : `
+      <p>Hi ${patientName},</p>
+      <p>It seems like the insurance information you gave us is not being accepted, but don't worry! It could be because:</p>
+
+      <ol>
+        <li>The insurance information you entered was incorrect or had a typo</li>
+        <li>Your insurance doesn't have coverage for services given by Alfie</li>
+      </ol>
+
+      <p>
+        If you think there was a typo or error, please tell us by replying to this email with your full insurance information
+        again, or with that of a spouse whose insurance you may be under. If you think you did enter it correctly and we do
+        not serve your insurance, you can still continue with Alfie via cash pay at $120 a month.
+      </p>
+
+      <p>
+        At this moment, you have 48 hours to respond with a valid insurance card, or we will assume you are okay with cash pay.
+        Please let us know if otherwise.
+      </p>
+
+      <p>Have a wonderful rest of your day!</p>
+
+      <p>
+        Sincerely,<br />
+        Your Alfie Care Team
+      </p>
+    `
+
+    const patientEmailResult = await this.sendEmail(
+      patientSubject,
+      patientEmailBody,
+      [patientEmail]
+    )
+
+    return {
+      providerEmailId: providerEmailResult.MessageId,
+      patientEmailId: patientEmailResult.MessageId,
+    }
   }
 }
 

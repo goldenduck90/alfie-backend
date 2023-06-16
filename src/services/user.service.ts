@@ -1,5 +1,6 @@
 import * as Sentry from "@sentry/node"
 import { ApolloError } from "apollo-server-errors"
+import { LeanDocument } from "mongoose"
 import * as AWS from "aws-sdk"
 import bcrypt from "bcrypt"
 import config from "config"
@@ -24,11 +25,12 @@ import {
 import stripe from "stripe"
 import { v4 as uuidv4 } from "uuid"
 import {
+  Checkout,
   CheckoutModel,
   CreateCheckoutInput,
   CreateStripeCustomerInput,
 } from "../schema/checkout.schema"
-import { ProviderModel } from "../schema/provider.schema"
+import { ProviderModel, Provider } from "../schema/provider.schema"
 import { AllTaskEmail, Task, TaskEmail, TaskType } from "../schema/task.schema"
 import { UserTaskModel } from "../schema/task.user.schema"
 import {
@@ -36,11 +38,15 @@ import {
   ForgotPasswordInput,
   LoginInput,
   ResetPasswordInput,
-  Role,
   SubscribeEmailInput,
   UpdateUserInput,
+  InsuranceEligibilityInput,
   Weight,
+  File,
+  User,
+  FileType,
 } from "../schema/user.schema"
+import Role from "../schema/enums/Role"
 import { signJwt } from "../utils/jwt"
 import {
   getSendBirdUserChannels,
@@ -55,7 +61,9 @@ import EmailService from "./email.service"
 import ProviderService from "./provider.service"
 import TaskService from "./task.service"
 import SmsService from "./sms.service"
+import CandidService from "./candid.service"
 import axios from "axios"
+import { analyzeS3InsuranceCardImage } from "../utils/textract"
 
 class UserService extends EmailService {
   private taskService: TaskService
@@ -63,6 +71,8 @@ class UserService extends EmailService {
   private akuteService: AkuteService
   private appointmentService: AppointmentService
   private smsService: SmsService
+  private emailService: EmailService
+  private candidService: CandidService
   public awsDynamo: AWS.DynamoDB
   private stripeSdk: stripe
 
@@ -73,6 +83,8 @@ class UserService extends EmailService {
     this.akuteService = new AkuteService()
     this.appointmentService = new AppointmentService()
     this.smsService = new SmsService()
+    this.emailService = new EmailService()
+    this.candidService = new CandidService(this.appointmentService)
     this.awsDynamo = new AWS.DynamoDB({
       accessKeyId: process.env.AWS_ACCESS_KEY_ID,
       secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
@@ -1088,7 +1100,9 @@ class UserService extends EmailService {
       "errors.checkout"
     ) as any
 
-    const checkout = await CheckoutModel.findById(checkoutId).lean()
+    const checkout = (await CheckoutModel.findById(
+      checkoutId
+    ).lean()) as LeanDocument<Checkout>
     if (!checkout) {
       throw new ApolloError(checkoutNotFound.message, checkoutNotFound.code)
     }
@@ -1484,6 +1498,135 @@ class UserService extends EmailService {
     } catch (error) {
       console.log("error", error)
       Sentry.captureException(error)
+    }
+  }
+
+  /** Completes an upload by saving the files uploaded to S3 to the database. */
+  async completeUpload(input: File[], userId: string): Promise<User> {
+    const { notFound } = config.get("errors.user") as any
+    const user = await UserModel.findById(userId).countDocuments()
+    if (!user) {
+      throw new ApolloError(notFound.message, notFound.code)
+    }
+    const update = await UserModel.findOneAndUpdate(
+      { _id: userId },
+      {
+        $push: {
+          files: { $each: input },
+        },
+      },
+      { new: true }
+    )
+
+    const insuranceFile = input.find(
+      (file) => file.type === FileType.InsuranceCard
+    )
+    if (insuranceFile) {
+      const bucket: string = config.get("s3.patientBucketName")
+      const insuranceData = await analyzeS3InsuranceCardImage(
+        bucket,
+        insuranceFile.key
+      )
+      const insuranceInput: InsuranceEligibilityInput = {
+        userId,
+        memberId: insuranceData.member_id,
+        groupId: insuranceData.group_number,
+        groupName: insuranceData.group_name,
+        payor: insuranceData.payer_id,
+        insuranceCompany: insuranceData.payer_name,
+        rxBin: insuranceData.rx_bin,
+        rxGroup: insuranceData.rx_pcn,
+      }
+
+      const logMessage = `Parsed insurance data from card: ${JSON.stringify(
+        insuranceInput
+      )}`
+      console.log(logMessage)
+      Sentry.captureMessage(logMessage)
+
+      try {
+        const eligible = await this.checkInsuranceEligibility(insuranceInput)
+        if (eligible) {
+          await this.updateInsurance(insuranceInput)
+        }
+      } catch (error) {
+        // error is Sentry captured in checkInsuranceEligibility.
+        console.log("Error during eligibility check.", error)
+      }
+    }
+
+    return update
+  }
+
+  /** Updates insurance information for a given user. */
+  async updateInsurance(input: InsuranceEligibilityInput): Promise<void> {
+    const { userId } = input
+    const notFound = config.get("errors.user.notFound") as any
+
+    // Get the user by ID
+    const user: LeanDocument<User> = await UserModel.findById(userId).lean()
+    if (!user) {
+      throw new ApolloError(notFound.message, notFound.code)
+    }
+
+    // update insurance fields
+    user.insurance = {
+      memberId: input.memberId,
+      groupId: input.groupId,
+      groupName: input.groupName,
+      insuranceCompany: input.insuranceCompany,
+      rxBin: input.rxBin,
+      rxGroup: input.rxGroup,
+      payor: input.payor,
+    }
+
+    await UserModel.findByIdAndUpdate(user._id, user)
+  }
+
+  async checkInsuranceEligibility(input: InsuranceEligibilityInput) {
+    try {
+      const user = await UserModel.findById(input.userId).populate<{
+        provider: Provider
+      }>("provider")
+      if (!user) throw new Error(`User ${input.userId} not found.`)
+
+      const { provider } = user
+      if (!provider)
+        throw new Error(`No provider associated with user ${input.userId}.`)
+
+      const insuranceResult = await this.akuteService.createInsurance(
+        user.akutePatientId,
+        input
+      )
+
+      console.log(`Insurance result: ${JSON.stringify(insuranceResult)}`)
+
+      const { eligible, reason: ineligibleReason } =
+        await this.candidService.checkInsuranceEligibility(
+          user,
+          provider,
+          input
+        )
+
+      Sentry.captureEvent({
+        message: `[CANDID HEALTH][TIME: ${new Date().toISOString()}][EVENT: eligibility] ${
+          eligible
+            ? "Eligible Determination"
+            : `Ineligible: ${ineligibleReason}`
+        }`,
+      })
+
+      await this.emailService.sendEligibilityCheckResultEmail({
+        patientName: user.name,
+        patientEmail: user.email,
+        patientPhone: user.phone,
+        eligible,
+        reason: ineligibleReason,
+      })
+
+      return eligible
+    } catch (e) {
+      throw new ApolloError(e.message, "ERROR")
     }
   }
 }
