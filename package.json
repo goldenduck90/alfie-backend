@@ -4,15 +4,18 @@
   "description": "",
   "main": "build/src/index.js",
   "scripts": {
-    "build": "tsc",
+    "build": "tsc --project ./tsconfig.json",
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
     "prod": "NODE_ENV=production ts-node-dev --respawn --transpile-only src/index.ts",
+    "provider:fix-count": "NODE_ENV=production ts-node-dev --respawn --transpile-only src/fixProviderPatientCount.ts",
+    "provider:fix-assignment": "NODE_ENV=production ts-node-dev --respawn --transpile-only src/fixProviderPatientAssignment.ts",
     "format": "prettier --check . --config ./.prettierrc",
     "format:fix": "prettier --write . --config ./.prettierrc",
     "lint": "eslint . --ext .js,.ts",
     "lint:fix": "npm run lint -- --fix",
-    "tsc": "tsc --noEmit",
-    "prepare": "husky install && npx husky add .husky/pre-commit \"node_modules/.bin/lint-staged\""
+    "tsc": "tsc --noEmit --project ./tsconfig.json",
+    "prepare": "husky install && npx husky add .husky/pre-commit \"node_modules/.bin/lint-staged\"",
+    "sendbird:sync": "ts-node ./scripts/synchronizeSendbird.ts"
   },
   "author": "",
   "license": "ISC",
@@ -69,6 +72,7 @@
     "@types/uuid": "^8.3.4",
     "@types/validator": "^13.7.4",
     "@typescript-eslint/eslint-plugin": "^5.32.0",
+    "commander": "^10.0.1",
     "eslint": "^8.21.0",
     "eslint-config-prettier": "^8.5.0",
     "eslint-plugin-prettier": "^4.2.1",
@@ -83,15 +87,5 @@
     "hooks": {
       "pre-commit": "lint-staged"
     }
-  },
-  "lint-staged": {
-    "**/*.{js,ts}": [
-      "bash -c tsc --noEmit",
-      "prettier --write --config ./.prettierrc",
-      "eslint --fix"
-    ],
-    "**/*.{css,md,json}": [
-      "prettier --write --config ./.prettierrc"
-    ]
   }
 }

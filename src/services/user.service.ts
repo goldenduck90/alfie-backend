@@ -49,7 +49,7 @@ import {
 import Role from "../schema/enums/Role"
 import { signJwt } from "../utils/jwt"
 import {
-  getSendBirdUserChannelUrl,
+  getSendBirdUserChannels,
   triggerEntireSendBirdFlow,
 } from "../utils/sendBird"
 import { TaskModel } from "./../schema/task.schema"
@@ -1215,7 +1215,6 @@ class UserService extends EmailService {
     const {
       name,
       email,
-      weightLossMotivatorV2,
       dateOfBirth,
       gender,
       state,
@@ -1224,6 +1223,11 @@ class UserService extends EmailService {
       textOptIn,
       phone,
       pastTries,
+      weightLossMotivatorV2,
+      address,
+      insurancePlan,
+      insuranceType,
+      signupPartner,
     } = input
 
     const checkout = await CheckoutModel.find().findByEmail(email).lean()
@@ -1244,6 +1248,10 @@ class UserService extends EmailService {
       checkout.textOptIn = textOptIn
       checkout.phone = phone
       checkout.pastTries = pastTries
+      checkout.shippingAddress = address
+      checkout.insurancePlan = insurancePlan
+      checkout.insuranceType = insuranceType
+      checkout.signupPartner = signupPartner
 
       // update in db
       await CheckoutModel.findByIdAndUpdate(checkout._id, checkout)
@@ -1287,6 +1295,10 @@ class UserService extends EmailService {
       textOptIn,
       phone,
       pastTries,
+      insurancePlan,
+      insuranceType,
+      signupPartner,
+      shippingAddress: address,
     })
 
     // return new checkout
@@ -1480,7 +1492,7 @@ class UserService extends EmailService {
 
   async sendbirdChannels(userId: string) {
     try {
-      const channels = await getSendBirdUserChannelUrl(userId)
+      const channels = await getSendBirdUserChannels(userId)
       console.log(channels)
       return channels
     } catch (error) {

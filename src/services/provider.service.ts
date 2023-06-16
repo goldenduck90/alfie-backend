@@ -17,30 +17,28 @@ class ProviderService {
 
   async getNextAvailableProvider(state: string, update = false) {
     // Only return providers where the type === "Practitioner"
-    const provider = await ProviderModel.find()
-      .where({
-        type: Role.Practitioner,
-      })
-      .where("licensedStates")
-      .in([state])
+    const providers = await ProviderModel.find({
+      type: Role.Practitioner,
+      licensedStates: { $in: [state] },
+    })
       .sort({ numberOfPatients: "asc" })
       .limit(1)
 
-    if (provider.length === 0) {
+    if (providers.length === 0) {
       throw new ApolloError(
         `No providers available for state: ${state}`,
         "NOT_FOUND"
       )
     }
 
+    const provider = providers[0]
+
     if (update) {
-      await ProviderModel.updateOne(
-        { _id: provider[0]._id },
-        { $inc: { numberOfPatients: 1 } }
-      )
+      provider.numberOfPatients = provider.numberOfPatients + 1
+      await provider.save()
     }
 
-    return provider[0]
+    return provider
   }
 
   async batchCreateOrUpdateProviders(input: BatchCreateOrUpdateProvidersInput) {

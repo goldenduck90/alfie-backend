@@ -6,3 +6,5 @@ export enum AnswerType {
   DATE = "DATE",
   FILE = "FILE",
 }
+
+export default AnswerType

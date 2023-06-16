@@ -64,6 +64,47 @@ registerEnumType(Role, {
   description: "The user roles a user can be assigned to",
 })
 
+export enum Partner {
+  OPTAVIA = "OPTAVIA",
+}
+
+registerEnumType(Partner, {
+  name: "Partner",
+  description: "Sign up partner",
+})
+
+export enum InsurancePlan {
+  ANTHEM_BLUE_CROSS = "ANTHEM_BLUE_CROSS",
+  HUMANA = "HUMANA",
+  BLUE_CROSS_BLUE_SHIELD = "BLUE_CROSS_BLUE_SHIELD",
+  PARTNER_DIRECT = "PARTNER_DIRECT",
+  AETNA = "AETNA",
+  EMPIRE_BLUECROSS_BLUESHIELD = "EMPIRE_BLUECROSS_BLUESHIELD",
+  UNITED_HEALTHCARE = "UNITED_HEALTHCARE",
+  CIGNA = "CIGNA",
+  MEDICARE = "MEDICARE",
+  MEDICAID = "MEDICAID",
+  OTHER = "OTHER",
+}
+
+registerEnumType(InsurancePlan, {
+  name: "InsurancePlan",
+  description: "Insurance plans",
+})
+
+export enum InsuranceType {
+  EPO = "EPO",
+  POS = "POS",
+  PPO = "PPO",
+  HMO = "HMO",
+  GOVERNMENT_MEDICAID_TRICARE_CHIP = "GOVERNMENT_MEDICAID_TRICARE_CHIP",
+}
+
+registerEnumType(InsuranceType, {
+  name: "InsuranceType",
+  description: "Insurance types",
+})
+
 @ObjectType()
 export class RoleResponse {
   @Field(() => Role)
@@ -129,9 +170,9 @@ export class Address {
   @prop({ required: true })
   postalCode: string
 
-  @Field(() => String)
-  @prop({ default: "US", required: true })
-  country: string
+  @Field(() => String, { nullable: true })
+  @prop({ default: "US" })
+  country?: string
 }
 
 @ObjectType()
@@ -218,6 +259,14 @@ export class Score {
   @Field(() => Boolean, { nullable: true })
   @prop({ required: false })
   increased1hour?: boolean
+
+  @Field(() => Boolean, { nullable: true })
+  @prop({ required: false })
+  increased30Mins?: boolean
+
+  @Field(() => Number, { nullable: true })
+  @prop({ required: false })
+  currentScore?: number
 
   @Field(() => Float, { nullable: true })
   @prop({ required: false })
@@ -374,6 +423,7 @@ interface QueryHelpers {
 @queryMethod(findBySubscriptionId)
 @ModelOptions({ options: { allowMixed: Severity.ALLOW } })
 @ObjectType()
+@ModelOptions({ options: { allowMixed: Severity.ALLOW } })
 export class User {
   @Field(() => String)
   _id: string
@@ -434,10 +484,6 @@ export class User {
   @Field(() => Address)
   @prop()
   address: Address
-
-  @Field(() => Insurance, { nullable: true })
-  @prop({ required: false })
-  insurance?: Insurance
 
   @Field(() => Number, { nullable: true })
   @prop()
@@ -526,6 +572,22 @@ export class User {
   @Field(() => Boolean, { defaultValue: false })
   @prop()
   hasScale?: boolean
+
+  @Field(() => Insurance, { nullable: true })
+  @prop({ required: false })
+  insurance?: Insurance
+
+  @Field(() => InsurancePlan, { nullable: true })
+  @prop({ enum: InsurancePlan, type: String, required: false })
+  insurancePlan?: InsurancePlan
+
+  @Field(() => InsuranceType, { nullable: true })
+  @prop({ enum: InsuranceType, type: String, required: false })
+  insuranceType?: InsuranceType
+
+  @Field(() => Partner, { nullable: true })
+  @prop({ enum: Partner, required: false })
+  signupPartner?: Partner
 }
 
 export const UserModel = getModelForClass<typeof User, QueryHelpers>(User, {

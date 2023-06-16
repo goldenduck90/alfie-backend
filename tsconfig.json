@@ -11,6 +11,8 @@
     "resolveJsonModule": true,
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
+    "skipLibCheck": true,
+    "skipDefaultLibCheck": true,
     "paths": {
       "*": ["node_modules/*"]
     },
