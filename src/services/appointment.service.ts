@@ -816,10 +816,13 @@ class AppointmentService extends EmailService {
     }
   }
 
-  async getProviderSchedule(eaProviderId: string, timezone: string) {
+  async getProviderSchedule(
+    eaProviderId: string,
+    timezone: string
+  ): Promise<ScheduleObject> {
     try {
       // timezone example: America/New_York
-      const schedule = await this.axios.get(
+      const schedule = await this.axios.get<ScheduleObject>(
         `/providers/schedule?eaProviderId=${eaProviderId}&timezone=${timezone}`
       )
       return schedule.data

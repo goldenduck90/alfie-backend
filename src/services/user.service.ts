@@ -28,8 +28,8 @@ import {
   CreateCheckoutInput,
   CreateStripeCustomerInput,
 } from "../schema/checkout.schema"
-import { Provider, ProviderModel } from "../schema/provider.schema"
-import { AllTaskEmail, TaskEmail, TaskType } from "../schema/task.schema"
+import { ProviderModel } from "../schema/provider.schema"
+import { AllTaskEmail, Task, TaskEmail, TaskType } from "../schema/task.schema"
 import { UserTaskModel } from "../schema/task.user.schema"
 import {
   CreateUserInput,
@@ -39,7 +39,6 @@ import {
   Role,
   SubscribeEmailInput,
   UpdateUserInput,
-  User,
   Weight,
 } from "../schema/user.schema"
 import { signJwt } from "../utils/jwt"
@@ -1006,28 +1005,10 @@ class UserService extends EmailService {
 
   async getAllUserTasksByUser(userId: string) {
     try {
-      const userTasks: any = await UserTaskModel.find({
-        user: userId,
-      }).populate("task")
-      const users = await UserModel.find()
-      // users.forEach(async (u) => {
-      //   const classify = await this.classifyPatient(u._id)
-      //   console.log(classify, "score")
-      // })
-      // const scores = await calculatePatientScores(userId)
-      // console.log(scores, "scores")
-      // const scores2 = await calculateAllScores()
-      // console.log(scores2, "scores")
+      const userTasks = await UserTaskModel.find({ user: userId }).populate<{
+        task: Task
+      }>("task")
 
-      // const allPatientTasks = await UserTaskModel.find({
-      //   completed: true
-      // })
-
-      // allPatientTasks.forEach(async (task) => {
-      //   const scores = await calculatePatientScores(String(task.user))
-      //   console.log(scores, "scores")
-      // })
-      // findAndTriggerEntireSendBirdFlowForAllUsersAndProvider()
       return userTasks
     } catch (error) {
       console.log("error", error)
@@ -1220,7 +1201,6 @@ class UserService extends EmailService {
     const {
       name,
       email,
-      weightLossMotivatorV2,
       dateOfBirth,
       gender,
       state,
@@ -1229,6 +1209,11 @@ class UserService extends EmailService {
       textOptIn,
       phone,
       pastTries,
+      weightLossMotivatorV2,
+      address,
+      insurancePlan,
+      insuranceType,
+      signupPartner,
     } = input
 
     const checkout = await CheckoutModel.find().findByEmail(email).lean()
@@ -1249,6 +1234,10 @@ class UserService extends EmailService {
       checkout.textOptIn = textOptIn
       checkout.phone = phone
       checkout.pastTries = pastTries
+      checkout.shippingAddress = address
+      checkout.insurancePlan = insurancePlan
+      checkout.insuranceType = insuranceType
+      checkout.signupPartner = signupPartner
 
       // update in db
       await CheckoutModel.findByIdAndUpdate(checkout._id, checkout)
@@ -1292,6 +1281,10 @@ class UserService extends EmailService {
       textOptIn,
       phone,
       pastTries,
+      insurancePlan,
+      insuranceType,
+      signupPartner,
+      shippingAddress: address,
     })
 
     // return new checkout

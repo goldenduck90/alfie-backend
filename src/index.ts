@@ -1,12 +1,13 @@
 /* eslint-disable no-case-declarations */
-import * as Sentry from "@sentry/node"
+import dotenv from "dotenv"
+dotenv.config()
+import Sentry from "./utils/sentry"
 import {
   ApolloServerPluginLandingPageGraphQLPlayground,
   ApolloServerPluginLandingPageProductionDefault,
 } from "apollo-server-core"
 import { ApolloServer } from "apollo-server-express"
 import * as AWS from "aws-sdk"
-import dotenv from "dotenv"
 import express, { Request, Response } from "express"
 import { expressjwt } from "express-jwt"
 import "reflect-metadata"
@@ -15,18 +16,16 @@ import authChecker from "./middleware/authChecker"
 import resolvers from "./resolvers"
 import { ProviderModel } from "./schema/provider.schema"
 import { Role, UserModel } from "./schema/user.schema"
+import { UserNumberAnswer, UserTaskModel } from "./schema/task.user.schema"
+import { AnswerType } from "./schema/enums/AnswerType"
+import { TaskType, Task, TaskModel } from "./schema/task.schema"
 import Context from "./types/context"
 import { connectToMongo } from "./utils/mongo"
 import * as cron from "node-cron"
 import UserService from "./services/user.service"
-import { setupSentry } from "./utils/sentry"
 import stripe from "stripe"
 import { CheckoutModel } from "./schema/checkout.schema"
-
-dotenv.config()
 import config from "config"
-
-setupSentry()
 
 const Stripe = new stripe(process.env.STRIPE_SECRET_KEY, {
   apiVersion: "2022-08-01",
@@ -863,6 +862,88 @@ async function bootstrap() {
       res.sendStatus(200)
     } catch (error) {
       console.log(error, "error")
+      res.sendStatus(500)
+    }
+  })
+
+  app.post("/metriportWebhooks", express.json(), async (req, res) => {
+    console.log(req.body)
+    const time = new Date().toString()
+    try {
+      const key = req.get("x-webhook-key")
+      if (key !== process.env.METRIPORT_WEBHOOK_KEY) {
+        return res.sendStatus(401)
+      }
+
+      const { ping, meta, users } = req.body
+
+      if (ping) {
+        return res.status(200).send({
+          pong: ping,
+        })
+      }
+
+      if (!meta || !users) {
+        return res.status(400).send({
+          message: "Bad Request",
+        })
+      }
+
+      await Promise.all(
+        users.map(async (user: any) => {
+          const { userId, body } = user
+          if (body?.[0]?.weight_kg) {
+            const weightLbs = Math.floor(body[0].weight_kg * 2.2)
+            const weight = {
+              value: weightLbs,
+              date: new Date(),
+            }
+
+            const _user = await UserModel.findOneAndUpdate(
+              { metriportUserId: userId },
+              { $push: { weights: weight }, $set: { hasScale: true } },
+              { returnDocument: "after" }
+            )
+
+            const userTasks = await UserTaskModel.find({
+              user: _user._id,
+            }).populate("task")
+            let weightLogTask = userTasks.find((userTask) => {
+              const task = userTask.task as Task
+              task.type === TaskType.WEIGHT_LOG && !userTask.completed
+            })
+            const userAnswer = {
+              key: "Weight from withings",
+              value: weightLbs,
+              type: AnswerType.NUMBER,
+            } as UserNumberAnswer
+            if (weightLogTask) {
+              weightLogTask.completed = true
+              weightLogTask.answers = [...weightLogTask.answers, userAnswer]
+              await weightLogTask.save()
+            } else {
+              const task = await TaskModel.findOne({
+                type: TaskType.WEIGHT_LOG,
+              })
+              const userTask = {
+                user: _user,
+                task: task,
+                completed: true,
+                answers: [userAnswer],
+              }
+              weightLogTask = await UserTaskModel.create(userTask)
+            }
+
+            const message = `[METRIPORT WEBHOOK][TIME: ${time}] Successfully updated weight for user: ${_user._id} - ${weightLbs}lbs`
+            console.log(message)
+            Sentry.captureMessage(message)
+          }
+        })
+      )
+      return res.status(200).send({ message: "Webhook processed successfully" })
+    } catch (err) {
+      console.log(err)
+      Sentry.captureException(err)
       res.sendStatus(500)
     }
   })

@@ -46,7 +46,7 @@ export const getSendBirdEntity = async <T>(
     return data
   } catch (error) {
     if (errorMessage) {
-      console.log(`${errorMessage}: ${error.message}`)
+      console.log(`Sendbird: ${errorMessage}: ${error.message}`)
     }
     Sentry.captureException(error)
     return null
@@ -161,7 +161,7 @@ export const createSendBirdUser = async (
   const existingData = await findSendBirdUser(user_id)
   if (existingData && existingData.user_id) {
     console.log(
-      `Returning existing user: ${existingData.user_id} - ${existingData.nickname}`
+      `Sendbird: Returning existing user: ${existingData.user_id} - ${existingData.nickname}`
     )
     return existingData.user_id
   }
@@ -174,7 +174,9 @@ export const createSendBirdUser = async (
       profile_url,
       profile_file,
     })
-    console.log(`Created sendbird user: ${data.user_id} - ${data.nickname}`)
+    console.log(
+      `Sendbird: Created sendbird user: ${data.user_id} - ${data.nickname}`
+    )
     return data.user_id
   } catch (error) {
     Sentry.captureException(error)
@@ -197,7 +199,7 @@ export const createSendBirdChannelForNewUser = async (
 
   if (channels && channels.length !== 0) {
     console.log(
-      `Returned existing channel ${channels[0].channel_url} for user ${user_id}`
+      `Sendbird: Returned existing channel ${channels[0].channel_url} for user ${user_id}`
     )
     return channels[0]
   }
@@ -211,7 +213,9 @@ export const createSendBirdChannelForNewUser = async (
       user_ids: [user_id],
     })
 
-    console.log(`Created channel ${channel.channel_url} for user ${user_id}`)
+    console.log(
+      `Sendbird: Created channel ${channel.channel_url} for user ${user_id}`
+    )
     return channel
   } catch (error) {
     console.log(
@@ -254,15 +258,17 @@ export const inviteUserToChannel = async (
       { user_ids }
     )
     if (data) {
-      console.log(`Invited user ${user_id} to channel ${data.channel_url}`)
+      console.log(
+        `Sendbird: Invited user ${user_id} to channel ${data.channel_url}`
+      )
       return data
     } else {
-      console.log("error in inviteUserToChannel")
+      console.log("Sendbird: error in inviteUserToChannel")
       return null
     }
   } else {
     console.log(
-      `All users already added to channel ${channel_url} (including ${user_id} and preset user IDs).`
+      `Sendbird: All users already added to channel ${channel_url} (including ${user_id}, ${provider} and preset user IDs).`
     )
   }
 }
@@ -385,7 +391,7 @@ export const triggerEntireSendBirdFlow = async ({
   } catch (error) {
     Sentry.captureException(error)
     console.log(
-      `An error occured triggering the sendbird flow for user ID: ${user_id}`,
+      `Sendbird: An error occured triggering the sendbird flow for user ID: ${user_id}`,
       error
     )
     return false
@@ -405,7 +411,7 @@ export const findAndTriggerEntireSendBirdFlowForAllUsersAndProvider =
     removeUnusedUsers?: boolean
   }) => {
     try {
-      console.log("Synchronizing sendbird state with the database.")
+      console.log("Sendbird: Synchronizing sendbird state with the database.")
 
       const users = (
         await UserModel.find()
@@ -605,10 +611,10 @@ export const findAndTriggerEntireSendBirdFlowForAllUsersAndProvider =
         sendbirdBatchSize
       )
       console.log("All channels created and messages sent!")
-    } catch (e) {
+    } catch (error) {
       console.log(
-        e,
-        "Error in findAndTriggerEntireSendBirdFlowForAllUsersAndProvider"
+        error,
+        "Sendbird: Error in findAndTriggerEntireSendBirdFlowForAllUsersAndProvider"
       )
     }
   }

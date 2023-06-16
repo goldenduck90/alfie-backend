@@ -48,7 +48,7 @@ type Score = {
 
 export function classifyUser(
   scores: Score[]
-): { classification: string, percentile: string }[] {
+): { classification: string; percentile: string }[] {
   const classifications: {
     classification: string
     percentile: string
