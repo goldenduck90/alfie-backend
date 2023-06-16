@@ -6,6 +6,7 @@ import {
   prop,
   queryMethod,
   ReturnModelType,
+  Severity,
 } from "@typegoose/typegoose"
 import { AsQueryMethod, Ref } from "@typegoose/typegoose/lib/types"
 import bcrypt from "bcrypt"
@@ -388,6 +389,7 @@ interface QueryHelpers {
 @queryMethod(findByEmailToken)
 @queryMethod(findBySubscriptionId)
 @ObjectType()
+@ModelOptions({ options: { allowMixed: Severity.ALLOW } })
 export class User {
   @Field(() => String)
   _id: string
@@ -536,7 +538,7 @@ export class User {
   @Field(() => Boolean, { defaultValue: false })
   @prop()
   hasScale?: boolean
-  
+
   @Field(() => InsurancePlan, { nullable: true })
   @prop({ enum: InsurancePlan, type: String, required: false })
   insurancePlan?: InsurancePlan

@@ -43,7 +43,7 @@ import {
 } from "../schema/user.schema"
 import { signJwt } from "../utils/jwt"
 import {
-  getSendBirdUserChannelUrl,
+  getSendBirdUserChannels,
   triggerEntireSendBirdFlow,
 } from "../utils/sendBird"
 import { TaskModel } from "./../schema/task.schema"
@@ -1478,7 +1478,7 @@ class UserService extends EmailService {
 
   async sendbirdChannels(userId: string) {
     try {
-      const channels = await getSendBirdUserChannelUrl(userId)
+      const channels = await getSendBirdUserChannels(userId)
       console.log(channels)
       return channels
     } catch (error) {

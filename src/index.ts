@@ -1,12 +1,13 @@
 /* eslint-disable no-case-declarations */
-import * as Sentry from "@sentry/node"
+import dotenv from "dotenv"
+dotenv.config()
+import Sentry from "./utils/sentry"
 import {
   ApolloServerPluginLandingPageGraphQLPlayground,
   ApolloServerPluginLandingPageProductionDefault,
 } from "apollo-server-core"
 import { ApolloServer } from "apollo-server-express"
 import * as AWS from "aws-sdk"
-import dotenv from "dotenv"
 import express, { Request, Response } from "express"
 import { expressjwt } from "express-jwt"
 import "reflect-metadata"
@@ -24,18 +25,7 @@ import * as cron from "node-cron"
 import UserService from "./services/user.service"
 import stripe from "stripe"
 import { CheckoutModel } from "./schema/checkout.schema"
-dotenv.config()
 import config from "config"
-
-// import * as Tracing from '@sentry/tracing';
-Sentry.init({
-  dsn: "https://e99c3274029e405f9e1b6dd50a63fd85@o4504040965603328.ingest.sentry.io/4504040986705920",
-  environment: process.env.NODE_ENV,
-  // Set tracesSampleRate to 1.0 to capture 100%
-  // of transactions for performance monitoring.
-  // We recommend adjusting this value in production
-  tracesSampleRate: 1.0,
-})
 
 const Stripe = new stripe(process.env.STRIPE_SECRET_KEY, {
   apiVersion: "2022-08-01",
