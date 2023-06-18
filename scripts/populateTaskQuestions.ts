@@ -73,7 +73,10 @@ function taskQuestionsData(): Record<string, TaskQuestion[]> {
       { key: "diastolicBp", type: AnswerType.NUMBER },
     ],
 
-    WEIGHT_LOG: [{ key: "weight", type: AnswerType.NUMBER }],
+    WEIGHT_LOG: [
+      { key: "weight", type: AnswerType.NUMBER },
+      { key: "withingsWeight", type: AnswerType.NUMBER },
+    ],
 
     WAIST_LOG: [{ key: "waist", type: AnswerType.NUMBER }],
 

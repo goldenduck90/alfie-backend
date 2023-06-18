@@ -47,16 +47,18 @@ export default function calculateSetting<T = SettingsVariables>(
   //   ]
   // }]
 
-  /** Returns a filtered result of the conditions that passed given the values parameter. */
+  /**
+   * Returns a filtered result of the conditions that passed given the values parameter.
+   * If a condition requires values not included in the `values` map, the condition does not pass.
+   */
   const passingConditions = (
     conditions: SettingCondition[]
   ): SettingCondition[] => {
     return conditions.filter((condition) => {
       return Object.keys(condition).every((valueKey) => {
-        if (!Object.keys(values).includes(valueKey))
-          throw new Error(
-            `Key ${valueKey} expected in values passed to calculateSetting.`
-          )
+        // if the values passed to calculateSetting do not include the key
+        // needed to check if this condition passes, skip this condition.
+        if (!Object.keys(values).includes(valueKey)) return false
 
         const value = values[valueKey]
 

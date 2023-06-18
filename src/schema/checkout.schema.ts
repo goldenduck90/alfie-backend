@@ -4,6 +4,7 @@ import {
   ReturnModelType,
   queryMethod,
   index,
+  Severity,
 } from "@typegoose/typegoose"
 import { AsQueryMethod, Ref } from "@typegoose/typegoose/lib/types"
 import { IsEmail, IsPhoneNumber } from "class-validator"
@@ -147,7 +148,7 @@ export class Checkout {
   weightLossMotivatorV2: string[]
 
   @Field(() => [String])
-  @prop({ required: true })
+  @prop({ required: true, allowMixed: Severity.ALLOW })
   pastTries: string[]
 
   @Field(() => InsurancePlan, { nullable: true })

@@ -5,6 +5,7 @@ import {
   prop,
   queryMethod,
   ReturnModelType,
+  Severity,
 } from "@typegoose/typegoose"
 import { AsQueryMethod } from "@typegoose/typegoose/lib/types"
 import { Field, InputType, ObjectType, registerEnumType } from "type-graphql"
@@ -125,7 +126,7 @@ export class Task {
   interval?: number
 
   @Field(() => [TaskQuestion], { nullable: true })
-  @prop({ required: false })
+  @prop({ required: false, allowMixed: Severity.ALLOW })
   questions?: TaskQuestion[]
 }
 

@@ -15,7 +15,7 @@ async function testGetEncounter() {
   }).populate<{ provider: Provider }>("provider")
 
   const appointmentService = new AppointmentService()
-  const candidService = new CandidService(appointmentService)
+  const candidService = new CandidService()
 
   const appointment = await appointmentService.getAppointment({
     eaAppointmentId: "2",

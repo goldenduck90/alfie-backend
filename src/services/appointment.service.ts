@@ -116,7 +116,7 @@ class AppointmentService extends EmailService {
   constructor() {
     super()
     const eaUrl = config.get("easyAppointmentsApiUrl") as string
-    this.candidService = new CandidService(this)
+    this.candidService = new CandidService()
 
     this.eaUrl = eaUrl
     this.axios = axios.create({
@@ -909,8 +909,13 @@ class AppointmentService extends EmailService {
       console.log("- Submitting insurance claim for attended appointment")
       try {
         if (user.insurance) {
+          const initialAppointment = await this.getInitialAppointment(
+            appointment.eaCustomer.id
+          )
+
           await this.candidService.createCodedEncounterForAppointment(
-            appointment
+            appointment,
+            initialAppointment
           )
         } else {
           const noBillingMessage = `Did not bill user ${user._id}, no insurance data.`
