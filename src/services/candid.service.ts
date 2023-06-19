@@ -16,6 +16,7 @@ import type {
   CandidEligibilityCheckRequest,
   CandidEligibilityCheckResponse,
   CandidRequestBillingProvider,
+  RequestClinicalNote,
 } from "../@types/candidTypes"
 import dayjs from "../utils/dayjs"
 import {
@@ -368,6 +369,12 @@ export default class CandidService {
 
     const timestamp = dayjs.tz(appointment.start, appointment.timezone).toDate()
 
+    // prevent DuplicateEncounterException in development
+    const sandboxExternalId =
+      process.env.NODE_ENV === "development"
+        ? `-${Math.floor(Math.random() * 1e5)}`
+        : ""
+
     return await this.createCodedEncounter(
       user,
       provider,
@@ -375,7 +382,9 @@ export default class CandidService {
       CodedEncounterSource.Appointment,
       "Obesity management",
       timestamp,
-      `${user._id.toString()}-${appointment.eaAppointmentId}`,
+      `${user._id.toString()}-${
+        appointment.eaAppointmentId
+      }${sandboxExternalId}`,
       {
         // whether this is the initial appointment
         initial: isInitialAppointment,
@@ -383,7 +392,10 @@ export default class CandidService {
         initialProcedureCode,
       },
       // 95 - Synchronous Telemedicine Service Rendered via a Real-Time Interactive Audio and Video Telecommunications System
-      "95"
+      {
+        serviceLineModifier: "95",
+        placeOfServiceCode: "10",
+      }
     )
   }
 
@@ -399,15 +411,11 @@ export default class CandidService {
     /** All user weights including the newest. */
     weights: Weight[]
   ) {
-    console.log(
-      `createCodedEncounterForScaleEvent: ${user._id} ${provider._id} ${
-        weights.length
-      } ${JSON.stringify(weights[weights.length - 1])}`
-    )
+    const currentMonth = dayjs().tz(user.timezone).format("YYYY-MM")
+
     const currentMonthWeights = weights
       .filter(({ scale }) => scale)
       .filter(({ date, scale }) => {
-        const currentMonth = dayjs().tz(user.timezone).format("YYYY-MM")
         const scaleMonth = dayjs(date).tz(user.timezone).format("YYYY-MM")
         return scale && currentMonth === scaleMonth
       })
@@ -417,6 +425,18 @@ export default class CandidService {
     const newWeight = weights.slice(-1)[0]
 
     if (firstMeasurement || currentMonthMeasurements === 16) {
+      // prevent DuplicateEncounterException in development
+      const sandboxExternalId =
+        process.env.NODE_ENV === "development"
+          ? `-${Math.floor(Math.random() * 1e5)}`
+          : ""
+      const measurementNote = firstMeasurement
+        ? "First measurement with scale."
+        : "16th measurement in current month with scale."
+
+      const externalIdMarker = firstMeasurement
+        ? "firstreading"
+        : "16-" + dayjs.tz(newWeight.date, user.timezone).format("YYYY-MM")
       return await this.createCodedEncounter(
         user,
         provider,
@@ -424,14 +444,28 @@ export default class CandidService {
         CodedEncounterSource.Scale,
         "Obesity management",
         newWeight.date,
-        `${user._id.toString()}-scale-${dayjs
-          .tz(newWeight.date, user.timezone)
-          .format("YYYY-MM")}`,
+        `${user._id.toString()}-scale-${externalIdMarker}${sandboxExternalId}`,
         {
           firstMeasurement,
           currentMonthMeasurements,
         },
-        "10" // TODO
+        {
+          placeOfServiceCode: "10",
+          serviceLineModifier: "95",
+          additionalClinicalNotes: [
+            {
+              category: "patient_info",
+              notes: [
+                {
+                  author_name: `${provider.firstName} ${provider.lastName}`,
+                  author_npi: provider.npi,
+                  text: `Weight reading: ${newWeight.value}lbs. ${measurementNote}`,
+                  timestamp: newWeight.date.toISOString(),
+                },
+              ],
+            },
+          ],
+        }
       )
     } else {
       return null
@@ -464,11 +498,17 @@ export default class CandidService {
      * @see candidHealth.production.ts
      */
     conditionsValues: Record<string, any>,
-    /**
-     * Place of service code.
-     * @see https://www.cms.gov/Medicare/Coding/place-of-service-codes/Place_of_Service_Code_Set
-     */
-    placeOfServiceCode: string
+    encounterParams: {
+      /**
+       * Place of service code.
+       * @see https://www.cms.gov/Medicare/Coding/place-of-service-codes/Place_of_Service_Code_Set
+       */
+      placeOfServiceCode: string
+      /** Additional clinical notes. */
+      additionalClinicalNotes?: RequestClinicalNote[]
+      /** Service line modifier. */
+      serviceLineModifier: string
+    }
   ) {
     await this.authenticate()
 
@@ -631,10 +671,10 @@ export default class CandidService {
         },
       ],
       // See https://www.cms.gov/Medicare/Coding/place-of-service-codes/Place_of_Service_Code_Set
-      place_of_service_code: placeOfServiceCode, // Telehealth provided in patient's home
+      place_of_service_code: encounterParams.placeOfServiceCode, // Telehealth provided in patient's home
       service_lines: [
         {
-          modifiers: ["95"], // 95 - Synchronous Telemedicine Service Rendered via a Real-Time Interactive Audio and Video Telecommunications System
+          modifiers: [encounterParams.serviceLineModifier],
           procedure_code: procedureCode,
           quantity: "1",
           units: "UN",
@@ -680,6 +720,7 @@ export default class CandidService {
               },
             ]
           : []),
+        ...(encounterParams.additionalClinicalNotes ?? []),
       ],
     }
 

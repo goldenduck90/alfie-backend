@@ -1,4 +1,4 @@
-import prepareShellEnvironment from "./utils/prepareShellEnvironment"
+import runShell from "./utils/runShell"
 import CandidService from "../src/services/candid.service"
 import { InsuranceEligibilityInput, UserModel } from "../src/schema/user.schema"
 import { Provider } from "../src/schema/provider.schema"
@@ -8,8 +8,6 @@ import UserService from "../src/services/user.service"
 console.log("Starting test insurance script.")
 
 async function testInsurance() {
-  await prepareShellEnvironment()
-
   const appointmentService = new AppointmentService()
   const candidService = new CandidService()
   const userService = new UserService()
@@ -73,7 +71,4 @@ async function testInsurance() {
   process.exit(0)
 }
 
-testInsurance().catch((error) => {
-  console.error(error?.message || error)
-  process.exit(1)
-})
+runShell(() => testInsurance())

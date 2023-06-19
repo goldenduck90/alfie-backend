@@ -1,8 +1,7 @@
 import UserService from "../src/services/user.service"
-import prepareShellEnvironment from "./utils/prepareShellEnvironment"
+import runShell from "./utils/runShell"
 
 async function testWithingsInsurance() {
-  await prepareShellEnvironment()
   const userService = new UserService()
 
   const user = await userService.getUser("648c9a95c0293d72a4e5e7dd")
@@ -13,20 +12,18 @@ async function testWithingsInsurance() {
   await user.save()
 
   // first scale reading
-  await userService.handleWithingsWeight(
+  await userService.processWithingsScaleReading(
     user.metriportUserId,
     230 + Math.round(Math.random() * 5)
   )
 
   // sixteenth scale reading.
-  for (let i = 0; i < 15; i++) {
-    await userService.handleWithingsWeight(
+  for (let i = 0; i < 18; i++) {
+    await userService.processWithingsScaleReading(
       user.metriportUserId,
       230 + Math.round(Math.random() * 5)
     )
   }
 }
 
-testWithingsInsurance()
-  .then(() => process.exit(0))
-  .catch(() => process.exit(1))
+runShell(() => testWithingsInsurance())

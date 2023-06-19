@@ -782,6 +782,7 @@ async function bootstrap() {
         const mapToEmails = filteredEmailsToSendToBasedOnRole.map(
           (user: any) => user.email
         )
+
         const params = {
           Source: "no-reply@joinalfie.com",
           Destination: {
@@ -889,12 +890,18 @@ async function bootstrap() {
         })
       }
 
+      const date = new Date()
+
       await Promise.all(
         users.map(async (metriportUser: MetriportUser) => {
           const { userId, body } = metriportUser
           if (body?.[0]?.weight_kg) {
             const weightLbs = Math.floor(body[0].weight_kg * 2.2)
-            await userService.handleWithingsWeight(userId, weightLbs)
+            await userService.processWithingsScaleReading(
+              userId,
+              weightLbs,
+              date
+            )
           }
         })
       )
@@ -920,16 +927,16 @@ async function bootstrap() {
 
 // run task job
 cron.schedule("0 0 * * *", async () => {
-  console.log("[TASK JOB] RUNNING...")
+  console.log(`[TASK JOB][${new Date().toString()}] RUNNING...`)
   await userService.taskJob()
-  console.log("[TASK JOB] COMPLETED")
+  console.log(`[TASK JOB][${new Date().toString()}] COMPLETED`)
 })
 
 // run appointment attendance job
 cron.schedule("*/30 * * * *", async () => {
-  console.log("[APPOINTMENT ATTENDED JOB] RUNNING...")
+  console.log(`[APPOINTMENT ATTENDED JOB][${new Date().toString()}] RUNNING...`)
   await appointmentService.postAppointmentJob()
-  console.log("[APPOINTMENT ATTENDED JOB] COMPLETED")
+  console.log(`[APPOINTMENT ATTENDED JOB][${new Date().toString()}] COMPLETED`)
 })
 
 bootstrap()

@@ -1,10 +1,8 @@
-import prepareShellEnvironment from "./utils/prepareShellEnvironment"
+import runShell from "./utils/runShell"
 import { TaskQuestion, TaskModel } from "../src/schema/task.schema"
 import { AnswerType } from "../src/schema/enums/AnswerType"
 
 async function populateTaskQuestions() {
-  await prepareShellEnvironment()
-
   console.log("Updating Task.questions fields.")
   const questionsData = taskQuestionsData()
 
@@ -12,7 +10,7 @@ async function populateTaskQuestions() {
     Object.entries(questionsData).map(async ([taskType, questions]) => {
       const updatedTask = await TaskModel.findOneAndUpdate(
         { type: taskType },
-        { questions: questions },
+        { questions },
         { new: true }
       )
       if (updatedTask) {
@@ -29,13 +27,6 @@ async function populateTaskQuestions() {
     })
   )
 }
-
-populateTaskQuestions()
-  .catch((error) => {
-    console.log(error)
-    process.exit(1)
-  })
-  .then(() => process.exit(0))
 
 function taskQuestionsData(): Record<string, TaskQuestion[]> {
   return {
@@ -139,3 +130,5 @@ function taskQuestionsData(): Record<string, TaskQuestion[]> {
     AD_LIBITUM: [{ key: "calories", type: AnswerType.NUMBER }],
   }
 }
+
+runShell(() => populateTaskQuestions())

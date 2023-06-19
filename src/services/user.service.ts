@@ -1637,14 +1637,16 @@ class UserService extends EmailService {
   /**
    * Record a withings scale reading and process insurance.
    */
-  async handleWithingsWeight(metriportUserId: string, weightLbs: number) {
+  async processWithingsScaleReading(
+    metriportUserId: string,
+    weightLbs: number,
+    date: Date = new Date()
+  ) {
     const weight: Weight = {
       value: weightLbs,
-      date: new Date(),
+      date,
       scale: true,
     }
-
-    const time = new Date().toString()
 
     const user = await UserModel.findOneAndUpdate(
       { metriportUserId },
@@ -1653,7 +1655,7 @@ class UserService extends EmailService {
     ).populate<{ provider: Provider }>("provider")
 
     if (!user) {
-      const message = `[METRIPORT][TIME: ${time}] User not found for metriport ID: ${metriportUserId}`
+      const message = `[METRIPORT][TIME: ${new Date().toString()}] User not found for metriport ID: ${metriportUserId}`
       console.log(message)
       Sentry.captureEvent({
         message,
@@ -1668,11 +1670,13 @@ class UserService extends EmailService {
     const weightLogTask = userTasks.find(
       ({ task, completed }) => task.type === TaskType.WEIGHT_LOG && !completed
     )
+
     const userAnswer = {
       key: "withingsWeight",
       value: weightLbs,
       type: AnswerType.NUMBER,
     } as UserNumberAnswer
+
     if (weightLogTask) {
       weightLogTask.completed = true
       weightLogTask.answers = [...weightLogTask.answers, userAnswer]
@@ -1681,6 +1685,7 @@ class UserService extends EmailService {
       const task = await TaskModel.findOne({
         type: TaskType.WEIGHT_LOG,
       })
+
       await UserTaskModel.create({
         user,
         task,
@@ -1689,7 +1694,9 @@ class UserService extends EmailService {
       })
     }
 
-    const message = `[METRIPORT][TIME: ${time}] Successfully updated weight for user: ${user._id} - ${weightLbs}lbs`
+    const message = `[METRIPORT][TIME: ${new Date().toString()}] Successfully updated weight for user: ${
+      user._id
+    } - ${weightLbs}lbs`
     console.log(message)
     Sentry.captureMessage(message)
 

@@ -1,5 +1,5 @@
 import { Command } from "commander"
-import prepareShellEnvironment from "./utils/prepareShellEnvironment"
+import runShell from "./utils/runShell"
 import { findAndTriggerEntireSendBirdFlowForAllUsersAndProvider } from "../src/utils/sendBird"
 
 const program = new Command()
@@ -31,8 +31,6 @@ const removeUnusedChannels = Boolean(options.removeChannels)
 const removeUnusedUsers = Boolean(options.removeUsers)
 
 async function synchronizeSendbird() {
-  await prepareShellEnvironment()
-
   if (dryDelete) {
     console.log("Dry Delete run, no entities will be deleted.")
   }
@@ -56,4 +54,4 @@ async function synchronizeSendbird() {
   process.exit(0)
 }
 
-synchronizeSendbird()
+runShell(() => synchronizeSendbird())
