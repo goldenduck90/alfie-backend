@@ -1249,7 +1249,6 @@ class UserService extends EmailService {
       phone,
       pastTries,
       weightLossMotivatorV2,
-      address,
       insurancePlan,
       insuranceType,
       signupPartner,
@@ -1273,7 +1272,6 @@ class UserService extends EmailService {
       checkout.textOptIn = textOptIn
       checkout.phone = phone
       checkout.pastTries = pastTries
-      checkout.shippingAddress = address
       checkout.insurancePlan = insurancePlan
       checkout.insuranceType = insuranceType
       checkout.signupPartner = signupPartner
@@ -1323,7 +1321,6 @@ class UserService extends EmailService {
       insurancePlan,
       insuranceType,
       signupPartner,
-      shippingAddress: address,
     })
 
     // return new checkout
