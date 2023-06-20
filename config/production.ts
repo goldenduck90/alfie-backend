@@ -16,6 +16,11 @@ export default {
     serviceTypeCode: "3",
     settings: candidHealth,
   },
+  withings: {
+    apiUrl: "https://wbsapi.withings.net",
+    clientId: process.env.WITHINGS_CLIENT_ID,
+    clientSecret: process.env.WITHINGS_CLIENT_SECRET,
+  },
   defaultPriceId: "price_1KMv4hDOjl0X0gOqRIWXpGVz",
   s3: {
     patientBucketName: "production-platform-patient-storage",

@@ -62,6 +62,7 @@ import ProviderService from "./provider.service"
 import TaskService from "./task.service"
 import SmsService from "./sms.service"
 import CandidService from "./candid.service"
+import WithingsService from "./withings.service"
 import axios from "axios"
 import { analyzeS3InsuranceCardImage } from "../utils/textract"
 import AnswerType from "../schema/enums/AnswerType"
@@ -74,6 +75,7 @@ class UserService extends EmailService {
   private smsService: SmsService
   private emailService: EmailService
   private candidService: CandidService
+  private withingsService: WithingsService
   public awsDynamo: AWS.DynamoDB
   private stripeSdk: stripe
 
@@ -87,6 +89,7 @@ class UserService extends EmailService {
     this.smsService = new SmsService()
     this.emailService = new EmailService()
     this.candidService = new CandidService()
+    this.withingsService = new WithingsService()
 
     this.awsDynamo = new AWS.DynamoDB({
       accessKeyId: process.env.AWS_ACCESS_KEY_ID,
@@ -378,6 +381,26 @@ class UserService extends EmailService {
           name: user.name,
         },
       })
+    }
+
+    // Create withings dropshipping order
+    try {
+      const withingsAddress = {
+        name,
+        company_name: "Alfie",
+        email,
+        telephone: phone,
+        address1: address.line1,
+        address2: address.line2,
+        city: address.city,
+        zip: address.postalCode,
+        state: address.state,
+        country: "US",
+      }
+      const res = await this.withingsService.createOrder(withingsAddress)
+      console.log(res)
+    } catch (err) {
+      console.log(err)
     }
 
     console.log(`USER CREATED: ${user._id}`)
