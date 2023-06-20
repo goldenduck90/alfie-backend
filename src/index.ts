@@ -895,6 +895,9 @@ async function bootstrap() {
                 stripeCustomerId: sCCId,
                 stripeSubscriptionId: sCId,
                 subscriptionExpiresAt: new Date(),
+                insurancePlan: sCCheckout.insurancePlan,
+                insuranceType: sCCheckout.insuranceType,
+                signupPartner: sCCheckout.signupPartner,
               })
 
               await Stripe.subscriptions.update(sCId, {

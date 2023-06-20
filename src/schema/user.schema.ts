@@ -730,6 +730,18 @@ export class CreateUserInput {
       "When the user's subscription expires. If not provided, the subscription won't be active.",
   })
   subscriptionExpiresAt?: Date
+
+  @Field(() => InsurancePlan, { nullable: true })
+  @prop({ enum: InsurancePlan, type: String, required: false })
+  insurancePlan?: InsurancePlan
+
+  @Field(() => InsuranceType, { nullable: true })
+  @prop({ enum: InsuranceType, type: String, required: false })
+  insuranceType?: InsuranceType
+
+  @Field(() => Partner, { nullable: true })
+  @prop({ enum: Partner, type: String, required: false })
+  signupPartner?: Partner
 }
 
 @InputType()
