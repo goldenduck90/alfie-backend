@@ -240,6 +240,9 @@ export class CreateStripeCustomerInput {
 
   @Field(() => Boolean)
   sameAsShipping: boolean
+
+  @Field(() => Boolean, { defaultValue: false, nullable: true })
+  insurance?: boolean
 }
 
 @InputType()

@@ -1125,6 +1125,7 @@ class UserService extends EmailService {
     shipping,
     billing,
     sameAsShipping,
+    insurance = false,
   }: CreateStripeCustomerInput) {
     const { checkoutNotFound, alreadyCheckedOut } = config.get(
       "errors.checkout"
@@ -1183,6 +1184,7 @@ class UserService extends EmailService {
       metadata: {
         checkoutId: String(checkout._id),
         email: checkout.email,
+        INSURANCE: `${insurance ? "TRUE" : "FALSE"}`,
       },
       ...(customer && { customer: customer.id }),
     }

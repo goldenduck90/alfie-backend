@@ -520,9 +520,13 @@ export class User {
   @prop()
   stripeCustomerId?: string
 
-  @Field(() => String)
-  @prop()
+  @Field(() => String, { nullable: true })
+  @prop({ required: false, default: null })
   stripeSubscriptionId?: string
+
+  @Field(() => String, { nullable: true })
+  @prop({ required: false, default: null })
+  stripePaymentIntentId?: string
 
   @Field(() => String, { nullable: true })
   @prop()
@@ -713,6 +717,12 @@ export class CreateUserInput {
     description: "If not provided, will be set after checkout.",
   })
   stripeSubscriptionId?: string
+
+  @Field(() => String, {
+    nullable: true,
+    description: "If not provided, will be set after checkout.",
+  })
+  stripePaymentIntentId?: string
 
   @Field(() => Date, {
     nullable: true,
