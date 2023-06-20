@@ -1208,15 +1208,22 @@ class UserService extends EmailService {
       ...(customer && { customer: customer.id }),
     }
 
-    // create payment intent
-    if (setupIntent && setupIntent.status !== "canceled") {
-      setupIntent = await this.stripeSdk.setupIntents.update(setupIntent.id, {
-        ...setupIntentDetails,
-      })
-    } else {
-      setupIntent = await this.stripeSdk.setupIntents.create({
-        ...setupIntentDetails,
-      })
+    try {
+      // create payment intent
+      if (
+        setupIntent &&
+        !["canceled", "requires_payment_method"].includes(setupIntent.status)
+      ) {
+        setupIntent = await this.stripeSdk.setupIntents.update(setupIntent.id, {
+          ...setupIntentDetails,
+        })
+      } else {
+        setupIntent = await this.stripeSdk.setupIntents.create({
+          ...setupIntentDetails,
+        })
+      }
+    } catch (err) {
+      throw new ApolloError("Setting up stripe intent failed!")
     }
 
     // update checkout with stripe info
