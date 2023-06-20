@@ -184,6 +184,9 @@ export class Weight {
   @Field(() => Date)
   @prop({ default: Date.now(), required: true })
   date: Date
+
+  @Field(() => Boolean, { nullable: true })
+  scale?: boolean
 }
 
 @ObjectType()

@@ -1,16 +1,16 @@
-import prepareShellEnvironment from "./utils/prepareShellEnvironment"
+import runShell from "./utils/runShell"
 import CandidService from "../src/services/candid.service"
 import { InsuranceEligibilityInput, UserModel } from "../src/schema/user.schema"
 import { Provider } from "../src/schema/provider.schema"
 import AppointmentService from "../src/services/appointment.service"
+import UserService from "../src/services/user.service"
 
 console.log("Starting test insurance script.")
 
 async function testInsurance() {
-  await prepareShellEnvironment()
-
   const appointmentService = new AppointmentService()
-  const candidService = new CandidService(appointmentService)
+  const candidService = new CandidService()
+  const userService = new UserService()
 
   // prepare user sandbox values.
   const user = await UserModel.findOne({
@@ -30,6 +30,8 @@ async function testInsurance() {
     rxGroup: "abcdefg",
     userId: user._id.toString(),
   }
+
+  await userService.updateInsurance(input)
 
   await candidService.checkInsuranceEligibility(
     user,
@@ -61,18 +63,12 @@ async function testInsurance() {
     })
   )
 
-  await candidService.createCodedEncounter(
-    user,
-    provider,
+  await candidService.createCodedEncounterForAppointment(
     appointment,
-    input,
     initialAppointment
   )
 
   process.exit(0)
 }
 
-testInsurance().catch((error) => {
-  console.error(error?.message || error)
-  process.exit(1)
-})
+runShell(() => testInsurance())

@@ -17,7 +17,7 @@ class EmailService {
     })
   }
 
-  private async sendEmail(
+  async sendEmail(
     subject: string,
     body: string,
     toEmails: string[],

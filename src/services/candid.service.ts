@@ -16,23 +16,31 @@ import type {
   CandidEligibilityCheckRequest,
   CandidEligibilityCheckResponse,
   CandidRequestBillingProvider,
+  RequestClinicalNote,
 } from "../@types/candidTypes"
 import dayjs from "../utils/dayjs"
 import {
+  Insurance,
   InsuranceEligibilityInput,
   User,
   UserModel,
+  Weight,
 } from "../schema/user.schema"
 import { Provider } from "../schema/provider.schema"
 import { TaskType } from "../schema/task.schema"
 import { UserTask } from "../schema/task.user.schema"
 import TaskService from "../services/task.service"
-import AppointmentService from "../services/appointment.service"
 import lookupCPID from "../utils/lookupCPID"
 import calculateSetting, { SettingsList } from "../utils/calculateSetting"
 import { calculateBMI } from "../utils/calculateBMI"
 
 export const authorizationTokenProvider = "candidhealth"
+
+/** Events leading to creation of a coded encounter. */
+export enum CodedEncounterSource {
+  Appointment = "appointment",
+  Scale = "scale",
+}
 
 export class CandidError extends ApolloError {}
 
@@ -51,7 +59,7 @@ export default class CandidService {
 
   private taskService: TaskService
 
-  constructor(private appointmentService: AppointmentService) {
+  constructor() {
     this.baseUrl = config.get("candidHealth.apiUrl") as string
     this.clientId = config.get("candidHealth.clientId") as string
     this.clientSecret = config.get("candidHealth.clientSecret") as string
@@ -327,8 +335,11 @@ export default class CandidService {
     }
   }
 
-  /** Create a coded encounter. */
-  async createCodedEncounterForAppointment(appointment: IEAAppointment) {
+  /** Create a coded encounter for an appointment. */
+  async createCodedEncounterForAppointment(
+    appointment: IEAAppointment,
+    initialAppointment?: IEAAppointment
+  ) {
     const user = await UserModel.findOne({
       eaCustomerId: appointment.eaCustomer.id,
     }).populate<{ provider: Provider }>("provider")
@@ -342,45 +353,168 @@ export default class CandidService {
     if (!provider)
       throw new ApolloError(`User ${user._id.toString()} has no provider.`)
 
-    const initialAppointment =
-      await this.appointmentService.getInitialAppointment(
-        appointment.eaCustomer.id
-      )
-    const input: InsuranceEligibilityInput = {
-      ...(user.insurance as any)?.toJSON(),
-      // groupId: user.insurance.groupId,
-      // groupName: user.insurance.groupName,
-      // memberId: user.insurance.memberId,
-      // insuranceCompany: user.insurance.insuranceCompany,
-      // rxBin: user.insurance.rxBin,
-      // rxGroup: user.insurance.rxGroup,
-      // payor: user.insurance.payor,
-      userId: user._id.toString(),
-    }
+    const isInitialAppointment =
+      !initialAppointment ||
+      initialAppointment.eaAppointmentId === appointment.eaAppointmentId
+
+    // if a follow-up appointment, retrieve the initial claim to find the procedure code.
+    const initialEncounter = isInitialAppointment
+      ? null
+      : await this.getEncounterForAppointment(initialAppointment, user)
+
+    const initialProcedureCode: string | null =
+      initialEncounter?.clinical_notes
+        ?.find((note) => note.category === "procedure")
+        ?.notes[0]?.trim() ?? null
+
+    const timestamp = dayjs.tz(appointment.start, appointment.timezone).toDate()
+
+    // prevent DuplicateEncounterException in development
+    const sandboxExternalId =
+      process.env.NODE_ENV === "development"
+        ? `-${Math.floor(Math.random() * 1e5)}`
+        : ""
 
     return await this.createCodedEncounter(
       user,
       provider,
-      appointment,
-      input,
-      initialAppointment
+      user.insurance,
+      CodedEncounterSource.Appointment,
+      "Obesity management",
+      timestamp,
+      `${user._id.toString()}-${
+        appointment.eaAppointmentId
+      }${sandboxExternalId}`,
+      {
+        // whether this is the initial appointment
+        initial: isInitialAppointment,
+        // procedure code for the initial appointment
+        initialProcedureCode,
+      },
+      // 95 - Synchronous Telemedicine Service Rendered via a Real-Time Interactive Audio and Video Telecommunications System
+      {
+        serviceLineModifier: "95",
+        placeOfServiceCode: "10",
+      }
     )
   }
 
   /**
-   * Create a insurance billing request for a coded encounter (from appointment).
+   * Creates a coded encounter for the user and given parameters, if the criteria indicate to do so.
+   * Otherwise, returns null.
    */
-  async createCodedEncounter(
+  async createCodedEncounterForScaleEvent(
+    /** The user. */
     user: User,
+    /** The provider. */
     provider: Provider,
-    appointment: IEAAppointment,
-    input: InsuranceEligibilityInput,
-    initialAppointment?: IEAAppointment
+    /** All user weights including the newest. */
+    weights: Weight[]
+  ) {
+    const currentMonth = dayjs().tz(user.timezone).format("YYYY-MM")
+
+    const currentMonthWeights = weights
+      .filter(({ scale }) => scale)
+      .filter(({ date, scale }) => {
+        const scaleMonth = dayjs(date).tz(user.timezone).format("YYYY-MM")
+        return scale && currentMonth === scaleMonth
+      })
+    const firstMeasurement =
+      weights.findIndex((weight) => weight.scale) === weights.length - 1
+    const currentMonthMeasurements = currentMonthWeights.length
+    const newWeight = weights.slice(-1)[0]
+
+    if (firstMeasurement || currentMonthMeasurements === 16) {
+      // prevent DuplicateEncounterException in development
+      const sandboxExternalId =
+        process.env.NODE_ENV === "development"
+          ? `-${Math.floor(Math.random() * 1e5)}`
+          : ""
+      const measurementNote = firstMeasurement
+        ? "First measurement with scale."
+        : "16th measurement in current month with scale."
+
+      const externalIdMarker = firstMeasurement
+        ? "firstreading"
+        : "16-" + dayjs.tz(newWeight.date, user.timezone).format("YYYY-MM")
+      return await this.createCodedEncounter(
+        user,
+        provider,
+        user.insurance,
+        CodedEncounterSource.Scale,
+        "Obesity management",
+        newWeight.date,
+        `${user._id.toString()}-scale-${externalIdMarker}${sandboxExternalId}`,
+        {
+          firstMeasurement,
+          currentMonthMeasurements,
+        },
+        {
+          placeOfServiceCode: "10",
+          serviceLineModifier: "95",
+          additionalClinicalNotes: [
+            {
+              category: "patient_info",
+              notes: [
+                {
+                  author_name: `${provider.firstName} ${provider.lastName}`,
+                  author_npi: provider.npi,
+                  text: `Weight reading: ${newWeight.value}lbs. ${measurementNote}`,
+                  timestamp: newWeight.date.toISOString(),
+                },
+              ],
+            },
+          ],
+        }
+      )
+    } else {
+      return null
+    }
+  }
+
+  /** Create a coded encounter with the given information. */
+  async createCodedEncounter(
+    /** The patient. */
+    user: User,
+    /** The provider. */
+    provider: Provider,
+    /** Insurance information. */
+    insurance: Insurance,
+    /**
+     * The source or reason for billing, sent to candidSettings during cost and
+     * procedure code calculation.
+     */
+    source: CodedEncounterSource,
+    /** A description note for the event. */
+    description: string,
+    /** When the event occurred. */
+    timestamp: Date,
+    /** An external ID to reference the encounter. */
+    externalId: string,
+    /**
+     * A map of source-specific values to include in diagnosis, cost, and procedure code calculation.
+     * The user's bmi, comorbidities, state,
+     * @see candidHealth.development.ts
+     * @see candidHealth.production.ts
+     */
+    conditionsValues: Record<string, any>,
+    encounterParams: {
+      /**
+       * Place of service code.
+       * @see https://www.cms.gov/Medicare/Coding/place-of-service-codes/Place_of_Service_Code_Set
+       */
+      placeOfServiceCode: string
+      /** Additional clinical notes. */
+      additionalClinicalNotes?: RequestClinicalNote[]
+      /** Service line modifier. */
+      serviceLineModifier: string
+    }
   ) {
     await this.authenticate()
 
-    // calculate the billing provider for the claim
     const settings: SettingsList = config.get("candidHealth.settings")
+
+    // calculate the billing provider for the claim
     const {
       billingProvider,
     }: { billingProvider?: CandidRequestBillingProvider } = calculateSetting(
@@ -414,28 +548,14 @@ export default class CandidService {
     const latestWeight =
       Number(user.weights[user.weights.length - 1]?.value) ?? null
 
-    const isInitialAppointment =
-      !initialAppointment ||
-      initialAppointment.eaAppointmentId === appointment.eaAppointmentId
-
     // calculate BMI
     const bmi = calculateBMI(latestWeight, user.heightInInches)
 
-    // if a follow-up appointment, retrieve the initial claim to find the procedure code.
-    const initialEncounter = isInitialAppointment
-      ? null
-      : await this.getEncounterForAppointment(initialAppointment, user)
-
-    const initialProcedureCode: string | undefined =
-      initialEncounter?.clinical_notes
-        ?.find((note) => note.category === "procedure")
-        ?.notes[0]?.trim() ?? null
-
-    const calculationCriteria = {
+    const calculationCriteria: Record<string, any> = {
+      source,
       bmi,
       comorbidities: comorbidities.length,
-      initial: isInitialAppointment,
-      initialProcedureCode,
+      ...conditionsValues,
     }
 
     const {
@@ -507,14 +627,12 @@ export default class CandidService {
     }
 
     const encounterRequest: CandidCreateCodedEncounterRequest = {
-      external_id: `${user._id.toString()}-${appointment.eaAppointmentId}`,
-      date_of_service: dayjs
-        .tz(appointment.start, appointment.timezone)
-        .format("YYYY-MM-DD"),
+      external_id: externalId,
+      date_of_service: dayjs.tz(timestamp, user.timezone).format("YYYY-MM-DD"),
       patient_authorized_release: true,
       benefits_assigned_to_provider: true,
       provider_accepts_assignment: true,
-      appointment_type: "Obesity Management",
+      appointment_type: description,
       billing_provider: billingProvider,
       rendering_provider: {
         first_name: provider.firstName,
@@ -528,12 +646,12 @@ export default class CandidService {
         patient_relationship_to_subscriber_code: "18", // Self
         address: patientAddress,
         insurance_card: {
-          member_id: input.memberId,
-          payer_id: input.payor,
-          payer_name: input.insuranceCompany,
-          group_number: input.groupId,
-          rx_bin: input.rxBin,
-          rx_pcn: input.rxGroup,
+          member_id: insurance.memberId,
+          payer_id: insurance.payor,
+          payer_name: insurance.insuranceCompany,
+          group_number: insurance.groupId,
+          rx_bin: insurance.rxBin,
+          rx_pcn: insurance.rxGroup,
         },
       },
       patient: {
@@ -553,10 +671,10 @@ export default class CandidService {
         },
       ],
       // See https://www.cms.gov/Medicare/Coding/place-of-service-codes/Place_of_Service_Code_Set
-      place_of_service_code: "10",
+      place_of_service_code: encounterParams.placeOfServiceCode, // Telehealth provided in patient's home
       service_lines: [
         {
-          modifiers: ["95"], // 95 - Synchronous Telemedicine Service Rendered via a Real-Time Interactive Audio and Video Telecommunications System
+          modifiers: [encounterParams.serviceLineModifier],
           procedure_code: procedureCode,
           quantity: "1",
           units: "UN",
@@ -572,9 +690,7 @@ export default class CandidService {
             {
               author_name: `${provider.firstName} ${provider.lastName}`,
               text: "Obesity management",
-              timestamp: dayjs
-                .tz(appointment.end, appointment.timezone)
-                .toISOString(),
+              timestamp: dayjs.tz(timestamp, user.timezone).toISOString(),
               author_npi: provider.npi,
             },
           ],
@@ -585,9 +701,7 @@ export default class CandidService {
             {
               text: procedureCode,
               author_name: "System Generated Notes",
-              timestamp: dayjs
-                .tz(new Date(), appointment.timezone)
-                .toISOString(),
+              timestamp: dayjs.tz(new Date(), user.timezone).toISOString(),
             },
           ],
         },
@@ -599,15 +713,14 @@ export default class CandidService {
                   {
                     author_name: `${provider.firstName} ${provider.lastName}`,
                     text: previousConditionsText,
-                    timestamp: dayjs
-                      .tz(appointment.end, appointment.timezone)
-                      .toISOString(),
+                    timestamp: dayjs.tz(timestamp, user.timezone).toISOString(),
                     author_npi: provider.npi,
                   },
                 ],
               },
             ]
           : []),
+        ...(encounterParams.additionalClinicalNotes ?? []),
       ],
     }
 

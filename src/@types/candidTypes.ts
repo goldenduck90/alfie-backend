@@ -691,17 +691,7 @@ export interface CandidCreateCodedEncounterRequest {
   }[]
 
   /** Can be used to send clinical notes in the case that Candid is reviewing your coding using your notes. */
-  clinical_notes?: {
-    /** Enum: "clinical" "care_plan" "diagnoses" "vitals" "physical_exam" "review_of_systems" "medical_decisions" "history_of_present_illness" "patient_info" "chief_complaint" "health_record" "consent" "procedure" "time_in_appointment". */
-    category: string
-    notes: {
-      text: string
-      author_name: string
-      author_npi?: string
-      /** ISO 8601 timestamp. */
-      timestamp: string
-    }[]
-  }[]
+  clinical_notes?: RequestClinicalNote[]
 
   /** Spot to store misc, human - readable, notes about this encounter to be used in the billing process. */
   billing_notes?: {
@@ -940,4 +930,16 @@ export interface CandidEncodedEncounterResponse {
   /** Enum: "CANDID" "CUSTOMER" "TCN" */
   coding_attribution: string
   work_queue?: string
+}
+
+export interface RequestClinicalNote {
+  /** Enum: "clinical" "care_plan" "diagnoses" "vitals" "physical_exam" "review_of_systems" "medical_decisions" "history_of_present_illness" "patient_info" "chief_complaint" "health_record" "consent" "procedure" "time_in_appointment". */
+  category: string
+  notes: {
+    text: string
+    author_name: string
+    author_npi?: string
+    /** ISO 8601 timestamp. */
+    timestamp: string
+  }[]
 }

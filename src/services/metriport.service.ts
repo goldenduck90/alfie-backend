@@ -3,6 +3,12 @@ import { MetriportDevicesApi } from "@metriport/api"
 import { UserModel } from "../schema/user.schema"
 import { MetriportConnectResponse } from "../schema/metriport.schema"
 
+export interface MetriportUser {
+  userId: string
+  body?: {
+    weight_kg: number
+  }[]
+}
 class MetriportService {
   private client: MetriportDevicesApi
 

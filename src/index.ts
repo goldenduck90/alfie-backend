@@ -17,14 +17,12 @@ import resolvers from "./resolvers"
 import { ProviderModel } from "./schema/provider.schema"
 import { UserModel } from "./schema/user.schema"
 import Role from "./schema/enums/Role"
-import { UserNumberAnswer, UserTaskModel } from "./schema/task.user.schema"
-import { AnswerType } from "./schema/enums/AnswerType"
-import { TaskType, Task, TaskModel } from "./schema/task.schema"
 import Context from "./types/context"
 import { connectToMongo } from "./utils/mongo"
 import * as cron from "node-cron"
 import UserService from "./services/user.service"
 import AppointmentService from "./services/appointment.service"
+import { MetriportUser } from "./services/metriport.service"
 import stripe from "stripe"
 import { CheckoutModel } from "./schema/checkout.schema"
 import config from "config"
@@ -33,6 +31,7 @@ const Stripe = new stripe(process.env.STRIPE_SECRET_KEY, {
   apiVersion: "2022-08-01",
 })
 const userService = new UserService()
+const appointmentService = new AppointmentService()
 
 async function bootstrap() {
   const path = "/graphql"
@@ -783,6 +782,7 @@ async function bootstrap() {
         const mapToEmails = filteredEmailsToSendToBasedOnRole.map(
           (user: any) => user.email
         )
+
         const params = {
           Source: "no-reply@joinalfie.com",
           Destination: {
@@ -870,7 +870,6 @@ async function bootstrap() {
 
   app.post("/metriportWebhooks", express.json(), async (req, res) => {
     console.log(req.body)
-    const time = new Date().toString()
     try {
       const key = req.get("x-webhook-key")
       if (key !== process.env.METRIPORT_WEBHOOK_KEY) {
@@ -891,57 +890,22 @@ async function bootstrap() {
         })
       }
 
+      const date = new Date()
+
       await Promise.all(
-        users.map(async (user: any) => {
-          const { userId, body } = user
+        users.map(async (metriportUser: MetriportUser) => {
+          const { userId, body } = metriportUser
           if (body?.[0]?.weight_kg) {
             const weightLbs = Math.floor(body[0].weight_kg * 2.2)
-            const weight = {
-              value: weightLbs,
-              date: new Date(),
-            }
-
-            const _user = await UserModel.findOneAndUpdate(
-              { metriportUserId: userId },
-              { $push: { weights: weight }, $set: { hasScale: true } },
-              { returnDocument: "after" }
+            await userService.processWithingsScaleReading(
+              userId,
+              weightLbs,
+              date
             )
-
-            const userTasks = await UserTaskModel.find({
-              user: _user._id,
-            }).populate("task")
-            let weightLogTask = userTasks.find((userTask) => {
-              const task = userTask.task as Task
-              task.type === TaskType.WEIGHT_LOG && !userTask.completed
-            })
-            const userAnswer = {
-              key: "Weight from withings",
-              value: weightLbs,
-              type: AnswerType.NUMBER,
-            } as UserNumberAnswer
-            if (weightLogTask) {
-              weightLogTask.completed = true
-              weightLogTask.answers = [...weightLogTask.answers, userAnswer]
-              await weightLogTask.save()
-            } else {
-              const task = await TaskModel.findOne({
-                type: TaskType.WEIGHT_LOG,
-              })
-              const userTask = {
-                user: _user,
-                task: task,
-                completed: true,
-                answers: [userAnswer],
-              }
-              weightLogTask = await UserTaskModel.create(userTask)
-            }
-
-            const message = `[METRIPORT WEBHOOK][TIME: ${time}] Successfully updated weight for user: ${_user._id} - ${weightLbs}lbs`
-            console.log(message)
-            Sentry.captureMessage(message)
           }
         })
       )
+
       return res.status(200).send({ message: "Webhook processed successfully" })
     } catch (err) {
       console.log(err)
@@ -963,17 +927,16 @@ async function bootstrap() {
 
 // run task job
 cron.schedule("0 0 * * *", async () => {
-  console.log("[TASK JOB] RUNNING...")
+  console.log(`[TASK JOB][${new Date().toString()}] RUNNING...`)
   await userService.taskJob()
-  console.log("[TASK JOB] COMPLETED")
+  console.log(`[TASK JOB][${new Date().toString()}] COMPLETED`)
 })
 
 // run appointment attendance job
 cron.schedule("*/30 * * * *", async () => {
-  console.log("[APPOINTMENT ATTENDED JOB] RUNNING...")
-  const appointmentService = new AppointmentService()
+  console.log(`[APPOINTMENT ATTENDED JOB][${new Date().toString()}] RUNNING...`)
   await appointmentService.postAppointmentJob()
-  console.log("[APPOINTMENT ATTENDED JOB] COMPLETED")
+  console.log(`[APPOINTMENT ATTENDED JOB][${new Date().toString()}] COMPLETED`)
 })
 
 bootstrap()
