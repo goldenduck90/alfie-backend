@@ -9,6 +9,7 @@ const providers = [
   "63cb17cc119c2a9593a21df6",
   "63d324a7acbc4c53b3b1dcb4",
   "634f85f8ed227ada5a4c1414",
+  "6410a10bd4daa382b4fe0644",
 ]
 
 const providerService = new ProviderService()
