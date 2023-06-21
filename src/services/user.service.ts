@@ -198,7 +198,7 @@ class UserService extends EmailService {
       signupPartner,
     } = input
 
-    const existingUser = await UserModel.find().findByEmail(email).lean()
+    const existingUser = await UserModel.find().findByEmail(email)
     if (existingUser) {
       throw new ApolloError(alreadyExists.message, alreadyExists.code)
     }
@@ -511,7 +511,7 @@ class UserService extends EmailService {
     const forgotPasswordMessage = config.get("messages.forgotPassword")
 
     // Get our user by email
-    const dbUser = await UserModel.find().findByEmail(email).lean()
+    const dbUser = await UserModel.find().findByEmail(email)
     const dbProvider = !dbUser
       ? await ProviderModel.find().findByEmail(email).lean()
       : null
@@ -556,7 +556,7 @@ class UserService extends EmailService {
       "messages.completedRegistration"
     )
 
-    const dbUser = await UserModel.find().findByEmailToken(token).lean()
+    const dbUser = await UserModel.find().findByEmailToken(token)
     const dbProvider = dbUser
       ? null
       : await ProviderModel.find().findByEmailToken(token).lean()

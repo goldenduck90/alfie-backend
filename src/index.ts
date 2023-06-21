@@ -163,6 +163,7 @@ async function bootstrap() {
             dataObject.customer !== null
               ? dataObject.customer.id
               : dataObject.customer
+
           const paymentMethodId =
             typeof dataObject.payment_method === "object" &&
             dataObject.payment_method !== null
@@ -620,63 +621,73 @@ async function bootstrap() {
             }
 
             try {
-              const newUser = await userService.createUser({
-                name: pICheckout.name,
-                textOptIn: pICheckout.textOptIn,
-                email: pICheckout.email,
-                phone: pICheckout.phone,
-                dateOfBirth: pICheckout.dateOfBirth,
-                address: pICheckout.shippingAddress,
-                weightInLbs: pICheckout.weightInLbs,
-                gender: pICheckout.gender,
-                heightInInches: pICheckout.heightInInches,
+              const pIExistingUser = await UserModel.findOne({
                 stripeCustomerId: pICId,
-                stripePaymentIntentId: pIId,
-                stripeSubscriptionId: null,
               })
+              let newUser
+              if (pIExistingUser) {
+                newUser = pIExistingUser
+              } else {
+                const pINewUser = await userService.createUser({
+                  name: pICheckout.name,
+                  textOptIn: pICheckout.textOptIn,
+                  email: pICheckout.email,
+                  phone: pICheckout.phone,
+                  dateOfBirth: pICheckout.dateOfBirth,
+                  address: pICheckout.shippingAddress,
+                  weightInLbs: pICheckout.weightInLbs,
+                  gender: pICheckout.gender,
+                  heightInInches: pICheckout.heightInInches,
+                  stripeCustomerId: pICId,
+                  stripePaymentIntentId: pIId,
+                  stripeSubscriptionId: null,
+                })
 
-              await Stripe.paymentIntents.update(pICId, {
+                newUser = pINewUser.user
+              }
+
+              await Stripe.paymentIntents.update(pIId, {
                 metadata: {
-                  USER_ID: newUser.user._id,
+                  USER_ID: newUser._id,
                   UPDATED_VIA_STRIPE_WEBHOOK_ON: new Date().toString(),
                 },
               })
               await Stripe.customers.update(pICId, {
                 metadata: {
-                  USER_ID: newUser.user._id,
+                  USER_ID: newUser._id,
                   UPDATED_VIA_STRIPE_WEBHOOK_ON: new Date().toString(),
                 },
               })
 
               console.log(
-                `[STRIPE WEBHOOK][TIME: ${time}][EVENT: payment_intent.succeeded] Successfully Created User (${newUser.user._id}) from Checkout with stripe payment intent id: ${pIId}`
+                `[STRIPE WEBHOOK][TIME: ${time}][EVENT: payment_intent.succeeded] Successfully Created User (${newUser._id}) from Checkout with stripe payment intent id: ${pIId}`
               )
               console.log(
                 JSON.stringify({
                   stripePaymentIntentId: pIId,
                   stripeCustomerId: pICId,
-                  newUserId: newUser.user._id,
+                  newUserId: newUser._id,
                   checkoutId: pICheckout._id,
                 })
               )
               Sentry.captureMessage(
-                `[STRIPE WEBHOOK][TIME: ${time}][EVENT: payment_intent.succeeded] Successfully Updated User (${newUser.user._id}) with stripe payment intent id: ${pIId}`,
+                `[STRIPE WEBHOOK][TIME: ${time}][EVENT: payment_intent.succeeded] Successfully Updated User (${newUser._id}) with stripe payment intent id: ${pIId}`,
                 {
                   tags: {
                     stripePaymentIntentId: pIId,
                     stripeCustomerId: pICId,
-                    newUserId: newUser.user._id,
+                    newUserId: newUser._id,
                     checkoutId: pICheckout._id,
                   },
                 }
               )
               return res.status(201).send({
                 code: 201,
-                message: `[STRIPE WEBHOOK][TIME: ${time}][EVENT: payment_intent.succeeded] Successfully Updated User (${newUser.user._id}) with stripe payment intent id: ${pIId}`,
+                message: `[STRIPE WEBHOOK][TIME: ${time}][EVENT: payment_intent.succeeded] Successfully Updated User (${newUser._id}) with stripe payment intent id: ${pIId}`,
                 data: {
                   stripePaymentIntentId: pIId,
                   stripeCustomerId: pICId,
-                  newUserId: newUser.user._id,
+                  newUserId: newUser._id,
                   checkoutId: pICheckout._id,
                 },
               })
@@ -1253,7 +1264,7 @@ async function bootstrap() {
         })
       }
 
-      const date = new Date()
+      // const date = new Date()
 
       await Promise.all(
         users.map(async (metriportUser: MetriportUser) => {
