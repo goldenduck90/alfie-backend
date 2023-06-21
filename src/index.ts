@@ -527,7 +527,7 @@ async function bootstrap() {
               pIExistingUser.subscriptionExpiresAt = new Date()
               await pIExistingUser.save()
 
-              await Stripe.paymentIntents.update(pICId, {
+              await Stripe.paymentIntents.update(pIId, {
                 metadata: {
                   USER_ID: pIExistingUser._id,
                   UPDATED_VIA_STRIPE_WEBHOOK_ON: new Date().toString(),
