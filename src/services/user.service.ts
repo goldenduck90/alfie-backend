@@ -49,6 +49,7 @@ import {
   File,
   User,
   FileType,
+  Partner,
 } from "../schema/user.schema"
 import Role from "../schema/enums/Role"
 import { signJwt } from "../utils/jwt"
@@ -137,11 +138,22 @@ class UserService extends EmailService {
     await user.save()
 
     // send email with link to set password
-    const sent = await this.sendRegistrationEmailTemplate({
-      email: user.email,
-      token: emailToken,
-      name: user.name,
-    })
+    let sent
+    if (user.signupPartner === Partner.OPTAVIA) {
+      //TODO: Send OPTAVIA specific registration email, use the same email for now
+      sent = await this.sendRegistrationEmailTemplate({
+        email: user.email,
+        token: emailToken,
+        name: user.name,
+      })
+    } else {
+      sent = await this.sendRegistrationEmailTemplate({
+        email: user.email,
+        token: emailToken,
+        name: user.name,
+      })
+    }
+
     if (!sent) {
       throw new ApolloError(emailSendError.message, emailSendError.code)
     }
@@ -181,6 +193,9 @@ class UserService extends EmailService {
       metriportUserId,
       providerId,
       textOptIn,
+      insurancePlan,
+      insuranceType,
+      signupPartner,
     } = input
 
     const existingUser = await UserModel.find().findByEmail(email).lean()
@@ -284,6 +299,9 @@ class UserService extends EmailService {
       akutePatientId: patientId,
       provider: provider._id,
       textOptIn,
+      insurancePlan,
+      insuranceType,
+      signupPartner,
     })
     if (!user) {
       throw new ApolloError(unknownError.message, unknownError.code)
@@ -360,6 +378,7 @@ class UserService extends EmailService {
       manual,
       name,
     })
+
     if (!sent) {
       throw new ApolloError(emailSendError.message, emailSendError.code)
     }
@@ -1203,15 +1222,22 @@ class UserService extends EmailService {
       ...(customer && { customer: customer.id }),
     }
 
-    // create payment intent
-    if (setupIntent && setupIntent.status !== "canceled") {
-      setupIntent = await this.stripeSdk.setupIntents.update(setupIntent.id, {
-        ...setupIntentDetails,
-      })
-    } else {
-      setupIntent = await this.stripeSdk.setupIntents.create({
-        ...setupIntentDetails,
-      })
+    try {
+      // create payment intent
+      if (
+        setupIntent &&
+        !["canceled", "requires_payment_method"].includes(setupIntent.status)
+      ) {
+        setupIntent = await this.stripeSdk.setupIntents.update(setupIntent.id, {
+          ...setupIntentDetails,
+        })
+      } else {
+        setupIntent = await this.stripeSdk.setupIntents.create({
+          ...setupIntentDetails,
+        })
+      }
+    } catch (err) {
+      throw new ApolloError("Setting up stripe intent failed!")
     }
 
     // update checkout with stripe info
@@ -1244,7 +1270,6 @@ class UserService extends EmailService {
       phone,
       pastTries,
       weightLossMotivatorV2,
-      address,
       insurancePlan,
       insuranceType,
       signupPartner,
@@ -1268,7 +1293,6 @@ class UserService extends EmailService {
       checkout.textOptIn = textOptIn
       checkout.phone = phone
       checkout.pastTries = pastTries
-      checkout.shippingAddress = address
       checkout.insurancePlan = insurancePlan
       checkout.insuranceType = insuranceType
       checkout.signupPartner = signupPartner
@@ -1318,7 +1342,6 @@ class UserService extends EmailService {
       insurancePlan,
       insuranceType,
       signupPartner,
-      shippingAddress: address,
     })
 
     // return new checkout
@@ -1655,8 +1678,7 @@ class UserService extends EmailService {
    */
   async processWithingsScaleReading(
     metriportUserId: string,
-    weightLbs: number,
-    date: Date = new Date()
+    weightLbs: number
   ): Promise<{ user: User; userTask: UserTask }> {
     const user = await UserModel.findOne({ metriportUserId }).populate<{
       provider: Provider

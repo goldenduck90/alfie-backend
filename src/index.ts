@@ -895,6 +895,9 @@ async function bootstrap() {
                 stripeCustomerId: sCCId,
                 stripeSubscriptionId: sCId,
                 subscriptionExpiresAt: new Date(),
+                insurancePlan: sCCheckout.insurancePlan,
+                insuranceType: sCCheckout.insuranceType,
+                signupPartner: sCCheckout.signupPartner,
               })
 
               await Stripe.subscriptions.update(sCId, {
@@ -1256,11 +1259,7 @@ async function bootstrap() {
           const { userId, body } = metriportUser
           if (body?.[0]?.weight_kg) {
             const weightLbs = Math.floor(body[0].weight_kg * 2.2)
-            await userService.processWithingsScaleReading(
-              userId,
-              weightLbs,
-              date
-            )
+            await userService.processWithingsScaleReading(userId, weightLbs)
           }
         })
       )

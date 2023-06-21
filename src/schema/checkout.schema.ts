@@ -208,9 +208,6 @@ export class CreateCheckoutInput {
   @Field(() => [String])
   pastTries: string[]
 
-  @Field(() => Address, { nullable: true })
-  address?: Address
-
   @Field(() => InsurancePlan, { nullable: true })
   insurancePlan?: InsurancePlan
 

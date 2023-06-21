@@ -736,6 +736,15 @@ export class CreateUserInput {
     description: "If not provided, will be set when scale is activated.",
   })
   metriportUserId?: string
+
+  @Field(() => InsurancePlan, { nullable: true })
+  insurancePlan?: InsurancePlan
+
+  @Field(() => InsuranceType, { nullable: true })
+  insuranceType?: InsuranceType
+
+  @Field(() => Partner, { nullable: true })
+  signupPartner?: Partner
 }
 
 @InputType()
