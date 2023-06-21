@@ -32,7 +32,11 @@ import {
 } from "../schema/checkout.schema"
 import { ProviderModel, Provider } from "../schema/provider.schema"
 import { AllTaskEmail, Task, TaskEmail, TaskType } from "../schema/task.schema"
-import { UserNumberAnswer, UserTaskModel } from "../schema/task.user.schema"
+import {
+  UserNumberAnswer,
+  UserTaskModel,
+  UserTask,
+} from "../schema/task.user.schema"
 import {
   CreateUserInput,
   ForgotPasswordInput,
@@ -174,6 +178,7 @@ class UserService extends EmailService {
       stripeCustomerId,
       subscriptionExpiresAt,
       stripeSubscriptionId,
+      metriportUserId,
       providerId,
       textOptIn,
     } = input
@@ -216,20 +221,28 @@ class UserService extends EmailService {
     const firstName = name.split(" ")[0] || ""
     const lastName = splitName ? splitName[splitName.length - 1] : ""
 
-    const patientId = await this.akuteService.createPatient({
-      firstName,
-      lastName,
-      email,
-      phone,
-      dateOfBirth,
-      address,
-      sex: gender,
-    })
-    if (!patientId) {
-      throw new ApolloError(
-        `An error occured for creating a patient entry in Akute for: ${email}`,
-        "INTERNAL_SERVER_ERROR"
-      )
+    let patientId: string
+    try {
+      patientId = await this.akuteService.createPatient({
+        firstName,
+        lastName,
+        email,
+        phone,
+        dateOfBirth,
+        address,
+        sex: gender,
+      })
+      if (!patientId) {
+        const message = `UserService.createUser: An error occured for creating a patient entry in Akute for: ${email}`
+        console.log(message)
+        Sentry.captureEvent({
+          message,
+          level: "error",
+        })
+      }
+    } catch (error) {
+      console.log(error.message)
+      Sentry.captureException(error)
     }
 
     const customerId = await this.appointmentService.createCustomer({
@@ -266,6 +279,7 @@ class UserService extends EmailService {
       stripeCustomerId,
       subscriptionExpiresAt,
       stripeSubscriptionId,
+      metriportUserId,
       eaCustomerId: customerId,
       akutePatientId: patientId,
       provider: provider._id,
@@ -1643,18 +1657,10 @@ class UserService extends EmailService {
     metriportUserId: string,
     weightLbs: number,
     date: Date = new Date()
-  ) {
-    const weight: Weight = {
-      value: weightLbs,
-      date,
-      scale: true,
-    }
-
-    const user = await UserModel.findOneAndUpdate(
-      { metriportUserId },
-      { $push: { weights: weight }, $set: { hasScale: true } },
-      { new: true }
-    ).populate<{ provider: Provider }>("provider")
+  ): Promise<{ user: User; userTask: UserTask }> {
+    const user = await UserModel.findOne({ metriportUserId }).populate<{
+      provider: Provider
+    }>("provider")
 
     if (!user) {
       const message = `[METRIPORT][TIME: ${new Date().toString()}] User not found for metriport ID: ${metriportUserId}`
@@ -1665,35 +1671,36 @@ class UserService extends EmailService {
       })
     }
 
-    const userTasks = await UserTaskModel.find({
+    const task = await TaskModel.findOne({ type: TaskType.WEIGHT_LOG })
+    const incompleteUserTask = await UserTaskModel.findOne({
       user: user._id,
-    }).populate<{ task: Task }>("task")
+      task: task._id,
+      completed: false,
+    })
 
-    const weightLogTask = userTasks.find(
-      ({ task, completed }) => task.type === TaskType.WEIGHT_LOG && !completed
-    )
-
-    const userAnswer = {
-      key: "withingsWeight",
+    const userAnswer: UserNumberAnswer = {
+      key: "scaleWeight",
       value: weightLbs,
       type: AnswerType.NUMBER,
-    } as UserNumberAnswer
+    }
 
-    if (weightLogTask) {
-      weightLogTask.completed = true
-      weightLogTask.answers = [...weightLogTask.answers, userAnswer]
-      await weightLogTask.save()
-    } else {
-      const task = await TaskModel.findOne({
-        type: TaskType.WEIGHT_LOG,
-      })
-
-      await UserTaskModel.create({
-        user,
-        task,
-        completed: true,
+    let userTask: UserTask
+    if (incompleteUserTask) {
+      userTask = await this.taskService.completeUserTask({
+        _id: incompleteUserTask._id.toString(),
         answers: [userAnswer],
       })
+    } else {
+      const errorMessage = `No uncompleted weight log task for user: ${
+        user._id
+      } - Could not record scale reading: ${JSON.stringify(userAnswer)}`
+      const message = `[METRIPORT][TIME: ${new Date().toString()}] ${errorMessage}`
+      console.log(message)
+      Sentry.captureEvent({
+        message,
+        level: "warning",
+      })
+      throw new ApolloError(errorMessage)
     }
 
     const message = `[METRIPORT][TIME: ${new Date().toString()}] Successfully updated weight for user: ${
@@ -1705,7 +1712,7 @@ class UserService extends EmailService {
     // if not a cash pay user, bill for first measurement, and 16th measurement in month
     if (!user.stripeSubscriptionId) {
       console.log(
-        `Processing insurance for withings scale reading: ${weightLbs}`
+        `UserService.processWithingsScaleReading: Creating coded encounter for user ${user._id}`
       )
       await this.candidService.createCodedEncounterForScaleEvent(
         user,
@@ -1713,8 +1720,12 @@ class UserService extends EmailService {
         user.weights
       )
     } else {
-      console.log("No insurance processing, has stripe subscription")
+      console.log(
+        "UserService.processWithingsScaleReading: No insurance processing for scale event, user has stripe subscription."
+      )
     }
+
+    return { user, userTask }
   }
 }
 

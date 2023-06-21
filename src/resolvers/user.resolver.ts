@@ -20,6 +20,7 @@ import {
   UserSendbirdChannel,
   InsuranceEligibilityInput,
   InsuranceEligibilityResponse,
+  ScaleReadingInput,
 } from "../schema/user.schema"
 import Role from "../schema/enums/Role"
 import AkuteService from "../services/akute.service"
@@ -41,8 +42,9 @@ export default class UserResolver {
 
   @Authorized([Role.Admin])
   @Mutation(() => User)
-  createUser(@Arg("input") input: CreateUserInput) {
-    return this.userService.createUser(input)
+  async createUser(@Arg("input") input: CreateUserInput) {
+    const { user } = await this.userService.createUser(input)
+    return user
   }
 
   @Mutation(() => LoginResponse) // returns the jwt
@@ -146,6 +148,7 @@ export default class UserResolver {
     return this.userService.sendbirdChannels(userId)
   }
 
+  @Authorized([Role.Admin, Role.Patient])
   @Query(() => InsuranceEligibilityResponse)
   async insuranceEligibility(
     @Arg("input") input: InsuranceEligibilityInput
@@ -161,5 +164,14 @@ export default class UserResolver {
   @Mutation(() => MetriportConnectResponse)
   generateMetriportConnectUrl(@Arg("userId") userId: string) {
     return this.metriportService.createConnectToken(userId)
+  }
+
+  @Mutation(() => User)
+  async recordScaleReading(@Arg("input") input: ScaleReadingInput) {
+    const { user } = await this.userService.processWithingsScaleReading(
+      input.metriportUserId,
+      input.weightLbs
+    )
+    return user
   }
 }

@@ -532,12 +532,23 @@ export default class CandidService {
       level: "info",
     })
 
-    const userTasksResult = await this.taskService.getUserTasks(
-      user._id.toString(),
-      { taskType: TaskType.NEW_PATIENT_INTAKE_FORM, completed: true, limit: 1 }
-    )
+    let userTasks: UserTask[]
+    try {
+      const { userTasks: userTasksResult } =
+        await this.taskService.getUserTasks(user._id.toString(), {
+          taskType: TaskType.NEW_PATIENT_INTAKE_FORM,
+          completed: true,
+          limit: 1,
+        })
 
-    const userIntake = userTasksResult.userTasks[0]
+      userTasks = userTasksResult
+    } catch (error) {
+      throw new ApolloError(
+        "The medical questionnaire must be filled out in order to process insurance claims."
+      )
+    }
+
+    const userIntake = userTasks[0]
 
     const comorbidities = await this.getConditions(
       user,
@@ -726,7 +737,9 @@ export default class CandidService {
 
     try {
       const logRequest = `Encoded encounter request: ${JSON.stringify(
-        encounterRequest
+        encounterRequest,
+        null,
+        "  "
       )}`
       console.log(logRequest)
       Sentry.captureMessage(logRequest)
@@ -739,8 +752,10 @@ export default class CandidService {
         )
 
       // log results
-      const logResponse = `Create encoded encounter result: ${JSON.stringify(
-        data
+      const logResponse = `Create coded encounter result: ${JSON.stringify(
+        data,
+        null,
+        "  "
       )}`
       console.log(logResponse)
       Sentry.captureMessage(logResponse)
@@ -748,7 +763,7 @@ export default class CandidService {
     } catch (error) {
       const errorData = error.response?.data
       Sentry.captureException({
-        message: "Candid Create Coded Encounter Error",
+        message: "Candid create coded encounter error",
         errorData,
       })
 

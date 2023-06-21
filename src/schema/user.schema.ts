@@ -730,6 +730,12 @@ export class CreateUserInput {
       "When the user's subscription expires. If not provided, the subscription won't be active.",
   })
   subscriptionExpiresAt?: Date
+
+  @Field(() => String, {
+    nullable: true,
+    description: "If not provided, will be set when scale is activated.",
+  })
+  metriportUserId?: string
 }
 
 @InputType()
@@ -1059,4 +1065,13 @@ export class InsuranceEligibilityInput {
 export class InsuranceEligibilityResponse {
   @Field(() => Boolean)
   eligible: boolean
+}
+
+@InputType()
+export class ScaleReadingInput {
+  @Field(() => String)
+  metriportUserId: string
+
+  @Field(() => Number)
+  weightLbs: number
 }
