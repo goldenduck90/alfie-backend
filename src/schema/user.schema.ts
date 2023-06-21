@@ -731,16 +731,19 @@ export class CreateUserInput {
   })
   subscriptionExpiresAt?: Date
 
+  @Field(() => String, {
+    nullable: true,
+    description: "If not provided, will be set when scale is activated.",
+  })
+  metriportUserId?: string
+
   @Field(() => InsurancePlan, { nullable: true })
-  @prop({ enum: InsurancePlan, type: String, required: false })
   insurancePlan?: InsurancePlan
 
   @Field(() => InsuranceType, { nullable: true })
-  @prop({ enum: InsuranceType, type: String, required: false })
   insuranceType?: InsuranceType
 
   @Field(() => Partner, { nullable: true })
-  @prop({ enum: Partner, type: String, required: false })
   signupPartner?: Partner
 }
 
@@ -1071,4 +1074,13 @@ export class InsuranceEligibilityInput {
 export class InsuranceEligibilityResponse {
   @Field(() => Boolean)
   eligible: boolean
+}
+
+@InputType()
+export class ScaleReadingInput {
+  @Field(() => String)
+  metriportUserId: string
+
+  @Field(() => Number)
+  weightLbs: number
 }

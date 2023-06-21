@@ -86,9 +86,7 @@ class AkuteService {
         ...(address_line_2 && { address_line_2 }),
         address_city,
         address_state,
-        address_zipcode: address_zipcode.includes("-")
-          ? address_zipcode.split("-")[0]
-          : address_zipcode,
+        address_zipcode: address_zipcode.slice(0, 5),
         email,
         primary_phone_number: primary_phone_number
           .replace("+1", "")
@@ -137,9 +135,14 @@ class AkuteService {
       if (!user) {
         throw new ApolloError("User not found", "NOT_FOUND")
       }
-      const data = await this.axios.get(
-        `/pharmacy?name=${input.name}&zip=${user.address.postalCode}`
-      )
+      const params: { name?: string; zip: string } = {
+        zip: user.address.postalCode,
+      }
+      if (input.name) {
+        params.name = input.name
+      }
+      const data = await this.axios.get("/pharmacy", { params })
+
       const pharmacyLocations = await Promise.all(
         data.data.map(async (pharmacy: any) => {
           const { lat, lng } = (await this.convertAddressToLatLng(

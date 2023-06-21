@@ -32,6 +32,7 @@ import { classifyUser } from "../PROAnalysis/classification"
 import { calculatePatientScores } from "../scripts/calculatePatientScores"
 import EmailService from "./email.service"
 import { calculateBMI } from "../utils/calculateBMI"
+import Role from "../schema/enums/Role"
 
 class TaskService {
   private akuteService: AkuteService
@@ -52,7 +53,7 @@ class TaskService {
     return task
   }
 
-  async getUserTask(id: string, userId?: string) {
+  async getUserTask(id: string, user?: User) {
     const { notFound, notPermitted } = config.get("errors.tasks") as any
     const userTask = await UserTaskModel.findById(id).populate("task")
     if (!userTask) {
@@ -63,7 +64,11 @@ class TaskService {
       throw new ApolloError(notFound.message, notFound.code)
     }
 
-    if (userId && userTask.user.toString() !== userId) {
+    if (
+      user &&
+      user.role !== Role.Admin &&
+      userTask.user.toString() !== user._id.toString()
+    ) {
       throw new ApolloError(notPermitted.message, notPermitted.code)
     }
 
@@ -93,7 +98,7 @@ class TaskService {
     }
 
     const userTasksCount = await UserTaskModel.find({
-      user: userId,
+      user: input.userId ?? userId,
     })
       .where(where)
       .countDocuments()
@@ -346,19 +351,17 @@ class TaskService {
     }
   }
 
-  async completeUserTask(input: CompleteUserTaskInput) {
+  async completeUserTask(input: CompleteUserTaskInput): Promise<UserTask> {
     try {
       // Get the user task, throw an error if it is not found
       const { notFound } = config.get("errors.tasks") as any
       const { _id, answers } = input
-      console.log("input", input)
-      console.log("answers", answers)
+      console.log(`Complete user task input: ${JSON.stringify(input)}`)
       const userTask = await UserTaskModel.findById(_id)
       if (!userTask) {
         throw new ApolloError(notFound.message, notFound.code)
       }
 
-      console.log("userTask", userTask)
       // Get the user and task documents
       const user = await UserModel.findById(userTask.user)
       const task = await TaskModel.findById(userTask.task)
@@ -466,10 +469,17 @@ class TaskService {
           break
         }
         case TaskType.WEIGHT_LOG: {
+          const weightAnswer =
+            (answers.find((a) => a.key === "weight") as UserNumberAnswer) ??
+            null
+          const scaleAnswer =
+            (answers.find(
+              (a) => a.key === "scaleWeight"
+            ) as UserNumberAnswer) ?? null
           const weight = {
             date: new Date(),
-            value: (answers.find((a) => a.key === "weight") as UserNumberAnswer)
-              .value,
+            value: scaleAnswer?.value ?? weightAnswer?.value ?? null,
+            scale: scaleAnswer !== null,
           }
           const bmi = calculateBMI(weight.value, user.heightInInches)
           user.weights.push(weight)
@@ -482,9 +492,7 @@ class TaskService {
           break
         }
       }
-      return {
-        ...userTask.toObject(),
-      }
+      return userTask
     } catch (error) {
       console.log(error, "error")
       console.error(error)

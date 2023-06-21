@@ -86,7 +86,7 @@ export default class TaskResolver {
   @Authorized([Role.Patient])
   @Query(() => UserTask)
   userTask(@Ctx() context: Context, @Arg("id") id: string) {
-    return this.taskService.getUserTask(id, context.user._id)
+    return this.taskService.getUserTask(id, context.user)
   }
 
   @Authorized([Role.Patient])
