@@ -298,6 +298,7 @@ async function bootstrap() {
             try {
               const stripePayment = await Stripe.paymentIntents.create({
                 customer: stripeCustomerId,
+                payment_method: paymentMethodId,
                 amount: 6900,
                 currency: "USD",
                 off_session: "one_off",
