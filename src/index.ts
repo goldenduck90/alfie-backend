@@ -301,7 +301,7 @@ async function bootstrap() {
                 payment_method: paymentMethodId,
                 amount: 6900,
                 currency: "USD",
-                off_session: "one_off",
+                off_session: true,
                 confirm: true,
                 description: "Alfie - One Time Fee",
                 metadata: {
