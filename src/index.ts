@@ -524,7 +524,7 @@ async function bootstrap() {
 
             if (pIExistingUser) {
               pIExistingUser.stripePaymentIntentId = pIId
-              pIExistingUser.subscriptionExpiresAt = null
+              pIExistingUser.subscriptionExpiresAt = new Date()
               await pIExistingUser.save()
 
               await Stripe.paymentIntents.update(pICId, {
@@ -621,30 +621,22 @@ async function bootstrap() {
             }
 
             try {
-              const pIExistingUser = await UserModel.findOne({
+              const pINewUser = await userService.createUser({
+                name: pICheckout.name,
+                textOptIn: pICheckout.textOptIn,
+                email: pICheckout.email,
+                phone: pICheckout.phone,
+                dateOfBirth: pICheckout.dateOfBirth,
+                address: pICheckout.shippingAddress,
+                weightInLbs: pICheckout.weightInLbs,
+                gender: pICheckout.gender,
+                heightInInches: pICheckout.heightInInches,
                 stripeCustomerId: pICId,
+                stripePaymentIntentId: pIId,
+                stripeSubscriptionId: null,
               })
-              let newUser
-              if (pIExistingUser) {
-                newUser = pIExistingUser
-              } else {
-                const pINewUser = await userService.createUser({
-                  name: pICheckout.name,
-                  textOptIn: pICheckout.textOptIn,
-                  email: pICheckout.email,
-                  phone: pICheckout.phone,
-                  dateOfBirth: pICheckout.dateOfBirth,
-                  address: pICheckout.shippingAddress,
-                  weightInLbs: pICheckout.weightInLbs,
-                  gender: pICheckout.gender,
-                  heightInInches: pICheckout.heightInInches,
-                  stripeCustomerId: pICId,
-                  stripePaymentIntentId: pIId,
-                  stripeSubscriptionId: null,
-                })
 
-                newUser = pINewUser.user
-              }
+              const newUser = pINewUser.user
 
               await Stripe.paymentIntents.update(pIId, {
                 metadata: {
