@@ -35,6 +35,7 @@ class MetriportService {
 
       const url = new URL("https://connect.metriport.com/")
       url.searchParams.append("token", token)
+      url.searchParams.append("providers", "withings")
       if (process.env.NODE_ENV !== "production")
         url.searchParams.append("sandbox", "true")
 
