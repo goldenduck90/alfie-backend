@@ -1000,9 +1000,6 @@ export class UserSendbirdChannel {
   @Field(() => String, { nullable: true })
   created_by?: string
 
-  // @Field(() => Object, { nullable: true })
-  // disappearing_message?: Object
-
   @Field(() => Boolean)
   is_access_code_required: boolean
 
