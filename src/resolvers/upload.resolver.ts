@@ -27,8 +27,7 @@ export default class UploadResolver {
   @Authorized([Role.Patient])
   @Mutation(() => [SignedUrlResponse])
   requestSignedUrls(
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    @Arg("requests", (_) => [SignedUrlRequest]) requests: SignedUrlRequest[]
+    @Arg("requests", () => [SignedUrlRequest]) requests: SignedUrlRequest[]
   ) {
     return this.s3Service.requestSignedUrls(requests)
   }

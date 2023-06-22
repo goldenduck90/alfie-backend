@@ -206,4 +206,14 @@ export default class AppointmentResolver {
   ) {
     return this.appointmentService.createAppointment(context.user, input)
   }
+
+  @Authorized([Role.Admin])
+  @Mutation(() => MessageResponse)
+  async runPostAppointmentJob() {
+    await this.appointmentService.postAppointmentJob()
+
+    return {
+      message: "Post appointment job complete.",
+    }
+  }
 }
