@@ -368,6 +368,7 @@ class UserService extends EmailService {
       TaskType.TEFQ,
       TaskType.AD_LIBITUM,
       TaskType.GSRS,
+      TaskType.CONNECT_WITHINGS_SCALE,
     ]
     await this.assignUserTasks(user._id, tasks)
 
