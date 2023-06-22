@@ -871,11 +871,20 @@ export class SignedUrlRequest {
   @Field(() => String)
   key: string
 
+  /** Metadata for the upload image for put requests. */
   @Field(() => [FileMetadata], { nullable: true })
   metadata?: FileMetadata[]
 
   @Field(() => String)
   contentType: string
+
+  /** The type of the request ("get" or "put"). Defaults to "put". */
+  @Field(() => String, { defaultValue: "put" })
+  requestType: string
+
+  /** Include version ID for get requests. */
+  @Field(() => String, { nullable: true })
+  versionId?: string
 }
 
 @ObjectType()

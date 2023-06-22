@@ -1,4 +1,5 @@
 import * as Sentry from "@sentry/node"
+import { ApolloError } from "apollo-server-errors"
 import Textract from "aws-sdk/clients/textract"
 
 export interface AnalyzeS3InsuranceCardImageResult {
@@ -98,6 +99,6 @@ export const analyzeS3InsuranceCardImage = async (
       `Error running AWS textract on image at ${bucket}, ${objectName}`,
       err
     )
-    return null
+    throw new ApolloError(err.message, "TEXT_EXTRACT_ERROR")
   }
 }
