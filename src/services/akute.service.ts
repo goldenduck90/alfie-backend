@@ -11,7 +11,30 @@ import {
   DocUploadInput,
   PharmacyLocationInput,
 } from "../schema/akute.schema"
-import { CreatePatientInput, UserModel } from "../schema/user.schema"
+import {
+  CreatePatientInput,
+  UserModel,
+  InsuranceEligibilityInput,
+} from "../schema/user.schema"
+import { calculateBMI } from "../utils/calculateBMI"
+
+export interface AkuteCreateInsuranceRequest {
+  patient_id: string
+  member_id: string
+  group_id: string
+  group_name: string
+  rx_bin: string
+  rx_group: string
+  payor: string
+  status: string
+  order: number
+}
+
+/** Response from a POST to /insurance */
+export interface AkuteInsuranceResponse {
+  rx_id: string
+  medical_id: string
+}
 
 class AkuteService {
   public baseUrl: string
@@ -26,8 +49,6 @@ class AkuteService {
         "X-API-Key": process.env.AKUTE_API_KEY,
       },
     })
-
-    console.log(process.env.AKUTE_API_KEY)
   }
 
   async createPatient(input: CreatePatientInput) {
@@ -74,9 +95,7 @@ class AkuteService {
         ...(address_line_2 && { address_line_2 }),
         address_city,
         address_state,
-        address_zipcode: address_zipcode.includes("-")
-          ? address_zipcode.split("-")[0]
-          : address_zipcode,
+        address_zipcode: address_zipcode.slice(0, 5),
         email,
         primary_phone_number: parsedPhone,
         primary_phone_type: "mobile",
@@ -121,9 +140,14 @@ class AkuteService {
       if (!user) {
         throw new ApolloError("User not found", "NOT_FOUND")
       }
-      const data = await this.axios.get(
-        `/pharmacy?name=${input.name}&zip=${user.address.postalCode}`
-      )
+      const params: { name?: string; zip: string } = {
+        zip: user.address.postalCode,
+      }
+      if (input.name) {
+        params.name = input.name
+      }
+      const data = await this.axios.get("/pharmacy", { params })
+
       const pharmacyLocations = await Promise.all(
         data.data.map(async (pharmacy: any) => {
           const { lat, lng } = (await this.convertAddressToLatLng(
@@ -236,9 +260,7 @@ class AkuteService {
         throw new ApolloError("Provider not found", "NOT_FOUND")
       }
 
-      const bmi =
-        (user.weights[0].value / user.heightInInches / user.heightInInches) *
-        703.071720346
+      const bmi = calculateBMI(user.weights[0].value, user.heightInInches)
 
       const icdCode = 27 < bmi && bmi < 30 ? "E66.3" : "E66.9"
 
@@ -376,6 +398,39 @@ class AkuteService {
       })
 
       throw new ApolloError(error.message, "ERROR")
+    }
+  }
+
+  async createInsurance(
+    akuteId: string,
+    input: InsuranceEligibilityInput
+  ): Promise<AkuteInsuranceResponse> {
+    try {
+      const createInsuranceRequest: AkuteCreateInsuranceRequest = {
+        patient_id: akuteId,
+        member_id: input.memberId,
+        group_id: input.groupId,
+        group_name: input.groupName,
+        rx_bin: input.rxBin,
+        rx_group: input.rxGroup,
+        payor: input.payor,
+        status: "active",
+        order: 1,
+      }
+      const { data } = await this.axios.post<AkuteInsuranceResponse>(
+        "/insurance",
+        createInsuranceRequest
+      )
+
+      const createLog = `AkuteService.createInsurance result: ${JSON.stringify(
+        data
+      )}`
+      console.log(createLog)
+      Sentry.captureMessage(createLog)
+      return data
+    } catch (error) {
+      Sentry.captureException(error)
+      return null
     }
   }
 }

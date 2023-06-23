@@ -17,7 +17,8 @@ import {
   UpcomingAppointmentsInput,
   UpdateAppointmentInput,
 } from "../schema/appointment.schema"
-import { MessageResponse, Role } from "../schema/user.schema"
+import { MessageResponse } from "../schema/user.schema"
+import Role from "../schema/enums/Role"
 import AppointmentService from "../services/appointment.service"
 import Context from "../types/context"
 
@@ -123,6 +124,25 @@ export default class AppointmentResolver {
     Role.Nutritionist,
   ])
   @Mutation(() => MessageResponse)
+  updateAppointmentAttended(
+    @Ctx() context: Context,
+    @Arg("eaAppointmentId") eaAppointmentId: string
+  ) {
+    return this.appointmentService.updateAppointmentAttended(
+      context.user,
+      eaAppointmentId
+    )
+  }
+
+  @Authorized([
+    Role.Patient,
+    Role.Practitioner,
+    Role.Doctor,
+    Role.CareCoordinator,
+    Role.HealthCoach,
+    Role.Nutritionist,
+  ])
+  @Mutation(() => MessageResponse)
   cancelAppointment(@Arg("input") input: GetAppointmentInput) {
     return this.appointmentService.cancelAppointment(input)
   }
@@ -185,5 +205,15 @@ export default class AppointmentResolver {
     @Arg("input") input: CreateAppointmentInput
   ) {
     return this.appointmentService.createAppointment(context.user, input)
+  }
+
+  @Authorized([Role.Admin])
+  @Mutation(() => MessageResponse)
+  async runPostAppointmentJob() {
+    await this.appointmentService.postAppointmentJob()
+
+    return {
+      message: "Post appointment job complete.",
+    }
   }
 }

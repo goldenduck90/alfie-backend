@@ -5,6 +5,7 @@ import {
   prop,
   queryMethod,
   ReturnModelType,
+  Severity,
 } from "@typegoose/typegoose"
 import { AsQueryMethod } from "@typegoose/typegoose/lib/types"
 import { Field, InputType, ObjectType, registerEnumType } from "type-graphql"
@@ -40,6 +41,7 @@ export enum TaskType {
   MP_BLUE_CAPSULE_2 = "MP_BLUE_CAPSULE_2",
   SCHEDULE_APPOINTMENT = "SCHEDULE_APPOINTMENT",
   FOOD_LOG = "FOOD_LOG",
+  CONNECT_WITHINGS_SCALE = "CONNECT_WITHINGS_SCALE",
   GSRS = "GSRS",
   TEFQ = "TEFQ",
   LAB_SELECTION = "LAB_SELECTION",
@@ -125,7 +127,7 @@ export class Task {
   interval?: number
 
   @Field(() => [TaskQuestion], { nullable: true })
-  @prop({ required: false })
+  @prop({ required: false, allowMixed: Severity.ALLOW })
   questions?: TaskQuestion[]
 }
 

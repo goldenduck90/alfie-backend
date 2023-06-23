@@ -3,6 +3,12 @@ import { MetriportDevicesApi } from "@metriport/api"
 import { UserModel } from "../schema/user.schema"
 import { MetriportConnectResponse } from "../schema/metriport.schema"
 
+export interface MetriportUser {
+  userId: string
+  body?: {
+    weight_kg: number
+  }[]
+}
 class MetriportService {
   private client: MetriportDevicesApi
 
@@ -29,6 +35,7 @@ class MetriportService {
 
       const url = new URL("https://connect.metriport.com/")
       url.searchParams.append("token", token)
+      url.searchParams.append("providers", "withings")
       if (process.env.NODE_ENV !== "production")
         url.searchParams.append("sandbox", "true")
 

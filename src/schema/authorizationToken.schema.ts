@@ -8,11 +8,11 @@ export class AuthorizationToken {
   token: string
 
   @Field(() => String)
-  @prop({ required: true })
-  refreshToken: string
+  @prop({ required: false })
+  refreshToken?: string
 
   @Field(() => Date)
-  @prop({ required: true })
+  @prop({ required: false })
   expiresAt: Date
 
   @Field(() => Date, { nullable: true })

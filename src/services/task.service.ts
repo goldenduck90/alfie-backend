@@ -4,7 +4,7 @@ import config from "config"
 import dayjs from "dayjs"
 import { addDays, isPast } from "date-fns"
 import { calculateScore } from "../PROAnalysis"
-import { ProviderModel } from "../schema/provider.schema"
+import { Provider } from "../schema/provider.schema"
 import {
   CreateTaskInput,
   Task,
@@ -25,12 +25,14 @@ import {
   UserTask,
   UserTaskModel,
 } from "../schema/task.user.schema"
-import { Score, UserModel } from "../schema/user.schema"
+import { User, Score, UserModel } from "../schema/user.schema"
 import { AnswerType } from "../schema/enums/AnswerType"
 import AkuteService from "./akute.service"
 import { classifyUser } from "../PROAnalysis/classification"
 import { calculatePatientScores } from "../scripts/calculatePatientScores"
 import EmailService from "./email.service"
+import { calculateBMI } from "../utils/calculateBMI"
+import Role from "../schema/enums/Role"
 
 class TaskService {
   private akuteService: AkuteService
@@ -51,7 +53,7 @@ class TaskService {
     return task
   }
 
-  async getUserTask(id: string, userId?: string) {
+  async getUserTask(id: string, user?: User) {
     const { notFound, notPermitted } = config.get("errors.tasks") as any
     const userTask = await UserTaskModel.findById(id).populate("task")
     if (!userTask) {
@@ -62,20 +64,41 @@ class TaskService {
       throw new ApolloError(notFound.message, notFound.code)
     }
 
-    if (userId && userTask.user.toString() !== userId) {
+    if (
+      user &&
+      user.role !== Role.Admin &&
+      userTask.user.toString() !== user._id.toString()
+    ) {
       throw new ApolloError(notPermitted.message, notPermitted.code)
     }
 
     return userTask
   }
 
-  async getUserTasks(userId: string, input: GetUserTasksInput) {
-    const { limit, offset, completed } = input
+  async getUserTasks(
+    userId: string,
+    input: GetUserTasksInput
+  ): Promise<{
+    userTasks: UserTask[]
+    total: number
+    limit: number
+    offset: number
+  }> {
+    const { limit, offset, completed, taskType } = input
     const { noTasks } = config.get("errors.tasks") as any
-    const where = { ...(completed !== undefined && { completed }) }
+
+    const task = taskType
+      ? await TaskModel.findOne({ type: input.taskType })
+      : null
+    const taskId = task?._id?.toString()
+
+    const where = {
+      ...(completed !== undefined && { completed }),
+      ...(taskType !== undefined && { task: taskId }),
+    }
 
     const userTasksCount = await UserTaskModel.find({
-      user: userId,
+      user: input.userId ?? userId,
     })
       .where(where)
       .countDocuments()
@@ -88,8 +111,9 @@ class TaskService {
       .skip(offset)
       .limit(limit)
       .sort({ highPriority: -1, dueAt: -1, createdAt: 1 })
-      .populate("task")
-      .populate("user")
+      .populate<{ task: Task }>("task")
+      .populate<{ user: User }>("user")
+
     return {
       total: userTasksCount,
       limit,
@@ -327,41 +351,42 @@ class TaskService {
     }
   }
 
-  async completeUserTask(input: CompleteUserTaskInput) {
+  async completeUserTask(input: CompleteUserTaskInput): Promise<UserTask> {
     try {
       // Get the user task, throw an error if it is not found
       const { notFound } = config.get("errors.tasks") as any
       const { _id, answers } = input
-      console.log("input", input)
-      console.log("answers", answers)
+      console.log(`Complete user task input: ${JSON.stringify(input)}`)
       const userTask = await UserTaskModel.findById(_id)
       if (!userTask) {
         throw new ApolloError(notFound.message, notFound.code)
       }
 
-      console.log("userTask", userTask)
       // Get the user and task documents
       const user = await UserModel.findById(userTask.user)
       const task = await TaskModel.findById(userTask.task)
 
-      // correct answers from the questions schema
-      const { correctedAnswers, isChanged } = this.getCorrectedUserAnswers(
-        answers,
-        task.questions
-      )
-      if (isChanged) {
-        console.log(
-          `Corrected answers format from ${JSON.stringify(
-            answers
-          )} to ${JSON.stringify(correctedAnswers)}`
-        )
-      }
       // Mark the user task as completed and save it
       userTask.completed = true
       userTask.completedAt = new Date()
       userTask.answers = []
-      userTask.answers = correctedAnswers
+      if (answers) {
+        // correct answers from the questions schema
+        const { correctedAnswers, isChanged } = this.getCorrectedUserAnswers(
+          answers,
+          task.questions
+        )
+        if (isChanged) {
+          console.log(
+            `Corrected answers format from ${JSON.stringify(
+              answers
+            )} to ${JSON.stringify(correctedAnswers)}`
+          )
+        }
+        userTask.answers = correctedAnswers
+      }
       await userTask.save()
+
       const lastTask = await UserTaskModel.findOne({
         user: userTask.user,
         task: userTask.task,
@@ -447,14 +472,19 @@ class TaskService {
           break
         }
         case TaskType.WEIGHT_LOG: {
+          const weightAnswer =
+            (answers.find((a) => a.key === "weight") as UserNumberAnswer) ??
+            null
+          const scaleAnswer =
+            (answers.find(
+              (a) => a.key === "scaleWeight"
+            ) as UserNumberAnswer) ?? null
           const weight = {
             date: new Date(),
-            value: (answers.find((a) => a.key === "weight") as UserNumberAnswer)
-              .value,
+            value: scaleAnswer?.value ?? weightAnswer?.value ?? null,
+            scale: scaleAnswer !== null,
           }
-          const bmi =
-            (weight.value / user.heightInInches / user.heightInInches) *
-            703.071720346
+          const bmi = calculateBMI(weight.value, user.heightInInches)
           user.weights.push(weight)
           user.bmi = bmi
           await user.save()
@@ -465,9 +495,7 @@ class TaskService {
           break
         }
       }
-      return {
-        ...userTask.toObject(),
-      }
+      return userTask
     } catch (error) {
       console.log(error, "error")
       console.error(error)
@@ -617,17 +645,15 @@ class TaskService {
   }
   async getAllUserTasksByUserId(userId: string) {
     try {
-      const userTasks: any = await UserTaskModel.find({ user: userId })
-        .populate("task")
-        .populate("user")
-      const providerId = userTasks[0]?.user.provider.toHexString()
-      const lookUpProviderEmail = await ProviderModel.findOne({
-        _id: providerId,
-      })
-      const arrayOfUserTasksWithProviderEmail = userTasks.map((task: any) => {
+      const userTasks = await UserTaskModel.find({ user: userId })
+        .populate<{ task: Task }>("task")
+        .populate<{ user: User }>("user")
+        .populate<{ user: { provider: Provider } }>("user.provider")
+      const provider = userTasks[0]?.user.provider
+      const arrayOfUserTasksWithProviderEmail = userTasks.map((task) => {
         return {
           ...task.toObject(),
-          providerEmail: lookUpProviderEmail.email,
+          providerEmail: provider.email,
         }
       })
       return arrayOfUserTasksWithProviderEmail

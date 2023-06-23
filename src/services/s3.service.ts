@@ -1,13 +1,6 @@
-import { ApolloError } from "apollo-server"
 import { S3 } from "aws-sdk"
 import config from "config"
-import {
-  File,
-  SignedUrlRequest,
-  SignedUrlResponse,
-  User,
-  UserModel,
-} from "../schema/user.schema"
+import { SignedUrlRequest, SignedUrlResponse } from "../schema/user.schema"
 
 class S3Service {
   private s3: S3
@@ -25,49 +18,33 @@ class S3Service {
     })
   }
 
-  async completeUpload(input: File[], userId: string): Promise<User> {
-    const { notFound } = config.get("errors.user") as any
-    const user = await UserModel.findById(userId).countDocuments()
-    if (!user) {
-      throw new ApolloError(notFound.message, notFound.code)
-    }
-    const update = await UserModel.findOneAndUpdate(
-      {
-        _id: userId,
-      },
-      {
-        $push: {
-          files: { $each: input },
-        },
-      }
-    )
-
-    return update
-  }
-
   async requestSignedUrls(
     input: SignedUrlRequest[]
   ): Promise<SignedUrlResponse[]> {
     const urls = await Promise.all(
       input.map(async (item) => {
-        const url = await this.getSignedUrl({
-          key: item.key,
-          ...(item.metadata && {
-            metadata: item.metadata.reduce(
-              (
-                accumulator: S3.Metadata,
-                meta: { key: string; value: string }
-              ) => {
-                return {
-                  ...accumulator,
-                  [meta.key]: meta.value,
-                }
-              },
-              {}
-            ),
-          }),
-          contentType: item.contentType,
-        })
+        const url = await this.getSignedUrl(
+          {
+            key: item.key,
+            ...(item.metadata && {
+              metadata: item.metadata.reduce(
+                (
+                  accumulator: S3.Metadata,
+                  meta: { key: string; value: string }
+                ) => {
+                  return {
+                    ...accumulator,
+                    [meta.key]: meta.value,
+                  }
+                },
+                {}
+              ),
+            }),
+            contentType: item.contentType,
+            versionId: item.versionId,
+          },
+          item.requestType
+        )
         return { key: item.key, url }
       })
     )
@@ -75,27 +52,38 @@ class S3Service {
     return urls
   }
 
-  async getSignedUrl({
-    key,
-    metadata,
-    contentType,
-  }: {
-    key: string
-    metadata?: S3.Metadata
-    contentType: string
-  }): Promise<string> {
-    const params: S3.PutObjectRequest = {
-      Bucket: this.bucketName,
-      Key: key,
-      Metadata: metadata,
-      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
-      // @ts-ignore: AWS types are wrong
-      Expires: Number(this.expiresInSeconds),
-      ContentType: contentType,
+  async getSignedUrl(
+    {
+      key,
+      metadata,
+      contentType,
+      versionId,
+    }: {
+      key: string
+      metadata?: S3.Metadata
+      contentType: string
+      versionId?: string
+    },
+    requestType = "put"
+  ): Promise<string> {
+    if (requestType === "get") {
+      const params: S3.GetObjectRequest = {
+        Bucket: this.bucketName,
+        Key: key,
+        VersionId: versionId,
+        ResponseContentType: contentType,
+      }
+      return await this.s3.getSignedUrlPromise("getObject", params)
+    } else {
+      const params: S3.PutObjectRequest = {
+        Bucket: this.bucketName,
+        Key: key,
+        Metadata: metadata,
+        Expires: Number(this.expiresInSeconds) as any,
+        ContentType: contentType,
+      }
+      return await this.s3.getSignedUrlPromise("putObject", params)
     }
-
-    const url = await this.s3.getSignedUrlPromise("putObject", params)
-    return url
   }
 }
 

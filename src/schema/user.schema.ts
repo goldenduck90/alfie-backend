@@ -6,6 +6,7 @@ import {
   prop,
   queryMethod,
   ReturnModelType,
+  Severity,
 } from "@typegoose/typegoose"
 import { AsQueryMethod, Ref } from "@typegoose/typegoose/lib/types"
 import bcrypt from "bcrypt"
@@ -27,9 +28,7 @@ import {
   registerEnumType,
 } from "type-graphql"
 import { Provider } from "./provider.schema"
-import UserRole from "./enums/Role"
-export const Role = UserRole
-export type Role = UserRole
+import Role from "./enums/Role"
 
 const {
   email: emailValidation,
@@ -65,10 +64,86 @@ registerEnumType(Role, {
   description: "The user roles a user can be assigned to",
 })
 
+export enum Partner {
+  OPTAVIA = "OPTAVIA",
+}
+
+registerEnumType(Partner, {
+  name: "Partner",
+  description: "Sign up partner",
+})
+
+export enum InsurancePlan {
+  ANTHEM_BLUE_CROSS = "ANTHEM_BLUE_CROSS",
+  HUMANA = "HUMANA",
+  BLUE_CROSS_BLUE_SHIELD = "BLUE_CROSS_BLUE_SHIELD",
+  PARTNER_DIRECT = "PARTNER_DIRECT",
+  AETNA = "AETNA",
+  EMPIRE_BLUECROSS_BLUESHIELD = "EMPIRE_BLUECROSS_BLUESHIELD",
+  UNITED_HEALTHCARE = "UNITED_HEALTHCARE",
+  CIGNA = "CIGNA",
+  MEDICARE = "MEDICARE",
+  MEDICAID = "MEDICAID",
+  OTHER = "OTHER",
+}
+
+registerEnumType(InsurancePlan, {
+  name: "InsurancePlan",
+  description: "Insurance plans",
+})
+
+export enum InsuranceType {
+  EPO = "EPO",
+  POS = "POS",
+  PPO = "PPO",
+  HMO = "HMO",
+  GOVERNMENT_MEDICAID_TRICARE_CHIP = "GOVERNMENT_MEDICAID_TRICARE_CHIP",
+}
+
+registerEnumType(InsuranceType, {
+  name: "InsuranceType",
+  description: "Insurance types",
+})
+
 @ObjectType()
 export class RoleResponse {
   @Field(() => Role)
   role: Role
+}
+
+@ObjectType()
+@InputType("InsuranceInput")
+@ModelOptions({ schemaOptions: { _id: false } })
+export class Insurance {
+  @Field(() => String)
+  @prop({ required: true })
+  memberId: string
+
+  @Field(() => String)
+  @prop({ required: true })
+  insuranceCompany: string
+
+  /** The payer ID. */
+  @Field(() => String)
+  @prop({ required: true })
+  payor: string
+
+  @Field(() => String)
+  @prop({ required: true })
+  groupId: string
+
+  @Field(() => String)
+  @prop({ required: true })
+  groupName: string
+
+  @Field(() => String)
+  @prop({ required: true })
+  rxBin: string
+
+  /** Also called RxPCN. */
+  @Field(() => String)
+  @prop({ required: true })
+  rxGroup: string
 }
 
 @ObjectType()
@@ -95,9 +170,9 @@ export class Address {
   @prop({ required: true })
   postalCode: string
 
-  @Field(() => String)
-  @prop({ default: "US", required: true })
-  country: string
+  @Field(() => String, { nullable: true })
+  @prop({ default: "US" })
+  country?: string
 }
 
 @ObjectType()
@@ -109,6 +184,9 @@ export class Weight {
   @Field(() => Date)
   @prop({ default: Date.now(), required: true })
   date: Date
+
+  @Field(() => Boolean, { nullable: true })
+  scale?: boolean
 }
 
 @ObjectType()
@@ -346,7 +424,9 @@ interface QueryHelpers {
 @queryMethod(findByEmail)
 @queryMethod(findByEmailToken)
 @queryMethod(findBySubscriptionId)
+@ModelOptions({ options: { allowMixed: Severity.ALLOW } })
 @ObjectType()
+@ModelOptions({ options: { allowMixed: Severity.ALLOW } })
 export class User {
   @Field(() => String)
   _id: string
@@ -440,9 +520,13 @@ export class User {
   @prop()
   stripeCustomerId?: string
 
-  @Field(() => String)
-  @prop()
+  @Field(() => String, { nullable: true })
+  @prop({ required: false, default: null })
   stripeSubscriptionId?: string
+
+  @Field(() => String, { nullable: true })
+  @prop({ required: false, default: null })
+  stripePaymentIntentId?: string
 
   @Field(() => String, { nullable: true })
   @prop()
@@ -495,6 +579,22 @@ export class User {
   @Field(() => Boolean, { defaultValue: false })
   @prop()
   hasScale?: boolean
+
+  @Field(() => Insurance, { nullable: true })
+  @prop({ required: false })
+  insurance?: Insurance
+
+  @Field(() => InsurancePlan, { nullable: true })
+  @prop({ enum: InsurancePlan, type: String, required: false })
+  insurancePlan?: InsurancePlan
+
+  @Field(() => InsuranceType, { nullable: true })
+  @prop({ enum: InsuranceType, type: String, required: false })
+  insuranceType?: InsuranceType
+
+  @Field(() => Partner, { nullable: true })
+  @prop({ enum: Partner, required: false })
+  signupPartner?: Partner
 }
 
 export const UserModel = getModelForClass<typeof User, QueryHelpers>(User, {
@@ -618,12 +718,33 @@ export class CreateUserInput {
   })
   stripeSubscriptionId?: string
 
+  @Field(() => String, {
+    nullable: true,
+    description: "If not provided, will be set after checkout.",
+  })
+  stripePaymentIntentId?: string
+
   @Field(() => Date, {
     nullable: true,
     description:
       "When the user's subscription expires. If not provided, the subscription won't be active.",
   })
   subscriptionExpiresAt?: Date
+
+  @Field(() => String, {
+    nullable: true,
+    description: "If not provided, will be set when scale is activated.",
+  })
+  metriportUserId?: string
+
+  @Field(() => InsurancePlan, { nullable: true })
+  insurancePlan?: InsurancePlan
+
+  @Field(() => InsuranceType, { nullable: true })
+  insuranceType?: InsuranceType
+
+  @Field(() => Partner, { nullable: true })
+  signupPartner?: Partner
 }
 
 @InputType()
@@ -750,11 +871,20 @@ export class SignedUrlRequest {
   @Field(() => String)
   key: string
 
+  /** Metadata for the upload image for put requests. */
   @Field(() => [FileMetadata], { nullable: true })
   metadata?: FileMetadata[]
 
   @Field(() => String)
   contentType: string
+
+  /** The type of the request ("get" or "put"). Defaults to "put". */
+  @Field(() => String, { defaultValue: "put" })
+  requestType: string
+
+  /** Include version ID for get requests. */
+  @Field(() => String, { nullable: true })
+  versionId?: string
 }
 
 @ObjectType()
@@ -870,9 +1000,6 @@ export class UserSendbirdChannel {
   @Field(() => String, { nullable: true })
   created_by?: string
 
-  // @Field(() => Object, { nullable: true })
-  // disappearing_message?: Object
-
   @Field(() => Boolean)
   is_access_code_required: boolean
 
@@ -918,12 +1045,51 @@ export class UserSendbirdChannel {
   @Field(() => String, { nullable: true })
   hidden_state?: string
 
-  // @Field(() => Object, { nullable: true })
-  // last_message?: Object
-
   @Field(() => Number, { nullable: true })
   joined_ts?: number
+}
 
-  // @Field(() => Object, { nullable: true })
-  // last_queried_message?: Object
+@InputType()
+export class InsuranceEligibilityInput {
+  @Field(() => String)
+  userId: string
+
+  @Field(() => String)
+  memberId: string
+
+  @Field(() => String)
+  insuranceCompany: string
+
+  @Field(() => String)
+  payor: string
+
+  @Field(() => String)
+  groupId: string
+
+  @Field(() => String)
+  groupName: string
+
+  @Field(() => String)
+  rxBin: string
+
+  @Field(() => String)
+  rxGroup: string
+}
+
+@ObjectType()
+export class InsuranceEligibilityResponse {
+  @Field(() => Boolean)
+  eligible: boolean
+
+  @Field(() => String, { nullable: true })
+  reason?: string
+}
+
+@InputType()
+export class ScaleReadingInput {
+  @Field(() => String)
+  metriportUserId: string
+
+  @Field(() => Number)
+  weightLbs: number
 }

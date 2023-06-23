@@ -1,12 +1,13 @@
 /* eslint-disable no-case-declarations */
-import * as Sentry from "@sentry/node"
+import dotenv from "dotenv"
+dotenv.config()
+import Sentry from "./utils/sentry"
 import {
   ApolloServerPluginLandingPageGraphQLPlayground,
   ApolloServerPluginLandingPageProductionDefault,
 } from "apollo-server-core"
 import { ApolloServer } from "apollo-server-express"
 import * as AWS from "aws-sdk"
-import dotenv from "dotenv"
 import express, { Request, Response } from "express"
 import { expressjwt } from "express-jwt"
 import "reflect-metadata"
@@ -14,33 +15,23 @@ import { buildSchema } from "type-graphql"
 import authChecker from "./middleware/authChecker"
 import resolvers from "./resolvers"
 import { ProviderModel } from "./schema/provider.schema"
-import { Role, UserModel } from "./schema/user.schema"
-import { UserNumberAnswer, UserTaskModel } from "./schema/task.user.schema"
-import { AnswerType } from "./schema/enums/AnswerType"
-import { TaskType, Task, TaskModel } from "./schema/task.schema"
+import { UserModel } from "./schema/user.schema"
+import Role from "./schema/enums/Role"
 import Context from "./types/context"
 import { connectToMongo } from "./utils/mongo"
 import * as cron from "node-cron"
 import UserService from "./services/user.service"
+import AppointmentService from "./services/appointment.service"
+import { MetriportUser } from "./services/metriport.service"
 import stripe from "stripe"
 import { CheckoutModel } from "./schema/checkout.schema"
-dotenv.config()
 import config from "config"
-
-// import * as Tracing from '@sentry/tracing';
-Sentry.init({
-  dsn: "https://e99c3274029e405f9e1b6dd50a63fd85@o4504040965603328.ingest.sentry.io/4504040986705920",
-  environment: process.env.NODE_ENV,
-  // Set tracesSampleRate to 1.0 to capture 100%
-  // of transactions for performance monitoring.
-  // We recommend adjusting this value in production
-  tracesSampleRate: 1.0,
-})
 
 const Stripe = new stripe(process.env.STRIPE_SECRET_KEY, {
   apiVersion: "2022-08-01",
 })
 const userService = new UserService()
+const appointmentService = new AppointmentService()
 
 async function bootstrap() {
   const path = "/graphql"
@@ -128,6 +119,8 @@ async function bootstrap() {
         case "setup_intent.succeeded":
           const sEId = dataObject.id
           let ignoreCheckout = false
+          const insurancePay = dataObject.metadata?.INSURANCE === "TRUE"
+
           if (dataObject.metadata?.IGNORE_CHECKOUT === "TRUE") {
             ignoreCheckout = true
           }
@@ -170,6 +163,7 @@ async function bootstrap() {
             dataObject.customer !== null
               ? dataObject.customer.id
               : dataObject.customer
+
           const paymentMethodId =
             typeof dataObject.payment_method === "object" &&
             dataObject.payment_method !== null
@@ -300,92 +294,452 @@ async function bootstrap() {
             }
           }
 
-          // create subscription
-          try {
-            const stripeSubscription = await Stripe.subscriptions.create({
-              customer: stripeCustomerId,
-              items: [{ price: stripeSubscriptonPriceId }],
-              default_payment_method: paymentMethodId,
-              collection_method: "charge_automatically",
-              metadata: {
-                CREATED_VIA_STRIPE_WEBHOOK_ON: new Date().toString(),
-                ...(!ignoreCheckout &&
-                  sEId && { ORIGINAL_CHECKOUT_ID: sEId._id }),
-              },
-            })
+          // create subscription or payment intent
+          if (insurancePay) {
+            try {
+              const stripePayment = await Stripe.paymentIntents.create({
+                customer: stripeCustomerId,
+                payment_method: paymentMethodId,
+                amount: 6900,
+                currency: "USD",
+                off_session: true,
+                confirm: true,
+                description: "Alfie - One Time Fee",
+                metadata: {
+                  CREATED_VIA_STRIPE_WEBHOOK_ON: new Date().toString(),
+                  ...(!ignoreCheckout &&
+                    sEId && { ORIGINAL_CHECKOUT_ID: sEId._id }),
+                },
+              })
 
-            const tags = {
-              setupIntentId: dataObject.id,
-              stripeCustomerId,
-              stripeSubscriptionId: stripeSubscription.id,
-              ignoreCheckout,
-              ...(!ignoreCheckout &&
-                sECheckout && { checkoutId: sECheckout._id }),
-            }
-
-            if (!ignoreCheckout && sECheckout) {
-              sECheckout.stripeSubscriptionId = stripeSubscription.id
-              await sECheckout.save()
-              console.log(
-                `[STRIPE WEBHOOK][TIME: ${time}][EVENT: setup_intent.succeeded] Successfully Saved "stripeSubscriptionId" on checkout: ${sECheckout._id}`
-              )
-              Sentry.captureMessage(
-                `[STRIPE WEBHOOK][TIME: ${time}][EVENT: setup_intent.succeeded] Successfully Saved "stripeSubscriptionId" on checkout: ${sECheckout._id}`,
-                {
-                  tags,
-                }
-              )
-            }
-
-            console.log(
-              `[STRIPE WEBHOOK][TIME: ${time}][EVENT: setup_intent.succeeded] Successfully Processed Event`
-            )
-            console.log(JSON.stringify(tags))
-            Sentry.captureMessage(
-              `[STRIPE WEBHOOK][TIME: ${time}][EVENT: setup_intent.succeeded] Successfully Processed Event`,
-              {
-                tags,
-              }
-            )
-            return res.status(200).send({
-              code: 200,
-              message: `[STRIPE WEBHOOK][TIME: ${time}][EVENT: setup_intent.succeeded] Successfully Processed Event`,
-              data: tags,
-            })
-          } catch (err) {
-            console.log(
-              `[STRIPE WEBHOOK][TIME: ${time}][EVENT: setup_intent.succeeded] An error occured creating subscription for stripeCustomer (${stripeCustomerId}) and setup intent: ${sEId}`
-            )
-            console.log(
-              JSON.stringify({
+              const tags = {
                 setupIntentId: dataObject.id,
                 stripeCustomerId,
                 ignoreCheckout,
                 ...(!ignoreCheckout &&
                   sECheckout && { checkoutId: sECheckout._id }),
+                paymentIntentId: stripePayment.id,
+              }
+
+              console.log(
+                `[STRIPE WEBHOOK][TIME: ${time}][EVENT: setup_intent.succeeded] Successfully Processed Event`
+              )
+              console.log(JSON.stringify(tags))
+              Sentry.captureMessage(
+                `[STRIPE WEBHOOK][TIME: ${time}][EVENT: setup_intent.succeeded] Successfully Processed Event`,
+                {
+                  tags,
+                }
+              )
+              return res.status(200).send({
+                code: 200,
+                message: `[STRIPE WEBHOOK][TIME: ${time}][EVENT: setup_intent.succeeded] Successfully Processed Event`,
+                data: tags,
+              })
+            } catch (err) {
+              console.log(
+                `[STRIPE WEBHOOK][TIME: ${time}][EVENT: setup_intent.succeeded] An error occured creating payment intent for stripeCustomer (${stripeCustomerId}) and setup intent: ${sEId}`
+              )
+              console.log(
+                JSON.stringify({
+                  setupIntentId: dataObject.id,
+                  stripeCustomerId,
+                  ignoreCheckout,
+                  ...(!ignoreCheckout &&
+                    sECheckout && { checkoutId: sECheckout._id }),
+                })
+              )
+              console.log(err)
+              Sentry.captureException(err, {
+                tags: {
+                  setupIntentId: dataObject.id,
+                  stripeCustomerId,
+                  ignoreCheckout,
+                  ...(!ignoreCheckout &&
+                    sECheckout && { checkoutId: sECheckout._id }),
+                },
+              })
+              return res.status(500).send({
+                code: 500,
+                message: `An error occured creating payment intent for stripeCustomer (${stripeCustomerId}) and setupIntent: ${dataObject.id}`,
+                data: {
+                  setupIntentId: dataObject.id,
+                  stripeCustomerId,
+                  ignoreCheckout,
+                  ...(!ignoreCheckout &&
+                    sECheckout && { checkoutId: sECheckout._id }),
+                },
+                error: JSON.stringify(err),
+              })
+            }
+          } else {
+            try {
+              const stripeSubscription = await Stripe.subscriptions.create({
+                customer: stripeCustomerId,
+                items: [{ price: stripeSubscriptonPriceId }],
+                default_payment_method: paymentMethodId,
+                collection_method: "charge_automatically",
+                metadata: {
+                  CREATED_VIA_STRIPE_WEBHOOK_ON: new Date().toString(),
+                  ...(!ignoreCheckout &&
+                    sEId && { ORIGINAL_CHECKOUT_ID: sEId._id }),
+                },
+              })
+
+              const tags = {
+                setupIntentId: dataObject.id,
+                stripeCustomerId,
+                stripeSubscriptionId: stripeSubscription.id,
+                ignoreCheckout,
+                ...(!ignoreCheckout &&
+                  sECheckout && { checkoutId: sECheckout._id }),
+              }
+
+              if (!ignoreCheckout && sECheckout) {
+                sECheckout.stripeSubscriptionId = stripeSubscription.id
+                await sECheckout.save()
+                console.log(
+                  `[STRIPE WEBHOOK][TIME: ${time}][EVENT: setup_intent.succeeded] Successfully Saved "stripeSubscriptionId" on checkout: ${sECheckout._id}`
+                )
+                Sentry.captureMessage(
+                  `[STRIPE WEBHOOK][TIME: ${time}][EVENT: setup_intent.succeeded] Successfully Saved "stripeSubscriptionId" on checkout: ${sECheckout._id}`,
+                  {
+                    tags,
+                  }
+                )
+              }
+
+              console.log(
+                `[STRIPE WEBHOOK][TIME: ${time}][EVENT: setup_intent.succeeded] Successfully Processed Event`
+              )
+              console.log(JSON.stringify(tags))
+              Sentry.captureMessage(
+                `[STRIPE WEBHOOK][TIME: ${time}][EVENT: setup_intent.succeeded] Successfully Processed Event`,
+                {
+                  tags,
+                }
+              )
+              return res.status(200).send({
+                code: 200,
+                message: `[STRIPE WEBHOOK][TIME: ${time}][EVENT: setup_intent.succeeded] Successfully Processed Event`,
+                data: tags,
+              })
+            } catch (err) {
+              console.log(
+                `[STRIPE WEBHOOK][TIME: ${time}][EVENT: setup_intent.succeeded] An error occured creating subscription for stripeCustomer (${stripeCustomerId}) and setup intent: ${sEId}`
+              )
+              console.log(
+                JSON.stringify({
+                  setupIntentId: dataObject.id,
+                  stripeCustomerId,
+                  ignoreCheckout,
+                  ...(!ignoreCheckout &&
+                    sECheckout && { checkoutId: sECheckout._id }),
+                })
+              )
+              console.log(err)
+              Sentry.captureException(err, {
+                tags: {
+                  setupIntentId: dataObject.id,
+                  stripeCustomerId,
+                  ignoreCheckout,
+                  ...(!ignoreCheckout &&
+                    sECheckout && { checkoutId: sECheckout._id }),
+                },
+              })
+              return res.status(500).send({
+                code: 500,
+                message: `An error occured creating subscription for stripeCustomer (${stripeCustomerId}) and setupIntent: ${dataObject.id}`,
+                data: {
+                  setupIntentId: dataObject.id,
+                  stripeCustomerId,
+                  ignoreCheckout,
+                  ...(!ignoreCheckout &&
+                    sECheckout && { checkoutId: sECheckout._id }),
+                },
+                error: JSON.stringify(err),
+              })
+            }
+          }
+        case "payment_intent.succeeded":
+          const pIId = dataObject.id
+          const pICId = dataObject.customer
+
+          if (!dataObject.metadata?.CREATED_VIA_STRIPE_WEBHOOK_ON) {
+            console.log(
+              `[STRIPE WEBHOOK][TIME: ${time}][EVENT: payment_intent.succeeded] Not created by webhook, skipping... - ${pIId}`
+            )
+            console.log(
+              JSON.stringify({
+                stripePaymentIntentId: pIId,
+                stripeCustomerId: pICId,
+              })
+            )
+            return res.status(200).send({
+              code: 200,
+              message: `[STRIPE WEBHOOK][TIME: ${time}][EVENT: payment_intent.succeeded] Not created by webhook, skipping... - ${pIId}`,
+              data: {
+                stripePaymentIntentId: pIId,
+                stripeCustomerId: pICId,
+              },
+            })
+          }
+
+          if (!pICId) {
+            console.log(
+              `[STRIPE WEBHOOK][TIME: ${time}][EVENT: payment_intent.succeeded] No stripe customer id present on payment intent id: ${pIId}`
+            )
+            console.log(
+              JSON.stringify({
+                stripePaymentIntentId: pIId,
+                stripeCustomerId: pICId,
+              })
+            )
+            Sentry.captureException(
+              `[STRIPE WEBHOOK][TIME: ${time}][EVENT: payment_intent.succeeded] No stripe customer id present on payment intent id: ${pIId}`,
+              {
+                tags: {
+                  stripePaymentIntentId: pIId,
+                  stripeCustomerId: pICId,
+                },
+              }
+            )
+            return res.status(400).send({
+              code: 400,
+              message: `[STRIPE WEBHOOK][TIME: ${time}][EVENT: payment_intent.succeeded] No stripe customer id present on payment intent id: ${pIId}`,
+              data: {
+                stripePaymentIntentId: pIId,
+                stripeCustomerId: pICId,
+              },
+            })
+          }
+
+          try {
+            const pIExistingUser = await UserModel.findOne({
+              $or: [
+                { stripeCustomerId: pICId },
+                { stripePaymentIntentId: pIId },
+              ],
+            })
+
+            if (pIExistingUser) {
+              pIExistingUser.stripePaymentIntentId = pIId
+              pIExistingUser.subscriptionExpiresAt = new Date()
+              await pIExistingUser.save()
+
+              await Stripe.paymentIntents.update(pIId, {
+                metadata: {
+                  USER_ID: pIExistingUser._id,
+                  UPDATED_VIA_STRIPE_WEBHOOK_ON: new Date().toString(),
+                },
+              })
+
+              await Stripe.customers.update(pICId, {
+                metadata: {
+                  USER_ID: pIExistingUser._id,
+                  UPDATED_VIA_STRIPE_WEBHOOK_ON: new Date().toString(),
+                },
+              })
+
+              console.log(
+                `[STRIPE WEBHOOK][TIME: ${time}][EVENT: payment_intent.succeeded] Successfully Updated User (${pIExistingUser._id}) with stripe payment intent id: ${pIId}`
+              )
+              console.log(
+                JSON.stringify({
+                  stripePaymentIntentId: pIId,
+                  stripeCustomerId: pICId,
+                })
+              )
+              Sentry.captureMessage(
+                `[STRIPE WEBHOOK][TIME: ${time}][EVENT: payment_intent.succeeded] Successfully Updated User (${pIExistingUser._id}) with stripe payment intent id: ${pIId}`,
+                {
+                  tags: {
+                    stripePaymentIntentId: pIId,
+                    stripeCustomerId: pICId,
+                    existingUserId: pIExistingUser._id,
+                  },
+                }
+              )
+              return res.status(200).send({
+                code: 200,
+                message: `[STRIPE WEBHOOK][TIME: ${time}][EVENT: payment_intent.succeeded] Successfully Updated User (${pIExistingUser._id}) with stripe subscription id: ${pIId}`,
+                data: {
+                  stripePaymentIntentId: pIId,
+                  stripeCustomerId: pICId,
+                  existingUserId: pIExistingUser._id,
+                },
+              })
+            } else {
+              // NO USER FOUND, CHECK CHECKOUTS
+              console.log(
+                `[STRIPE WEBHOOK][TIME: ${time}][EVENT: payment_intent.succeeded] No existing user found for stripe payment intent id (${pIId}). Checking checkouts...`
+              )
+              console.log(
+                JSON.stringify({
+                  stripePaymentIntentId: pIId,
+                  stripeCustomerId: pICId,
+                })
+              )
+            }
+          } catch (err) {
+            console.log(
+              `[STRIPE WEBHOOK][TIME: ${time}][EVENT: payment_intent.succeeded] An error occured updating existing user with stripe payment intent id: ${pIId}`
+            )
+            console.log(
+              JSON.stringify({
+                stripePaymentIntentId: pIId,
+                stripeCustomerId: pICId,
               })
             )
             console.log(err)
             Sentry.captureException(err, {
               tags: {
-                setupIntentId: dataObject.id,
-                stripeCustomerId,
-                ignoreCheckout,
-                ...(!ignoreCheckout &&
-                  sECheckout && { checkoutId: sECheckout._id }),
+                stripePaymentIntentId: pIId,
+                stripeCustomerId: pICId,
               },
             })
             return res.status(500).send({
               code: 500,
-              message: `An error occured creating subscription for stripeCustomer (${stripeCustomerId}) and setupIntent: ${dataObject.id}`,
+              message: `[STRIPE WEBHOOK][TIME: ${time}][EVENT: payment_intent.succeeded] An error occured updating existing user with stripe payment intent id: ${pIId}`,
               data: {
-                setupIntentId: dataObject.id,
-                stripeCustomerId,
-                ignoreCheckout,
-                ...(!ignoreCheckout &&
-                  sECheckout && { checkoutId: sECheckout._id }),
+                stripePaymentIntentId: pIId,
+                stripeCustomerId: pICId,
               },
-              error: JSON.stringify(err),
+            })
+          }
+
+          // create new user
+          try {
+            const pICheckout = await CheckoutModel.findOne({
+              stripeCustomerId: pICId,
+            })
+
+            if (!pICheckout) {
+              throw new Error(
+                `Checkout not found for stripe customer id: ${pICId}`
+              )
+            }
+
+            try {
+              const pINewUser = await userService.createUser({
+                name: pICheckout.name,
+                textOptIn: pICheckout.textOptIn,
+                email: pICheckout.email,
+                phone: pICheckout.phone,
+                dateOfBirth: pICheckout.dateOfBirth,
+                address: pICheckout.shippingAddress,
+                weightInLbs: pICheckout.weightInLbs,
+                gender: pICheckout.gender,
+                heightInInches: pICheckout.heightInInches,
+                stripeCustomerId: pICId,
+                stripePaymentIntentId: pIId,
+                stripeSubscriptionId: null,
+              })
+
+              const newUser = pINewUser.user
+
+              await Stripe.paymentIntents.update(pIId, {
+                metadata: {
+                  USER_ID: newUser._id,
+                  UPDATED_VIA_STRIPE_WEBHOOK_ON: new Date().toString(),
+                },
+              })
+              await Stripe.customers.update(pICId, {
+                metadata: {
+                  USER_ID: newUser._id,
+                  UPDATED_VIA_STRIPE_WEBHOOK_ON: new Date().toString(),
+                },
+              })
+
+              console.log(
+                `[STRIPE WEBHOOK][TIME: ${time}][EVENT: payment_intent.succeeded] Successfully Created User (${newUser._id}) from Checkout with stripe payment intent id: ${pIId}`
+              )
+              console.log(
+                JSON.stringify({
+                  stripePaymentIntentId: pIId,
+                  stripeCustomerId: pICId,
+                  newUserId: newUser._id,
+                  checkoutId: pICheckout._id,
+                })
+              )
+              Sentry.captureMessage(
+                `[STRIPE WEBHOOK][TIME: ${time}][EVENT: payment_intent.succeeded] Successfully Updated User (${newUser._id}) with stripe payment intent id: ${pIId}`,
+                {
+                  tags: {
+                    stripePaymentIntentId: pIId,
+                    stripeCustomerId: pICId,
+                    newUserId: newUser._id,
+                    checkoutId: pICheckout._id,
+                  },
+                }
+              )
+              return res.status(201).send({
+                code: 201,
+                message: `[STRIPE WEBHOOK][TIME: ${time}][EVENT: payment_intent.succeeded] Successfully Updated User (${newUser._id}) with stripe payment intent id: ${pIId}`,
+                data: {
+                  stripePaymentIntentId: pIId,
+                  stripeCustomerId: pICId,
+                  newUserId: newUser._id,
+                  checkoutId: pICheckout._id,
+                },
+              })
+            } catch (err) {
+              // error occured creating new user
+              console.log(
+                `[STRIPE WEBHOOK][TIME: ${time}][EVENT: payment_intent.succeeded] Error creating user for stripe customer id: ${pICId}`
+              )
+              console.log(
+                JSON.stringify({
+                  stripePaymentIntentId: pIId,
+                  stripeCustomerId: pICId,
+                })
+              )
+              console.log(err)
+              Sentry.captureException(
+                `[STRIPE WEBHOOK][TIME: ${time}][EVENT: payment_intent.succeeded] Error creating user for stripe customer id: ${pICId} ${err}`,
+                {
+                  tags: {
+                    stripePaymentIntentId: pIId,
+                    stripeCustomerId: pICId,
+                  },
+                }
+              )
+              return res.status(500).send({
+                code: 500,
+                message: `Error creating user for stripe customer id: ${pICId}`,
+                data: {
+                  stripePaymentIntentId: pIId,
+                  stripeCustomerId: pICId,
+                },
+              })
+            }
+          } catch (err) {
+            console.log(
+              `[STRIPE WEBHOOK][TIME: ${time}][EVENT: payment_intent.succeeded] Checkout not found for stripe customer id: ${pICId}`
+            )
+            console.log(
+              JSON.stringify({
+                stripePaymentIntentId: pIId,
+                stripeCustomerId: pICId,
+              })
+            )
+            console.log(err)
+            Sentry.captureException(
+              `[STRIPE WEBHOOK][TIME: ${time}][EVENT: payment_intent.succeeded] Checkout not found for stripe customer id: ${pICId}`,
+              {
+                tags: {
+                  stripePaymentIntentId: pIId,
+                  stripeCustomerId: pICId,
+                },
+              }
+            )
+            return res.status(404).send({
+              code: 404,
+              message: `Checkout not found for stripe customer id: ${pICId}`,
+              data: {
+                stripePaymentIntentId: pIId,
+                stripeCustomerId: pICId,
+              },
             })
           }
 
@@ -545,6 +899,9 @@ async function bootstrap() {
                 stripeCustomerId: sCCId,
                 stripeSubscriptionId: sCId,
                 subscriptionExpiresAt: new Date(),
+                insurancePlan: sCCheckout.insurancePlan,
+                insuranceType: sCCheckout.insuranceType,
+                signupPartner: sCCheckout.signupPartner,
               })
 
               await Stripe.subscriptions.update(sCId, {
@@ -791,6 +1148,7 @@ async function bootstrap() {
         const mapToEmails = filteredEmailsToSendToBasedOnRole.map(
           (user: any) => user.email
         )
+
         const params = {
           Source: "no-reply@joinalfie.com",
           Destination: {
@@ -878,7 +1236,6 @@ async function bootstrap() {
 
   app.post("/metriportWebhooks", express.json(), async (req, res) => {
     console.log(req.body)
-    const time = new Date().toString()
     try {
       const key = req.get("x-webhook-key")
       if (key !== process.env.METRIPORT_WEBHOOK_KEY) {
@@ -899,57 +1256,18 @@ async function bootstrap() {
         })
       }
 
+      // const date = new Date()
+
       await Promise.all(
-        users.map(async (user: any) => {
-          const { userId, body } = user
+        users.map(async (metriportUser: MetriportUser) => {
+          const { userId, body } = metriportUser
           if (body?.[0]?.weight_kg) {
             const weightLbs = Math.floor(body[0].weight_kg * 2.2)
-            const weight = {
-              value: weightLbs,
-              date: new Date(),
-            }
-
-            const _user = await UserModel.findOneAndUpdate(
-              { metriportUserId: userId },
-              { $push: { weights: weight }, $set: { hasScale: true } },
-              { returnDocument: "after" }
-            )
-
-            const userTasks = await UserTaskModel.find({
-              user: _user._id,
-            }).populate("task")
-            let weightLogTask = userTasks.find((userTask) => {
-              const task = userTask.task as Task
-              task.type === TaskType.WEIGHT_LOG && !userTask.completed
-            })
-            const userAnswer = {
-              key: "Weight from withings",
-              value: weightLbs,
-              type: AnswerType.NUMBER,
-            } as UserNumberAnswer
-            if (weightLogTask) {
-              weightLogTask.completed = true
-              weightLogTask.answers = [...weightLogTask.answers, userAnswer]
-              await weightLogTask.save()
-            } else {
-              const task = await TaskModel.findOne({
-                type: TaskType.WEIGHT_LOG,
-              })
-              const userTask = {
-                user: _user,
-                task: task,
-                completed: true,
-                answers: [userAnswer],
-              }
-              weightLogTask = await UserTaskModel.create(userTask)
-            }
-
-            const message = `[METRIPORT WEBHOOK][TIME: ${time}] Successfully updated weight for user: ${_user._id} - ${weightLbs}lbs`
-            console.log(message)
-            Sentry.captureMessage(message)
+            await userService.processWithingsScaleReading(userId, weightLbs)
           }
         })
       )
+
       return res.status(200).send({ message: "Webhook processed successfully" })
     } catch (err) {
       console.log(err)
@@ -971,9 +1289,16 @@ async function bootstrap() {
 
 // run task job
 cron.schedule("0 0 * * *", async () => {
-  console.log("[TASK JOB] RUNNING...")
+  console.log(`[TASK JOB][${new Date().toString()}] RUNNING...`)
   await userService.taskJob()
-  console.log("[TASK JOB] COMPLETED")
+  console.log(`[TASK JOB][${new Date().toString()}] COMPLETED`)
+})
+
+// run appointment attendance job
+cron.schedule("*/30 * * * *", async () => {
+  console.log(`[APPOINTMENT ATTENDED JOB][${new Date().toString()}] RUNNING...`)
+  await appointmentService.postAppointmentJob()
+  console.log(`[APPOINTMENT ATTENDED JOB][${new Date().toString()}] COMPLETED`)
 })
 
 bootstrap()

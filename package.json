@@ -4,7 +4,7 @@
   "description": "",
   "main": "build/src/index.js",
   "scripts": {
-    "build": "tsc",
+    "build": "tsc --project ./tsconfig.json",
     "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
     "prod": "NODE_ENV=production ts-node-dev --respawn --transpile-only src/index.ts",
     "provider:fix-count": "NODE_ENV=production ts-node-dev --respawn --transpile-only src/fixProviderPatientCount.ts",
@@ -13,8 +13,9 @@
     "format:fix": "prettier --write . --config ./.prettierrc",
     "lint": "eslint . --ext .js,.ts",
     "lint:fix": "npm run lint -- --fix",
-    "tsc": "tsc --noEmit",
-    "prepare": "husky install && npx husky add .husky/pre-commit \"node_modules/.bin/lint-staged\""
+    "tsc": "tsc --noEmit --project ./tsconfig.json",
+    "prepare": "husky install && npx husky add .husky/pre-commit \"node_modules/.bin/lint-staged\"",
+    "sendbird:sync": "ts-node ./scripts/synchronizeSendbird.ts"
   },
   "author": "",
   "license": "ISC",
@@ -52,6 +53,7 @@
     "pdf-lib": "^1.17.1",
     "qs": "^6.11.0",
     "reflect-metadata": "^0.1.13",
+    "string-similarity-js": "^2.1.4",
     "stripe": "^10.1.0",
     "twilio": "^4.10.0",
     "type-graphql": "^1.1.1",
@@ -70,6 +72,7 @@
     "@types/uuid": "^8.3.4",
     "@types/validator": "^13.7.4",
     "@typescript-eslint/eslint-plugin": "^5.32.0",
+    "commander": "^10.0.1",
     "eslint": "^8.21.0",
     "eslint-config-prettier": "^8.5.0",
     "eslint-plugin-prettier": "^4.2.1",
@@ -82,17 +85,7 @@
   },
   "husky": {
     "hooks": {
-      "pre-commit": "lint-staged"
+      "pre-commit": "FORCE_COLOR=1 lint-staged"
     }
-  },
-  "lint-staged": {
-    "**/*.{js,ts}": [
-      "bash -c tsc --noEmit",
-      "prettier --write --config ./.prettierrc",
-      "eslint --fix"
-    ],
-    "**/*.{css,md,json}": [
-      "prettier --write --config ./.prettierrc"
-    ]
   }
 }

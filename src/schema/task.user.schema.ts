@@ -4,6 +4,7 @@ import {
   prop,
   queryMethod,
   ReturnModelType,
+  Severity,
 } from "@typegoose/typegoose"
 import { AsQueryMethod, Ref } from "@typegoose/typegoose/lib/types"
 import { Field, InputType, ObjectType, registerEnumType } from "type-graphql"
@@ -30,7 +31,7 @@ export class UserAnswer {
   type: AnswerType
 
   @Field(() => GraphQLAnyScalar, { nullable: true })
-  @prop({ required: false })
+  @prop({ required: false, allowMixed: Severity.ALLOW })
   value?: boolean | string | number | null
 }
 
@@ -264,6 +265,9 @@ export class GetUserTasksInput {
   @Field(() => String, { nullable: true })
   @prop({ required: false })
   userId?: boolean
+
+  @Field(() => TaskType, { nullable: true })
+  taskType?: TaskType
 }
 
 @InputType()
@@ -272,7 +276,7 @@ export class CompleteUserTaskInput {
   _id: string
 
   @Field(() => [UserAnswer])
-  answers: UserAnswerTypes[]
+  answers?: UserAnswerTypes[]
 }
 
 @ObjectType()

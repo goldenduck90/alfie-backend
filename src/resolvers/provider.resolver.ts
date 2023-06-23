@@ -3,7 +3,7 @@ import {
   BatchCreateOrUpdateProvidersResponse,
 } from "../schema/provider.schema"
 import { Arg, Authorized, Mutation, Resolver } from "type-graphql"
-import { Role } from "../schema/user.schema"
+import Role from "../schema/enums/Role"
 import ProviderService from "../services/provider.service"
 
 @Resolver()

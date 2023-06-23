@@ -1,5 +1,6 @@
 import * as Sentry from "@sentry/node"
 import { ApolloError } from "apollo-server-errors"
+import { LeanDocument } from "mongoose"
 import * as AWS from "aws-sdk"
 import bcrypt from "bcrypt"
 import config from "config"
@@ -24,26 +25,37 @@ import {
 import stripe from "stripe"
 import { v4 as uuidv4 } from "uuid"
 import {
+  Checkout,
   CheckoutModel,
   CreateCheckoutInput,
   CreateStripeCustomerInput,
 } from "../schema/checkout.schema"
-import { ProviderModel } from "../schema/provider.schema"
+import { ProviderModel, Provider } from "../schema/provider.schema"
 import { AllTaskEmail, Task, TaskEmail, TaskType } from "../schema/task.schema"
-import { UserTaskModel } from "../schema/task.user.schema"
+import {
+  UserNumberAnswer,
+  UserTaskModel,
+  UserTask,
+} from "../schema/task.user.schema"
 import {
   CreateUserInput,
   ForgotPasswordInput,
   LoginInput,
   ResetPasswordInput,
-  Role,
   SubscribeEmailInput,
   UpdateUserInput,
+  InsuranceEligibilityInput,
   Weight,
+  File,
+  User,
+  FileType,
+  Partner,
+  InsuranceEligibilityResponse,
 } from "../schema/user.schema"
+import Role from "../schema/enums/Role"
 import { signJwt } from "../utils/jwt"
 import {
-  getSendBirdUserChannelUrl,
+  getSendBirdUserChannels,
   triggerEntireSendBirdFlow,
 } from "../utils/sendBird"
 import { TaskModel } from "./../schema/task.schema"
@@ -55,7 +67,10 @@ import EmailService from "./email.service"
 import ProviderService from "./provider.service"
 import TaskService from "./task.service"
 import SmsService from "./sms.service"
+import CandidService from "./candid.service"
 import axios from "axios"
+import { analyzeS3InsuranceCardImage } from "../utils/textract"
+import AnswerType from "../schema/enums/AnswerType"
 
 class UserService extends EmailService {
   private taskService: TaskService
@@ -63,16 +78,22 @@ class UserService extends EmailService {
   private akuteService: AkuteService
   private appointmentService: AppointmentService
   private smsService: SmsService
+  private emailService: EmailService
+  private candidService: CandidService
   public awsDynamo: AWS.DynamoDB
   private stripeSdk: stripe
 
   constructor() {
     super()
+
     this.taskService = new TaskService()
     this.providerService = new ProviderService()
     this.akuteService = new AkuteService()
     this.appointmentService = new AppointmentService()
     this.smsService = new SmsService()
+    this.emailService = new EmailService()
+    this.candidService = new CandidService()
+
     this.awsDynamo = new AWS.DynamoDB({
       accessKeyId: process.env.AWS_ACCESS_KEY_ID,
       secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
@@ -118,11 +139,22 @@ class UserService extends EmailService {
     await user.save()
 
     // send email with link to set password
-    const sent = await this.sendRegistrationEmailTemplate({
-      email: user.email,
-      token: emailToken,
-      name: user.name,
-    })
+    let sent
+    if (user.signupPartner === Partner.OPTAVIA) {
+      //TODO: Send OPTAVIA specific registration email, use the same email for now
+      sent = await this.sendRegistrationEmailTemplate({
+        email: user.email,
+        token: emailToken,
+        name: user.name,
+      })
+    } else {
+      sent = await this.sendRegistrationEmailTemplate({
+        email: user.email,
+        token: emailToken,
+        name: user.name,
+      })
+    }
+
     if (!sent) {
       throw new ApolloError(emailSendError.message, emailSendError.code)
     }
@@ -134,6 +166,7 @@ class UserService extends EmailService {
   }
 
   async createUser(input: CreateUserInput, manual = false) {
+    console.log("create user", JSON.stringify(input))
     const { alreadyExists, unknownError, emailSendError } = config.get(
       "errors.createUser"
     ) as any
@@ -158,11 +191,15 @@ class UserService extends EmailService {
       stripeCustomerId,
       subscriptionExpiresAt,
       stripeSubscriptionId,
+      metriportUserId,
       providerId,
       textOptIn,
+      insurancePlan,
+      insuranceType,
+      signupPartner,
     } = input
 
-    const existingUser = await UserModel.find().findByEmail(email).lean()
+    const existingUser = await UserModel.find().findByEmail(email)
     if (existingUser) {
       throw new ApolloError(alreadyExists.message, alreadyExists.code)
     }
@@ -200,20 +237,28 @@ class UserService extends EmailService {
     const firstName = name.split(" ")[0] || ""
     const lastName = splitName ? splitName[splitName.length - 1] : ""
 
-    const patientId = await this.akuteService.createPatient({
-      firstName,
-      lastName,
-      email,
-      phone,
-      dateOfBirth,
-      address,
-      sex: gender,
-    })
-    if (!patientId) {
-      throw new ApolloError(
-        `An error occured for creating a patient entry in Akute for: ${email}`,
-        "INTERNAL_SERVER_ERROR"
-      )
+    let patientId: string
+    try {
+      patientId = await this.akuteService.createPatient({
+        firstName,
+        lastName,
+        email,
+        phone,
+        dateOfBirth,
+        address,
+        sex: gender,
+      })
+      if (!patientId) {
+        const message = `UserService.createUser: An error occured for creating a patient entry in Akute for: ${email}`
+        console.log(message)
+        Sentry.captureEvent({
+          message,
+          level: "error",
+        })
+      }
+    } catch (error) {
+      console.log(error.message)
+      Sentry.captureException(error)
     }
 
     const customerId = await this.appointmentService.createCustomer({
@@ -250,10 +295,14 @@ class UserService extends EmailService {
       stripeCustomerId,
       subscriptionExpiresAt,
       stripeSubscriptionId,
+      metriportUserId,
       eaCustomerId: customerId,
       akutePatientId: patientId,
       provider: provider._id,
       textOptIn,
+      insurancePlan,
+      insuranceType,
+      signupPartner,
     })
     if (!user) {
       throw new ApolloError(unknownError.message, unknownError.code)
@@ -320,6 +369,7 @@ class UserService extends EmailService {
       TaskType.TEFQ,
       TaskType.AD_LIBITUM,
       TaskType.GSRS,
+      TaskType.CONNECT_WITHINGS_SCALE,
     ]
     await this.assignUserTasks(user._id, tasks)
 
@@ -330,6 +380,7 @@ class UserService extends EmailService {
       manual,
       name,
     })
+
     if (!sent) {
       throw new ApolloError(emailSendError.message, emailSendError.code)
     }
@@ -462,7 +513,7 @@ class UserService extends EmailService {
     const forgotPasswordMessage = config.get("messages.forgotPassword")
 
     // Get our user by email
-    const dbUser = await UserModel.find().findByEmail(email).lean()
+    const dbUser = await UserModel.find().findByEmail(email)
     const dbProvider = !dbUser
       ? await ProviderModel.find().findByEmail(email).lean()
       : null
@@ -507,7 +558,7 @@ class UserService extends EmailService {
       "messages.completedRegistration"
     )
 
-    const dbUser = await UserModel.find().findByEmailToken(token).lean()
+    const dbUser = await UserModel.find().findByEmailToken(token)
     const dbProvider = dbUser
       ? null
       : await ProviderModel.find().findByEmailToken(token).lean()
@@ -1088,7 +1139,9 @@ class UserService extends EmailService {
       "errors.checkout"
     ) as any
 
-    const checkout = await CheckoutModel.findById(checkoutId).lean()
+    const checkout = (await CheckoutModel.findById(
+      checkoutId
+    ).lean()) as LeanDocument<Checkout>
     if (!checkout) {
       throw new ApolloError(checkoutNotFound.message, checkoutNotFound.code)
     }
@@ -1107,6 +1160,7 @@ class UserService extends EmailService {
     shipping,
     billing,
     sameAsShipping,
+    insurance = false,
   }: CreateStripeCustomerInput) {
     const { checkoutNotFound, alreadyCheckedOut } = config.get(
       "errors.checkout"
@@ -1165,19 +1219,27 @@ class UserService extends EmailService {
       metadata: {
         checkoutId: String(checkout._id),
         email: checkout.email,
+        INSURANCE: `${insurance ? "TRUE" : "FALSE"}`,
       },
       ...(customer && { customer: customer.id }),
     }
 
-    // create payment intent
-    if (setupIntent && setupIntent.status !== "canceled") {
-      setupIntent = await this.stripeSdk.setupIntents.update(setupIntent.id, {
-        ...setupIntentDetails,
-      })
-    } else {
-      setupIntent = await this.stripeSdk.setupIntents.create({
-        ...setupIntentDetails,
-      })
+    try {
+      // create payment intent
+      if (
+        setupIntent &&
+        !["canceled", "requires_payment_method"].includes(setupIntent.status)
+      ) {
+        setupIntent = await this.stripeSdk.setupIntents.update(setupIntent.id, {
+          ...setupIntentDetails,
+        })
+      } else {
+        setupIntent = await this.stripeSdk.setupIntents.create({
+          ...setupIntentDetails,
+        })
+      }
+    } catch (err) {
+      throw new ApolloError("Setting up stripe intent failed!")
     }
 
     // update checkout with stripe info
@@ -1201,7 +1263,6 @@ class UserService extends EmailService {
     const {
       name,
       email,
-      weightLossMotivatorV2,
       dateOfBirth,
       gender,
       state,
@@ -1210,6 +1271,10 @@ class UserService extends EmailService {
       textOptIn,
       phone,
       pastTries,
+      weightLossMotivatorV2,
+      insurancePlan,
+      insuranceType,
+      signupPartner,
     } = input
 
     const checkout = await CheckoutModel.find().findByEmail(email).lean()
@@ -1230,6 +1295,9 @@ class UserService extends EmailService {
       checkout.textOptIn = textOptIn
       checkout.phone = phone
       checkout.pastTries = pastTries
+      checkout.insurancePlan = insurancePlan
+      checkout.insuranceType = insuranceType
+      checkout.signupPartner = signupPartner
 
       // update in db
       await CheckoutModel.findByIdAndUpdate(checkout._id, checkout)
@@ -1273,6 +1341,9 @@ class UserService extends EmailService {
       textOptIn,
       phone,
       pastTries,
+      insurancePlan,
+      insuranceType,
+      signupPartner,
     })
 
     // return new checkout
@@ -1466,13 +1537,266 @@ class UserService extends EmailService {
 
   async sendbirdChannels(userId: string) {
     try {
-      const channels = await getSendBirdUserChannelUrl(userId)
+      const channels = await getSendBirdUserChannels(userId)
       console.log(channels)
       return channels
     } catch (error) {
       console.log("error", error)
       Sentry.captureException(error)
     }
+  }
+
+  /** Completes an upload by saving the files uploaded to S3 to the database. */
+  async completeUpload(input: File[], userId: string): Promise<User> {
+    const { notFound } = config.get("errors.user") as any
+    const user = await UserModel.findById(userId).countDocuments()
+    if (!user) {
+      throw new ApolloError(notFound.message, notFound.code)
+    }
+    const update = await UserModel.findOneAndUpdate(
+      { _id: userId },
+      {
+        $push: {
+          files: { $each: input },
+        },
+      },
+      { new: true }
+    )
+
+    const insuranceFile = input.find(
+      (file) => file.type === FileType.InsuranceCard
+    )
+    if (insuranceFile) {
+      const bucket: string = config.get("s3.patientBucketName")
+      const insuranceData = await analyzeS3InsuranceCardImage(
+        bucket,
+        insuranceFile.key
+      )
+      const insuranceInput: InsuranceEligibilityInput = {
+        userId,
+        memberId: insuranceData.member_id,
+        groupId: insuranceData.group_number,
+        groupName: insuranceData.group_name,
+        payor: insuranceData.payer_id,
+        insuranceCompany: insuranceData.payer_name,
+        rxBin: insuranceData.rx_bin,
+        rxGroup: insuranceData.rx_pcn,
+      }
+
+      const logMessage = `Parsed insurance data from card: ${JSON.stringify(
+        insuranceInput
+      )}`
+      console.log(logMessage)
+      Sentry.captureMessage(logMessage)
+
+      try {
+        const eligible = await this.checkInsuranceEligibility(insuranceInput)
+        if (eligible) {
+          await this.updateInsurance(insuranceInput)
+        }
+      } catch (error) {
+        // error is Sentry captured in checkInsuranceEligibility.
+        console.log("Error during eligibility check.", error)
+      }
+    }
+
+    return update
+  }
+
+  /** Updates insurance information for a given user. */
+  async updateInsurance(input: InsuranceEligibilityInput): Promise<void> {
+    const { userId } = input
+    const notFound = config.get("errors.user.notFound") as any
+
+    // Get the user by ID
+    const user: LeanDocument<User> = await UserModel.findById(userId).lean()
+    if (!user) {
+      throw new ApolloError(notFound.message, notFound.code)
+    }
+
+    // update insurance fields
+    user.insurance = {
+      memberId: input.memberId,
+      groupId: input.groupId,
+      groupName: input.groupName,
+      insuranceCompany: input.insuranceCompany,
+      rxBin: input.rxBin,
+      rxGroup: input.rxGroup,
+      payor: input.payor,
+    }
+
+    await UserModel.findByIdAndUpdate(user._id, user)
+  }
+
+  async checkInsuranceEligibility(
+    input: InsuranceEligibilityInput
+  ): Promise<InsuranceEligibilityResponse> {
+    try {
+      const user = await UserModel.findById(input.userId).populate<{
+        provider: Provider
+      }>("provider")
+      if (!user) throw new Error(`User ${input.userId} not found.`)
+
+      const { provider } = user
+      if (!provider)
+        throw new Error(`No provider associated with user ${input.userId}.`)
+
+      const insuranceResult = await this.akuteService.createInsurance(
+        user.akutePatientId,
+        input
+      )
+
+      console.log(`Insurance result: ${JSON.stringify(insuranceResult)}`)
+
+      let eligible: boolean
+      let reason: string | undefined
+      try {
+        const result = await this.candidService.checkInsuranceEligibility(
+          user,
+          provider,
+          input
+        )
+        eligible = result.eligible
+        reason = result.reason
+      } catch (error) {
+        console.log(
+          `UserService.checkInsuranceEligibility: error checking eligibility: ${error.message}`
+        )
+        console.log(error)
+        Sentry.captureException(error)
+        eligible = false
+        reason = "There was an error during the eligibility check process."
+      }
+
+      const eligibilityLog = `[CANDID HEALTH][TIME: ${new Date().toISOString()}][EVENT: eligibility] ${
+        eligible ? "Eligible Determination" : `Ineligible: ${reason}`
+      }`
+      console.log(eligibilityLog)
+      Sentry.captureEvent({
+        message: eligibilityLog,
+        level: "info",
+      })
+
+      await this.emailService.sendEligibilityCheckResultEmail({
+        patientName: user.name,
+        patientEmail: user.email,
+        patientPhone: user.phone,
+        eligible,
+        reason,
+      })
+
+      return { eligible, reason }
+    } catch (e) {
+      throw new ApolloError(e.message, "ERROR")
+    }
+  }
+
+  /**
+   * Record a withings scale reading and process insurance.
+   */
+  async processWithingsScaleReading(
+    metriportUserId: string,
+    weightLbs: number
+  ): Promise<{ user: User; userTask: UserTask }> {
+    let user = await UserModel.findOne({ metriportUserId }).populate<{
+      provider: Provider
+    }>("provider")
+
+    if (!user) {
+      const message = `[METRIPORT][TIME: ${new Date().toString()}] User not found for metriport ID: ${metriportUserId}`
+      console.log(message)
+      Sentry.captureEvent({
+        message,
+        level: "warning",
+      })
+      return
+    }
+
+    if (!user.hasScale) {
+      user.hasScale = true
+      await user.save()
+    }
+
+    const connectScaleTask = await TaskModel.findOne({
+      type: TaskType.CONNECT_WITHINGS_SCALE,
+    })
+
+    const incompleteConnectScaleUserTask = await UserTaskModel.findOne({
+      user: user._id,
+      task: connectScaleTask._id,
+      completed: false,
+    })
+    if (incompleteConnectScaleUserTask) {
+      await this.taskService.completeUserTask({
+        _id: incompleteConnectScaleUserTask._id.toString(),
+      })
+    }
+
+    const weightLogTask = await TaskModel.findOne({ type: TaskType.WEIGHT_LOG })
+    const incompleteUserTask = await UserTaskModel.findOne({
+      user: user._id,
+      task: weightLogTask._id,
+      completed: false,
+    })
+
+    const userAnswer: UserNumberAnswer = {
+      key: "scaleWeight",
+      value: weightLbs,
+      type: AnswerType.NUMBER,
+    }
+
+    let userTask: UserTask
+    if (incompleteUserTask) {
+      userTask = await this.taskService.completeUserTask({
+        _id: incompleteUserTask._id.toString(),
+        answers: [userAnswer],
+      })
+    } else {
+      const errorMessage = `No uncompleted weight log task for user: ${
+        user._id
+      } - Could not record scale reading: ${JSON.stringify(userAnswer)}`
+      const message = `[METRIPORT][TIME: ${new Date().toString()}] ${errorMessage}`
+      console.log(message)
+      Sentry.captureEvent({
+        message,
+        level: "warning",
+      })
+      throw new ApolloError(errorMessage)
+    }
+
+    const message = `[METRIPORT][TIME: ${new Date().toString()}] Successfully updated weight for user: ${
+      user._id
+    } - ${weightLbs}lbs`
+    console.log(message)
+    Sentry.captureMessage(message)
+
+    // if not a cash pay user, bill for first measurement, and 16th measurement in month
+    if (!user.stripeSubscriptionId) {
+      console.log(
+        `UserService.processWithingsScaleReading: Creating coded encounter for user ${user._id}`
+      )
+      user = await UserModel.findById(user._id).populate<{
+        provider: Provider
+      }>("provider")
+
+      const result = await this.candidService.createCodedEncounterForScaleEvent(
+        user,
+        user.provider,
+        user.weights
+      )
+
+      if (result === null) {
+        console.log(
+          " * Scale event did not meet criteria for insurance billing."
+        )
+      }
+    } else {
+      console.log(
+        "UserService.processWithingsScaleReading: No insurance processing for scale event, user has stripe subscription."
+      )
+    }
+
+    return { user, userTask }
   }
 }
 

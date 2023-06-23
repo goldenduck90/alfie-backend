@@ -4,12 +4,21 @@ import {
   ReturnModelType,
   queryMethod,
   index,
+  Severity,
+  modelOptions,
 } from "@typegoose/typegoose"
 import { AsQueryMethod, Ref } from "@typegoose/typegoose/lib/types"
 import { IsEmail, IsPhoneNumber } from "class-validator"
 import { Field, InputType, ObjectType } from "type-graphql"
 import config from "config"
-import { Address, Gender, User } from "./user.schema"
+import {
+  Address,
+  Gender,
+  User,
+  Partner,
+  InsurancePlan,
+  InsuranceType,
+} from "./user.schema"
 
 const { email: emailValidation, phone: phoneValidation } = config.get(
   "validations"
@@ -56,6 +65,7 @@ interface QueryHelpers {
 @queryMethod(findByStripeSubscriptionId)
 @queryMethod(findByStripeSetupIntentId)
 @ObjectType()
+@modelOptions({ options: { allowMixed: Severity.ALLOW } })
 export class Checkout {
   @Field(() => String)
   _id: string
@@ -140,12 +150,20 @@ export class Checkout {
   weightLossMotivatorV2: string[]
 
   @Field(() => [String])
-  @prop({ required: true })
+  @prop({ required: true, allowMixed: Severity.ALLOW })
   pastTries: string[]
 
-  // @Field(() => String)
-  // @prop({ required: true })
-  // healthInsurance: string
+  @Field(() => InsurancePlan, { nullable: true })
+  @prop({ enum: InsurancePlan, type: String, required: false })
+  insurancePlan?: InsurancePlan
+
+  @Field(() => InsuranceType, { nullable: true })
+  @prop({ enum: InsuranceType, type: String, required: false })
+  insuranceType?: InsuranceType
+
+  @Field(() => Partner, { nullable: true })
+  @prop({ enum: Partner, type: String, required: false })
+  signupPartner?: Partner
 }
 
 export const CheckoutModel = getModelForClass<typeof Checkout, QueryHelpers>(
@@ -186,17 +204,20 @@ export class CreateCheckoutInput {
   @Field(() => String)
   phone: string
 
-  @Field(() => [String])
-  @prop({ required: true })
+  @Field(() => [String], { nullable: true })
   weightLossMotivatorV2: string[]
 
   @Field(() => [String])
-  @prop({ required: true })
   pastTries: string[]
 
-  // @Field(() => String)
-  // @prop({ required: true })
-  // healthInsurance: string
+  @Field(() => InsurancePlan, { nullable: true })
+  insurancePlan?: InsurancePlan
+
+  @Field(() => InsuranceType, { nullable: true })
+  insuranceType?: InsuranceType
+
+  @Field(() => Partner, { nullable: true })
+  signupPartner?: Partner
 }
 
 @InputType()
@@ -218,6 +239,9 @@ export class CreateStripeCustomerInput {
 
   @Field(() => Boolean)
   sameAsShipping: boolean
+
+  @Field(() => Boolean, { defaultValue: false, nullable: true })
+  insurance?: boolean
 }
 
 @InputType()

@@ -14,12 +14,15 @@ import {
   LoginResponse,
   MessageResponse,
   ResetPasswordInput,
-  Role,
   RoleResponse,
   SubscribeEmailInput,
   User,
   UserSendbirdChannel,
+  InsuranceEligibilityInput,
+  InsuranceEligibilityResponse,
+  ScaleReadingInput,
 } from "../schema/user.schema"
+import Role from "../schema/enums/Role"
 import AkuteService from "../services/akute.service"
 import UserService from "../services/user.service"
 import MetriportService from "../services/metriport.service"
@@ -27,11 +30,11 @@ import Context from "../types/context"
 
 @Resolver()
 export default class UserResolver {
-  constructor(
-    private userService: UserService,
-    private akuteService: AkuteService,
-    private metriportService: MetriportService
-  ) {
+  private userService: UserService
+  private akuteService: AkuteService
+  private metriportService: MetriportService
+
+  constructor() {
     this.userService = new UserService()
     this.akuteService = new AkuteService()
     this.metriportService = new MetriportService()
@@ -39,8 +42,9 @@ export default class UserResolver {
 
   @Authorized([Role.Admin])
   @Mutation(() => User)
-  createUser(@Arg("input") input: CreateUserInput) {
-    return this.userService.createUser(input)
+  async createUser(@Arg("input") input: CreateUserInput) {
+    const { user } = await this.userService.createUser(input)
+    return user
   }
 
   @Mutation(() => LoginResponse) // returns the jwt
@@ -144,8 +148,28 @@ export default class UserResolver {
     return this.userService.sendbirdChannels(userId)
   }
 
+  @Authorized([Role.Admin, Role.Patient])
+  @Query(() => InsuranceEligibilityResponse)
+  async insuranceEligibility(
+    @Arg("input") input: InsuranceEligibilityInput
+  ): Promise<InsuranceEligibilityResponse> {
+    const eligible = await this.userService.checkInsuranceEligibility(input)
+    await this.userService.updateInsurance(input)
+
+    return eligible
+  }
+
   @Mutation(() => MetriportConnectResponse)
   generateMetriportConnectUrl(@Arg("userId") userId: string) {
     return this.metriportService.createConnectToken(userId)
+  }
+
+  @Mutation(() => User)
+  async recordScaleReading(@Arg("input") input: ScaleReadingInput) {
+    const { user } = await this.userService.processWithingsScaleReading(
+      input.metriportUserId,
+      input.weightLbs
+    )
+    return user
   }
 }
