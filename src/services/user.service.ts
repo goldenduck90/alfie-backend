@@ -1709,12 +1709,33 @@ class UserService extends EmailService {
         message,
         level: "warning",
       })
+      return
     }
 
-    const task = await TaskModel.findOne({ type: TaskType.WEIGHT_LOG })
+    if (!user.hasScale) {
+      user.hasScale = true
+      await user.save()
+    }
+
+    const connectScaleTask = await TaskModel.findOne({
+      type: TaskType.CONNECT_WITHINGS_SCALE,
+    })
+
+    const incompleteConnectScaleUserTask = await UserTaskModel.findOne({
+      user: user._id,
+      task: connectScaleTask._id,
+      completed: false,
+    })
+    if (incompleteConnectScaleUserTask) {
+      await this.taskService.completeUserTask({
+        _id: incompleteConnectScaleUserTask._id.toString(),
+      })
+    }
+
+    const weightLogTask = await TaskModel.findOne({ type: TaskType.WEIGHT_LOG })
     const incompleteUserTask = await UserTaskModel.findOne({
       user: user._id,
-      task: task._id,
+      task: weightLogTask._id,
       completed: false,
     })
 

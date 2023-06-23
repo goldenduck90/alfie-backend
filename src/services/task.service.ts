@@ -366,24 +366,27 @@ class TaskService {
       const user = await UserModel.findById(userTask.user)
       const task = await TaskModel.findById(userTask.task)
 
-      // correct answers from the questions schema
-      const { correctedAnswers, isChanged } = this.getCorrectedUserAnswers(
-        answers,
-        task.questions
-      )
-      if (isChanged) {
-        console.log(
-          `Corrected answers format from ${JSON.stringify(
-            answers
-          )} to ${JSON.stringify(correctedAnswers)}`
-        )
-      }
       // Mark the user task as completed and save it
       userTask.completed = true
       userTask.completedAt = new Date()
       userTask.answers = []
-      userTask.answers = correctedAnswers
+      if (answers) {
+        // correct answers from the questions schema
+        const { correctedAnswers, isChanged } = this.getCorrectedUserAnswers(
+          answers,
+          task.questions
+        )
+        if (isChanged) {
+          console.log(
+            `Corrected answers format from ${JSON.stringify(
+              answers
+            )} to ${JSON.stringify(correctedAnswers)}`
+          )
+        }
+        userTask.answers = correctedAnswers
+      }
       await userTask.save()
+
       const lastTask = await UserTaskModel.findOne({
         user: userTask.user,
         task: userTask.task,
