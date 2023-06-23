@@ -276,7 +276,7 @@ export class CompleteUserTaskInput {
   _id: string
 
   @Field(() => [UserAnswer])
-  answers: UserAnswerTypes[]
+  answers?: UserAnswerTypes[]
 }
 
 @ObjectType()
