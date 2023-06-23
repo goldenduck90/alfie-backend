@@ -5,6 +5,7 @@ import {
   queryMethod,
   index,
   Severity,
+  modelOptions,
 } from "@typegoose/typegoose"
 import { AsQueryMethod, Ref } from "@typegoose/typegoose/lib/types"
 import { IsEmail, IsPhoneNumber } from "class-validator"
@@ -64,6 +65,7 @@ interface QueryHelpers {
 @queryMethod(findByStripeSubscriptionId)
 @queryMethod(findByStripeSetupIntentId)
 @ObjectType()
+@modelOptions({ options: { allowMixed: Severity.ALLOW } })
 export class Checkout {
   @Field(() => String)
   _id: string

@@ -199,7 +199,7 @@ export default class CandidService {
   ): Promise<{
     eligible: boolean
     reason?: string
-    response: CandidEligibilityCheckResponse
+    response?: CandidEligibilityCheckResponse
   }> {
     await this.authenticate()
 
@@ -219,9 +219,14 @@ export default class CandidService {
       }
 
       if (!cpid) {
-        throw new CandidError(
-          `Could not infer CPID from payor ${input.payor}/${input.insuranceCompany}.`
-        )
+        const errorLog = `Could not infer CPID from payor ${input.payor}/${input.insuranceCompany}.`
+        console.log(errorLog)
+        Sentry.captureEvent({ message: errorLog, level: "error" })
+
+        return {
+          eligible: false,
+          reason: "Could not lookup CPID.",
+        }
       }
 
       const [userFirstName, userLastName] = user.name.split(" ")

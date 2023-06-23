@@ -1698,7 +1698,7 @@ class UserService extends EmailService {
     metriportUserId: string,
     weightLbs: number
   ): Promise<{ user: User; userTask: UserTask }> {
-    const user = await UserModel.findOne({ metriportUserId }).populate<{
+    let user = await UserModel.findOne({ metriportUserId }).populate<{
       provider: Provider
     }>("provider")
 
@@ -1775,11 +1775,21 @@ class UserService extends EmailService {
       console.log(
         `UserService.processWithingsScaleReading: Creating coded encounter for user ${user._id}`
       )
-      await this.candidService.createCodedEncounterForScaleEvent(
+      user = await UserModel.findById(user._id).populate<{
+        provider: Provider
+      }>("provider")
+
+      const result = await this.candidService.createCodedEncounterForScaleEvent(
         user,
         user.provider,
         user.weights
       )
+
+      if (result === null) {
+        console.log(
+          " * Scale event did not meet criteria for insurance billing."
+        )
+      }
     } else {
       console.log(
         "UserService.processWithingsScaleReading: No insurance processing for scale event, user has stripe subscription."

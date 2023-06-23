@@ -16,6 +16,7 @@ export default async function runShell(callback: () => Promise<void>) {
     console.log(
       `Error in ${basename(__filename)}: ${error?.message ?? String(error)}`
     )
+    console.log(error)
     process.exit(1)
   }
 }
