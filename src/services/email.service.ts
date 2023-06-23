@@ -23,6 +23,15 @@ class EmailService {
     toEmails: string[],
     replyTo?: string
   ) {
+    const log = `EmailService.sendEmail: Sending ${JSON.stringify({
+      subject,
+      body,
+      toEmails,
+      replyTo,
+    })}`
+    console.log(log)
+    Sentry.captureMessage(log)
+
     const params: AWS.SES.SendEmailRequest = {
       Source: replyTo ?? this.noReplyEmail,
       Destination: {

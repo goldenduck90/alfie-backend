@@ -154,11 +154,9 @@ export default class UserResolver {
     @Arg("input") input: InsuranceEligibilityInput
   ): Promise<InsuranceEligibilityResponse> {
     const eligible = await this.userService.checkInsuranceEligibility(input)
-    if (eligible) {
-      // only save insurance if it is currently eligible
-      await this.userService.updateInsurance(input)
-    }
-    return { eligible }
+    await this.userService.updateInsurance(input)
+
+    return eligible
   }
 
   @Mutation(() => MetriportConnectResponse)

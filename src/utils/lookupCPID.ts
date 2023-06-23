@@ -9,6 +9,10 @@ const lookupCPID = (payerId: string, primaryName: string): string | null => {
     return null
   }
 
+  if (payerIdMatches.length === 1) {
+    return payerIdMatches[0].cpid
+  }
+
   const similarities = payerIdMatches.map(({ primary_name }) =>
     stringSimilarity(primary_name, primaryName)
   )

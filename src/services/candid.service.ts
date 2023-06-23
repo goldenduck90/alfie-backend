@@ -208,34 +208,14 @@ export default class CandidService {
     )
 
     try {
-      let [userFirstName, userLastName] = user.name.split(" ")
-
       cpid = cpid || lookupCPID(input.payor, input.insuranceCompany)
 
       if (process.env.NODE_ENV === "development") {
-        // use sandbox data for request
-        cpid = "00007"
-        user.name = "johnone doeone"
-        userFirstName = "johnone"
-        userLastName = "doeone"
-        user.dateOfBirth = new Date("1980-01-02")
-        user.address.line1 = "123 address1"
-        user.address.line2 = "123"
-        user.address.city = "city1"
-        user.address.state = "WA"
-        user.address.postalCode = "981010000"
-        user.phone = "123456789"
-        user.email = "email@email.com"
-
-        provider.npi = "0123456789"
-        provider.firstName = "johnone"
-        provider.lastName = "doeone"
-
-        input.groupId = "0000000000"
-        input.groupName = "group name"
-        input.memberId = "0000000000"
-        input.rxBin = "12345"
-        input.rxGroup = "abcdefg"
+        const sandboxValues = getSandboxObjects(user, provider, input, null)
+        user = sandboxValues.user
+        provider = sandboxValues.provider
+        input = sandboxValues.input
+        cpid = sandboxValues.cpid
       }
 
       if (!cpid) {
@@ -243,6 +223,8 @@ export default class CandidService {
           `Could not infer CPID from payor ${input.payor}/${input.insuranceCompany}.`
         )
       }
+
+      const [userFirstName, userLastName] = user.name.split(" ")
 
       const request: CandidEligibilityCheckRequest = {
         tradingPartnerServiceId: cpid,
@@ -513,6 +495,13 @@ export default class CandidService {
     await this.authenticate()
 
     const settings: SettingsList = config.get("candidHealth.settings")
+
+    if (process.env.NODE_ENV === "development") {
+      const sandboxValues = getSandboxObjects(user, provider, null, insurance)
+      user = sandboxValues.user
+      provider = sandboxValues.provider
+      insurance = sandboxValues.insurance
+    }
 
     // calculate the billing provider for the claim
     const {
@@ -805,4 +794,55 @@ export default class CandidService {
 
     return []
   }
+}
+
+function getSandboxObjects(
+  fromUser: User,
+  fromProvider: Provider,
+  fromInput: InsuranceEligibilityInput,
+  fromInsurance: Insurance
+): {
+  user: User
+  provider: Provider
+  input: InsuranceEligibilityInput
+  insurance: Insurance
+  cpid: string
+} {
+  const copyFields = (from: any, to: any) => {
+    if (from) for (const key in from.toObject?.() || from) to[key] = from[key]
+  }
+
+  const user = new User()
+  copyFields(fromUser, user)
+  const provider = new Provider()
+  copyFields(fromProvider, provider)
+  const input = new InsuranceEligibilityInput()
+  copyFields(fromInput, input)
+  const insurance = new Insurance()
+  copyFields(fromInsurance, insurance)
+
+  // use sandbox data for request
+  user.name = "johnone doeone"
+  user.dateOfBirth = new Date("1980-01-02")
+  user.address.line1 = "123 address1"
+  user.address.line2 = "123"
+  user.address.city = "city1"
+  user.address.state = "WA"
+  user.address.postalCode = "981010000"
+  user.phone = "123456789"
+  user.email = "email@email.com"
+
+  provider.npi = "0123456789"
+  provider.firstName = "johnone"
+  provider.lastName = "doeone"
+
+  if (fromInput) {
+    input.groupId = "0000000000"
+    input.groupName = "group name"
+    input.memberId = "0000000000"
+    input.rxBin = "12345"
+    input.rxGroup = "abcdefg"
+  }
+
+  return { user, provider, input, insurance, cpid: "00007" }
 }
