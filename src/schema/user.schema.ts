@@ -1083,6 +1083,9 @@ export class InsuranceEligibilityInput {
 export class InsuranceEligibilityResponse {
   @Field(() => Boolean)
   eligible: boolean
+
+  @Field(() => String, { nullable: true })
+  reason?: string
 }
 
 @InputType()

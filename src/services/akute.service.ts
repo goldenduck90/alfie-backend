@@ -416,7 +416,12 @@ class AkuteService {
         "/insurance",
         createInsuranceRequest
       )
-      console.log("createInsurance response", data)
+
+      const createLog = `AkuteService.createInsurance result: ${JSON.stringify(
+        data
+      )}`
+      console.log(createLog)
+      Sentry.captureMessage(createLog)
       return data
     } catch (error) {
       Sentry.captureException(error)

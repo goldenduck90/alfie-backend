@@ -2,7 +2,7 @@ import * as Sentry from "@sentry/node"
 import { ApolloError } from "apollo-server"
 import axios, { AxiosInstance } from "axios"
 import config from "config"
-import { ProviderModel } from "../schema/provider.schema"
+import { Provider, ProviderModel } from "../schema/provider.schema"
 import Context from "../types/context"
 import {
   IEAAppointment,
@@ -30,6 +30,7 @@ import tz from "dayjs/plugin/timezone"
 import utc from "dayjs/plugin/utc"
 import advanced from "dayjs/plugin/advancedFormat"
 import CandidService from "./candid.service"
+import { LeanDocument } from "mongoose"
 
 dayjs.extend(utc)
 dayjs.extend(tz)
@@ -668,7 +669,9 @@ class AppointmentService extends EmailService {
       let eaUserId
 
       if (user.role === Role.Doctor || user.role === Role.Practitioner) {
-        const provider = await ProviderModel.findById(user._id).lean()
+        const provider: LeanDocument<Provider> = await ProviderModel.findById(
+          user._id
+        ).lean()
         if (!provider) {
           throw new ApolloError(notFound.message, notFound.code)
         }

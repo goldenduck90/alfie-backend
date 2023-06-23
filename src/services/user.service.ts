@@ -50,6 +50,7 @@ import {
   User,
   FileType,
   Partner,
+  InsuranceEligibilityResponse,
 } from "../schema/user.schema"
 import Role from "../schema/enums/Role"
 import { signJwt } from "../utils/jwt"
@@ -1626,7 +1627,9 @@ class UserService extends EmailService {
     await UserModel.findByIdAndUpdate(user._id, user)
   }
 
-  async checkInsuranceEligibility(input: InsuranceEligibilityInput) {
+  async checkInsuranceEligibility(
+    input: InsuranceEligibilityInput
+  ): Promise<InsuranceEligibilityResponse> {
     try {
       const user = await UserModel.findById(input.userId).populate<{
         provider: Provider
@@ -1644,19 +1647,33 @@ class UserService extends EmailService {
 
       console.log(`Insurance result: ${JSON.stringify(insuranceResult)}`)
 
-      const { eligible, reason: ineligibleReason } =
-        await this.candidService.checkInsuranceEligibility(
+      let eligible: boolean
+      let reason: string | undefined
+      try {
+        const result = await this.candidService.checkInsuranceEligibility(
           user,
           provider,
           input
         )
+        eligible = result.eligible
+        reason = result.reason
+      } catch (error) {
+        console.log(
+          `UserService.checkInsuranceEligibility: error checking eligibility: ${error.message}`
+        )
+        console.log(error)
+        Sentry.captureException(error)
+        eligible = false
+        reason = "There was an error during the eligibility check process."
+      }
 
+      const eligibilityLog = `[CANDID HEALTH][TIME: ${new Date().toISOString()}][EVENT: eligibility] ${
+        eligible ? "Eligible Determination" : `Ineligible: ${reason}`
+      }`
+      console.log(eligibilityLog)
       Sentry.captureEvent({
-        message: `[CANDID HEALTH][TIME: ${new Date().toISOString()}][EVENT: eligibility] ${
-          eligible
-            ? "Eligible Determination"
-            : `Ineligible: ${ineligibleReason}`
-        }`,
+        message: eligibilityLog,
+        level: "info",
       })
 
       await this.emailService.sendEligibilityCheckResultEmail({
@@ -1664,10 +1681,10 @@ class UserService extends EmailService {
         patientEmail: user.email,
         patientPhone: user.phone,
         eligible,
-        reason: ineligibleReason,
+        reason,
       })
 
-      return eligible
+      return { eligible, reason }
     } catch (e) {
       throw new ApolloError(e.message, "ERROR")
     }
