@@ -15,13 +15,20 @@ type WithingsAddress = {
   country: string
 }
 
+export enum TEST_MODE {
+  SHIPPED = 1,
+  TRASHED = 2,
+  FAILED = 3,
+  BACKHOLD = 4,
+}
+
 class WithingsService {
   private apiUrl: string
   private clientId: string
   private clientSecret: string
 
   constructor() {
-    this.clientId = config.get("withings.apiUrl")
+    this.apiUrl = config.get("withings.apiUrl")
     this.clientId = config.get("withings.clientId")
     this.clientSecret = config.get("withings.clientSecret")
   }
@@ -90,27 +97,36 @@ class WithingsService {
       timestamp: timestamp, //timestamp should be in unix form
     }
     const signature = this.sign(params)
+
     const { data } = await axios.post(this.apiUrl + "/v2/signature", {
       ...params,
       signature,
     })
     this.parseErrors(data)
+    console.log(data)
     return data.body.nonce
   }
 
-  public async createOrder(address: WithingsAddress, testmode?: number) {
+  public async createOrder(
+    customerRefId: string,
+    address: WithingsAddress,
+    testmode?: number
+  ) {
+    console.log(customerRefId, address, testmode)
     const now = Math.round(Date.now() / 1000)
     const nonce = await this.getNonce(now)
 
+    console.log(now, nonce)
+
     const products = [
       {
-        ean: "3700546707100",
+        ean: "3700546702518",
         quantity: 1,
       },
     ]
 
     const order = {
-      customer_ref_id: "ref",
+      customer_ref_id: customerRefId,
       address,
       products,
       force_address: true,
@@ -124,6 +140,8 @@ class WithingsService {
       order: JSON.stringify([order]), // order should always be passed a JSON array of Order objects
     }
     const signature = this.sign(params)
+
+    console.log(signature)
     const { data } = await axios.post(this.apiUrl + "/v2/dropshipment", {
       ...params,
       signature,

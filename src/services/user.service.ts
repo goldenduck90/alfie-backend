@@ -397,7 +397,10 @@ class UserService extends EmailService {
         state: address.state,
         country: "US",
       }
-      const res = await this.withingsService.createOrder(withingsAddress)
+      const res = await this.withingsService.createOrder(
+        user.id,
+        withingsAddress
+      )
       console.log(res)
     } catch (err) {
       console.log(err)
