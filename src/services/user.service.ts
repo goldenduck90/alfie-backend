@@ -72,6 +72,23 @@ import axios from "axios"
 import { analyzeS3InsuranceCardImage } from "../utils/textract"
 import AnswerType from "../schema/enums/AnswerType"
 
+export const initialUserTasks = [
+  TaskType.ID_AND_INSURANCE_UPLOAD,
+  TaskType.NEW_PATIENT_INTAKE_FORM,
+  TaskType.MP_HUNGER,
+  TaskType.MP_FEELING,
+  TaskType.BP_LOG,
+  TaskType.WEIGHT_LOG,
+  TaskType.WAIST_LOG,
+  // TaskType.MP_BLUE_CAPSULE,
+  TaskType.MP_ACTIVITY,
+  TaskType.FOOD_LOG,
+  TaskType.TEFQ,
+  TaskType.AD_LIBITUM,
+  TaskType.GSRS,
+  TaskType.CONNECT_WITHINGS_SCALE,
+]
+
 class UserService extends EmailService {
   private taskService: TaskService
   private providerService: ProviderService
@@ -110,7 +127,7 @@ class UserService extends EmailService {
         userId,
         taskTypes,
       }
-      await this.taskService.bulkAssignTasksToUser(input)
+      return await this.taskService.bulkAssignTasksToUser(input)
     } catch (error) {
       console.error(error, "error in assignUserTasks")
     }
@@ -355,22 +372,7 @@ class UserService extends EmailService {
     })
 
     // assign initial tasks to user
-    const tasks = [
-      TaskType.ID_AND_INSURANCE_UPLOAD,
-      TaskType.NEW_PATIENT_INTAKE_FORM,
-      TaskType.MP_HUNGER,
-      TaskType.MP_FEELING,
-      TaskType.BP_LOG,
-      TaskType.WEIGHT_LOG,
-      TaskType.WAIST_LOG,
-      // TaskType.MP_BLUE_CAPSULE,
-      TaskType.MP_ACTIVITY,
-      TaskType.FOOD_LOG,
-      TaskType.TEFQ,
-      TaskType.AD_LIBITUM,
-      TaskType.GSRS,
-      TaskType.CONNECT_WITHINGS_SCALE,
-    ]
+    const tasks = initialUserTasks
     await this.assignUserTasks(user._id, tasks)
 
     // send email with link to set password

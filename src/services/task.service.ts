@@ -53,6 +53,11 @@ class TaskService {
     return task
   }
 
+  async getTaskByType(type: TaskType) {
+    const task = await TaskModel.findOne({ type })
+    return task
+  }
+
   async getUserTask(id: string, user?: User) {
     const { notFound, notPermitted } = config.get("errors.tasks") as any
     const userTask = await UserTaskModel.findById(id).populate("task")
@@ -517,7 +522,18 @@ class TaskService {
       const tasks = await TaskModel.find({ type: { $in: taskTypes } }).where({
         completed: false,
       })
-      if (tasks.length !== taskTypes.length) {
+      const missingTasks = taskTypes.filter(
+        (type) => !tasks.some((task) => task.type === type)
+      )
+      if (missingTasks.length > 0) {
+        const log = `TaskService.bulkAssignTasksToUser: missing tasks: ${missingTasks.join(
+          ", "
+        )}`
+        Sentry.captureEvent({
+          message: log,
+          level: "error",
+        })
+        console.log(log)
         throw new ApolloError(notFound.message, notFound.code)
       }
       const taskIds = tasks.map((task) => task._id)
