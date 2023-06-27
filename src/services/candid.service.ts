@@ -215,32 +215,29 @@ export default class CandidService {
           )}`
         )
 
-        let firstResult = null
-        for (const match of cpids) {
-          const rectifiedInsurance: Insurance = {
-            ...input,
-            insuranceCompany: match.primary_name,
-            payor: match.payer_id,
-          }
-          const result = await this.checkInsuranceEligibility(
-            user,
-            provider,
-            rectifiedInsurance,
-            match.cpid
-          )
+        const results = await Promise.all(
+          cpids.map(async (match) => {
+            const rectifiedInsurance: Insurance = {
+              ...input,
+              insuranceCompany: match.primary_name,
+              payor: match.payer_id,
+            }
 
-          if (result.eligible) {
+            const result = await this.checkInsuranceEligibility(
+              user,
+              provider,
+              rectifiedInsurance,
+              match.cpid
+            )
+
             return {
               ...result,
               rectifiedInsurance,
             }
-          }
+          })
+        )
 
-          firstResult = firstResult ?? result
-        }
-
-        // return the first result if no CPID matches were eligible.
-        return firstResult
+        return results.find(({ eligible }) => eligible) ?? results[0]
       }
 
       if (process.env.NODE_ENV === "development") {
