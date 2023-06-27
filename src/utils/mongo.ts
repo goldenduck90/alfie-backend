@@ -1,3 +1,6 @@
+import dotenv from "dotenv"
+dotenv.config()
+
 import config from "config"
 import mongoose from "mongoose"
 

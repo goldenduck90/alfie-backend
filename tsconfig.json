@@ -8,6 +8,7 @@
     "sourceMap": true,
     "outDir": "build",
     "baseUrl": ".",
+    "incremental": true,
     "resolveJsonModule": true,
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
