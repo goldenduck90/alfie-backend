@@ -155,6 +155,7 @@ export default class UserResolver {
     @Arg("input") input: Insurance
   ): Promise<InsuranceEligibilityResponse> {
     const user = await this.userService.getUser(userId)
+
     const eligible = await this.userService.checkInsuranceEligibility(
       user,
       input

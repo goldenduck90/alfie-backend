@@ -1,50 +1,54 @@
 import runShell from "./utils/runShell"
 import { Command } from "commander"
 import { Insurance, UserModel } from "../src/schema/user.schema"
-import { Provider } from "../src/schema/provider.schema"
 import CandidService from "../src/services/candid.service"
 import AppointmentService from "../src/services/appointment.service"
 import UserService from "../src/services/user.service"
 import cpids from "../src/utils/cpids.json"
 import { CPIDEntry } from "../src/utils/lookupCPID"
+import EmailService from "../src/services/email.service"
+import { TaskType } from "../src/schema/task.schema"
+import TaskService from "../src/services/task.service"
 
 const program = new Command()
   .description(
     "Tests insurance flows: eligibility and post-appointment. If no flags are set, tests all scenarios."
   )
-  .option("--eligibility", "Whether to only run an eligibility check.")
-  .option(
-    "--initial-appointment",
-    "Whether to only create a coded encounter for the initial appointment case."
-  )
-  .option(
-    "--followup-appointment",
-    "Whether to only create a coded encounter for the follow-up appointment case."
-  )
+  .option("--eligibility", "Whether to test eligibility checks.")
+  .option("--initial", "Whether to test insurance for initial appointments.")
+  .option("--followup", "Whether to test insurance for follow-up appointments.")
+  .option("--withings", "Whether to test withings insurance.")
   .parse()
 
-const flags = program.opts<{
+const options = program.opts()
+const keys = ["eligibility", "initial", "followup", "withings"]
+const flags: {
   eligibility: boolean
-  initialAppointment: boolean
-  followupAppointment: boolean
-}>()
+  initial: boolean
+  followup: boolean
+  withings: boolean
+} = keys.reduce((memo, key) => ({ ...memo, [key]: options[key] }), {} as any)
 
-if (Object.values(flags).every((value) => !value))
-  for (const key in flags) (flags as Record<string, boolean>)[key] = true
+if (keys.every((key) => !(flags as Record<string, boolean>)[key]))
+  for (const key of keys) (flags as Record<string, boolean>)[key] = true
 
 console.log("Starting test insurance script.")
 
 async function testInsurance() {
+  EmailService.prototype.sendEmail = async (...args: any[]) => {
+    console.log(`sendEmail call: ${JSON.stringify(args)}`)
+    return { MessageId: "123", $response: {} as any }
+  }
+
   const appointmentService = new AppointmentService()
   const candidService = new CandidService()
   const userService = new UserService()
+  const taskService = new TaskService()
 
   // prepare user sandbox values.
   const user = await UserModel.findOne({
     email: "test+insurance1@joinalfie.com",
-  }).populate<{ provider: Provider }>("provider")
-
-  const { provider } = user
+  })
 
   const input: Insurance = {
     groupId: "0000000000",
@@ -61,20 +65,14 @@ async function testInsurance() {
   cpids.splice(0, cpids.length, ...testCpids)
 
   if (flags.eligibility) {
-    const result = await candidService.checkInsuranceEligibility(
-      user,
-      provider,
-      input
-    )
+    const result = await userService.checkInsuranceEligibility(user, input)
 
     console.log(`Final eligibility result: ${JSON.stringify(result)}`)
-
-    await userService.updateInsurance(user, result.rectifiedInsurance)
   } else {
     await userService.updateInsurance(user, input)
   }
 
-  if (flags.initialAppointment || flags.followupAppointment) {
+  if (flags.initial || flags.followup) {
     const appointment = await appointmentService.getAppointment({
       eaAppointmentId: "4",
       timezone: "America/New_York",
@@ -92,17 +90,38 @@ async function testInsurance() {
     )
 
     console.log("Creating a coded encounter for an initial appointment.")
-    flags.initialAppointment &&
+    flags.initial &&
       (await candidService.createCodedEncounterForAppointment(
         appointment,
         appointment
       ))
     console.log("Creating a coded encounter for a follow-up appointment.")
-    flags.followupAppointment &&
+    flags.followup &&
       (await candidService.createCodedEncounterForAppointment(
         appointment,
         initialAppointment
       ))
+  }
+
+  if (flags.withings) {
+    user.metriportUserId = "test-metriport-id"
+    user.stripeSubscriptionId = null
+    user.hasScale = false
+    user.weights = [] as any
+    await user.save()
+
+    // process 17 scale readings. The 1st and 16th should create coded encounters.
+    for (let i = 0; i < 17; i++) {
+      await taskService.assignTaskToUser({
+        taskType: TaskType.WEIGHT_LOG,
+        userId: user._id.toString(),
+      })
+
+      await userService.processWithingsScaleReading(
+        user.metriportUserId,
+        230 + Math.round(Math.random() * 5)
+      )
+    }
   }
 }
 

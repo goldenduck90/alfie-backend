@@ -1593,14 +1593,7 @@ class UserService extends EmailService {
       Sentry.captureMessage(logMessage)
 
       try {
-        const eligible = await this.checkInsuranceEligibility(
-          user,
-          insuranceInput
-        )
-        await this.updateInsurance(
-          user,
-          eligible.rectifiedInsurance ?? insuranceInput
-        )
+        await this.checkInsuranceEligibility(user, insuranceInput)
       } catch (error) {
         // error is Sentry captured in checkInsuranceEligibility.
         console.log("Error during eligibility check.", error)
@@ -1645,6 +1638,8 @@ class UserService extends EmailService {
       eligible = result.eligible
       reason = result.reason
       rectifiedInsurance = result.rectifiedInsurance
+
+      await this.updateInsurance(user, rectifiedInsurance ?? input)
 
       await this.akuteService.createInsurance(
         user.akutePatientId,
