@@ -11,11 +11,7 @@ import {
   DocUploadInput,
   PharmacyLocationInput,
 } from "../schema/akute.schema"
-import {
-  CreatePatientInput,
-  UserModel,
-  InsuranceEligibilityInput,
-} from "../schema/user.schema"
+import { CreatePatientInput, UserModel, Insurance } from "../schema/user.schema"
 import { calculateBMI } from "../utils/calculateBMI"
 
 export interface AkuteCreateInsuranceRequest {
@@ -398,7 +394,7 @@ class AkuteService {
 
   async createInsurance(
     akuteId: string,
-    input: InsuranceEligibilityInput
+    input: Insurance
   ): Promise<AkuteInsuranceResponse> {
     try {
       const createInsuranceRequest: AkuteCreateInsuranceRequest = {
