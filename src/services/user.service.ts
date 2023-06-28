@@ -1378,7 +1378,7 @@ class UserService extends EmailService {
           event: "Checkout Started",
           properties: {
             referrer: checkout.referrer,
-            checkoutId: checkout.id,
+            checkoutId: checkout._id,
             signupPartner: checkout.signupPartner,
             insurancePay: checkout.insurancePlan ? true : false,
             environment: process.env.NODE_ENV,
