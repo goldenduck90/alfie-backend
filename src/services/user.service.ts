@@ -1375,13 +1375,13 @@ class UserService extends EmailService {
 
       if (process.env.NODE_ENV === "production") {
         client.capture({
-          distinctId: checkout._id,
+          distinctId: newCheckout._id,
           event: "Checkout Started",
           properties: {
-            referrer: checkout.referrer || "None",
-            checkoutId: checkout._id,
-            signupPartner: checkout.signupPartner || "None",
-            insurancePay: checkout.insurancePlan ? true : false,
+            referrer: newCheckout.referrer || "None",
+            checkoutId: newCheckout._id,
+            signupPartner: newCheckout.signupPartner || "None",
+            insurancePay: newCheckout.insurancePlan ? true : false,
             environment: process.env.NODE_ENV,
           },
         })
