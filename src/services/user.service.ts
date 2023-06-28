@@ -71,6 +71,7 @@ import CandidService from "./candid.service"
 import axios from "axios"
 import { analyzeS3InsuranceCardImage } from "../utils/textract"
 import AnswerType from "../schema/enums/AnswerType"
+import { client } from "../utils/posthog"
 
 export const initialUserTasks = [
   TaskType.ID_AND_INSURANCE_UPLOAD,
@@ -1132,6 +1133,19 @@ class UserService extends EmailService {
     checkout.checkedOut = true
     await checkout.save()
 
+    await client.capture({
+      distinctId: checkout._id,
+      event: "Checkout Complete",
+      properties: {
+        referrer: checkout.referrer,
+        userId: user._id,
+        checkoutId: checkout._id,
+        signupPartner: checkout.signupPartner,
+        insurancePay: checkout.insurancePlan ? true : false,
+        environment: process.env.NODE_ENV,
+      },
+    })
+
     return {
       message: checkoutCompleted,
       user,
@@ -1279,6 +1293,7 @@ class UserService extends EmailService {
       insurancePlan,
       insuranceType,
       signupPartner,
+      referrer,
     } = input
 
     const checkout = await CheckoutModel.find().findByEmail(email).lean()
@@ -1302,9 +1317,22 @@ class UserService extends EmailService {
       checkout.insurancePlan = insurancePlan
       checkout.insuranceType = insuranceType
       checkout.signupPartner = signupPartner
+      checkout.referrer = referrer
 
       // update in db
       await CheckoutModel.findByIdAndUpdate(checkout._id, checkout)
+
+      await client.capture({
+        distinctId: checkout._id,
+        event: "Checkout Started",
+        properties: {
+          referrer: checkout.referrer,
+          checkoutId: checkout.id,
+          signupPartner: checkout.signupPartner,
+          insurancePay: checkout.insurancePlan ? true : false,
+          environment: process.env.NODE_ENV,
+        },
+      })
 
       // return updated checkout
       return {
@@ -1348,6 +1376,7 @@ class UserService extends EmailService {
       insurancePlan,
       insuranceType,
       signupPartner,
+      referrer,
     })
 
     // return new checkout

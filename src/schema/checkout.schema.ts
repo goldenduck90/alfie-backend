@@ -164,6 +164,10 @@ export class Checkout {
   @Field(() => Partner, { nullable: true })
   @prop({ enum: Partner, type: String, required: false })
   signupPartner?: Partner
+
+  @Field(() => String, { nullable: true })
+  @prop({ type: String, required: false })
+  referrer?: string
 }
 
 export const CheckoutModel = getModelForClass<typeof Checkout, QueryHelpers>(
@@ -218,6 +222,9 @@ export class CreateCheckoutInput {
 
   @Field(() => Partner, { nullable: true })
   signupPartner?: Partner
+
+  @Field(() => String, { nullable: true })
+  referrer?: string
 }
 
 @InputType()
