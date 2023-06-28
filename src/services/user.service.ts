@@ -1138,11 +1138,12 @@ class UserService extends EmailService {
         distinctId: checkout._id,
         event: "Checkout Complete",
         properties: {
-          referrer: checkout.referrer,
-          userId: user._id,
+          referrer: checkout.referrer || "None",
           checkoutId: checkout._id,
-          signupPartner: checkout.signupPartner,
+          userId: user._id,
+          signupPartner: checkout.signupPartner || "None",
           insurancePay: checkout.insurancePlan ? true : false,
+          environment: process.env.NODE_ENV,
         },
       })
     }
@@ -1275,117 +1276,125 @@ class UserService extends EmailService {
   }
 
   async createOrFindCheckout(input: CreateCheckoutInput) {
-    const { checkoutFound, checkoutCreated } = config.get("messages") as any
-    const { alreadyCheckedOut } = config.get("errors.checkout") as any
-    const { emailSubscribersTable } = config.get("dynamoDb") as any
+    try {
+      const { checkoutFound, checkoutCreated } = config.get("messages") as any
+      const { alreadyCheckedOut } = config.get("errors.checkout") as any
+      const { emailSubscribersTable } = config.get("dynamoDb") as any
 
-    const {
-      name,
-      email,
-      dateOfBirth,
-      gender,
-      state,
-      heightInInches,
-      weightInLbs,
-      textOptIn,
-      phone,
-      pastTries,
-      weightLossMotivatorV2,
-      insurancePlan,
-      insuranceType,
-      signupPartner,
-      referrer,
-    } = input
+      const {
+        name,
+        email,
+        dateOfBirth,
+        gender,
+        state,
+        heightInInches,
+        weightInLbs,
+        textOptIn,
+        phone,
+        pastTries,
+        weightLossMotivatorV2,
+        insurancePlan,
+        insuranceType,
+        signupPartner,
+        referrer,
+      } = input
 
-    const checkout = await CheckoutModel.find().findByEmail(email).lean()
-    if (checkout) {
-      // check if already checked out
-      if (checkout.checkedOut) {
-        throw new ApolloError(alreadyCheckedOut.message, alreadyCheckedOut.code)
+      const checkout = await CheckoutModel.find().findByEmail(email).lean()
+      if (checkout) {
+        // check if already checked out
+        if (checkout.checkedOut) {
+          throw new ApolloError(
+            alreadyCheckedOut.message,
+            alreadyCheckedOut.code
+          )
+        }
+
+        // update values
+        checkout.name = name
+        checkout.weightLossMotivatorV2 = weightLossMotivatorV2
+        checkout.dateOfBirth = dateOfBirth
+        checkout.gender = gender
+        checkout.state = state
+        checkout.heightInInches = heightInInches
+        checkout.weightInLbs = weightInLbs
+        checkout.textOptIn = textOptIn
+        checkout.phone = phone
+        checkout.pastTries = pastTries
+        checkout.insurancePlan = insurancePlan
+        checkout.insuranceType = insuranceType
+        checkout.signupPartner = signupPartner
+        checkout.referrer = referrer
+
+        // update in db
+        await CheckoutModel.findByIdAndUpdate(checkout._id, checkout)
+
+        // return updated checkout
+        return {
+          message: checkoutFound,
+          checkout,
+        }
       }
 
-      // update values
-      checkout.name = name
-      checkout.weightLossMotivatorV2 = weightLossMotivatorV2
-      checkout.dateOfBirth = dateOfBirth
-      checkout.gender = gender
-      checkout.state = state
-      checkout.heightInInches = heightInInches
-      checkout.weightInLbs = weightInLbs
-      checkout.textOptIn = textOptIn
-      checkout.phone = phone
-      checkout.pastTries = pastTries
-      checkout.insurancePlan = insurancePlan
-      checkout.insuranceType = insuranceType
-      checkout.signupPartner = signupPartner
-      checkout.referrer = referrer
+      // send to email subscriber lambda
+      const { $response } = await this.awsDynamo
+        .putItem({
+          TableName: emailSubscribersTable,
+          Item: {
+            emailaddress: { S: email },
+            fullname: { S: name },
+            state: { S: state },
+          },
+        })
+        .promise()
 
-      // update in db
-      await CheckoutModel.findByIdAndUpdate(checkout._id, checkout)
+      if ($response.error) {
+        console.log(
+          "An error occured creating entry in dynamodb",
+          $response.error.message
+        )
+      }
 
-      // return updated checkout
+      // create new checkout
+      const newCheckout = await CheckoutModel.create({
+        name,
+        email,
+        weightLossMotivatorV2,
+        dateOfBirth,
+        gender,
+        state,
+        heightInInches,
+        weightInLbs,
+        textOptIn,
+        phone,
+        pastTries,
+        insurancePlan,
+        insuranceType,
+        signupPartner,
+        referrer,
+      })
+
+      if (process.env.NODE_ENV === "production") {
+        client.capture({
+          distinctId: checkout._id,
+          event: "Checkout Started",
+          properties: {
+            referrer: checkout.referrer || "None",
+            checkoutId: checkout._id,
+            signupPartner: checkout.signupPartner || "None",
+            insurancePay: checkout.insurancePlan ? true : false,
+            environment: process.env.NODE_ENV,
+          },
+        })
+      }
+
+      // return new checkout
       return {
-        message: checkoutFound,
-        checkout,
+        message: checkoutCreated,
+        checkout: newCheckout,
       }
-    }
-
-    // send to email subscriber lambda
-    const { $response } = await this.awsDynamo
-      .putItem({
-        TableName: emailSubscribersTable,
-        Item: {
-          emailaddress: { S: email },
-          fullname: { S: name },
-          state: { S: state },
-        },
-      })
-      .promise()
-
-    if ($response.error) {
-      console.log(
-        "An error occured creating entry in dynamodb",
-        $response.error.message
-      )
-    }
-
-    // create new checkout
-    const newCheckout = await CheckoutModel.create({
-      name,
-      email,
-      weightLossMotivatorV2,
-      dateOfBirth,
-      gender,
-      state,
-      heightInInches,
-      weightInLbs,
-      textOptIn,
-      phone,
-      pastTries,
-      insurancePlan,
-      insuranceType,
-      signupPartner,
-      referrer,
-    })
-
-    if (process.env.NODE_ENV === "production") {
-      client.capture({
-        distinctId: checkout._id,
-        event: "Checkout Started",
-        properties: {
-          referrer: checkout.referrer,
-          checkoutId: checkout.id,
-          signupPartner: checkout.signupPartner,
-          insurancePay: checkout.insurancePlan ? true : false,
-          environment: process.env.NODE_ENV,
-        },
-      })
-    }
-
-    // return new checkout
-    return {
-      message: checkoutCreated,
-      checkout: newCheckout,
+    } catch (error) {
+      Sentry.captureException(error)
+      console.log(error)
     }
   }
 
