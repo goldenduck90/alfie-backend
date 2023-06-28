@@ -18,9 +18,9 @@ import {
   SubscribeEmailInput,
   User,
   UserSendbirdChannel,
-  InsuranceEligibilityInput,
   InsuranceEligibilityResponse,
   ScaleReadingInput,
+  Insurance,
 } from "../schema/user.schema"
 import Role from "../schema/enums/Role"
 import AkuteService from "../services/akute.service"
@@ -151,10 +151,15 @@ export default class UserResolver {
   @Authorized([Role.Admin, Role.Patient])
   @Query(() => InsuranceEligibilityResponse)
   async insuranceEligibility(
-    @Arg("input") input: InsuranceEligibilityInput
+    @Arg("userId") userId: string,
+    @Arg("input") input: Insurance
   ): Promise<InsuranceEligibilityResponse> {
-    const eligible = await this.userService.checkInsuranceEligibility(input)
-    await this.userService.updateInsurance(input)
+    const user = await this.userService.getUser(userId)
+
+    const eligible = await this.userService.checkInsuranceEligibility(
+      user,
+      input
+    )
 
     return eligible
   }

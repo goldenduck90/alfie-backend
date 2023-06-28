@@ -44,13 +44,13 @@ import {
   ResetPasswordInput,
   SubscribeEmailInput,
   UpdateUserInput,
-  InsuranceEligibilityInput,
   Weight,
   File,
   User,
   FileType,
   Partner,
   InsuranceEligibilityResponse,
+  Insurance,
 } from "../schema/user.schema"
 import Role from "../schema/enums/Role"
 import { signJwt } from "../utils/jwt"
@@ -71,6 +71,24 @@ import CandidService from "./candid.service"
 import axios from "axios"
 import { analyzeS3InsuranceCardImage } from "../utils/textract"
 import AnswerType from "../schema/enums/AnswerType"
+import { client } from "../utils/posthog"
+
+export const initialUserTasks = [
+  TaskType.ID_AND_INSURANCE_UPLOAD,
+  TaskType.NEW_PATIENT_INTAKE_FORM,
+  TaskType.MP_HUNGER,
+  TaskType.MP_FEELING,
+  TaskType.BP_LOG,
+  TaskType.WEIGHT_LOG,
+  TaskType.WAIST_LOG,
+  // TaskType.MP_BLUE_CAPSULE,
+  TaskType.MP_ACTIVITY,
+  TaskType.FOOD_LOG,
+  TaskType.TEFQ,
+  TaskType.AD_LIBITUM,
+  TaskType.GSRS,
+  TaskType.CONNECT_WITHINGS_SCALE,
+]
 
 class UserService extends EmailService {
   private taskService: TaskService
@@ -110,7 +128,7 @@ class UserService extends EmailService {
         userId,
         taskTypes,
       }
-      await this.taskService.bulkAssignTasksToUser(input)
+      return await this.taskService.bulkAssignTasksToUser(input)
     } catch (error) {
       console.error(error, "error in assignUserTasks")
     }
@@ -355,22 +373,7 @@ class UserService extends EmailService {
     })
 
     // assign initial tasks to user
-    const tasks = [
-      TaskType.ID_AND_INSURANCE_UPLOAD,
-      TaskType.NEW_PATIENT_INTAKE_FORM,
-      TaskType.MP_HUNGER,
-      TaskType.MP_FEELING,
-      TaskType.BP_LOG,
-      TaskType.WEIGHT_LOG,
-      TaskType.WAIST_LOG,
-      // TaskType.MP_BLUE_CAPSULE,
-      TaskType.MP_ACTIVITY,
-      TaskType.FOOD_LOG,
-      TaskType.TEFQ,
-      TaskType.AD_LIBITUM,
-      TaskType.GSRS,
-      TaskType.CONNECT_WITHINGS_SCALE,
-    ]
+    const tasks = initialUserTasks
     await this.assignUserTasks(user._id, tasks)
 
     // send email with link to set password
@@ -623,7 +626,9 @@ class UserService extends EmailService {
     const { rememberExp, normalExp } = config.get("jwtExpiration") as any
 
     // Get our user by email
-    const user = (await UserModel.find().findByEmail(email).lean()) as any
+    const user: LeanDocument<User> = await UserModel.find()
+      .findByEmail(email)
+      .lean()
     if (!user) {
       const provider = await ProviderModel.find().findByEmail(email).lean()
       if (!provider) {
@@ -1128,6 +1133,20 @@ class UserService extends EmailService {
     checkout.checkedOut = true
     await checkout.save()
 
+    if (process.env.NODE_ENV === "production") {
+      await client.capture({
+        distinctId: checkout._id,
+        event: "Checkout Complete",
+        properties: {
+          referrer: checkout.referrer,
+          userId: user._id,
+          checkoutId: checkout._id,
+          signupPartner: checkout.signupPartner,
+          insurancePay: checkout.insurancePlan ? true : false,
+        },
+      })
+    }
+
     return {
       message: checkoutCompleted,
       user,
@@ -1139,9 +1158,9 @@ class UserService extends EmailService {
       "errors.checkout"
     ) as any
 
-    const checkout = (await CheckoutModel.findById(
+    const checkout: LeanDocument<Checkout> = await CheckoutModel.findById(
       checkoutId
-    ).lean()) as LeanDocument<Checkout>
+    ).lean()
     if (!checkout) {
       throw new ApolloError(checkoutNotFound.message, checkoutNotFound.code)
     }
@@ -1275,6 +1294,7 @@ class UserService extends EmailService {
       insurancePlan,
       insuranceType,
       signupPartner,
+      referrer,
     } = input
 
     const checkout = await CheckoutModel.find().findByEmail(email).lean()
@@ -1298,9 +1318,24 @@ class UserService extends EmailService {
       checkout.insurancePlan = insurancePlan
       checkout.insuranceType = insuranceType
       checkout.signupPartner = signupPartner
+      checkout.referrer = referrer
 
       // update in db
       await CheckoutModel.findByIdAndUpdate(checkout._id, checkout)
+
+      if (process.env.NODE_ENV === "production") {
+        await client.capture({
+          distinctId: checkout._id,
+          event: "Checkout Started",
+          properties: {
+            referrer: checkout.referrer,
+            checkoutId: checkout.id,
+            signupPartner: checkout.signupPartner,
+            insurancePay: checkout.insurancePlan ? true : false,
+            environment: process.env.NODE_ENV,
+          },
+        })
+      }
 
       // return updated checkout
       return {
@@ -1344,6 +1379,7 @@ class UserService extends EmailService {
       insurancePlan,
       insuranceType,
       signupPartner,
+      referrer,
     })
 
     // return new checkout
@@ -1549,7 +1585,9 @@ class UserService extends EmailService {
   /** Completes an upload by saving the files uploaded to S3 to the database. */
   async completeUpload(input: File[], userId: string): Promise<User> {
     const { notFound } = config.get("errors.user") as any
-    const user = await UserModel.findById(userId).countDocuments()
+    const user = await UserModel.findById(userId).populate<{
+      provider: Provider
+    }>("provider")
     if (!user) {
       throw new ApolloError(notFound.message, notFound.code)
     }
@@ -1572,8 +1610,7 @@ class UserService extends EmailService {
         bucket,
         insuranceFile.key
       )
-      const insuranceInput: InsuranceEligibilityInput = {
-        userId,
+      const insuranceInput: Insurance = {
         memberId: insuranceData.member_id,
         groupId: insuranceData.group_number,
         groupName: insuranceData.group_name,
@@ -1590,10 +1627,7 @@ class UserService extends EmailService {
       Sentry.captureMessage(logMessage)
 
       try {
-        const eligible = await this.checkInsuranceEligibility(insuranceInput)
-        if (eligible) {
-          await this.updateInsurance(insuranceInput)
-        }
+        await this.checkInsuranceEligibility(user, insuranceInput)
       } catch (error) {
         // error is Sentry captured in checkInsuranceEligibility.
         console.log("Error during eligibility check.", error)
@@ -1604,16 +1638,7 @@ class UserService extends EmailService {
   }
 
   /** Updates insurance information for a given user. */
-  async updateInsurance(input: InsuranceEligibilityInput): Promise<void> {
-    const { userId } = input
-    const notFound = config.get("errors.user.notFound") as any
-
-    // Get the user by ID
-    const user: LeanDocument<User> = await UserModel.findById(userId).lean()
-    if (!user) {
-      throw new ApolloError(notFound.message, notFound.code)
-    }
-
+  async updateInsurance(user: User, input: Insurance): Promise<void> {
     // update insurance fields
     user.insurance = {
       memberId: input.memberId,
@@ -1629,54 +1654,51 @@ class UserService extends EmailService {
   }
 
   async checkInsuranceEligibility(
-    input: InsuranceEligibilityInput
+    user: User,
+    input: Insurance
   ): Promise<InsuranceEligibilityResponse> {
+    let eligible: boolean
+    let reason: string | undefined
+    let rectifiedInsurance: Insurance | undefined
+
     try {
-      const user = await UserModel.findById(input.userId).populate<{
-        provider: Provider
-      }>("provider")
-      if (!user) throw new Error(`User ${input.userId} not found.`)
-
-      const { provider } = user
-      if (!provider)
-        throw new Error(`No provider associated with user ${input.userId}.`)
-
-      const insuranceResult = await this.akuteService.createInsurance(
-        user.akutePatientId,
+      const provider = await ProviderModel.findById(user.provider)
+      const result = await this.candidService.checkInsuranceEligibility(
+        user,
+        provider,
         input
       )
 
-      console.log(`Insurance result: ${JSON.stringify(insuranceResult)}`)
+      eligible = result.eligible
+      reason = result.reason
+      rectifiedInsurance = result.rectifiedInsurance
 
-      let eligible: boolean
-      let reason: string | undefined
-      try {
-        const result = await this.candidService.checkInsuranceEligibility(
-          user,
-          provider,
-          input
-        )
-        eligible = result.eligible
-        reason = result.reason
-      } catch (error) {
-        console.log(
-          `UserService.checkInsuranceEligibility: error checking eligibility: ${error.message}`
-        )
-        console.log(error)
-        Sentry.captureException(error)
-        eligible = false
-        reason = "There was an error during the eligibility check process."
-      }
+      await this.updateInsurance(user, rectifiedInsurance ?? input)
 
-      const eligibilityLog = `[CANDID HEALTH][TIME: ${new Date().toISOString()}][EVENT: eligibility] ${
-        eligible ? "Eligible Determination" : `Ineligible: ${reason}`
-      }`
-      console.log(eligibilityLog)
-      Sentry.captureEvent({
-        message: eligibilityLog,
-        level: "info",
-      })
+      await this.akuteService.createInsurance(
+        user.akutePatientId,
+        rectifiedInsurance || input
+      )
+    } catch (error) {
+      console.log(
+        `UserService.checkInsuranceEligibility: error checking eligibility: ${error.message}`
+      )
+      console.log(error)
+      Sentry.captureException(error)
+      eligible = false
+      reason = "There was an error during the eligibility check process."
+    }
 
+    const eligibilityLog = `[CANDID HEALTH][TIME: ${new Date().toISOString()}][EVENT: eligibility] ${
+      eligible ? "Eligible Determination" : `Ineligible: ${reason}`
+    }`
+    console.log(eligibilityLog)
+    Sentry.captureEvent({
+      message: eligibilityLog,
+      level: "info",
+    })
+
+    try {
       await this.emailService.sendEligibilityCheckResultEmail({
         patientName: user.name,
         patientEmail: user.email,

@@ -1049,33 +1049,6 @@ export class UserSendbirdChannel {
   joined_ts?: number
 }
 
-@InputType()
-export class InsuranceEligibilityInput {
-  @Field(() => String)
-  userId: string
-
-  @Field(() => String)
-  memberId: string
-
-  @Field(() => String)
-  insuranceCompany: string
-
-  @Field(() => String)
-  payor: string
-
-  @Field(() => String)
-  groupId: string
-
-  @Field(() => String)
-  groupName: string
-
-  @Field(() => String)
-  rxBin: string
-
-  @Field(() => String)
-  rxGroup: string
-}
-
 @ObjectType()
 export class InsuranceEligibilityResponse {
   @Field(() => Boolean)
@@ -1083,6 +1056,9 @@ export class InsuranceEligibilityResponse {
 
   @Field(() => String, { nullable: true })
   reason?: string
+
+  @Field(() => Insurance, { nullable: true })
+  rectifiedInsurance?: Insurance
 }
 
 @InputType()

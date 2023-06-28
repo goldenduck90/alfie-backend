@@ -19,13 +19,7 @@ import type {
   RequestClinicalNote,
 } from "../@types/candidTypes"
 import dayjs from "../utils/dayjs"
-import {
-  Insurance,
-  InsuranceEligibilityInput,
-  User,
-  UserModel,
-  Weight,
-} from "../schema/user.schema"
+import { Insurance, User, UserModel, Weight } from "../schema/user.schema"
 import { Provider } from "../schema/provider.schema"
 import { TaskType } from "../schema/task.schema"
 import { UserTask } from "../schema/task.user.schema"
@@ -129,9 +123,12 @@ export default class CandidService {
 
   /** Gets an authorization token for candidhealth from the database, or null if none exists. */
   public async getSavedAuthorizationToken(): Promise<LeanDocument<AuthorizationToken> | null> {
-    return (await AuthorizationTokenModel.findOne({
-      provider: authorizationTokenProvider,
-    }).lean()) as LeanDocument<AuthorizationToken>
+    const token: LeanDocument<AuthorizationToken> =
+      await AuthorizationTokenModel.findOne({
+        provider: authorizationTokenProvider,
+      }).lean()
+
+    return token
   }
 
   /** Saves the given OAuth 2.0 token to the authorizationTokens collection, updating any previously saved token if it exists. */
@@ -193,13 +190,15 @@ export default class CandidService {
   public async checkInsuranceEligibility(
     user: User,
     provider: Provider,
-    input: InsuranceEligibilityInput,
+    input: Insurance,
     /** Optional. The CPID. Otherwise, uses fields from `input` to calculate. */
     cpid?: string
   ): Promise<{
     eligible: boolean
     reason?: string
     response?: CandidEligibilityCheckResponse
+    /** If the insurance was rectified (e.g. in the case of a null payor ID) */
+    rectifiedInsurance?: Insurance
   }> {
     await this.authenticate()
 
@@ -208,25 +207,44 @@ export default class CandidService {
     )
 
     try {
-      cpid = cpid || lookupCPID(input.payor, input.insuranceCompany)
+      if (!cpid) {
+        const cpids = lookupCPID(input.payor, input.insuranceCompany, 4)
+        console.log(
+          `CandidService.checkInsuranceEligibility: checking CPIDs: ${JSON.stringify(
+            cpids
+          )}`
+        )
 
-      if (process.env.NODE_ENV === "development") {
-        const sandboxValues = getSandboxObjects(user, provider, input, null)
-        user = sandboxValues.user
-        provider = sandboxValues.provider
-        input = sandboxValues.input
-        cpid = sandboxValues.cpid
+        const results = await Promise.all(
+          cpids.map(async (match) => {
+            const rectifiedInsurance: Insurance = {
+              ...input,
+              insuranceCompany: match.primary_name,
+              payor: match.payer_id,
+            }
+
+            const result = await this.checkInsuranceEligibility(
+              user,
+              provider,
+              rectifiedInsurance,
+              match.cpid
+            )
+
+            return {
+              ...result,
+              rectifiedInsurance,
+            }
+          })
+        )
+
+        return results.find(({ eligible }) => eligible) ?? results[0]
       }
 
-      if (!cpid) {
-        const errorLog = `Could not infer CPID from payor ${input.payor}/${input.insuranceCompany}.`
-        console.log(errorLog)
-        Sentry.captureEvent({ message: errorLog, level: "error" })
-
-        return {
-          eligible: false,
-          reason: "Could not lookup CPID.",
-        }
+      if (process.env.NODE_ENV === "development") {
+        const sandboxValues = getSandboxObjects(user, provider, input)
+        user = sandboxValues.user
+        provider = sandboxValues.provider
+        input = sandboxValues.insurance
       }
 
       const [userFirstName, userLastName] = user.name.split(" ")
@@ -502,7 +520,7 @@ export default class CandidService {
     const settings: SettingsList = config.get("candidHealth.settings")
 
     if (process.env.NODE_ENV === "development") {
-      const sandboxValues = getSandboxObjects(user, provider, null, insurance)
+      const sandboxValues = getSandboxObjects(user, provider, insurance)
       user = sandboxValues.user
       provider = sandboxValues.provider
       insurance = sandboxValues.insurance
@@ -804,12 +822,10 @@ export default class CandidService {
 function getSandboxObjects(
   fromUser: User,
   fromProvider: Provider,
-  fromInput: InsuranceEligibilityInput,
   fromInsurance: Insurance
 ): {
   user: User
   provider: Provider
-  input: InsuranceEligibilityInput
   insurance: Insurance
   cpid: string
 } {
@@ -821,8 +837,6 @@ function getSandboxObjects(
   copyFields(fromUser, user)
   const provider = new Provider()
   copyFields(fromProvider, provider)
-  const input = new InsuranceEligibilityInput()
-  copyFields(fromInput, input)
   const insurance = new Insurance()
   copyFields(fromInsurance, insurance)
 
@@ -841,13 +855,13 @@ function getSandboxObjects(
   provider.firstName = "johnone"
   provider.lastName = "doeone"
 
-  if (fromInput) {
-    input.groupId = "0000000000"
-    input.groupName = "group name"
-    input.memberId = "0000000000"
-    input.rxBin = "12345"
-    input.rxGroup = "abcdefg"
+  if (fromInsurance) {
+    insurance.groupId = "0000000000"
+    insurance.groupName = "group name"
+    insurance.memberId = "0000000000"
+    insurance.rxBin = "12345"
+    insurance.rxGroup = "abcdefg"
   }
 
-  return { user, provider, input, insurance, cpid: "00007" }
+  return { user, provider, insurance, cpid: "00007" }
 }
