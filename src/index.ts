@@ -26,6 +26,7 @@ import { MetriportUser } from "./services/metriport.service"
 import stripe from "stripe"
 import { CheckoutModel } from "./schema/checkout.schema"
 import config from "config"
+import { client } from "./utils/posthog"
 
 const Stripe = new stripe(process.env.STRIPE_SECRET_KEY, {
   apiVersion: "2022-08-01",
@@ -638,6 +639,21 @@ async function bootstrap() {
 
               const newUser = pINewUser.user
 
+              if (process.env.NODE_ENV === "production") {
+                client.capture({
+                  distinctId: pICheckout._id,
+                  event: "Checkout Complete",
+                  properties: {
+                    referrer: pICheckout.referrer || "None",
+                    checkoutId: pICheckout._id,
+                    userId: newUser._id,
+                    signupPartner: pICheckout.signupPartner || "None",
+                    insurancePay: pICheckout.insurancePlan ? true : false,
+                    environment: process.env.NODE_ENV,
+                  },
+                })
+              }
+
               await Stripe.paymentIntents.update(pIId, {
                 metadata: {
                   USER_ID: newUser._id,
@@ -650,6 +666,10 @@ async function bootstrap() {
                   UPDATED_VIA_STRIPE_WEBHOOK_ON: new Date().toString(),
                 },
               })
+
+              pICheckout.user = newUser._id
+              pICheckout.checkedOut = true
+              await pICheckout.save()
 
               console.log(
                 `[STRIPE WEBHOOK][TIME: ${time}][EVENT: payment_intent.succeeded] Successfully Created User (${newUser._id}) from Checkout with stripe payment intent id: ${pIId}`
