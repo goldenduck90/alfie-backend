@@ -1134,7 +1134,7 @@ class UserService extends EmailService {
     await checkout.save()
 
     if (process.env.NODE_ENV === "production") {
-      await client.capture({
+      client.capture({
         distinctId: checkout._id,
         event: "Checkout Complete",
         properties: {
@@ -1323,20 +1323,6 @@ class UserService extends EmailService {
       // update in db
       await CheckoutModel.findByIdAndUpdate(checkout._id, checkout)
 
-      if (process.env.NODE_ENV === "production") {
-        await client.capture({
-          distinctId: checkout._id,
-          event: "Checkout Started",
-          properties: {
-            referrer: checkout.referrer,
-            checkoutId: checkout.id,
-            signupPartner: checkout.signupPartner,
-            insurancePay: checkout.insurancePlan ? true : false,
-            environment: process.env.NODE_ENV,
-          },
-        })
-      }
-
       // return updated checkout
       return {
         message: checkoutFound,
@@ -1381,6 +1367,20 @@ class UserService extends EmailService {
       signupPartner,
       referrer,
     })
+
+    if (process.env.NODE_ENV === "production") {
+      client.capture({
+        distinctId: checkout._id,
+        event: "Checkout Started",
+        properties: {
+          referrer: checkout.referrer,
+          checkoutId: checkout.id,
+          signupPartner: checkout.signupPartner,
+          insurancePay: checkout.insurancePlan ? true : false,
+          environment: process.env.NODE_ENV,
+        },
+      })
+    }
 
     // return new checkout
     return {
