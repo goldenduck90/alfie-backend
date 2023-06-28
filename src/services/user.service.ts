@@ -1138,11 +1138,12 @@ class UserService extends EmailService {
         distinctId: checkout._id,
         event: "Checkout Complete",
         properties: {
-          referrer: checkout.referrer,
-          userId: user._id,
+          referrer: checkout.referrer || "None",
           checkoutId: checkout._id,
-          signupPartner: checkout.signupPartner,
+          userId: user._id,
+          signupPartner: checkout.signupPartner || "None",
           insurancePay: checkout.insurancePlan ? true : false,
+          environment: process.env.NODE_ENV,
         },
       })
     }
@@ -1377,9 +1378,9 @@ class UserService extends EmailService {
           distinctId: checkout._id,
           event: "Checkout Started",
           properties: {
-            referrer: checkout.referrer,
+            referrer: checkout.referrer || "None",
             checkoutId: checkout._id,
-            signupPartner: checkout.signupPartner,
+            signupPartner: checkout.signupPartner || "None",
             insurancePay: checkout.insurancePlan ? true : false,
             environment: process.env.NODE_ENV,
           },
