@@ -739,7 +739,9 @@ class UserService extends EmailService {
   async getAllUsers() {
     try {
       // Find all users and populate the "provider" field
-      const users = await UserModel.find().populate("provider").lean()
+      const users = await UserModel.find()
+        .populate<{ provider: Provider }>("provider")
+        .lean()
       users.forEach((u) => {
         if (u.score) {
           if (u.score.some((el: any) => el === null)) {
@@ -776,6 +778,7 @@ class UserService extends EmailService {
       throw new ApolloError(error.message, error.code)
     }
   }
+
   async getAllUsersByAHealthCoach(providerId: string) {
     try {
       const findEaHealthCoachId = await UserModel.find({
@@ -787,8 +790,9 @@ class UserService extends EmailService {
       const users = await UserModel.find({
         eaHealthCoachId: findEaHealthCoachId[0].eaHealthCoachId,
       })
-        .populate("provider")
+        .populate<{ provider: Provider }>("provider")
         .lean()
+
       return users
     } catch (error) {
       throw new ApolloError(error.message, error.code)

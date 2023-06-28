@@ -133,20 +133,19 @@ class TaskService {
   }
   async checkEligibilityForAppointment(userId: any) {
     try {
-      const userTasks: any = await UserTaskModel.find({
+      const userTasks = await UserTaskModel.find({
         user: userId,
-      }).populate("task")
+      }).populate<{ task: Task }>("task")
+
       const requiredTaskTypes = [
         TaskType.MP_HUNGER,
         TaskType.MP_FEELING,
         TaskType.AD_LIBITUM,
         TaskType.MP_ACTIVITY,
       ]
-      const completedTasks: any = userTasks.filter(
-        (task: any) => task.completed
-      )
+      const completedTasks = userTasks.filter((userTask) => userTask.completed)
       const completedTaskTypes = completedTasks.map(
-        (task: any) => task.task.type
+        (userTask) => userTask.task.type
       )
 
       const hasCompletedRequiredTasks = requiredTaskTypes.every((taskType) =>
@@ -585,7 +584,7 @@ class TaskService {
     }
   }
 
-  async assignTaskToUser(input: CreateUserTaskInput) {
+  async assignTaskToUser(input: CreateUserTaskInput): Promise<UserTask> {
     const { alreadyAssigned, notFound, userNotFound } = config.get(
       "errors.tasks"
     ) as any
@@ -621,10 +620,8 @@ class TaskService {
         : undefined,
       highPriority: task.highPriority,
       lastNotifiedUserAt: task.notifyWhenAssigned ? new Date() : undefined,
+      pastDue: false,
     })
-
-    await newTask.populate("user")
-    await newTask.populate("task")
 
     if (task.notifyWhenAssigned) {
       await this.emailService.sendTaskAssignedEmail({
@@ -636,11 +633,9 @@ class TaskService {
       })
     }
 
-    return {
-      ...newTask.toObject(),
-      ...(newTask.dueAt && { pastDue: false }),
-    }
+    return newTask
   }
+
   async getAllTasks() {
     try {
       const tasks = await TaskModel.find()
