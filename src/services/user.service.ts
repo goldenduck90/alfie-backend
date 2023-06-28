@@ -1133,18 +1133,19 @@ class UserService extends EmailService {
     checkout.checkedOut = true
     await checkout.save()
 
-    await client.capture({
-      distinctId: checkout._id,
-      event: "Checkout Complete",
-      properties: {
-        referrer: checkout.referrer,
-        userId: user._id,
-        checkoutId: checkout._id,
-        signupPartner: checkout.signupPartner,
-        insurancePay: checkout.insurancePlan ? true : false,
-        environment: process.env.NODE_ENV,
-      },
-    })
+    if (process.env.NODE_ENV === "production") {
+      await client.capture({
+        distinctId: checkout._id,
+        event: "Checkout Complete",
+        properties: {
+          referrer: checkout.referrer,
+          userId: user._id,
+          checkoutId: checkout._id,
+          signupPartner: checkout.signupPartner,
+          insurancePay: checkout.insurancePlan ? true : false,
+        },
+      })
+    }
 
     return {
       message: checkoutCompleted,
@@ -1322,17 +1323,19 @@ class UserService extends EmailService {
       // update in db
       await CheckoutModel.findByIdAndUpdate(checkout._id, checkout)
 
-      await client.capture({
-        distinctId: checkout._id,
-        event: "Checkout Started",
-        properties: {
-          referrer: checkout.referrer,
-          checkoutId: checkout.id,
-          signupPartner: checkout.signupPartner,
-          insurancePay: checkout.insurancePlan ? true : false,
-          environment: process.env.NODE_ENV,
-        },
-      })
+      if (process.env.NODE_ENV === "production") {
+        await client.capture({
+          distinctId: checkout._id,
+          event: "Checkout Started",
+          properties: {
+            referrer: checkout.referrer,
+            checkoutId: checkout.id,
+            signupPartner: checkout.signupPartner,
+            insurancePay: checkout.insurancePlan ? true : false,
+            environment: process.env.NODE_ENV,
+          },
+        })
+      }
 
       // return updated checkout
       return {
