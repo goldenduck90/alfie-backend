@@ -31,6 +31,7 @@ import utc from "dayjs/plugin/utc"
 import advanced from "dayjs/plugin/advancedFormat"
 import CandidService from "./candid.service"
 import { LeanDocument } from "mongoose"
+import { captureException } from "../utils/sentry"
 
 dayjs.extend(utc)
 dayjs.extend(tz)
@@ -288,35 +289,37 @@ class AppointmentService extends EmailService {
     user: Context["user"],
     input: CreateAppointmentInput
   ) {
+    const { notFound, noEaCustomerId } = config.get("errors.user") as any
+    const { userId, start, end, timezone, notes, bypassNotice, userTaskId } =
+      input
+
+    const _user = await UserModel.findById(userId ? userId : user._id)
+    if (!_user) {
+      throw new ApolloError(notFound.message, notFound.code)
+    }
+
+    if (!_user.eaCustomerId) {
+      throw new ApolloError(noEaCustomerId.message, noEaCustomerId.code)
+    }
+
+    const eaCustomerId = _user.eaCustomerId
+
+    const provider = await ProviderModel.findById(_user.provider)
+    if (!provider) {
+      throw new ApolloError(notFound.message, notFound.code)
+    }
+
+    if (!provider.eaProviderId) {
+      throw new ApolloError(noEaCustomerId.message, noEaCustomerId.code)
+    }
+
+    const eaProviderId = provider.eaProviderId
+
+    const meetingData = await createMeetingAndToken(_user.id)
+
+    let response: IEAAppointmentResponse
     try {
-      const { notFound, noEaCustomerId } = config.get("errors.user") as any
-      const { userId, start, end, timezone, notes, bypassNotice, userTaskId } =
-        input
-
-      const _user = await UserModel.findById(userId ? userId : user._id)
-      if (!_user) {
-        throw new ApolloError(notFound.message, notFound.code)
-      }
-
-      if (!_user.eaCustomerId) {
-        throw new ApolloError(noEaCustomerId.message, noEaCustomerId.code)
-      }
-
-      const eaCustomerId = _user.eaCustomerId
-
-      const provider = await ProviderModel.findById(_user.provider)
-      if (!provider) {
-        throw new ApolloError(notFound.message, notFound.code)
-      }
-
-      if (!provider.eaProviderId) {
-        throw new ApolloError(noEaCustomerId.message, noEaCustomerId.code)
-      }
-
-      const eaProviderId = provider.eaProviderId
-
-      const meetingData = await createMeetingAndToken(_user.id)
-      const { data: response } = await this.axios.post(
+      const { data } = await this.axios.post<IEAAppointmentResponse>(
         `/appointments?bypassNotice=${bypassNotice}`,
         {
           start,
@@ -329,66 +332,66 @@ class AppointmentService extends EmailService {
           notes: notes || "",
         }
       )
-
-      // call complete task for schedule appt
-      if (userTaskId) {
-        const userTask = await UserTaskModel.findById(userTaskId)
-        if (!userTask) {
-          throw new ApolloError(notFound.message, notFound.code)
-        }
-
-        userTask.completed = true
-        await userTask.save()
-      }
-
-      await UserModel.findByIdAndUpdate(userId, {
-        meetingUrl: meetingData,
-      })
-
-      if (response) {
-        await this.sendAppointmentCreatedEmail({
-          name: response.provider.firstName,
-          email: response.provider.email,
-          date: dayjs
-            .tz(response.start, response.timezone)
-            .format("MM/DD/YYYY"),
-          start: `${dayjs
-            .tz(response.start, response.timezone)
-            .format("h:mm A (z)")}`,
-          end: `${dayjs
-            .tz(response.end, response.timezone)
-            .format("h:mm A (z)")}`,
-          otherName:
-            response.customer.firstName + " " + response.customer.lastName,
-          id: response.id,
-          provider: true,
-        })
-
-        await this.sendAppointmentCreatedEmail({
-          name: response.customer.firstName,
-          email: response.customer.email,
-          date: dayjs
-            .tz(response.start, response.timezone)
-            .format("MM/DD/YYYY"),
-          start: `${dayjs
-            .tz(response.start, response.timezone)
-            .format("h:mm A (z)")}`,
-          end: `${dayjs
-            .tz(response.end, response.timezone)
-            .format("h:mm A (z)")}`,
-          otherName:
-            response.provider.firstName + " " + response.provider.lastName,
-          id: response.id,
-          provider: false,
-        })
-      }
-
-      return eaResponseToEAAppointment(response)
+      response = data
     } catch (error) {
-      console.log(error)
-      Sentry.captureException(error)
+      const errorData = error.response?.data ?? error
+      captureException(errorData, "AppointmentService.createAppointment", {
+        user: _user?._id?.toString(),
+        provider: provider.eaProviderId,
+      })
       throw new ApolloError(error.message, "ERROR")
     }
+
+    // call complete task for schedule appt
+    if (userTaskId) {
+      const userTask = await UserTaskModel.findById(userTaskId)
+      if (!userTask) {
+        throw new ApolloError(notFound.message, notFound.code)
+      }
+
+      userTask.completed = true
+      await userTask.save()
+    }
+
+    await UserModel.findByIdAndUpdate(userId, {
+      meetingUrl: meetingData,
+    })
+
+    if (response) {
+      await this.sendAppointmentCreatedEmail({
+        name: response.provider.firstName,
+        email: response.provider.email,
+        date: dayjs.tz(response.start, response.timezone).format("MM/DD/YYYY"),
+        start: `${dayjs
+          .tz(response.start, response.timezone)
+          .format("h:mm A (z)")}`,
+        end: `${dayjs
+          .tz(response.end, response.timezone)
+          .format("h:mm A (z)")}`,
+        otherName:
+          response.customer.firstName + " " + response.customer.lastName,
+        id: String(response.id),
+        provider: true,
+      })
+
+      await this.sendAppointmentCreatedEmail({
+        name: response.customer.firstName,
+        email: response.customer.email,
+        date: dayjs.tz(response.start, response.timezone).format("MM/DD/YYYY"),
+        start: `${dayjs
+          .tz(response.start, response.timezone)
+          .format("h:mm A (z)")}`,
+        end: `${dayjs
+          .tz(response.end, response.timezone)
+          .format("h:mm A (z)")}`,
+        otherName:
+          response.provider.firstName + " " + response.provider.lastName,
+        id: String(response.id),
+        provider: false,
+      })
+    }
+
+    return eaResponseToEAAppointment(response)
   }
 
   /**
@@ -432,8 +435,11 @@ class AppointmentService extends EmailService {
       await this.axios.put(`/appointments/${eaAppointmentId}/attended`, params)
       return { message: "Marked appointment attended." }
     } catch (error) {
-      Sentry.captureException(error)
-      console.log(error)
+      captureException(error, "AppointmentService.updateAppointmentAttended", {
+        flags,
+        eaAppointmentId,
+        user: authUser._id.toString(),
+      })
       throw new ApolloError(error.message, "ERROR")
     }
   }
@@ -666,7 +672,7 @@ class AppointmentService extends EmailService {
     try {
       const { notFound, noEaCustomerId } = config.get("errors.user") as any
 
-      let eaUserId
+      let eaUserId: number
 
       if (user.role === Role.Doctor || user.role === Role.Practitioner) {
         const provider: LeanDocument<Provider> = await ProviderModel.findById(
@@ -691,7 +697,7 @@ class AppointmentService extends EmailService {
           throw new ApolloError(noEaCustomerId.message, noEaCustomerId.code)
         }
 
-        eaUserId = _user.eaCustomerId
+        eaUserId = Number(_user.eaCustomerId)
       }
 
       const { data } = await this.axios.get<IEAAppointmentResponse[]>(
