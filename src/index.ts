@@ -924,6 +924,21 @@ async function bootstrap() {
                 signupPartner: sCCheckout.signupPartner,
               })
 
+              if (process.env.NODE_ENV === "production") {
+                client.capture({
+                  distinctId: sCCheckout._id,
+                  event: "Checkout Complete",
+                  properties: {
+                    referrer: sCCheckout.referrer || "None",
+                    checkoutId: sCCheckout._id,
+                    userId: newUser.user._id,
+                    signupPartner: sCCheckout.signupPartner || "None",
+                    insurancePay: sCCheckout.insurancePlan ? true : false,
+                    environment: process.env.NODE_ENV,
+                  },
+                })
+              }
+
               await Stripe.subscriptions.update(sCId, {
                 metadata: {
                   USER_ID: newUser.user._id,
@@ -936,6 +951,10 @@ async function bootstrap() {
                   UPDATED_VIA_STRIPE_WEBHOOK_ON: new Date().toString(),
                 },
               })
+
+              sCCheckout.user = newUser.user._id
+              sCCheckout.checkedOut = true
+              await sCCheckout.save()
 
               console.log(
                 `[STRIPE WEBHOOK][TIME: ${time}][EVENT: customer.subscription.created] Successfully Created User (${newUser.user._id}) from Checkout with stripe subscription id: ${sCId}`
