@@ -1,9 +1,13 @@
 import * as Sentry from "@sentry/node"
 import { ApolloError } from "apollo-server"
 import axios, { AxiosInstance } from "axios"
+import { LeanDocument } from "mongoose"
 import config from "config"
-import { Provider, ProviderModel } from "../schema/provider.schema"
 import Context from "../types/context"
+import { createMeetingAndToken } from "../utils/daily"
+import dayjs from "../utils/dayjs"
+import { captureException, captureEvent } from "../utils/sentry"
+import batchAsync from "../utils/batchAsync"
 import {
   IEAAppointment,
   IEAAppointmentResponse,
@@ -20,22 +24,12 @@ import {
   UpcomingAppointmentsInput,
   UpdateAppointmentInput,
 } from "../schema/appointment.schema"
+import { Provider, ProviderModel } from "../schema/provider.schema"
 import { UserTaskModel } from "../schema/task.user.schema"
-import { UserModel, MessageResponse } from "../schema/user.schema"
+import { UserModel, MessageResponse, User } from "../schema/user.schema"
 import Role from "../schema/enums/Role"
-import { createMeetingAndToken } from "../utils/daily"
-import EmailService from "./email.service"
-import dayjs from "dayjs"
-import tz from "dayjs/plugin/timezone"
-import utc from "dayjs/plugin/utc"
-import advanced from "dayjs/plugin/advancedFormat"
 import CandidService from "./candid.service"
-import { LeanDocument } from "mongoose"
-import { captureException } from "../utils/sentry"
-
-dayjs.extend(utc)
-dayjs.extend(tz)
-dayjs.extend(advanced)
+import EmailService from "./email.service"
 
 /** Convert appointment object from EA to the format used in graphQL. */
 function eaResponseToEAAppointment(
@@ -285,10 +279,7 @@ class AppointmentService extends EmailService {
     }
   }
 
-  async createAppointment(
-    user: Context["user"],
-    input: CreateAppointmentInput
-  ) {
+  async createAppointment(user: User, input: CreateAppointmentInput) {
     const { notFound, noEaCustomerId } = config.get("errors.user") as any
     const { userId, start, end, timezone, notes, bypassNotice, userTaskId } =
       input
@@ -319,24 +310,37 @@ class AppointmentService extends EmailService {
 
     let response: IEAAppointmentResponse
     try {
+      const createAppointmentParams = {
+        start,
+        end,
+        timezone,
+        location: meetingData,
+        customerId: eaCustomerId,
+        providerId: eaProviderId,
+        serviceId: 1,
+        notes: notes || "",
+      }
+      captureEvent(
+        "info",
+        "AppointmentService.createAppointment: request object",
+        createAppointmentParams
+      )
+
       const { data } = await this.axios.post<IEAAppointmentResponse>(
         `/appointments?bypassNotice=${bypassNotice}`,
-        {
-          start,
-          end,
-          timezone,
-          location: meetingData,
-          customerId: eaCustomerId,
-          providerId: eaProviderId,
-          serviceId: 1,
-          notes: notes || "",
-        }
+        createAppointmentParams
       )
       response = data
+
+      if ((response as any).code === 400) {
+        throw new ApolloError(
+          (response as any).message ?? "Error creating appointment.",
+          "APPOINTMENT_EXISTS"
+        )
+      }
     } catch (error) {
       const errorData = error.response?.data ?? error
       captureException(errorData, "AppointmentService.createAppointment", {
-        user: _user?._id?.toString(),
         provider: provider.eaProviderId,
       })
       throw new ApolloError(error.message, "ERROR")
@@ -401,7 +405,7 @@ class AppointmentService extends EmailService {
    */
   async updateAppointmentAttended(
     /** Optional: the logged in user to calculate patient_attended and provider_attended. */
-    authUser: Context["user"] | null,
+    authUser: User | null,
     eaAppointmentId: string,
     /** Additional flags to set (overrides authUser-derived flags). */
     flags: (
@@ -666,7 +670,7 @@ class AppointmentService extends EmailService {
   }
 
   async getAppointmentsByMonth(
-    user: Context["user"],
+    user: User,
     input: GetAppointmentsByMonthInput
   ): Promise<IEAAppointment[]> {
     try {
@@ -716,6 +720,11 @@ class AppointmentService extends EmailService {
           },
         }
       )
+
+      if ((data as any).code >= 400) {
+        throw new ApolloError((data as any).message, "APPOINTMENTS_ERROR")
+      }
+
       const apps = data
         .filter((response) => response.customer && response.service)
         .map((response) => eaResponseToEAAppointment(response))
@@ -971,9 +980,26 @@ class AppointmentService extends EmailService {
       appointments.push(...appointmentSet)
     }
 
+    const providerIds = Object.keys(
+      appointments.reduce(
+        (memo, { eaProvider }) => ({ ...memo, [eaProvider.id]: true }),
+        {} as Record<string, boolean>
+      )
+    )
+
+    const providers = (
+      await ProviderModel.find({ eaProviderId: { $in: providerIds } })
+    ).reduce(
+      (map, provider) => ({ ...map, [provider.eaProviderId]: provider }),
+      {} as Record<string, Provider>
+    )
+
     const pastAppointments = appointments.filter((appointment) => {
       const appointmentEndTime = dayjs.tz(appointment.end, appointment.timezone)
-      return appointmentEndTime.isBefore(now)
+      const provider = providers[appointment.eaProvider.id]
+      return (
+        provider?.type !== Role.HealthCoach && appointmentEndTime.isBefore(now)
+      )
     })
 
     console.log(
@@ -981,9 +1007,10 @@ class AppointmentService extends EmailService {
     )
 
     // TODO: use batchAsync from sendbird PR to scale
-    await Promise.all(
+    await batchAsync(
       pastAppointments.map(
-        async (appointment) => await this.handleAppointmentEnded(appointment)
+        (appointment) => async () =>
+          await this.handleAppointmentEnded(appointment)
       )
     )
   }

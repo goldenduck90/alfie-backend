@@ -67,7 +67,7 @@ export interface IEAService {
 export interface IEAProvider {
   id?: number
   name?: string
-  type?: string
+  type?: number
   firstName?: string
   lastName?: string
   email?: string
