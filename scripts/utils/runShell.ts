@@ -1,6 +1,7 @@
 import dotenv from "dotenv"
 dotenv.config()
 import config from "config"
+import { Command } from "commander"
 
 import { basename } from "path"
 import "../../src/utils/sentry"
@@ -29,4 +30,8 @@ export default async function runShell(callback: () => Promise<void>) {
     console.log(error)
     process.exit(1)
   }
+}
+
+export function createProgram(): Command {
+  return new Command()
 }
