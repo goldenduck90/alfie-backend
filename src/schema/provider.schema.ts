@@ -28,6 +28,28 @@ interface QueryHelpers {
   findByEmail: AsQueryMethod<typeof findByEmail>
   findByEmailToken: AsQueryMethod<typeof findByEmailToken>
 }
+
+export enum ProviderCode {
+  Admitting = "AD",
+  Attending = "AT",
+  Billing = "BI",
+  Consulting = "CO",
+  Covering = "CV",
+  Hospital = "H",
+  HomeHealthCare = "HH",
+  Laboratory = "LA",
+  OtherPhysician = "OT",
+  Pharmacist = "P1",
+  Pharmacy = "P2",
+  PrimaryCarePhysician = "PC",
+  Performing = "PE",
+  RuralHealthClinic = "R",
+  Referring = "RF",
+  Submitting = "SB",
+  SkilledNursingFacility = "SK",
+  Supervising = "SU",
+}
+
 @queryMethod(findByEmail)
 @queryMethod(findByEmailToken)
 @ObjectType()
@@ -51,6 +73,10 @@ export class Provider {
   @Field(() => String)
   @prop({ required: true })
   npi: string
+
+  @Field()
+  @prop({ required: true })
+  providerCode: ProviderCode
 
   @Field(() => [String])
   @prop({ type: [String], required: true })
@@ -102,6 +128,9 @@ export class ProviderInput {
 
   @Field(() => String)
   npi: string
+
+  @Field()
+  providerCode: ProviderCode
 
   @Field(() => [String])
   licensedStates: mongoose.Types.Array<string>
