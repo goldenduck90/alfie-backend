@@ -36,6 +36,12 @@ export interface AkuteInsuranceResponse {
   medical_id: string
 }
 
+export interface AkuteProcedureResponse {
+  system: string
+  code: string
+  display: string
+}
+
 export interface AkuteOrderResponse {
   id: string
   request_id: string
@@ -321,6 +327,37 @@ class AkuteService {
     return data
   }
 
+  /** Search for procedures by partial match string. */
+  async searchProcedures(query: string): Promise<AkuteProcedureResponse[]> {
+    const labCorpOrganizationId: string = config.get(
+      "akute.labCorpOrganizationId"
+    )
+
+    try {
+      const { data } = await this.axios.get<AkuteProcedureResponse[]>(
+        "/procedures",
+        {
+          params: {
+            performer_organization_id: labCorpOrganizationId,
+            query,
+          },
+        }
+      )
+
+      return data
+    } catch (error) {
+      captureException(error, "AkuteService.searchProcedures error", {
+        query,
+        labCorpOrganizationId,
+      })
+      throw new Error(
+        `AkuteService.searchProcedures error: ${
+          error.response?.data?.message ?? error.message ?? "Unknown"
+        }`
+      )
+    }
+  }
+
   async createLabOrder(userId: string): Promise<CreateLabOrderResponse> {
     const labCorpAccountNumber: string = config.get(
       "akute.labCorpAccountNumber"
@@ -328,6 +365,7 @@ class AkuteService {
     const labCorpOrganizationId: string = config.get(
       "akute.labCorpOrganizationId"
     )
+    const procedures: AkuteProcedureResponse[] = config.get("akute.procedures")
 
     let createLabOrderRequest: AkuteOrderRequest
     try {
@@ -343,7 +381,8 @@ class AkuteService {
       const providerAkuteId =
         process.env.NODE_ENV === "production"
           ? provider?.akuteId
-          : "61f460492a15afd4d476aa58" // staging provider from Akute
+          : "63be0bb0999a7f4e76f1159d" // staging provider from Akute
+      // : "61f460492a15afd4d476aa58"
 
       if (!providerAkuteId) {
         throw new ApolloError("Provider not found.", "NOT_FOUND")
@@ -366,43 +405,7 @@ class AkuteService {
         ordering_user_id: providerAkuteId,
         performer_organization_id: labCorpOrganizationId,
         account_number: labCorpAccountNumber,
-        procedures: [
-          {
-            system: "urn:uuid:f:e20f61500ba128d340068ff6",
-            code: "322000",
-            display: "Comp. Metabolic Panel (14)",
-          },
-          {
-            system: "urn:uuid:f:e20f61500ba128d340068ff6",
-            code: "001453",
-            display: "Hemoglobin A1c",
-          },
-          {
-            system: "urn:uuid:f:e20f61500ba128d340068ff6",
-            code: "303756",
-            display: "Lipid Panel",
-          },
-          {
-            system: "urn:uuid:f:e20f61500ba128d340068ff6",
-            code: "004259",
-            display: "TSH",
-          },
-          {
-            system: "urn:uuid:f:e20f61500ba128d340068ff6",
-            code: "120766",
-            display: "C-Reactive Protein, Cardiac",
-          },
-          {
-            system: "urn:uuid:f:e20f61500ba128d340068ff6",
-            code: "081950",
-            display: "Vitamin D, 25-Hydroxy",
-          },
-          {
-            system: "urn:uuid:f:e20f61500ba128d340068ff6",
-            code: "004333",
-            display: "Insulin",
-          },
-        ],
+        procedures,
         billing_type: "patient",
         delivery_option: "electronic",
         diagnoses: [icdCode],
@@ -423,15 +426,17 @@ class AkuteService {
         throw error
       }
 
+      const order = await this.getLabOrder(data.id)
+
       captureEvent(
         "info",
         `Lab order created: ${data.id} for user id: ${user._id}`,
         {
           tags: {
             userId,
-            function: "createLabOrder",
+            function: "AkuteService.createLabOrder",
             createLabOrderRequest,
-            order: data ?? null,
+            order,
           },
         }
       )
@@ -440,7 +445,16 @@ class AkuteService {
         labOrderSent: true,
       })
 
-      const document = await this.getDocument(data.id)
+      const document = await this.getDocument(order.document_id)
+      captureEvent(
+        "info",
+        `Retrieved document ${order.document_id} for lab order ${order.id}`,
+        {
+          document,
+          orderId: order.id,
+        }
+      )
+
       await this.emailService.sendLabOrderAttachmentEmail(
         user.email,
         document.url
@@ -449,7 +463,10 @@ class AkuteService {
       return { labOrderId: data.id }
     } catch (e) {
       console.log(e.response?.data ?? e.message ?? e)
-      const error = new ApolloError(e.message ?? e.response?.data, "ERROR")
+      const error = new ApolloError(
+        e.message ?? e.response?.data ?? "AkuteService.createLabOrderError",
+        "ERROR"
+      )
       captureException(e, "Error creating akute lab order.", {
         userId,
         function: "createLabOrder",

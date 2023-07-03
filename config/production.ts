@@ -2,6 +2,7 @@ import dotenv from "dotenv"
 dotenv.config()
 
 import candidHealth from "./includes/candidHealth.production"
+import akuteProcedures from "./includes/akuteProcedures.production"
 
 export default {
   env: "production",
@@ -33,6 +34,7 @@ export default {
   akuteApiUrl: "https://api.akutehealth.com/v1",
   akute: {
     labCorpOrganizationId: "f-a855594f43fe879c6570b92e",
+    procedures: akuteProcedures,
   },
   twilioPhone: "+18447244465",
   zapierCreateUserWebhook:

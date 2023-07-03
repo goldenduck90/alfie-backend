@@ -13,12 +13,16 @@ const program = createProgram()
     "64887ab5b4b7e84130ac460f"
   )
   .option(
-    "--email [email]",
+    "--email <email>",
     "Optional. An email to send the attachment to. Overrides user.email"
   )
   .option(
     "--mock",
     "Optional. Mock akute methods to test email attachment sending from createLabOrder."
+  )
+  .option(
+    "--procedure <procedureSearch>",
+    "A procedure to search for by partial string."
   )
   .parse()
 
@@ -26,13 +30,35 @@ const {
   user: userId,
   email,
   mock,
-} = program.opts<{ user: string; email: string; mock: boolean }>()
+  procedure: procedureSearch,
+} = program.opts<{
+  user?: string
+  email?: string
+  mock: boolean
+  procedure?: string
+}>()
 
 async function testLabOrderEmail() {
   const userService = new UserService()
   const akuteService = new AkuteService()
 
   const user = await userService.getUser(userId)
+  user.address.line1 = "25 Van Tuyl St"
+  user.address.city = "Staten Island"
+  user.address.state = "NY"
+  user.address.postalCode = "10301-0001"
+  if (procedureSearch) {
+    const matchingProcedures = await akuteService.searchProcedures(
+      procedureSearch
+    )
+    console.log(
+      `Procedure [${procedureSearch}] results: ${JSON.stringify(
+        matchingProcedures,
+        null,
+        "  "
+      )}`
+    )
+  }
 
   if (mock) {
     // test the sending of the PDF, but not akute methods.
@@ -68,6 +94,7 @@ async function testLabOrderEmail() {
   const existingPatient = user.akutePatientId
     ? await akuteService.getPatient(user.akutePatientId)
     : null
+
   const patientId =
     existingPatient?.id ??
     (await akuteService.createPatient({
