@@ -2,13 +2,20 @@ import * as Sentry from "@sentry/node"
 import * as AWS from "aws-sdk"
 import config from "config"
 import { format } from "date-fns"
+import axios from "axios"
+import { createTransport } from "nodemailer"
+import dayjs from "../utils/dayjs"
 import { AllTaskEmail, TaskEmail } from "../schema/task.schema"
+import { captureEvent, captureException } from "../utils/sentry"
+import S3Service from "./s3.service"
 
-class EmailService {
+export default class EmailService {
   noReplyEmail: string
   awsSes: AWS.SES
+  s3Service: S3Service
 
   constructor() {
+    this.s3Service = new S3Service()
     this.noReplyEmail = config.get("noReplyEmail")
     this.awsSes = new AWS.SES({
       accessKeyId: process.env.AWS_ACCESS_KEY_ID,
@@ -23,14 +30,14 @@ class EmailService {
     toEmails: string[],
     replyTo?: string
   ) {
-    const log = `EmailService.sendEmail: Sending ${JSON.stringify({
-      subject,
-      body,
-      toEmails,
-      replyTo,
-    })}`
-    console.log(log)
-    Sentry.captureMessage(log)
+    captureEvent("info", "EmailService.sendEmail", {
+      email: {
+        subject,
+        body,
+        toEmails,
+        replyTo,
+      },
+    })
 
     const params: AWS.SES.SendEmailRequest = {
       Source: replyTo ?? this.noReplyEmail,
@@ -54,6 +61,50 @@ class EmailService {
 
     const result = await this.awsSes.sendEmail(params).promise()
     return result
+  }
+
+  async sendEmailWithAttachment(
+    subject: string,
+    body: string,
+    toEmails: string[],
+    /** The URL of a publicly-accessible file. */
+    attachmentUrl: string,
+    /** The content type of the file (e.g. application/pdf). */
+    contentType: string,
+    replyTo?: string
+  ): Promise<AWS.SES.SendEmailResponse> {
+    try {
+      const file = await axios.get(attachmentUrl, {
+        responseType: "arraybuffer",
+      })
+      const content = Buffer.from(file.data).toString("base64")
+
+      const transporter = createTransport({ SES: this.awsSes })
+      const result = await transporter.sendMail({
+        from: replyTo ?? this.noReplyEmail,
+        to: toEmails,
+        subject,
+        html: body,
+        attachments: [
+          {
+            filename: `Lab Order ${dayjs().format("YYYY-MM-DD")}.pdf`,
+            content,
+            contentType,
+            encoding: "base64",
+          },
+        ],
+      })
+
+      return { MessageId: result.messageId }
+    } catch (error) {
+      captureException(error, "EmailService.sendEmailWithAttachment", {
+        subject,
+        toEmails,
+        attachmentUrl,
+        contentType,
+      })
+      throw error
+    }
   }
 
   async sendForgotPasswordEmail({
@@ -727,6 +778,18 @@ class EmailService {
       patientEmailId: patientEmailResult.MessageId,
     }
   }
-}
 
-export default EmailService
+  async sendLabOrderAttachmentEmail(email: string, labOrderUrl: string) {
+    const subject = "Alfie Health Lab Order"
+    const toEmails = [email]
+    const message = "<p>Your Alfie Health Lab Order is attached.</p>"
+
+    return await this.sendEmailWithAttachment(
+      subject,
+      message,
+      toEmails,
+      labOrderUrl,
+      "application/pdf"
+    )
+  }
+}

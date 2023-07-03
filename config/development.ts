@@ -34,5 +34,9 @@ export default {
     extension: "101",
   },
   akuteApiUrl: "https://api.staging.akutehealth.com/v1",
+  akute: {
+    // labCorpOrganizationId: "f-e20f61500ba128d340068ff6", // labcorp
+    labCorpOrganizationId: "f-4f0235627ac2d59b49e5575c", // testinglab facility
+  },
   twilioPhone: "+18447440088",
 }

@@ -2,13 +2,13 @@ import { S3 } from "aws-sdk"
 import config from "config"
 import { SignedUrlRequest, SignedUrlResponse } from "../schema/user.schema"
 
-class S3Service {
+export default class S3Service {
   private s3: S3
-  bucketName: string
+  public bucketName: string
   expiresInSeconds: string
 
-  constructor() {
-    this.bucketName = config.get("s3.patientBucketName")
+  constructor(bucketName?: string) {
+    this.bucketName = bucketName ?? config.get("s3.patientBucketName")
     this.expiresInSeconds = config.get("s3.expiresInSeconds")
 
     this.s3 = new S3({
@@ -43,7 +43,7 @@ class S3Service {
             contentType: item.contentType,
             versionId: item.versionId,
           },
-          item.requestType
+          item.requestType as "put" | "get"
         )
         return { key: item.key, url }
       })
@@ -64,7 +64,7 @@ class S3Service {
       contentType: string
       versionId?: string
     },
-    requestType = "put"
+    requestType: "put" | "get" = "put"
   ): Promise<string> {
     if (requestType === "get") {
       const params: S3.GetObjectRequest = {
@@ -86,5 +86,3 @@ class S3Service {
     }
   }
 }
-
-export default S3Service
