@@ -716,15 +716,24 @@ class EmailService {
       </p>
     `
 
-    const patientEmailResult = await this.sendEmail(
-      patientSubject,
-      patientEmailBody,
-      [patientEmail]
+    console.log(
+      `Log only: email to patient: ${JSON.stringify({
+        patientSubject,
+        patientEmailBody,
+        patientEmail,
+      })}`
     )
+
+    // TODO: re-enable when eligibility checks are consistent
+    // const patientEmailResult = await this.sendEmail(
+    //   patientSubject,
+    //   patientEmailBody,
+    //   [patientEmail]
+    // )
 
     return {
       providerEmailId: providerEmailResult.MessageId,
-      patientEmailId: patientEmailResult.MessageId,
+      patientEmailId: "", // patientEmailResult.MessageId,
     }
   }
 }
