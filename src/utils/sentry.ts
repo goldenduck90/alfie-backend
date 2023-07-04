@@ -1,6 +1,8 @@
 import * as SentryObject from "@sentry/node"
 
-export function setupSentry() {
+export default SentryObject
+
+function setupSentry() {
   SentryObject.init({
     dsn: "https://e99c3274029e405f9e1b6dd50a63fd85@o4504040965603328.ingest.sentry.io/4504040986705920",
     environment: process.env.NODE_ENV,
@@ -12,8 +14,6 @@ export function setupSentry() {
 }
 
 setupSentry()
-
-export default SentryObject
 
 /** Captures an event, logging the message and data, and sending to Sentry. */
 export function captureEvent(
@@ -45,7 +45,7 @@ export function captureException(
 ) {
   if (error?.response?.data) error = error.response?.data
 
-  if (!(error instanceof Error)) {
+  if (!error || !(error instanceof Error)) {
     data.error = error
     error = null
   }
@@ -68,7 +68,7 @@ export function captureException(
       }`
     )
     SentryObject.captureException(
-      error || new Error(message ?? "Error - see context")
+      error || new Error(message ?? "Error - see issue context")
     )
   })
 }

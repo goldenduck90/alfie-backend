@@ -4,7 +4,7 @@ import config from "config"
 import { Command } from "commander"
 
 import { basename } from "path"
-import { setupSentry } from "../../src/utils/sentry"
+import "../../src/utils/sentry"
 import { connectToMongo } from "../../src/utils/mongo"
 
 export default async function runShell(callback: () => Promise<void>) {
@@ -18,11 +18,8 @@ export default async function runShell(callback: () => Promise<void>) {
 
     console.log(`Running script in ${env}`)
 
-    // setupenvironment
-    setupSentry()
     await connectToMongo()
 
-    // perform the work
     await callback()
 
     // wait for sentry logs to process

@@ -1,4 +1,3 @@
-import * as Sentry from "@sentry/node"
 import { ApolloError } from "apollo-server"
 import axios, { AxiosInstance } from "axios"
 import { Buffer } from "buffer"
@@ -11,7 +10,12 @@ import {
   DocUploadInput,
   PharmacyLocationInput,
 } from "../schema/akute.schema"
-import { CreatePatientInput, UserModel, Insurance } from "../schema/user.schema"
+import {
+  CreatePatientInput,
+  UserModel,
+  Insurance,
+  User,
+} from "../schema/user.schema"
 import { calculateBMI } from "../utils/calculateBMI"
 import { Provider } from "../schema/provider.schema"
 import calculateSetting, { SettingsList } from "../utils/calculateSetting"
@@ -111,7 +115,7 @@ class AkuteService {
       )
       return data
     } catch (e) {
-      const error = new ApolloError(e.message ?? e, "PATIENT_ERROR")
+      const error = new ApolloError(e.message ?? e, "ERROR")
       captureException(error, "AkuteService.getDocument error", {
         patientId,
         message: error.message ?? null,
@@ -169,8 +173,11 @@ class AkuteService {
 
       return data.data.id
     } catch (error) {
-      Sentry.captureException(error)
-      throw new ApolloError(error.message, "ERROR")
+      captureException(error, "AkuteService.createPatient error", { input })
+      throw new ApolloError(
+        error.message ?? "Error creating akute patient.",
+        "ERROR"
+      )
     }
   }
 
@@ -193,14 +200,24 @@ class AkuteService {
         }
       }
     } catch (error) {
-      Sentry.captureException(error)
-      throw new ApolloError(error.message, "ERROR")
+      captureException(error, "AkuteServe.convertAddressToLatLng error", {
+        addressLine1,
+        addressCity,
+        addressState,
+        addressZipCode,
+      })
+
+      throw new ApolloError(
+        error.message ?? "Error converting address to geocoordinates.",
+        "ERROR"
+      )
     }
   }
 
   async getPharmacyLocations(input: PharmacyLocationInput, userId: string) {
+    let user: User
     try {
-      const user = await UserModel.findById(userId)
+      user = await UserModel.findById(userId)
       if (!user) {
         throw new ApolloError("User not found", "NOT_FOUND")
       }
@@ -225,8 +242,14 @@ class AkuteService {
       )
       return pharmacyLocations
     } catch (error) {
-      Sentry.captureException(error)
-      throw new ApolloError(error.message, "ERROR")
+      captureException(error, "AkuteService.getPharmacyLocations error", {
+        input,
+        zip: user?.address?.postalCode,
+      })
+      throw new ApolloError(
+        error.message ?? "Error retrieving pharmacy locations.",
+        "ERROR"
+      )
     }
   }
 
@@ -242,15 +265,21 @@ class AkuteService {
         set_as_primary: isPrimary,
       })
       return data
-    } catch (e) {
-      Sentry.captureException(new Error(e), {
-        tags: {
+    } catch (error) {
+      captureException(
+        error,
+        "Akuteservice.createPharmacyListForPatient error",
+        {
           patientId,
           function: "createPharmacyListForPatient",
-        },
-      })
+          isPrimary,
+        }
+      )
 
-      throw new ApolloError(e.message, "ERROR")
+      throw new ApolloError(
+        error.message ?? "Error creating pharmacy list for patient.",
+        "ERROR"
+      )
     }
   }
 
@@ -275,14 +304,15 @@ class AkuteService {
         })
       )
       return patientMedications
-    } catch (e) {
-      Sentry.captureException(new Error(e), {
-        tags: {
-          function: "getPatientMedications",
-        },
+    } catch (error) {
+      captureException(error, "AkuteService.getPatientMedications error", {
+        function: "AkuteService.getPatientMedications",
       })
 
-      throw new ApolloError(e.message, "ERROR")
+      throw new ApolloError(
+        error.message ?? "Error retrieving patient medications.",
+        "ERROR"
+      )
     }
   }
   async getASinglePatientMedications(patientId: string) {
@@ -291,14 +321,20 @@ class AkuteService {
         `/medications?patient_id=${patientId}`
       )
       return medications
-    } catch (e) {
-      Sentry.captureException(new Error(e), {
-        tags: {
+    } catch (error) {
+      captureException(
+        error,
+        "AkuteService.getASinglePatientMedications error",
+        {
           function: "getASinglePatientMedications",
-        },
-      })
+          patientId,
+        }
+      )
 
-      throw new ApolloError(e.message, "ERROR")
+      throw new ApolloError(
+        error.message ?? "Error retrieving medications for patient.",
+        "ERROR"
+      )
     }
   }
 
@@ -313,12 +349,11 @@ class AkuteService {
       )
       return data
     } catch (error) {
-      captureException(
-        error.response?.data ?? error,
-        "AkuteService.getLabOrder error",
-        { labOrderId, message: error.message ?? null }
+      captureException(error, "AkuteService.getLabOrder error", { labOrderId })
+      throw new ApolloError(
+        error.message ?? "Error creating lab order.",
+        "ERROR"
       )
-      throw new ApolloError(error.message ?? error, "LAB_ORDER_ERROR")
     }
   }
 
@@ -350,11 +385,7 @@ class AkuteService {
         query,
         labCorpOrganizationId,
       })
-      throw new Error(
-        `AkuteService.searchProcedures error: ${
-          error.response?.data?.message ?? error.message ?? "Unknown"
-        }`
-      )
+      throw new ApolloError("Error searching lab procedures.", "ERROR")
     }
   }
 
@@ -414,16 +445,12 @@ class AkuteService {
       const { data } = await this.axios.post("/orders", createLabOrderRequest)
 
       if (!data.id) {
-        const error = new ApolloError(
-          "Lab order not created",
-          "LAB_ORDER_ERROR"
-        )
         captureException(
-          error,
+          data,
           `Lab order not created for user id: ${user._id}`,
           { data, createLabOrderRequest }
         )
-        throw error
+        throw new ApolloError("Lab order not created", "ERROR")
       }
 
       const order = await this.getLabOrder(data.id)
@@ -461,18 +488,16 @@ class AkuteService {
       )
 
       return { labOrderId: data.id }
-    } catch (e) {
-      console.log(e.response?.data ?? e.message ?? e)
-      const error = new ApolloError(
-        e.message ?? e.response?.data ?? "AkuteService.createLabOrderError",
-        "ERROR"
-      )
-      captureException(e, "Error creating akute lab order.", {
+    } catch (error) {
+      captureException(error, "AkuteService.createLabOrder error", {
         userId,
         function: "createLabOrder",
         createLabOrderRequest,
       })
-      throw error
+      throw new ApolloError(
+        error.message ?? "AkuteService.createLabOrderError",
+        "ERROR"
+      )
     }
   }
 
@@ -487,10 +512,9 @@ class AkuteService {
       )
       return data
     } catch (e) {
-      const error = new ApolloError(e.message ?? e, "DOCUMENT_ERROR")
+      const error = new ApolloError(e.message ?? e, "ERROR")
       captureException(error, "AkuteService.getDocument error", {
         documentId,
-        message: error.message ?? null,
       })
       throw error
     }
@@ -538,15 +562,19 @@ class AkuteService {
 
       return { id: data?.id }
     } catch (error) {
-      console.log(error.response.data)
-
-      Sentry.captureException(error, {
-        tags: {
-          function: "uploadDocument",
-        },
+      captureException(error, "AkuteService.uploadDocument error", {
+        function: "AkuteService.uploadDocument",
+        patientId,
+        externalPatientId,
+        fileName,
+        tags,
+        description,
       })
 
-      throw new ApolloError(error.message, "ERROR")
+      throw new ApolloError(
+        error.message ?? "Error uploading akute document.",
+        "ERROR"
+      )
     }
   }
 
@@ -574,8 +602,14 @@ class AkuteService {
       captureEvent("info", "AkuteService.createInsurance result", data)
       return data
     } catch (error) {
-      captureException(error, "AkuteService.createInsurance error")
-      return null
+      captureException(error, "AkuteService.createInsurance error", {
+        akuteId,
+        input,
+      })
+      throw new ApolloError(
+        error.message ?? "Error creating insurance for patient.",
+        "ERROR"
+      )
     }
   }
 }
