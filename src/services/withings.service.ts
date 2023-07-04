@@ -35,22 +35,18 @@ class WithingsService {
 
   private parseErrors(response: any) {
     if (typeof response !== "object" || !("status" in response)) {
-      throw new Error(
-        `Withings API answered with unexcepted error : [${JSON.stringify(
-          response
-        )}]`
-      )
+      throw new Error(`Withings : [${JSON.stringify(response)}]`)
     }
     if (response.status !== 0) {
       if ("error" in response) {
         throw new Error(
-          `Withings API answered with status : [${response.status}] - Error: ${response.error}`
+          `Withings : [${response.status}] - Error: ${response.error}`
         )
       }
       throw new Error(
-        `Withings API answered with status : [${
-          response.status
-        }] - Response: [${JSON.stringify(response)}]`
+        `Withings : [${response.status}] - Response: [${JSON.stringify(
+          response
+        )}]`
       )
     }
   }
@@ -80,7 +76,7 @@ class WithingsService {
       paramsToSign.timestamp = timestamp
     }
 
-    if (timestamp) {
+    if (nonce) {
       paramsToSign.nonce = nonce
     }
 
@@ -103,7 +99,6 @@ class WithingsService {
       signature,
     })
     this.parseErrors(data)
-    console.log(data)
     return data.body.nonce
   }
 
@@ -112,11 +107,8 @@ class WithingsService {
     address: WithingsAddress,
     testmode?: number
   ) {
-    console.log(customerRefId, address, testmode)
-    const now = Math.round(Date.now() / 1000)
+    const now = Math.round(Date.now() / 1000) + 21 // Add integer between 21 to 61 to fix: Timestamp too old
     const nonce = await this.getNonce(now)
-
-    console.log(now, nonce)
 
     const products = [
       {
@@ -141,7 +133,6 @@ class WithingsService {
     }
     const signature = this.sign(params)
 
-    console.log(signature)
     const { data } = await axios.post(this.apiUrl + "/v2/dropshipment", {
       ...params,
       signature,
