@@ -22,6 +22,9 @@ export default async function runShell(callback: () => Promise<void>) {
 
     await callback()
 
+    // wait for sentry logs to process
+    await new Promise((resolve) => setTimeout(resolve, 400))
+
     process.exit(0)
   } catch (error) {
     console.log(
