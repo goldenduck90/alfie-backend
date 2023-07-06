@@ -2,6 +2,7 @@ import dotenv from "dotenv"
 dotenv.config()
 
 import candidHealth from "./includes/candidHealth.development"
+import akuteProcedures from "./includes/akuteProcedures.development"
 
 export default {
   env: "development",
@@ -34,5 +35,10 @@ export default {
     extension: "101",
   },
   akuteApiUrl: "https://api.staging.akutehealth.com/v1",
+  akute: {
+    labCorpOrganizationId: "f-4f0235627ac2d59b49e5575c", // testinglab facility
+    // labCorpOrganizationId: "f-e20f61500ba128d340068ff6", // labcorp
+    procedures: akuteProcedures,
+  },
   twilioPhone: "+18447440088",
 }

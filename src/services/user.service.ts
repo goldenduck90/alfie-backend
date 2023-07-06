@@ -252,8 +252,8 @@ class UserService extends EmailService {
     console.log(`CREATING NEW USER w/Name: ${name}`)
 
     const splitName = name.split(" ")
-    const firstName = name.split(" ")[0] || ""
-    const lastName = splitName ? splitName[splitName.length - 1] : ""
+    const firstName = splitName[0] || ""
+    const lastName = splitName[splitName.length - 1] || ""
 
     let patientId: string
     try {
