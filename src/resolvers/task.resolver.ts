@@ -97,7 +97,7 @@ export default class TaskResolver {
 
   @Authorized([Role.Admin, Role.Doctor, Role.Practitioner, Role.HealthCoach])
   @Mutation(() => User)
-  classifyPatients(@Arg("userId") userId: string) {
+  classifyPatients(@Arg("userId", { nullable: true }) userId?: string) {
     return this.taskService.classifyPatient(userId)
   }
 

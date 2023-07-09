@@ -1,37 +1,41 @@
 import { TaskType } from "../schema/task.schema"
 import { Score } from "../schema/user.schema"
 import {
-  UserNumberAnswer,
-  UserStringAnswer,
+  UserAnswer,
+  UserAnswerTypes,
   UserTask,
 } from "../schema/task.user.schema"
+import AnswerType from "../schema/enums/AnswerType"
 import { gsrsQuestions, mpFeelingQuestions, tefqQuestions } from "./questions"
 
 function getPercentageChange(oldNumber: number, newNumber: number) {
   const decreaseValue = oldNumber - newNumber
   return Math.abs(Math.round((decreaseValue / oldNumber) * 100))
 }
-const hadspercentile: any = {
+
+const hadsPercentile: Record<number, string> = {
   2: "25th",
   3: "50th",
   5: "75th",
   6: "90th",
   10: "95th",
 }
-const stepsPercentile: any = {
+
+const stepsPercentile: Record<number, string> = {
   3000: "25th",
   3375: "50th",
   9000: "75th",
   11000: "90th",
   12000: "95th",
 }
-const hungerPercentile: any = {
+const hungerPercentile: Record<number, string> = {
   45: "25th",
   64: "50th",
   83: "75th",
-  100: "90-95th",
+  100: "95th",
 }
-function GetZPercent(z: number) {
+
+function getZPercent(z: number) {
   // z == number of standard deviations from the mean
 
   // if z is greater than 6.5 standard deviations from the mean the
@@ -68,34 +72,26 @@ function GetZPercent(z: number) {
   return sum
 }
 
-// zScore is just (score - mean)/standard deviation
+/** zScore is  `(score - mean) / standard deviation` */
 function getZScore(score: number, mean: number, sd: number) {
   return (score - mean) / sd
 }
+
 function calculateMPFeelingScore(
   lastTask: UserTask,
   currentTask: UserTask,
   task: TaskType
-) {
+): Score {
   // We first need to create a score for the lastTask and the currentTask
   // We will create a score for task in it's entirety all the scores added together for each question will equal the score for the task
 
-  const lastTaskScore = Object.keys(lastTask.answers).reduce(
-    (acc, key: any) => {
-      const answer: any = lastTask.answers[key]
-      const score = mpFeelingQuestions[answer.key][answer.value]
-      return acc + score
-    },
-    0
+  const lastTaskScore = answersReductionCalculation(
+    lastTask.answers,
+    mpFeelingQuestions
   )
-
-  const currentTaskScore = Object.keys(currentTask.answers).reduce(
-    (acc, key: any) => {
-      const answer: any = currentTask.answers[key]
-      const score = mpFeelingQuestions[answer.key][answer.value]
-      return acc + score
-    },
-    0
+  const currentTaskScore = answersReductionCalculation(
+    currentTask.answers,
+    mpFeelingQuestions
   )
 
   const score = currentTaskScore - lastTaskScore
@@ -104,16 +100,11 @@ function calculateMPFeelingScore(
     currentTaskScore
   )
   const increased = score > 0
-  const percentileKey = Object.keys(hadspercentile).reduce((acc, key) => {
-    const value = parseInt(key)
-    if (value < currentTaskScore) {
-      return hadspercentile[value]
-    }
-    return acc
-  }, 0)
+  const percentileKey = getHadsPercentile(currentTaskScore)
   const message = `You scored within the ${percentileKey} percentile`
   const calculatedZScore = getZScore(currentTaskScore, 3.9, 3.1)
-  const calculatedPercentile = GetZPercent(calculatedZScore) * 100
+  const calculatedPercentile = getZPercent(calculatedZScore) * 100
+
   return {
     percentile: String(percentileKey),
     latest: String(currentTaskScore),
@@ -128,27 +119,13 @@ function calculateMPFeelingScore(
     task,
   }
 }
-function calculateSingleMPFeeling(currentTask: UserTask, task: TaskType) {
-  const currentTaskScore = Object.keys(currentTask.answers).reduce(
-    (acc, key: any) => {
-      const answer: any = currentTask.answers[key]
-      // eslint-disable-next-line no-prototype-builtins
-      if (
-        // eslint-disable-next-line no-prototype-builtins
-        mpFeelingQuestions.hasOwnProperty(answer.key) &&
-        // eslint-disable-next-line no-prototype-builtins
-        mpFeelingQuestions[answer.key].hasOwnProperty(answer.value)
-      ) {
-        const score = mpFeelingQuestions[answer.key][answer.value]
-        return acc + score
-      } else {
-        console.warn(
-          `Invalid answer key or value for MP_FEELING: ${answer.key}, ${answer.value}`
-        )
-        return acc
-      }
-    },
-    0
+function calculateSingleMPFeeling(
+  currentTask: UserTask,
+  task: TaskType
+): Score {
+  const currentTaskScore = answersReductionCalculation(
+    currentTask.answers,
+    mpFeelingQuestions
   )
 
   // Add a check for currentTaskScore being a valid number
@@ -157,17 +134,11 @@ function calculateSingleMPFeeling(currentTask: UserTask, task: TaskType) {
     return null
   }
 
-  const percentileKey = Object.keys(hadspercentile).reduce((acc, key) => {
-    const value = parseInt(key)
-    if (value < currentTaskScore) {
-      return hadspercentile[value]
-    }
-    return acc
-  }, 0)
+  const percentileKey = getHadsPercentile(currentTaskScore)
 
   const message = `You scored within the ${percentileKey} percentile`
   const calculatedZScore = getZScore(currentTaskScore, 3.9, 3.1)
-  const calculatedPercentile = GetZPercent(calculatedZScore) * 100
+  const calculatedPercentile = getZPercent(calculatedZScore) * 100
 
   return {
     percentile: String(percentileKey),
@@ -186,12 +157,9 @@ function calculateActivityScore(
 ): Score {
   // The tasks in this category are all activity based tasks so their values for each task are simple numbers
   // For Example: [{"key": "weight", "value": "333", "type": "DATE"}]
-  const lastTaskScore = Number(
-    (lastTask?.answers[0] as UserNumberAnswer)?.value
-  )
-  const currentTaskScore = Number(
-    (currentTask?.answers[0] as UserNumberAnswer)?.value
-  )
+  const lastTaskScore = Number(lastTask?.answers[0]?.value)
+  const currentTaskScore = Number(currentTask?.answers[0]?.value)
+
   if (!lastTaskScore || !currentTaskScore) {
     return {} as Score // TODO use a null value instead for type guarantees
   }
@@ -203,19 +171,9 @@ function calculateActivityScore(
   )
   const increased = currentTaskScore > lastTaskScore
   if (task === TaskType.MP_ACTIVITY) {
-    const percentileDifferenceStepsPercentile = Object.keys(
-      stepsPercentile
-    ).reduce((acc, key) => {
-      const value = parseInt(key)
-      if (value < currentTaskScore) {
-        return stepsPercentile[value]
-      } else if (value === currentTaskScore) {
-        return stepsPercentile[value]
-      } else if (value > currentTaskScore) {
-        return acc
-      }
-      return acc
-    }, 0)
+    const percentileDifferenceStepsPercentile =
+      getStepsPercentile(currentTaskScore)
+
     const message = `You scored within the ${percentileDifferenceStepsPercentile} percentile`
     return {
       latest: String(currentTaskScore),
@@ -262,24 +220,9 @@ function calculateSingleMPActivity(
   currentTask: UserTask,
   task: TaskType
 ): Score {
-  const currentTaskScore = Number(
-    (currentTask.answers[0] as UserNumberAnswer).value
-  )
-  const percentileDifferenceStepsPercentile = Object.keys(
-    stepsPercentile
-  ).reduce((acc, key) => {
-    const value = parseInt(key)
-    if (value < currentTaskScore) {
-      return stepsPercentile[value]
-    } else if (value === currentTaskScore) {
-      return stepsPercentile[value]
-    } else if (value > currentTaskScore) {
-      return acc
-    }
-    return acc
-  }, 0)
-  // const calculatedZScore = getZScore(currentTaskScore, 5.14, 2.65)
-  // const calculatedPercentile = GetZPercent(calculatedZScore) * 100
+  const currentTaskScore = Number(currentTask.answers[0]?.value)
+  const percentileDifferenceStepsPercentile =
+    getStepsPercentile(currentTaskScore)
 
   const message = `You scored within the ${percentileDifferenceStepsPercentile} percentile`
   return {
@@ -292,40 +235,20 @@ function calculateSingleMPActivity(
   }
 }
 function calculateSingleMPHunger(currentTask: UserTask, task: TaskType): Score {
-  const currentHungerLevel1Hour = Number(
-    (
-      currentTask.answers.find(
-        (answer) => answer.key === "hungerLevel1Hour"
-      ) as UserNumberAnswer
-    ).value
+  const currentHungerLevel1Hour = getAnswerByKey(
+    currentTask.answers,
+    "hungerLevel1Hour",
+    Number
   )
-  const currentHungerLevel30Mins = Number(
-    (
-      currentTask.answers.find(
-        (answer) => answer.key === "hungerLevel30Mins"
-      ) as UserNumberAnswer
-    ).value
+  const currentHungerLevel30Mins = getAnswerByKey(
+    currentTask.answers,
+    "hungerLevel30Mins",
+    Number
   )
-  const percentile1hour =
-    currentHungerLevel1Hour <= 45
-      ? "25"
-      : currentHungerLevel1Hour <= 64
-      ? "50"
-      : currentHungerLevel1Hour <= 83
-      ? "75"
-      : currentHungerLevel1Hour <= 100
-      ? "90"
-      : "95"
-  const percentile30mins =
-    currentHungerLevel30Mins <= 45
-      ? "25"
-      : currentHungerLevel30Mins <= 64
-      ? "50"
-      : currentHungerLevel30Mins <= 83
-      ? "75"
-      : currentHungerLevel30Mins <= 100
-      ? "90"
-      : "95"
+
+  const percentile1hour = getHungerPercentile(currentHungerLevel1Hour)
+  const percentile30mins = getHungerPercentile(currentHungerLevel30Mins)
+
   return {
     percentile1hour: String(percentile1hour),
     percentile30mins: String(percentile30mins),
@@ -344,20 +267,27 @@ function calculateHungerScore(
   if (!lastTask || !currentTask) {
     return {} as Score // TODO use null
   }
-  const currentHungerLevel1Hour = Number(
-    currentTask.answers.find((answer) => answer.key === "hungerLevel1Hour")
-      .value
+  const currentHungerLevel1Hour = getAnswerByKey(
+    currentTask.answers,
+    "hungerLevel1Hour",
+    Number
   )
-  const currentHungerLevel30Mins = Number(
-    currentTask.answers.find((answer) => answer.key === "hungerLevel30Mins")
-      .value
+  const currentHungerLevel30Mins = getAnswerByKey(
+    currentTask.answers,
+    "hungerLevel30Mins",
+    Number
   )
-  const lastHungerLevel1Hour = Number(
-    lastTask.answers.find((answer) => answer.key === "hungerLevel1Hour").value
+  const lastHungerLevel1Hour = getAnswerByKey(
+    lastTask.answers,
+    "hungerLevel1Hour",
+    Number
   )
-  const lastHungerLevel30Mins = Number(
-    lastTask.answers.find((answer) => answer.key === "hungerLevel30Mins").value
+  const lastHungerLevel30Mins = getAnswerByKey(
+    lastTask.answers,
+    "hungerLevel30Mins",
+    Number
   )
+
   const currentHungerLevel1HourPercentDifference = getPercentageChange(
     lastHungerLevel1Hour,
     currentHungerLevel1Hour
@@ -366,32 +296,10 @@ function calculateHungerScore(
     lastHungerLevel30Mins,
     currentHungerLevel30Mins
   )
-  const percentileDifferenceHungerPercentile1hour = Object.keys(
-    hungerPercentile
-  ).reduce((acc, key) => {
-    const value = parseInt(key)
-    if (value < currentHungerLevel1Hour) {
-      return hungerPercentile[value]
-    } else if (value === currentHungerLevel1Hour) {
-      return hungerPercentile[value]
-    } else if (value > currentHungerLevel1Hour) {
-      return acc
-    }
-    return acc
-  }, 0)
-  const percentileDifferenceHungerPercentile30mins = Object.keys(
-    hungerPercentile
-  ).reduce((acc, key) => {
-    const value = parseInt(key)
-    if (value < currentHungerLevel30Mins) {
-      return hungerPercentile[value]
-    } else if (value === currentHungerLevel30Mins) {
-      return hungerPercentile[value]
-    } else if (value > currentHungerLevel30Mins) {
-      return acc
-    }
-    return acc
-  }, 0)
+  const percentileDifferenceHungerPercentile1hour =
+    getHungerDifferencePercentile(currentHungerLevel1Hour)
+  const percentileDifferenceHungerPercentile30mins =
+    getHungerDifferencePercentile(currentHungerLevel30Mins)
 
   const increased1hour = currentHungerLevel1Hour > lastHungerLevel1Hour
   const increased30Mins = currentHungerLevel30Mins > lastHungerLevel30Mins
@@ -423,30 +331,17 @@ function calculateHungerScore(
   // 75 % 83
   // 90 % 100
   // 95 % 100
-  const percentile1hour =
-    percentileDifferenceHungerPercentile1hour <= 45
-      ? "25"
-      : percentileDifferenceHungerPercentile1hour <= 64
-      ? "50"
-      : percentileDifferenceHungerPercentile1hour <= 83
-      ? "75"
-      : percentileDifferenceHungerPercentile1hour <= 100
-      ? "90"
-      : "95"
-  const percentile30mins =
-    percentileDifferenceHungerPercentile30mins <= 45
-      ? "25"
-      : percentileDifferenceHungerPercentile30mins <= 64
-      ? "50"
-      : percentileDifferenceHungerPercentile30mins <= 83
-      ? "75"
-      : percentileDifferenceHungerPercentile30mins <= 100
-      ? "90"
-      : "95"
+  const percentile1hour = getHungerPercentile(
+    percentileDifferenceHungerPercentile1hour
+  )
+  const percentile30mins = getHungerPercentile(
+    percentileDifferenceHungerPercentile30mins
+  )
+
   const calculatedZScore1hour = getZScore(currentHungerLevel1Hour, 64, 28.1)
   const calculatedZScore30mins = getZScore(currentHungerLevel30Mins, 64, 28.1)
-  const calculated1hourPercent = GetZPercent(calculatedZScore1hour) * 100
-  const calculated30minsPercent = GetZPercent(calculatedZScore30mins) * 100
+  const calculated1hourPercent = getZPercent(calculatedZScore1hour) * 100
+  const calculated30minsPercent = getZPercent(calculatedZScore30mins) * 100
   return {
     calculated1hourPercent,
     calculated30minsPercent,
@@ -475,18 +370,19 @@ function calculateBPLogScore(
   // If it ever hit systolic > 140, diastolic >90, must stop phentermine/bupropion, doctor to independantly review if they are taking htn drugs.
   // For geriatrics, if systolic is >130 and diastolic > 80, cannot be prescribed bupropion or phentermine
 
-  const currentSystolic = Number(
-    currentTask.answers.find((answer) => answer.key === "systolicBp").value
+  const currentSystolic = getAnswerByKey(
+    currentTask.answers,
+    "systolicBp",
+    Number
   )
-  const currentDiastolic = Number(
-    currentTask.answers.find((answer) => answer.key === "diastolicBp").value
+  const currentDiastolic = getAnswerByKey(
+    currentTask.answers,
+    "diastolicBp",
+    Number
   )
-  const lastSystolic = Number(
-    lastTask.answers.find((answer) => answer.key === "systolicBp").value
-  )
-  const lastDiastolic = Number(
-    lastTask.answers.find((answer) => answer.key === "diastolicBp").value
-  )
+  const lastSystolic = getAnswerByKey(lastTask.answers, "systolicBp", Number)
+  const lastDiastolic = getAnswerByKey(lastTask.answers, "diastolicBp", Number)
+
   const currentSystolicPercentDifference = getPercentageChange(
     lastSystolic,
     currentSystolic
@@ -515,7 +411,7 @@ function calculateBPLogScore(
     default:
       break
   }
-  // const providerMessage =
+
   return {
     latest: `${currentSystolic}/${currentDiastolic}`,
     scoreSystolic: currentSystolicPercentDifference,
@@ -530,13 +426,19 @@ function calculateBPLogScore(
     providerMessage,
   }
 }
+
 function calculateSingleBPLog(currentTask: UserTask, task: TaskType): Score {
-  const currentSystolic = Number(
-    currentTask.answers.find((answer) => answer.key === "systolicBp").value
+  const currentSystolic = getAnswerByKey(
+    currentTask.answers,
+    "systolicBp",
+    Number
   )
-  const currentDiastolic = Number(
-    currentTask.answers.find((answer) => answer.key === "diastolicBp").value
+  const currentDiastolic = getAnswerByKey(
+    currentTask.answers,
+    "diastolicBp",
+    Number
   )
+
   const message = `Your systolic is ${currentSystolic} and your diastolic is ${currentDiastolic}`
   let providerMessage = ""
   switch (true) {
@@ -566,20 +468,12 @@ function calculateGsrs(
   task: TaskType
 ): Score {
   // lastTask.answers is an array of objects and each object has a key and value
-  const lastGsrs = Object.keys(lastTask.answers).reduce((acc, key: any) => {
-    const answer: any = lastTask.answers[key]
-    const score = gsrsQuestions[answer.key][answer.value]
-    return acc + score
-  }, 0)
-
-  const currentGsrs = Object.keys(currentTask.answers).reduce(
-    (acc, key: any) => {
-      const answer: any = currentTask.answers[key]
-      const score = gsrsQuestions[answer.key][answer.value]
-      return acc + score
-    },
-    0
+  const lastGsrs = answersReductionCalculation(lastTask.answers, gsrsQuestions)
+  const currentGsrs = answersReductionCalculation(
+    currentTask.answers,
+    gsrsQuestions
   )
+
   const currentGsrsPercentDifference = getPercentageChange(
     lastGsrs,
     currentGsrs
@@ -588,6 +482,7 @@ function calculateGsrs(
   const message = `Your GSRS has ${
     increased ? "increased" : "decreased"
   } by ${currentGsrsPercentDifference}%`
+
   return {
     // score should be the difference between the two
     latest: String(currentGsrs),
@@ -606,12 +501,10 @@ function calculateGsrs(
 
 function calculateSingleGsrs(currentTask: UserTask, task: TaskType): Score {
   // lastTask.answers is an array of objects and each object has a key and value
-  const numericAnswers: UserStringAnswer[] = (currentTask.answers ||
-    []) as any[]
-  const currentGsrs = numericAnswers.reduce((acc, answer) => {
-    const score = gsrsQuestions[answer.key][answer.value]
-    return acc + (score || 0)
-  }, 0)
+  const currentGsrs = answersReductionCalculation(
+    currentTask.answers,
+    gsrsQuestions
+  )
   const message = `Your GSRS is ${currentGsrs}`
 
   return {
@@ -630,32 +523,13 @@ function calculateTefq(
   currentTask: UserTask,
   task: TaskType
 ): Score {
-  const lastTefq = Object.keys(lastTask.answers).reduce((acc, key: any) => {
-    const answer: any = lastTask.answers[key]
-    if (answer.key === "restraint") {
-      return acc + Number(answer.value || 0)
-    }
-    const score = tefqQuestions[answer.key][answer.value]
-    return acc + score
-  }, 0)
-  const currentTefq = Object.keys(currentTask.answers).reduce(
-    (acc, key: any) => {
-      const answer = currentTask.answers[key]
-      if (answer.key === "restraint") {
-        return acc + Number(answer.value || 0)
-      }
-      const score = tefqQuestions[answer.key][answer.value as string] || 0
-      return acc + score
-    },
-    0
+  const lastTefq = answersReductionCalculation(lastTask.answers, tefqQuestions)
+  const currentTefq = answersReductionCalculation(
+    currentTask.answers,
+    tefqQuestions
   )
-  const percentileKey = Object.keys(hadspercentile).reduce((acc, key) => {
-    const value = parseInt(key)
-    if (value < currentTefq) {
-      return hadspercentile[value]
-    }
-    return acc
-  }, 0)
+
+  const percentileKey = getHadsPercentile(currentTefq)
   const currentTefqPercentDifference = getPercentageChange(
     lastTefq,
     currentTefq
@@ -671,7 +545,7 @@ function calculateTefq(
       ? 0
       : currentTefqPercentDifference
   const calculatedZScore = getZScore(currentTefq, 5.14, 2.65)
-  const calculatedPercentile = GetZPercent(calculatedZScore) * 100
+  const calculatedPercentile = getZPercent(calculatedZScore) * 100
   return {
     calculatedPercentile,
     latest: String(currentTefq),
@@ -686,29 +560,18 @@ function calculateTefq(
 }
 
 function calculateSingleTefq(currentTask: UserTask, task: TaskType): Score {
-  const currentTefq = Object.keys(currentTask.answers).reduce(
-    (acc, key: any) => {
-      const answer: any = currentTask.answers[key]
-      if (answer.key === "restraint") {
-        return acc + Number(answer.value)
-      }
-      const score = tefqQuestions[answer.key][answer.value]
-      return acc + score
-    },
-    0
+  const currentTefq = answersReductionCalculation(
+    currentTask.answers,
+    tefqQuestions
   )
-  const percentileKey = Object.keys(hadspercentile).reduce((acc, key) => {
-    const value = parseInt(key)
-    if (value < currentTefq) {
-      return hadspercentile[value]
-    }
-    return acc
-  }, 0)
+
+  const percentileKey = getHadsPercentile(currentTefq)
+
   const message = `Your TEFQ is ${currentTefq} and your percentile is ${percentileKey}`
   const confirmPercentDifferenceValue =
     isNaN(currentTefq) || isFinite(currentTefq) ? 0 : currentTefq
   const calculatedZScore = getZScore(currentTefq, 5.14, 2.65)
-  const calculatedPercentile = GetZPercent(calculatedZScore) * 100
+  const calculatedPercentile = getZPercent(calculatedZScore) * 100
   return {
     calculatedPercentile,
     percentile: String(percentileKey),
@@ -725,10 +588,9 @@ function calculateAdLibitumScore(
   task: TaskType
 ): Score {
   // [{"key": "calories", "value": "60", "type": "NUMBER"}]
-  const lastCalories = Number((lastTask.answers[0] as UserNumberAnswer).value)
-  const currentCalories = Number(
-    (currentTask.answers[0] as UserNumberAnswer).value
-  )
+  const lastCalories = Number(lastTask.answers[0]?.value)
+  const currentCalories = Number(currentTask.answers[0]?.value)
+
   const currentCaloriesPercentDifference = getPercentageChange(
     lastCalories,
     currentCalories
@@ -750,7 +612,7 @@ function calculateAdLibitumScore(
       ? 25
       : 0
   const calculatedZScore = getZScore(currentCalories, 803, 291.851852)
-  const calculatedPercentile = GetZPercent(calculatedZScore) * 100
+  const calculatedPercentile = getZPercent(calculatedZScore) * 100
   return {
     calculatedPercentile,
     percentile: String(percentileKey),
@@ -767,9 +629,7 @@ function calculateSingleAdLibitum(
   currentTask: UserTask,
   task: TaskType
 ): Score {
-  const currentCalories = Number(
-    (currentTask.answers[0] as UserNumberAnswer).value
-  )
+  const currentCalories = Number(currentTask.answers[0]?.value)
   const message = `Current calories consumed is: ${currentCalories}`
   const percentileKey =
     currentCalories > 1283
@@ -784,7 +644,7 @@ function calculateSingleAdLibitum(
       ? 25
       : 0
   const calculatedZScore = getZScore(currentCalories, 803, 291.851852)
-  const calculatedPercentile = GetZPercent(calculatedZScore) * 100
+  const calculatedPercentile = getZPercent(calculatedZScore) * 100
   return {
     calculatedPercentile,
     percentile: String(percentileKey),
@@ -855,4 +715,81 @@ export function calculateScore(
     }
   }
   return null
+}
+
+function answersReductionCalculation(
+  answers: UserAnswer[],
+  answersMap: Record<string, Record<string, number>>
+) {
+  return (answers ?? []).reduce((sum, answer: UserAnswerTypes) => {
+    if (answer.type === AnswerType.STRING) {
+      return sum + answersMap[answer.key][answer.value]
+    } else if (answer.type === AnswerType.NUMBER) {
+      return sum + Number(answer.value)
+    } else {
+      throw new Error("Unexpected answer type in score calculation.")
+    }
+  }, 0)
+}
+
+function getHadsPercentile(currentTaskScore: number) {
+  const percentileKey = Object.keys(hadsPercentile).reduce((acc, key) => {
+    const value = parseInt(key)
+    if (value < currentTaskScore) return hadsPercentile[value]
+    else return acc
+  }, 0)
+
+  return percentileKey
+}
+
+function getStepsPercentile(currentTaskScore: number) {
+  return Object.keys(stepsPercentile).reduce((acc, key) => {
+    const value = parseInt(key)
+    if (value <= currentTaskScore) return stepsPercentile[value]
+    else return acc
+  }, 0)
+}
+
+function getHungerDifferencePercentile(currentHungerLevel: number | string) {
+  const currentValue =
+    typeof currentHungerLevel === "string"
+      ? parseInt(currentHungerLevel)
+      : currentHungerLevel
+
+  const percentile = Object.keys(hungerPercentile).reduce((acc, key) => {
+    const value = parseInt(key)
+    if (value <= currentValue) return hungerPercentile[value]
+    else return acc
+  }, 0)
+
+  return percentile
+}
+
+function getHungerPercentile(hungerLevel: string | number) {
+  const currentValue =
+    typeof hungerLevel === "string" ? parseInt(hungerLevel) : hungerLevel
+
+  const percentile =
+    currentValue <= 45
+      ? "25"
+      : currentValue <= 64
+      ? "50"
+      : currentValue <= 83
+      ? "75"
+      : currentValue <= 100
+      ? "90"
+      : "95"
+
+  return percentile
+}
+
+function getAnswerByKey<T>(
+  answers: UserAnswer[],
+  key: string,
+  asType: (value: any) => T,
+  defaultValue: T = null
+) {
+  const answer = answers.find((ans) => ans.key === key)
+  if (answer) return asType(answer.value)
+  else return defaultValue
 }

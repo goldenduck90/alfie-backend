@@ -309,11 +309,19 @@ export class Score {
   @prop({ required: false })
   providerMessage?: string
 }
+
+export enum ClassificationType {
+  Empath = "Empath",
+  Ember = "Ember",
+  Growler = "Growler",
+  Rover = "Rover",
+}
+
 @ObjectType()
 export class Classification {
-  @Field(() => String)
+  @Field(() => ClassificationType)
   @prop({ required: true })
-  classification: string
+  classification: ClassificationType
 
   @Field(() => String)
   @prop({ required: true })
@@ -330,6 +338,14 @@ export class Classification {
   @Field(() => Float, { nullable: true })
   @prop({ required: false })
   calculated30minsPercent?: number
+
+  @Field(() => Float, { nullable: true })
+  @prop({ required: false })
+  calculatedPercentile30Mins?: number
+
+  @Field(() => Float, { nullable: true })
+  @prop({ required: false })
+  calculatedPercentile2Hour?: number
 
   @Field(() => String, { nullable: true })
   @prop({ required: false })
@@ -496,11 +512,11 @@ export class User {
 
   @Field(() => [Weight])
   @prop({ default: [], required: true })
-  weights: mongoose.Types.Array<Weight>
+  weights: Weight[]
 
   @Field(() => [Score])
   @prop({ default: [], required: false })
-  score: mongoose.Types.Array<Score>
+  score: Score[]
 
   @Field(() => Gender)
   @prop({ enum: Gender, type: String, required: true })
