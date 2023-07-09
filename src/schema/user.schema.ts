@@ -319,7 +319,7 @@ export enum ClassificationType {
 
 @ObjectType()
 export class Classification {
-  @Field(() => ClassificationType)
+  @Field()
   @prop({ required: true })
   classification: ClassificationType
 
