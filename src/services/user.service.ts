@@ -762,9 +762,20 @@ class UserService extends EmailService {
 
   async getAllUsersByAProvider(providerId: string) {
     try {
-      const _users = await UserModel.find({ provider: providerId })
-        .populate("provider")
-        .lean()
+      const provider = await ProviderModel.findById(providerId)
+
+      let _users: User[]
+      if (provider.type === Role.Doctor) {
+        _users = await UserModel.find({
+          state: { $in: provider.licensedStates },
+        })
+          .populate("provider")
+          .lean()
+      } else {
+        _users = await UserModel.find({ provider: providerId })
+          .populate("provider")
+          .lean()
+      }
 
       const users = _users.map((u) => {
         return {
