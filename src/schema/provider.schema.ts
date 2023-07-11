@@ -74,10 +74,6 @@ export class Provider {
   @prop({ required: true })
   npi: string
 
-  @Field()
-  @prop({ required: true })
-  providerCode: ProviderCode
-
   @Field(() => [String])
   @prop({ type: [String], required: true })
   licensedStates: mongoose.Types.Array<string>
@@ -93,6 +89,10 @@ export class Provider {
   @Field(() => String)
   @prop({ required: true })
   email: string
+
+  @Field(() => ProviderCode)
+  @prop({ required: false })
+  providerCode?: ProviderCode
 
   @Field(() => Int, { nullable: true })
   @prop({ required: true, default: 0 })
@@ -129,8 +129,8 @@ export class ProviderInput {
   @Field(() => String)
   npi: string
 
-  @Field()
-  providerCode: ProviderCode
+  @Field(() => ProviderCode)
+  providerCode?: ProviderCode
 
   @Field(() => [String])
   licensedStates: mongoose.Types.Array<string>
