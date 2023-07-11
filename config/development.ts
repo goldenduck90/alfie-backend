@@ -2,6 +2,7 @@ import dotenv from "dotenv"
 dotenv.config()
 
 import candidHealth from "./includes/candidHealth.development"
+import akuteProcedures from "./includes/akuteProcedures.development"
 
 export default {
   env: "development",
@@ -20,6 +21,11 @@ export default {
     serviceTypeCode: "90",
     settings: candidHealth,
   },
+  withings: {
+    apiUrl: "https://wbsapi.withings.net",
+    clientId: process.env.WITHINGS_CLIENT_ID,
+    clientSecret: process.env.WITHINGS_CLIENT_SECRET,
+  },
   defaultPriceId: "price_1KMviXDOjl0X0gOq9Pk7gRFE",
   dynamoDb: {
     emailSubscribersTable: "develop-platform-email-subscribers",
@@ -34,5 +40,10 @@ export default {
     extension: "101",
   },
   akuteApiUrl: "https://api.staging.akutehealth.com/v1",
+  akute: {
+    labCorpOrganizationId: "f-4f0235627ac2d59b49e5575c", // testinglab facility
+    // labCorpOrganizationId: "f-e20f61500ba128d340068ff6", // labcorp
+    procedures: akuteProcedures,
+  },
   twilioPhone: "+18447440088",
 }

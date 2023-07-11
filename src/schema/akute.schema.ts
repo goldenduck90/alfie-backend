@@ -4,21 +4,6 @@ import { Field, InputType, ObjectType } from "type-graphql"
 export class PharmacyLocationInput {
   @Field()
   name: string
-
-  // @Field()
-  // address: string;
-
-  // @Field()
-  // city: string;
-
-  // @Field()
-  // state: string;
-
-  // @Field()
-  // zip: string;
-
-  // @Field()
-  // phoneOrFax: string;
 }
 
 @ObjectType()

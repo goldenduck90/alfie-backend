@@ -2,6 +2,7 @@ import dotenv from "dotenv"
 dotenv.config()
 
 import candidHealth from "./includes/candidHealth.production"
+import akuteProcedures from "./includes/akuteProcedures.production"
 
 export default {
   env: "production",
@@ -16,6 +17,11 @@ export default {
     clientSecret: process.env.CANDID_CLIENT_SECRET,
     serviceTypeCode: "3",
     settings: candidHealth,
+  },
+  withings: {
+    apiUrl: "https://wbsapi.withings.net",
+    clientId: process.env.WITHINGS_CLIENT_ID,
+    clientSecret: process.env.WITHINGS_CLIENT_SECRET,
   },
   defaultPriceId: "price_1KMv4hDOjl0X0gOqRIWXpGVz",
   s3: {
@@ -33,6 +39,7 @@ export default {
   akuteApiUrl: "https://api.akutehealth.com/v1",
   akute: {
     labCorpOrganizationId: "f-a855594f43fe879c6570b92e",
+    procedures: akuteProcedures,
   },
   twilioPhone: "+18447244465",
   zapierCreateUserWebhook:

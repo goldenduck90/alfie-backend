@@ -20,7 +20,10 @@ registerEnumType(AnswerType, {
 
 @ObjectType()
 @InputType("UserAnswersInput")
-@ModelOptions({ schemaOptions: { _id: false, discriminatorKey: "type" } })
+@ModelOptions({
+  schemaOptions: { _id: false, discriminatorKey: "type" },
+  options: { allowMixed: Severity.ALLOW },
+})
 export class UserAnswer {
   @Field(() => String)
   @prop({ required: true })
@@ -108,7 +111,6 @@ export type UserAnswerTypes =
   | UserBooleanAnswer
   | UserDateAnswer
   | UserFileAnswer
-  | UserAnswer
 
 function findByTaskId(
   this: ReturnModelType<typeof UserTask, QueryHelpers>,

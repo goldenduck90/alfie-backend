@@ -68,6 +68,7 @@ import ProviderService from "./provider.service"
 import TaskService from "./task.service"
 import SmsService from "./sms.service"
 import CandidService from "./candid.service"
+import WithingsService from "./withings.service"
 import axios from "axios"
 import { analyzeS3InsuranceCardImage } from "../utils/textract"
 import AnswerType from "../schema/enums/AnswerType"
@@ -98,6 +99,7 @@ class UserService extends EmailService {
   private smsService: SmsService
   private emailService: EmailService
   private candidService: CandidService
+  private withingsService: WithingsService
   public awsDynamo: AWS.DynamoDB
   private stripeSdk: stripe
 
@@ -111,6 +113,7 @@ class UserService extends EmailService {
     this.smsService = new SmsService()
     this.emailService = new EmailService()
     this.candidService = new CandidService()
+    this.withingsService = new WithingsService()
 
     this.awsDynamo = new AWS.DynamoDB({
       accessKeyId: process.env.AWS_ACCESS_KEY_ID,
@@ -252,8 +255,8 @@ class UserService extends EmailService {
     console.log(`CREATING NEW USER w/Name: ${name}`)
 
     const splitName = name.split(" ")
-    const firstName = name.split(" ")[0] || ""
-    const lastName = splitName ? splitName[splitName.length - 1] : ""
+    const firstName = splitName[0] || ""
+    const lastName = splitName[splitName.length - 1] || ""
 
     let patientId: string
     try {
@@ -416,6 +419,29 @@ class UserService extends EmailService {
           name: user.name,
         },
       })
+    }
+
+    // Create withings dropshipping order
+    try {
+      const withingsAddress = {
+        name,
+        company_name: "Alfie",
+        email,
+        telephone: phone,
+        address1: address.line1,
+        address2: address.line2,
+        city: address.city,
+        zip: address.postalCode,
+        state: address.state,
+        country: "US",
+      }
+      const res = await this.withingsService.createOrder(
+        user.id,
+        withingsAddress
+      )
+      console.log(res)
+    } catch (err) {
+      console.log(err)
     }
 
     console.log(`USER CREATED: ${user._id}`)
@@ -740,7 +766,9 @@ class UserService extends EmailService {
   async getAllUsers() {
     try {
       // Find all users and populate the "provider" field
-      const users = await UserModel.find().populate("provider").lean()
+      const users = await UserModel.find()
+        .populate<{ provider: Provider }>("provider")
+        .lean()
       users.forEach((u) => {
         if (u.score) {
           if (u.score.some((el: any) => el === null)) {
@@ -760,9 +788,20 @@ class UserService extends EmailService {
 
   async getAllUsersByAProvider(providerId: string) {
     try {
-      const _users = await UserModel.find({ provider: providerId })
-        .populate("provider")
-        .lean()
+      const provider = await ProviderModel.findById(providerId)
+
+      let _users: User[]
+      if (provider.type === Role.Doctor) {
+        _users = await UserModel.find({
+          state: { $in: provider.licensedStates },
+        })
+          .populate("provider")
+          .lean()
+      } else {
+        _users = await UserModel.find({ provider: providerId })
+          .populate("provider")
+          .lean()
+      }
 
       const users = _users.map((u) => {
         return {
@@ -777,6 +816,7 @@ class UserService extends EmailService {
       throw new ApolloError(error.message, error.code)
     }
   }
+
   async getAllUsersByAHealthCoach(providerId: string) {
     try {
       const findEaHealthCoachId = await UserModel.find({
@@ -788,8 +828,9 @@ class UserService extends EmailService {
       const users = await UserModel.find({
         eaHealthCoachId: findEaHealthCoachId[0].eaHealthCoachId,
       })
-        .populate("provider")
+        .populate<{ provider: Provider }>("provider")
         .lean()
+
       return users
     } catch (error) {
       throw new ApolloError(error.message, error.code)

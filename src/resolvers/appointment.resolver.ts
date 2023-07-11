@@ -21,11 +21,16 @@ import { MessageResponse } from "../schema/user.schema"
 import Role from "../schema/enums/Role"
 import AppointmentService from "../services/appointment.service"
 import Context from "../types/context"
+import UserService from "../services/user.service"
 
 @Resolver()
 export default class AppointmentResolver {
-  constructor(private appointmentService: AppointmentService) {
+  private appointmentService: AppointmentService
+  private userService: UserService
+
+  constructor() {
     this.appointmentService = new AppointmentService()
+    this.userService = new UserService()
   }
 
   @Authorized([
@@ -124,12 +129,15 @@ export default class AppointmentResolver {
     Role.Nutritionist,
   ])
   @Mutation(() => MessageResponse)
-  updateAppointmentAttended(
+  async updateAppointmentAttended(
     @Ctx() context: Context,
-    @Arg("eaAppointmentId") eaAppointmentId: string
+    @Arg("eaAppointmentId") eaAppointmentId: string,
+    @Arg("userId", { nullable: true }) userId?: string
   ) {
-    return this.appointmentService.updateAppointmentAttended(
-      context.user,
+    const user = userId ? await this.userService.getUser(userId) : context.user
+
+    return await this.appointmentService.updateAppointmentAttended(
+      user,
       eaAppointmentId
     )
   }

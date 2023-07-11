@@ -9,3 +9,13 @@ export const mapCollectionByField = <T>(
   getField: (item: T) => string
 ): Record<string, T> =>
   collection.reduce((map, item) => ({ ...map, [getField(item)]: item }), {})
+
+/** Maps a collection by grouping items by a calculated field from `getField`. */
+export const groupCollectionByField = <T>(
+  collection: T[],
+  getField: (item: T) => string
+): Record<string, T[]> =>
+  collection.reduce((map, item) => {
+    const field = getField(item)
+    return { ...map, [field]: [...(map[field] ?? []), item] }
+  }, {} as Record<string, T[]>)

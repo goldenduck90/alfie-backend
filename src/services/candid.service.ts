@@ -1,10 +1,10 @@
-import * as Sentry from "@sentry/node"
 import axios, { AxiosInstance } from "axios"
 import { ApolloError } from "apollo-server-errors"
 import config from "config"
 import { addSeconds, isPast } from "date-fns"
 import type { LeanDocument } from "mongoose"
 import type { IEAAppointment } from "../@types/easyAppointmentTypes"
+import { captureEvent, captureException } from "../utils/sentry"
 import {
   AuthorizationTokenModel,
   AuthorizationToken,
@@ -103,15 +103,10 @@ export default class CandidService {
         await this.saveAuthorizationToken(data.access_token, expiresAt)
         token = await this.getSavedAuthorizationToken()
       } catch (error) {
-        const logErrorMessage = `CandidService.authenticate error: ${JSON.stringify(
-          error.response?.data
-        )}`
-
-        Sentry.captureEvent({
-          message: logErrorMessage,
-          level: "error",
-        })
-        console.log(logErrorMessage)
+        captureException(
+          error.response?.data ?? error,
+          "CandidService.authenticate"
+        )
         throw error
       }
     }
@@ -155,7 +150,7 @@ export default class CandidService {
         await AuthorizationTokenModel.create(tokenObj)
       }
     } catch (error) {
-      Sentry.captureException(error)
+      captureException(error, "CandidService.saveAuthorizationToken")
       throw error
     }
   }
@@ -175,14 +170,18 @@ export default class CandidService {
       })
       return data[0]
     } catch (error) {
-      const errorLogMessage = `CandidService.getEncounterForAppointment error: ${JSON.stringify(
-        error.response?.data
-      )}`
-      Sentry.captureEvent({
-        message: errorLogMessage,
-        level: "error",
-      })
-      throw new CandidError(errorLogMessage)
+      captureException(
+        error.response?.data ?? error,
+        "CandidService.getEncounterForAppointment",
+        {
+          data: error.response?.data,
+          appointment: appointment?.eaAppointmentId,
+        }
+      )
+      throw new CandidError(
+        error.response?.data?.message ??
+          "Error getting encounter for appointment."
+      )
     }
   }
 
@@ -223,21 +222,32 @@ export default class CandidService {
               payor: match.payer_id,
             }
 
-            const result = await this.checkInsuranceEligibility(
-              user,
-              provider,
-              rectifiedInsurance,
-              match.cpid
-            )
+            try {
+              const result = await this.checkInsuranceEligibility(
+                user,
+                provider,
+                rectifiedInsurance,
+                match.cpid
+              )
 
-            return {
-              ...result,
-              rectifiedInsurance,
+              return {
+                ...result,
+                rectifiedInsurance,
+              }
+            } catch (error) {
+              return {
+                eligible: false,
+                error,
+              }
             }
           })
         )
 
-        return results.find(({ eligible }) => eligible) ?? results[0]
+        return (
+          results.find(({ eligible }) => eligible) ??
+          results.find((result) => !result.error) ??
+          results[0]
+        )
       }
 
       if (process.env.NODE_ENV === "development") {
@@ -255,7 +265,7 @@ export default class CandidService {
           firstName: provider.firstName,
           lastName: provider.lastName,
           npi: provider.npi,
-          providerCode: "AD",
+          providerCode: provider.providerCode ?? undefined,
         },
         subscriber: {
           dateOfBirth: dayjs.utc(user.dateOfBirth).format("YYYYMMDD"),
@@ -266,43 +276,24 @@ export default class CandidService {
         },
       }
 
-      const requestLogMessage = `Candid Eligibility Request Object: ${JSON.stringify(
-        request,
-        null,
-        "  "
-      )}`
-      console.log(requestLogMessage)
-      Sentry.captureEvent({
-        message: requestLogMessage,
-        level: "info",
-      })
+      captureEvent("info", "Candid Eligibility request", request)
 
       const { data } =
         await this.candidInstance.post<CandidEligibilityCheckResponse>(
           "/v0/eligibility",
           request
         )
-      const responseLogMessage = `Candid Eligibility Response Object: ${JSON.stringify(
-        data,
-        null,
-        "  "
-      )}`
-      console.log(responseLogMessage)
-      Sentry.captureEvent({
-        message: responseLogMessage,
-        level: "info",
-      })
+
+      captureEvent("info", "Candid Eligibility response", data)
 
       if ((data as any).errors?.length > 0) {
         const errorData = (data as any).errors
         const errorMessage = `Candid eligibility request error: ${JSON.stringify(
           errorData
         )}`
-        Sentry.captureEvent({
-          message: errorMessage,
-          level: "error",
+        captureException(errorData, "CandidService.checkInsuranceEligibility", {
+          error: errorData,
         })
-        console.log(errorMessage)
         throw new CandidError(errorMessage)
       }
 
@@ -328,15 +319,13 @@ export default class CandidService {
         response: data,
       }
     } catch (error) {
-      const errorLogMessage = `Candid eligibility request error: ${JSON.stringify(
-        error.response?.data ?? error.message
-      )}`
-      Sentry.captureEvent({
-        message: errorLogMessage,
-        level: "error",
-      })
+      captureException(
+        error.response?.data ?? error.message ?? error,
+        "Candid Eligibility request error",
+        { error: error.response?.data }
+      )
 
-      throw new CandidError(errorLogMessage)
+      throw new CandidError(error.message ?? "Candid eligibility check error")
     }
   }
 
@@ -535,14 +524,14 @@ export default class CandidService {
       { state: user.address.state.toUpperCase() }
     )
 
-    const billingLogMessage = `Candid selected billing provider for state ${
-      user.address.state
-    }: ${JSON.stringify(billingProvider)}`
-    console.log(billingLogMessage)
-    Sentry.captureEvent({
-      message: billingLogMessage,
-      level: "info",
-    })
+    captureEvent(
+      "info",
+      "Candid eligibility check: selected billing provider.",
+      {
+        billingProvider,
+        state: user.address.state.toUpperCase(),
+      }
+    )
 
     let userTasks: UserTask[]
     try {
@@ -592,20 +581,17 @@ export default class CandidService {
     )
 
     if (!procedureCode || !costInCents) {
-      const logMessage = `Candid Create Coded Encounter Error: No procedure code or cost matches the following criteria: ${JSON.stringify(
-        calculationCriteria
-      )}.`
-      Sentry.captureEvent({ level: "warning", message: logMessage })
+      const logMessage =
+        "Candid Create Coded Encounter Error: No procedure code or cost matches the criteria."
+      captureEvent("warning", logMessage, {
+        calculationCriteria,
+      })
       throw new CandidError(logMessage)
     } else {
       const criteriaLog = `Procedure code ${procedureCode}, diagnosis code ${diagnosisCode} and cost ${costInCents} calculated from ${JSON.stringify(
         calculationCriteria
       )}.`
-      console.log(criteriaLog)
-      Sentry.captureEvent({
-        message: criteriaLog,
-        level: "info",
-      })
+      captureEvent("info", criteriaLog, calculationCriteria)
     }
 
     // compile clinical notes
@@ -748,13 +734,7 @@ export default class CandidService {
     }
 
     try {
-      const logRequest = `Encoded encounter request: ${JSON.stringify(
-        encounterRequest,
-        null,
-        "  "
-      )}`
-      console.log(logRequest)
-      Sentry.captureMessage(logRequest)
+      captureEvent("info", "Encoded encounter request", encounterRequest)
 
       // Candid API POST
       const { data } =
@@ -764,20 +744,11 @@ export default class CandidService {
         )
 
       // log results
-      const logResponse = `Create coded encounter result: ${JSON.stringify(
-        data,
-        null,
-        "  "
-      )}`
-      console.log(logResponse)
-      Sentry.captureMessage(logResponse)
+      captureEvent("info", "Create coded encounter result", data)
       return data
     } catch (error) {
       const errorData = error.response?.data
-      Sentry.captureException({
-        message: "Candid create coded encounter error",
-        errorData,
-      })
+      captureException(errorData)
 
       throw new CandidError(
         `Candid Create Coded Encounter Error: ${JSON.stringify(errorData)}`

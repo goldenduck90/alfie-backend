@@ -1,4 +1,5 @@
 import runShell from "./utils/runShell"
+import mockEmails from "./utils/mockEmails"
 import { Command } from "commander"
 import { Insurance, UserModel } from "../src/schema/user.schema"
 import CandidService from "../src/services/candid.service"
@@ -6,7 +7,6 @@ import AppointmentService from "../src/services/appointment.service"
 import UserService from "../src/services/user.service"
 import cpids from "../src/utils/cpids.json"
 import { CPIDEntry } from "../src/utils/lookupCPID"
-import EmailService from "../src/services/email.service"
 import { TaskType } from "../src/schema/task.schema"
 import TaskService from "../src/services/task.service"
 
@@ -35,10 +35,7 @@ if (keys.every((key) => !(flags as Record<string, boolean>)[key]))
 console.log("Starting test insurance script.")
 
 async function testInsurance() {
-  EmailService.prototype.sendEmail = async (...args: any[]) => {
-    console.log(`sendEmail call: ${JSON.stringify(args)}`)
-    return { MessageId: "123", $response: {} as any }
-  }
+  mockEmails()
 
   const appointmentService = new AppointmentService()
   const candidService = new CandidService()

@@ -1,6 +1,7 @@
 import dotenv from "dotenv"
 dotenv.config()
 import config from "config"
+import { Command } from "commander"
 
 import { basename } from "path"
 import "../../src/utils/sentry"
@@ -21,6 +22,9 @@ export default async function runShell(callback: () => Promise<void>) {
 
     await callback()
 
+    // wait for sentry logs to process
+    await new Promise((resolve) => setTimeout(resolve, 400))
+
     process.exit(0)
   } catch (error) {
     console.log(
@@ -29,4 +33,8 @@ export default async function runShell(callback: () => Promise<void>) {
     console.log(error)
     process.exit(1)
   }
+}
+
+export function createProgram(): Command {
+  return new Command()
 }
