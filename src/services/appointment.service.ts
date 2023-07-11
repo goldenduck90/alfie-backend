@@ -190,8 +190,14 @@ class AppointmentService extends EmailService {
 
   async getTimeslots(user: Context["user"], input: GetTimeslotsInput) {
     try {
-      const { selectedDate, timezone, bypassNotice, appointmentId, userId } =
-        input
+      const {
+        selectedDate,
+        timezone,
+        bypassNotice,
+        appointmentId,
+        userId,
+        healthCoach,
+      } = input
       const { notFound, noEaCustomerId } = config.get("errors.user") as any
 
       let eaProviderId
@@ -205,17 +211,21 @@ class AppointmentService extends EmailService {
           throw new ApolloError(noEaCustomerId.message, noEaCustomerId.code)
         }
 
-        const provider = await ProviderModel.findById(_user.provider)
-        if (!provider) {
-          throw new ApolloError(notFound.message, notFound.code)
-        }
+        if (!healthCoach) {
+          const provider = await ProviderModel.findById(_user.provider)
+          if (!provider) {
+            throw new ApolloError(notFound.message, notFound.code)
+          }
 
-        if (!provider.eaProviderId) {
-          throw new ApolloError(noEaCustomerId.message, noEaCustomerId.code)
-        }
+          if (!provider.eaProviderId) {
+            throw new ApolloError(noEaCustomerId.message, noEaCustomerId.code)
+          }
 
-        eaProviderId = provider.eaProviderId
-      } else {
+          eaProviderId = provider.eaProviderId
+        } else {
+          eaProviderId = 118
+        }
+      } else if (!healthCoach) {
         const provider = await ProviderModel.findById(user._id)
         if (!provider) {
           throw new ApolloError(notFound.message, notFound.code)
@@ -226,6 +236,8 @@ class AppointmentService extends EmailService {
         }
 
         eaProviderId = provider.eaProviderId
+      } else {
+        eaProviderId = 118
       }
 
       let eaCustomer = {
@@ -281,8 +293,16 @@ class AppointmentService extends EmailService {
 
   async createAppointment(user: User, input: CreateAppointmentInput) {
     const { notFound, noEaCustomerId } = config.get("errors.user") as any
-    const { userId, start, end, timezone, notes, bypassNotice, userTaskId } =
-      input
+    const {
+      userId,
+      start,
+      end,
+      timezone,
+      notes,
+      bypassNotice,
+      userTaskId,
+      healthCoach,
+    } = input
 
     const _user = await UserModel.findById(userId ? userId : user._id)
     if (!_user) {
@@ -294,17 +314,21 @@ class AppointmentService extends EmailService {
     }
 
     const eaCustomerId = _user.eaCustomerId
+    let eaProviderId
+    if (!healthCoach) {
+      const provider = await ProviderModel.findById(_user.provider)
+      if (!provider) {
+        throw new ApolloError(notFound.message, notFound.code)
+      }
 
-    const provider = await ProviderModel.findById(_user.provider)
-    if (!provider) {
-      throw new ApolloError(notFound.message, notFound.code)
+      if (!provider.eaProviderId) {
+        throw new ApolloError(noEaCustomerId.message, noEaCustomerId.code)
+      }
+
+      eaProviderId = provider.eaProviderId
+    } else {
+      eaProviderId = 118
     }
-
-    if (!provider.eaProviderId) {
-      throw new ApolloError(noEaCustomerId.message, noEaCustomerId.code)
-    }
-
-    const eaProviderId = provider.eaProviderId
 
     const meetingData = await createMeetingAndToken(_user.id)
 
@@ -340,9 +364,7 @@ class AppointmentService extends EmailService {
       }
     } catch (error) {
       const errorData = error.response?.data ?? error
-      captureException(errorData, "AppointmentService.createAppointment", {
-        provider: provider.eaProviderId,
-      })
+      captureException(errorData, "AppointmentService.createAppointment")
       throw new ApolloError(error.message, "ERROR")
     }
 
@@ -645,7 +667,9 @@ class AppointmentService extends EmailService {
         "/appointments/upcoming",
         {
           params: {
-            ...(user.role !== Role.Practitioner && user.role !== Role.Doctor
+            ...(user.role !== Role.Practitioner &&
+            user.role !== Role.Doctor &&
+            user.role !== Role.HealthCoach
               ? {
                   eaCustomerId: eaUserId,
                 }
@@ -681,7 +705,7 @@ class AppointmentService extends EmailService {
       if (user.role === Role.Doctor || user.role === Role.Practitioner) {
         const provider: LeanDocument<Provider> = await ProviderModel.findById(
           user._id
-        ).lean()
+        )
         if (!provider) {
           throw new ApolloError(notFound.message, notFound.code)
         }
@@ -692,7 +716,7 @@ class AppointmentService extends EmailService {
 
         eaUserId = provider.eaProviderId
       } else {
-        const _user = await UserModel.findById(user._id).lean()
+        const _user = await UserModel.findById(user._id)
         if (!_user) {
           throw new ApolloError(notFound.message, notFound.code)
         }
@@ -708,7 +732,9 @@ class AppointmentService extends EmailService {
         "/appointments/month",
         {
           params: {
-            ...(user.role !== Role.Practitioner && user.role !== Role.Doctor
+            ...(user.role !== Role.Practitioner &&
+            user.role !== Role.Doctor &&
+            user.role !== Role.HealthCoach
               ? {
                   eaCustomerId: eaUserId,
                 }
@@ -747,7 +773,7 @@ class AppointmentService extends EmailService {
 
       if (user) {
         if (user.role === Role.Doctor || user.role === Role.Practitioner) {
-          const provider = await ProviderModel.findById(user._id).lean()
+          const provider = await ProviderModel.findById(user._id)
           if (!provider) {
             throw new ApolloError(notFound.message, notFound.code)
           }
@@ -758,7 +784,7 @@ class AppointmentService extends EmailService {
 
           eaUserId = provider.eaProviderId
         } else {
-          const _user = await UserModel.findById(user._id).lean()
+          const _user = await UserModel.findById(user._id)
           if (!_user) {
             throw new ApolloError(notFound.message, notFound.code)
           }
@@ -779,7 +805,8 @@ class AppointmentService extends EmailService {
         eaUserId &&
         user &&
         user.role !== Role.Practitioner &&
-        user.role !== Role.Doctor
+        user.role !== Role.Doctor &&
+        user.role !== Role.HealthCoach
       ) {
         appointmentsByDateParams.eaCustomerId = eaUserId
       } else if (eaUserId) {
