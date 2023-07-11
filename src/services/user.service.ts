@@ -740,18 +740,18 @@ class UserService extends EmailService {
   async getAllUsers() {
     try {
       // Find all users and populate the "provider" field
-      const users = await UserModel.find()
-        .populate<{ provider: Provider }>("provider")
-        .lean()
-      users.forEach((u) => {
-        if (u.score) {
-          if (u.score.some((el: any) => el === null)) {
-            u.score = u.score.filter((el: any) => el !== null)
-          }
-        } else {
-          u.score = []
-        }
-      })
+      const users = await UserModel.find({ role: Role.Patient }).populate<{
+        provider: Provider
+      }>("provider")
+      // users.forEach((u) => {
+      //   if (u.score) {
+      //     if (u.score.some((el: any) => el === null)) {
+      //       u.score = u.score.filter((el: any) => el !== null)
+      //     }
+      //   } else {
+      //     u.score = []
+      //   }
+      // })
 
       return users
     } catch (error) {
@@ -768,11 +768,15 @@ class UserService extends EmailService {
       if (provider.type === Role.Doctor) {
         _users = await UserModel.find({
           state: { $in: provider.licensedStates },
+          role: Role.Patient,
         })
           .populate("provider")
           .lean()
       } else {
-        _users = await UserModel.find({ provider: providerId })
+        _users = await UserModel.find({
+          provider: providerId,
+          role: Role.Patient,
+        })
           .populate("provider")
           .lean()
       }
@@ -791,19 +795,21 @@ class UserService extends EmailService {
     }
   }
 
-  async getAllUsersByAHealthCoach(providerId: string) {
+  async getAllUsersByAHealthCoach() {
     try {
-      const findEaHealthCoachId = await UserModel.find({
-        _id: providerId,
-      }).lean()
-      if (!findEaHealthCoachId[0].eaHealthCoachId) {
-        throw new ApolloError("No Health Coach Id found", "404")
-      }
-      const users = await UserModel.find({
-        eaHealthCoachId: findEaHealthCoachId[0].eaHealthCoachId,
-      })
-        .populate<{ provider: Provider }>("provider")
-        .lean()
+      // Find all users and populate the "provider" field
+      const users = await UserModel.find({ role: Role.Patient }).populate<{
+        provider: Provider
+      }>("provider")
+      // users.forEach((u) => {
+      //   if (u.score) {
+      //     if (u.score.some((el: any) => el === null)) {
+      //       u.score = u.score.filter((el: any) => el !== null)
+      //     }
+      //   } else {
+      //     u.score = []
+      //   }
+      // })
 
       return users
     } catch (error) {
