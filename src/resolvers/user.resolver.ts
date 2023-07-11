@@ -109,8 +109,8 @@ export default class UserResolver {
   @Authorized([Role.Practitioner, Role.Doctor, Role.Admin, Role.HealthCoach])
   // Query returns an array of User and a custom field called tasks
   @Query(() => [User])
-  getAllPatientsByHealthCoach(@Ctx() context: Context) {
-    return this.userService.getAllUsersByAHealthCoach(context.user._id)
+  getAllPatientsByHealthCoach() {
+    return this.userService.getAllUsersByAHealthCoach()
   }
   @Authorized([Role.Doctor, Role.Admin, Role.Practitioner, Role.HealthCoach])
   @Query(() => [UserTask])
