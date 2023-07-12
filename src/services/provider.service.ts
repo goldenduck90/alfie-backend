@@ -15,6 +15,11 @@ class ProviderService {
     this.emailService = new EmailService()
   }
 
+  async listProviders() {
+    const providers = await ProviderModel.find()
+    return providers
+  }
+
   async getNextAvailableProvider(state: string, update = false) {
     // Only return providers where the type === "Practitioner"
     const providers = await ProviderModel.find({

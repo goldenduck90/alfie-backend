@@ -73,6 +73,7 @@ import axios from "axios"
 import { analyzeS3InsuranceCardImage } from "../utils/textract"
 import AnswerType from "../schema/enums/AnswerType"
 import { client } from "../utils/posthog"
+import { captureException, captureEvent } from "../utils/sentry"
 
 export const initialUserTasks = [
   TaskType.ID_AND_INSURANCE_UPLOAD,
@@ -271,15 +272,10 @@ class UserService extends EmailService {
       })
       if (!patientId) {
         const message = `UserService.createUser: An error occured for creating a patient entry in Akute for: ${email}`
-        console.log(message)
-        Sentry.captureEvent({
-          message,
-          level: "error",
-        })
+        captureEvent("error", message)
       }
     } catch (error) {
-      console.log(error.message)
-      Sentry.captureException(error)
+      captureException(error, "UserService.createUser", input)
     }
 
     const customerId = await this.appointmentService.createCustomer({
@@ -392,17 +388,7 @@ class UserService extends EmailService {
     }
 
     // send lab order
-    const labOrder = this.akuteService.createLabOrder(user._id)
-    if (!labOrder) {
-      console.log(
-        `An error occured for creating a lab order in Akute for: ${email}`
-      )
-      Sentry.captureException(
-        `Lab Order Akute Failed for: ${user._id}, ${email}: ${JSON.stringify(
-          labOrder
-        )}`
-      )
-    }
+    await this.akuteService.createLabOrder(user._id)
 
     if (process.env.NODE_ENV === "production") {
       const zapierCreateUserWebhook = config.get(
@@ -526,7 +512,7 @@ class UserService extends EmailService {
         message: waitlistMessage,
       }
     } catch (error) {
-      Sentry.captureException(error)
+      captureException(error, "UserService.subscribeEmail", { input })
       throw new ApolloError(unknownError.message, unknownError.code)
     }
   }
@@ -758,7 +744,7 @@ class UserService extends EmailService {
       }
       return user
     } catch (error) {
-      Sentry.captureException(error)
+      captureException(error, "UserService.getUser")
       throw new ApolloError(error.message, error.code)
     }
   }
@@ -769,19 +755,10 @@ class UserService extends EmailService {
       const users = await UserModel.find({ role: Role.Patient }).populate<{
         provider: Provider
       }>("provider")
-      // users.forEach((u) => {
-      //   if (u.score) {
-      //     if (u.score.some((el: any) => el === null)) {
-      //       u.score = u.score.filter((el: any) => el !== null)
-      //     }
-      //   } else {
-      //     u.score = []
-      //   }
-      // })
 
       return users
     } catch (error) {
-      Sentry.captureException(error)
+      captureException(error, "UserService.getAllUsers")
       throw new ApolloError(error.message, error.code)
     }
   }
@@ -790,33 +767,25 @@ class UserService extends EmailService {
     try {
       const provider = await ProviderModel.findById(providerId)
 
-      let _users: User[]
       if (provider.type === Role.Doctor) {
-        _users = await UserModel.find({
+        const results = await UserModel.find({
           state: { $in: provider.licensedStates },
           role: Role.Patient,
         })
-          .populate("provider")
+          .populate<{ provider: Provider }>("provider")
           .lean()
+        return results.map((u) => ({ ...u, score: [] }))
       } else {
-        _users = await UserModel.find({
+        const results = await UserModel.find({
           provider: providerId,
           role: Role.Patient,
         })
-          .populate("provider")
+          .populate<{ provider: Provider }>("provider")
           .lean()
+        return results.map((u) => ({ ...u, score: [] }))
       }
-
-      const users = _users.map((u) => {
-        return {
-          ...u,
-          score: [],
-        }
-      })
-
-      return users
     } catch (error) {
-      Sentry.captureException(error)
+      captureException(error, "UserService.getAllUsersByAProvider")
       throw new ApolloError(error.message, error.code)
     }
   }
@@ -827,15 +796,6 @@ class UserService extends EmailService {
       const users = await UserModel.find({ role: Role.Patient }).populate<{
         provider: Provider
       }>("provider")
-      // users.forEach((u) => {
-      //   if (u.score) {
-      //     if (u.score.some((el: any) => el === null)) {
-      //       u.score = u.score.filter((el: any) => el !== null)
-      //     }
-      //   } else {
-      //     u.score = []
-      //   }
-      // })
 
       return users
     } catch (error) {
@@ -1099,7 +1059,10 @@ class UserService extends EmailService {
       })
 
       if (!sent) {
-        console.log(`An error occured sending the daily task report: ${sent}`)
+        captureEvent(
+          "error",
+          `An error occured sending the daily task report: ${sent}`
+        )
       } else {
         console.log("Daily task report email has been successfully sent")
       }
@@ -1114,8 +1077,8 @@ class UserService extends EmailService {
 
       return userTasks
     } catch (error) {
-      console.log("error", error)
-      Sentry.captureException(error)
+      captureException(error, "UserService.getAllUserTasksByUser")
+      throw new ApolloError("Error retrieving user tasks for user.", "ERROR")
     }
   }
 
@@ -1440,8 +1403,7 @@ class UserService extends EmailService {
         checkout: newCheckout,
       }
     } catch (error) {
-      Sentry.captureException(error)
-      console.log(error)
+      captureException(error, "UserService.createOrFindCheckout", { input })
     }
   }
 
@@ -1633,8 +1595,7 @@ class UserService extends EmailService {
       console.log(channels)
       return channels
     } catch (error) {
-      console.log("error", error)
-      Sentry.captureException(error)
+      captureException(error, "UserService.sendbirdChannels")
     }
   }
 
@@ -1676,17 +1637,14 @@ class UserService extends EmailService {
         rxGroup: insuranceData.rx_pcn,
       }
 
-      const logMessage = `Parsed insurance data from card: ${JSON.stringify(
-        insuranceInput
-      )}`
-      console.log(logMessage)
-      Sentry.captureMessage(logMessage)
+      const logMessage =
+        "UserService.completeUpload - Parsed insurance data from card"
+      captureEvent("info", logMessage, { insuranceInput })
 
       try {
         await this.checkInsuranceEligibility(user, insuranceInput)
       } catch (error) {
         // error is Sentry captured in checkInsuranceEligibility.
-        console.log("Error during eligibility check.", error)
       }
     }
 
@@ -1736,23 +1694,13 @@ class UserService extends EmailService {
         rectifiedInsurance || input
       )
     } catch (error) {
-      console.log(
-        `UserService.checkInsuranceEligibility: error checking eligibility: ${error.message}`
+      captureException(
+        error,
+        "UserService.checkInsuranceEligibility: error checking eligibility"
       )
-      console.log(error)
-      Sentry.captureException(error)
       eligible = false
       reason = "There was an error during the eligibility check process."
     }
-
-    const eligibilityLog = `[CANDID HEALTH][TIME: ${new Date().toISOString()}][EVENT: eligibility] ${
-      eligible ? "Eligible Determination" : `Ineligible: ${reason}`
-    }`
-    console.log(eligibilityLog)
-    Sentry.captureEvent({
-      message: eligibilityLog,
-      level: "info",
-    })
 
     try {
       await this.emailService.sendEligibilityCheckResultEmail({
