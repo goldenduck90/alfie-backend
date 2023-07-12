@@ -27,6 +27,7 @@ import TaskService from "../services/task.service"
 import lookupCPID from "../utils/lookupCPID"
 import calculateSetting, { SettingsList } from "../utils/calculateSetting"
 import { calculateBMI } from "../utils/calculateBMI"
+import batchAsync from "../utils/batchAsync"
 
 export const authorizationTokenProvider = "candidhealth"
 
@@ -208,14 +209,10 @@ export default class CandidService {
     try {
       if (!cpid) {
         const cpids = lookupCPID(input.payor, input.insuranceCompany, 4)
-        console.log(
-          `CandidService.checkInsuranceEligibility: checking CPIDs: ${JSON.stringify(
-            cpids
-          )}`
-        )
+        captureEvent("info", "CandidService.checkEligibility - checking CPIDs", { CPIDS: cpids })
 
-        const results = await Promise.all(
-          cpids.map(async (match) => {
+        const results = await batchAsync(
+          cpids.map((match) => async () => {
             const rectifiedInsurance: Insurance = {
               ...input,
               insuranceCompany: match.primary_name,
@@ -240,7 +237,8 @@ export default class CandidService {
                 error,
               }
             }
-          })
+          }),
+          1
         )
 
         return (
@@ -259,20 +257,22 @@ export default class CandidService {
 
       const [userFirstName, userLastName] = user.name.split(" ")
 
-      const request: CandidEligibilityCheckRequest = {
+      const request: any = {
         tradingPartnerServiceId: cpid,
+        // tradingPartnerName: input.insuranceCompany,
         provider: {
           firstName: provider.firstName,
           lastName: provider.lastName,
           npi: provider.npi,
-          providerCode: provider.providerCode ?? undefined,
+          // providerCode: provider.providerCode ?? undefined,
         },
         subscriber: {
           dateOfBirth: dayjs.utc(user.dateOfBirth).format("YYYYMMDD"),
-          firstName: userFirstName?.trim() || "",
-          lastName: userLastName?.trim() || "",
+          firstName: "Michael", // userFirstName?.trim() || "",
+          lastName: "Dorsey", // userLastName?.trim() || "",
           gender: user.gender.toLowerCase().startsWith("m") ? "M" : "F",
           memberId: input.memberId,
+          payorId: input.payor,
         },
       }
 
@@ -284,7 +284,7 @@ export default class CandidService {
           request
         )
 
-      captureEvent("info", "Candid Eligibility response", data)
+      captureEvent("info", "Candid Eligibility response", { "Eligibility Response": data })
 
       if ((data as any).errors?.length > 0) {
         const errorData = (data as any).errors
@@ -830,7 +830,7 @@ function getSandboxObjects(
     insurance.groupId = "0000000000"
     insurance.groupName = "group name"
     insurance.memberId = "0000000000"
-    insurance.rxBin = "12345"
+    insurance.rxBin = "123456"
     insurance.rxGroup = "abcdefg"
   }
 
