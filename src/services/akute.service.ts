@@ -27,11 +27,13 @@ export interface AkuteCreateInsuranceRequest {
   member_id: string
   group_id: string
   group_name: string
+  type: string
   rx_bin: string
   rx_group: string
   payor: string
   status: string
   order: number
+  relationship_to_subscriber: string
 }
 
 /** Response from a POST to /insurance */
@@ -584,6 +586,7 @@ class AkuteService {
   ): Promise<AkuteInsuranceResponse> {
     try {
       const createInsuranceRequest: AkuteCreateInsuranceRequest = {
+        type: "rx",
         patient_id: akuteId,
         member_id: input.memberId,
         group_id: input.groupId,
@@ -592,6 +595,7 @@ class AkuteService {
         rx_group: input.rxGroup,
         payor: input.payor,
         status: "active",
+        relationship_to_subscriber: "self",
         order: 1,
       }
       const { data } = await this.axios.post<AkuteInsuranceResponse>(

@@ -1,5 +1,7 @@
 import * as SentryObject from "@sentry/node"
 
+const disableSentryConsoleLogs = process.env.DISABLE_SENTRY_CONSOLE_LOGS === "true"
+
 export default SentryObject
 
 function setupSentry() {
@@ -22,7 +24,9 @@ export function captureEvent(
   data?: Record<string, any>
 ) {
   SentryObject.withScope((scope) => {
-    console.log(`[${level}] ${message} - ${JSON.stringify(data)}`)
+    if (!disableSentryConsoleLogs)
+      console.log(`[${level}] ${message} - ${JSON.stringify(data)}`)
+
     if (data) {
       data = prepareContextObject(data)
       Object.keys(data).forEach((field) => scope.setContext(field, data[field]))
@@ -46,6 +50,7 @@ export function captureException(
   if (error?.response?.data) error = error.response?.data
 
   if (!error || !(error instanceof Error)) {
+    data = data || {}
     data.error = error
     error = null
   }
@@ -61,8 +66,11 @@ export function captureException(
       error: error?.message ?? "None",
     })
 
-    console.log(error)
-    console.log(
+    if (error && !disableSentryConsoleLogs) {
+      console.log(error)
+    }
+
+    !disableSentryConsoleLogs && console.log(
       `[error]${message ? ` ${message}` : ""}${
         data ? ` - ${JSON.stringify(data)}` : ""
       }`

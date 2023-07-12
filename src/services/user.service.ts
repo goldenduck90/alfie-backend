@@ -72,6 +72,7 @@ import axios from "axios"
 import { analyzeS3InsuranceCardImage } from "../utils/textract"
 import AnswerType from "../schema/enums/AnswerType"
 import { client } from "../utils/posthog"
+import { captureException } from "../utils/sentry"
 
 export const initialUserTasks = [
   TaskType.ID_AND_INSURANCE_UPLOAD,
@@ -1688,10 +1689,14 @@ class UserService extends EmailService {
 
       await this.updateInsurance(user, rectifiedInsurance ?? input)
 
-      await this.akuteService.createInsurance(
-        user.akutePatientId,
-        rectifiedInsurance || input
-      )
+      try {
+        await this.akuteService.createInsurance(
+          user.akutePatientId,
+          rectifiedInsurance || input
+        )
+      } catch (akuteError) {
+        captureException(akuteError, "UserService.checkInsuranceEligibility", { "Insurance Card": input })
+      }
     } catch (error) {
       console.log(
         `UserService.checkInsuranceEligibility: error checking eligibility: ${error.message}`

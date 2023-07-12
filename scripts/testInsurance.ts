@@ -1,5 +1,6 @@
 import runShell from "./utils/runShell"
 import mockEmails from "./utils/mockEmails"
+import config from "config"
 import { Command } from "commander"
 import { Insurance, UserModel } from "../src/schema/user.schema"
 import CandidService from "../src/services/candid.service"
@@ -9,6 +10,7 @@ import cpids from "../src/utils/cpids.json"
 import { CPIDEntry } from "../src/utils/lookupCPID"
 import { TaskType } from "../src/schema/task.schema"
 import TaskService from "../src/services/task.service"
+import { analyzeS3InsuranceCardImage } from "../src/utils/textract"
 
 const program = new Command()
   .description(
@@ -18,6 +20,9 @@ const program = new Command()
   .option("--initial", "Whether to test insurance for initial appointments.")
   .option("--followup", "Whether to test insurance for follow-up appointments.")
   .option("--withings", "Whether to test withings insurance.")
+  .option("--s3-key <s3ObjectKey>", "The S3 object key from which to load an insurance card image.")
+  .option("--s3-bucket <s3BucketName>", "The S3 bucket from which to load the s3 key.")
+  .option("--email <email>", "The email of the user to use for testing.", "test+insurance1@joinalfie.com")
   .parse()
 
 const options = program.opts()
@@ -28,6 +33,10 @@ const flags: {
   followup: boolean
   withings: boolean
 } = keys.reduce((memo, key) => ({ ...memo, [key]: options[key] }), {} as any)
+
+const email: string = options.email
+const s3Key: string = options.s3Key
+const s3Bucket: string = options.s3Bucket
 
 if (keys.every((key) => !(flags as Record<string, boolean>)[key]))
   for (const key of keys) (flags as Record<string, boolean>)[key] = true
@@ -43,11 +52,9 @@ async function testInsurance() {
   const taskService = new TaskService()
 
   // prepare user sandbox values.
-  const user = await UserModel.findOne({
-    email: "test+insurance1@joinalfie.com",
-  })
+  const user = await UserModel.findOne({ email })
 
-  const input: Insurance = {
+  let input: Insurance = {
     groupId: "0000000000",
     groupName: "group name",
     memberId: "0000000000",
@@ -55,11 +62,24 @@ async function testInsurance() {
     // payor: "00803",
     payor: null,
     insuranceCompany: "One Five",
-    rxBin: "12345",
+    rxBin: "123456",
     rxGroup: "abcdefg",
   }
 
-  cpids.splice(0, cpids.length, ...testCpids)
+  if (s3Key) {
+    const extract = await analyzeS3InsuranceCardImage(s3Bucket ?? config.get("s3.patientBucketName") as string, s3Key)
+    console.log("extracted", JSON.stringify(extract))
+    input = {} as any
+    input.memberId = extract.member_id
+    input.groupId = extract.group_number
+    input.groupName = extract.group_name
+    input.payor = extract.payer_id
+    input.insuranceCompany = extract.payer_name
+    input.rxBin = extract.rx_bin
+    input.rxGroup = extract.rx_pcn
+  }
+
+  // cpids.splice(0, cpids.length, ...testCpids)
 
   if (flags.eligibility) {
     const result = await userService.checkInsuranceEligibility(user, input)
