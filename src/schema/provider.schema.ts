@@ -7,7 +7,13 @@ import {
 } from "@typegoose/typegoose"
 import { AsQueryMethod } from "@typegoose/typegoose/lib/types"
 import mongoose from "mongoose"
-import { Field, InputType, Int, ObjectType } from "type-graphql"
+import {
+  Field,
+  InputType,
+  Int,
+  ObjectType,
+  registerEnumType,
+} from "type-graphql"
 import Role from "./enums/Role"
 
 function findByEmail(
@@ -50,6 +56,11 @@ export enum ProviderCode {
   Supervising = "SU",
 }
 
+registerEnumType(ProviderCode, {
+  name: "ProviderCode",
+  description: "Provider code",
+})
+
 @queryMethod(findByEmail)
 @queryMethod(findByEmailToken)
 @ObjectType()
@@ -74,10 +85,6 @@ export class Provider {
   @prop({ required: true })
   npi: string
 
-  @Field()
-  @prop({ required: true })
-  providerCode: ProviderCode
-
   @Field(() => [String])
   @prop({ type: [String], required: true })
   licensedStates: mongoose.Types.Array<string>
@@ -93,6 +100,10 @@ export class Provider {
   @Field(() => String)
   @prop({ required: true })
   email: string
+
+  @Field(() => ProviderCode, { nullable: true })
+  @prop({ required: false })
+  providerCode?: ProviderCode
 
   @Field(() => Int, { nullable: true })
   @prop({ required: true, default: 0 })
@@ -129,8 +140,8 @@ export class ProviderInput {
   @Field(() => String)
   npi: string
 
-  @Field()
-  providerCode: ProviderCode
+  @Field(() => ProviderCode)
+  providerCode?: ProviderCode
 
   @Field(() => [String])
   licensedStates: mongoose.Types.Array<string>

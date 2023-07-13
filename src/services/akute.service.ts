@@ -143,6 +143,15 @@ class AkuteService {
       dateOfBirth,
     } = input
 
+    const parsedPhone = primary_phone_number
+      .replace("+1", "")
+      .replace("+0", "")
+      .replace("+", "")
+      .replace(/-/g, "")
+      .replace(" ", "")
+      .replace(")", "")
+      .replace("(", "")
+
     try {
       const { status, data: patientData } = await this.axios.get(
         `/patients?email=${email}`
@@ -163,12 +172,7 @@ class AkuteService {
         address_state,
         address_zipcode: address_zipcode.slice(0, 5),
         email,
-        primary_phone_number: primary_phone_number
-          .replace("+1", "")
-          .replace(/-/g, "")
-          .replace(" ", "")
-          .replace(")", "")
-          .replace("(", ""),
+        primary_phone_number: parsedPhone,
         primary_phone_type: "mobile",
         appointment_state: address_state,
       })

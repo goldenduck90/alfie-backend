@@ -21,6 +21,11 @@ export default {
     serviceTypeCode: "90",
     settings: candidHealth,
   },
+  withings: {
+    apiUrl: "https://wbsapi.withings.net",
+    clientId: process.env.WITHINGS_CLIENT_ID,
+    clientSecret: process.env.WITHINGS_CLIENT_SECRET,
+  },
   defaultPriceId: "price_1KMviXDOjl0X0gOq9Pk7gRFE",
   dynamoDb: {
     emailSubscribersTable: "develop-platform-email-subscribers",
