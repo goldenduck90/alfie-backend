@@ -64,6 +64,10 @@ export interface IEAService {
   categoryId?: number
 }
 
+export type IEAProviderRequest = IEAProvider & {
+  licensed_states: number[]
+}
+
 export interface IEAProvider {
   id?: number
   name?: string
