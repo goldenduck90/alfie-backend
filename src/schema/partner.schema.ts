@@ -12,8 +12,8 @@ export class SignupPartner {
   @prop({ required: true })
   title: string
 
-  @Field(() => String)
-  @prop({ required: true })
+  @Field(() => String, { nullable: true })
+  @prop({ required: false })
   logoUrl: string
 }
 
@@ -33,8 +33,8 @@ export class SignupPartnerProvider {
   @prop({ required: true })
   title: string
 
-  @Field(() => String)
-  @prop({ required: true })
+  @Field(() => String, { nullable: true })
+  @prop({ required: false })
   faxNumber: string
 
   @Field(() => String)
@@ -71,3 +71,12 @@ export const SignupPartnerProviderModel = getModelForClass<
 >(SignupPartnerProvider, {
   schemaOptions: { timestamps: true },
 })
+
+@ObjectType()
+export class SingupPartnerResponse {
+  @Field(() => SignupPartner)
+  partner: SignupPartner
+
+  @Field(() => [SignupPartnerProvider], { nullable: true })
+  partnerProviders?: SignupPartnerProvider[]
+}

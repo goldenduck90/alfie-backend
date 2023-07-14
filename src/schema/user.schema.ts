@@ -28,6 +28,7 @@ import {
   registerEnumType,
 } from "type-graphql"
 import { Provider } from "./provider.schema"
+import { SignupPartner, SignupPartnerProvider } from "./partner.schema"
 import Role from "./enums/Role"
 
 const {
@@ -62,15 +63,6 @@ registerEnumType(Gender, {
 registerEnumType(Role, {
   name: "Role",
   description: "The user roles a user can be assigned to",
-})
-
-export enum Partner {
-  OPTAVIA = "OPTAVIA",
-}
-
-registerEnumType(Partner, {
-  name: "Partner",
-  description: "Sign up partner",
 })
 
 export enum InsurancePlan {
@@ -610,9 +602,13 @@ export class User {
   @prop({ enum: InsuranceType, type: String, required: false })
   insuranceType?: InsuranceType
 
-  @Field(() => Partner, { nullable: true })
-  @prop({ enum: Partner, required: false })
-  signupPartner?: Partner
+  @Field(() => SignupPartner, { nullable: true })
+  @prop({ ref: () => SignupPartner, required: false })
+  signupPartner?: Ref<SignupPartner>
+
+  @Field(() => SignupPartnerProvider, { nullable: true })
+  @prop({ ref: () => SignupPartnerProvider, required: false })
+  signupPartnerProvider?: Ref<SignupPartnerProvider>
 }
 
 export const UserModel = getModelForClass<typeof User, QueryHelpers>(User, {
@@ -761,8 +757,11 @@ export class CreateUserInput {
   @Field(() => InsuranceType, { nullable: true })
   insuranceType?: InsuranceType
 
-  @Field(() => Partner, { nullable: true })
-  signupPartner?: Partner
+  @Field(() => String, { nullable: true })
+  signupPartnerId?: string
+
+  @Field(() => String, { nullable: true })
+  signupPartnerProviderId?: string
 }
 
 @InputType()

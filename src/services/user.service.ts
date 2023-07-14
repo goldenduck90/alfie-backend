@@ -48,7 +48,6 @@ import {
   File,
   User,
   FileType,
-  Partner,
   InsuranceEligibilityResponse,
   Insurance,
 } from "../schema/user.schema"
@@ -73,6 +72,7 @@ import axios from "axios"
 import { analyzeS3InsuranceCardImage } from "../utils/textract"
 import AnswerType from "../schema/enums/AnswerType"
 import { client } from "../utils/posthog"
+import { SignupPartnerProviderModel } from "../schema/partner.schema"
 
 export const initialUserTasks = [
   TaskType.ID_AND_INSURANCE_UPLOAD,
@@ -161,8 +161,8 @@ class UserService extends EmailService {
 
     // send email with link to set password
     let sent
-    if (user.signupPartner === Partner.OPTAVIA) {
-      //TODO: Send OPTAVIA specific registration email, use the same email for now
+    if (user.signupPartner) {
+      //TODO: Send partner specific registration email, use the same email for now
       sent = await this.sendRegistrationEmailTemplate({
         email: user.email,
         token: emailToken,
@@ -217,7 +217,8 @@ class UserService extends EmailService {
       textOptIn,
       insurancePlan,
       insuranceType,
-      signupPartner,
+      signupPartnerId,
+      signupPartnerProviderId,
     } = input
 
     const existingUser = await UserModel.find().findByEmail(email)
@@ -323,7 +324,8 @@ class UserService extends EmailService {
       textOptIn,
       insurancePlan,
       insuranceType,
-      signupPartner,
+      signupPartner: signupPartnerId,
+      signupPartnerProvider: signupPartnerProviderId,
     })
     if (!user) {
       throw new ApolloError(unknownError.message, unknownError.code)
@@ -442,6 +444,15 @@ class UserService extends EmailService {
       console.log(res)
     } catch (err) {
       console.log(err)
+    }
+
+    if (signupPartnerProviderId) {
+      const signupProvider = await SignupPartnerProviderModel.findById(
+        signupPartnerProviderId
+      )
+      if (signupProvider.faxNumber) {
+        // send fax
+      }
     }
 
     console.log(`USER CREATED: ${user._id}`)
@@ -1172,6 +1183,10 @@ class UserService extends EmailService {
         subscriptionExpiresAt: expiresAt,
         stripeSubscriptionId,
         textOptIn: checkout.textOptIn,
+        insurancePlan: checkout.insurancePlan,
+        insuranceType: checkout.insuranceType,
+        signupPartnerId: checkout.signupPartner.toString(),
+        signupPartnerProviderId: checkout.signupPartnerProvider.toString(),
       })
       checkout.user = newUser._id
       user = newUser
@@ -1189,6 +1204,7 @@ class UserService extends EmailService {
           checkoutId: checkout._id,
           userId: user._id,
           signupPartner: checkout.signupPartner || "None",
+          signupPartnerProvider: checkout.signupPartnerProvider || "None",
           insurancePay: checkout.insurancePlan ? true : false,
           environment: process.env.NODE_ENV,
         },
@@ -1342,7 +1358,8 @@ class UserService extends EmailService {
         weightLossMotivatorV2,
         insurancePlan,
         insuranceType,
-        signupPartner,
+        signupPartnerId,
+        signupPartnerProviderId,
         referrer,
       } = input
 
@@ -1369,7 +1386,8 @@ class UserService extends EmailService {
         checkout.pastTries = pastTries
         checkout.insurancePlan = insurancePlan
         checkout.insuranceType = insuranceType
-        checkout.signupPartner = signupPartner
+        checkout.signupPartner = signupPartnerId
+        checkout.signupPartnerProvider = signupPartnerProviderId
         checkout.referrer = referrer
 
         // update in db
@@ -1416,7 +1434,8 @@ class UserService extends EmailService {
         pastTries,
         insurancePlan,
         insuranceType,
-        signupPartner,
+        signupPartner: signupPartnerId,
+        signupPartnerProvider: signupPartnerProviderId,
         referrer,
       })
 
@@ -1428,6 +1447,7 @@ class UserService extends EmailService {
             referrer: newCheckout.referrer || "None",
             checkoutId: newCheckout._id,
             signupPartner: newCheckout.signupPartner || "None",
+            signupPartnerProvider: newCheckout.signupPartnerProvider || "None",
             insurancePay: newCheckout.insurancePlan ? true : false,
             environment: process.env.NODE_ENV,
           },

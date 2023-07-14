@@ -1,5 +1,9 @@
 import { Arg, Query, Resolver } from "type-graphql"
-import { SignupPartner, SignupPartnerProvider } from "../schema/partner.schema"
+import {
+  SignupPartner,
+  SignupPartnerProvider,
+  SingupPartnerResponse,
+} from "../schema/partner.schema"
 import PartnerService from "../services/partner.service"
 
 @Resolver()
@@ -8,7 +12,7 @@ export default class PartnerResolver {
     this.partnerService = new PartnerService()
   }
 
-  @Query(() => SignupPartner)
+  @Query(() => SingupPartnerResponse)
   getSignupPartnerByTitle(@Arg("title") title: string) {
     return this.partnerService.getSignupPartnerByTitle(title)
   }

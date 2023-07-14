@@ -8,7 +8,14 @@ class PartnerService {
   async getSignupPartnerByTitle(title: string) {
     try {
       const regex = new RegExp(["^", title, "$"].join(""), "i")
-      return await SignupPartnerModel.findOne({ title: regex })
+      const partner = await SignupPartnerModel.findOne({ title: regex })
+      const partnerProviders = await SignupPartnerProviderModel.find({
+        signupPartner: partner._id,
+      })
+      return {
+        partner,
+        partnerProviders,
+      }
     } catch (err) {
       throw new ApolloError(err.message, "ERROR")
     }
