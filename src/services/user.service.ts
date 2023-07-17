@@ -1787,7 +1787,7 @@ class UserService extends EmailService {
         message,
         level: "warning",
       })
-      throw new ApolloError(errorMessage)
+      return
     }
 
     const message = `[METRIPORT][TIME: ${new Date().toString()}] Successfully updated weight for user: ${
