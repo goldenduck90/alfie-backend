@@ -68,6 +68,7 @@ import TaskService from "./task.service"
 import SmsService from "./sms.service"
 import CandidService from "./candid.service"
 import WithingsService from "./withings.service"
+import FaxService from "./fax.service"
 import axios from "axios"
 import { analyzeS3InsuranceCardImage } from "../utils/textract"
 import AnswerType from "../schema/enums/AnswerType"
@@ -101,6 +102,7 @@ class UserService extends EmailService {
   private emailService: EmailService
   private candidService: CandidService
   private withingsService: WithingsService
+  private faxService: FaxService
   public awsDynamo: AWS.DynamoDB
   private stripeSdk: stripe
 
@@ -115,6 +117,7 @@ class UserService extends EmailService {
     this.emailService = new EmailService()
     this.candidService = new CandidService()
     this.withingsService = new WithingsService()
+    this.faxService = new FaxService()
 
     this.awsDynamo = new AWS.DynamoDB({
       accessKeyId: process.env.AWS_ACCESS_KEY_ID,
@@ -433,11 +436,32 @@ class UserService extends EmailService {
     }
 
     if (signupPartnerProviderId) {
-      const signupProvider = await SignupPartnerProviderModel.findById(
+      const signupPartnerProvider = await SignupPartnerProviderModel.findById(
         signupPartnerProviderId
       )
-      if (signupProvider.faxNumber) {
+      if (signupPartnerProvider.faxNumber) {
         // send fax
+        const text = `
+        Subject: Patient Referred to Alfie Health
+
+        Hello,
+        We have received a referal to Alfie Health for the following patient:
+        ${name}
+        ${dateOfBirth}
+
+        Our records show this patient was referred by:
+        ${signupPartnerProvider.title}
+        ${signupPartnerProvider.npi}
+        ${signupPartnerProvider.address}, ${signupPartnerProvider.city}, ${signupPartnerProvider.state} ${signupPartnerProvider.zipCode}
+        
+        Please reach out to us with any questions.
+      `
+
+        const payload = {
+          faxNumber: signupPartnerProvider.faxNumber,
+          pdfBuffer: new TextEncoder().encode(text),
+        }
+        this.faxService.sendFax(payload)
       }
     }
 
