@@ -140,9 +140,12 @@ export class Insurance {
 
   @Field(() => String)
   @prop({ required: true })
-  rxBin: string
+  rxBIN: string
 
-  /** Also called RxPCN. */
+  @Field(() => String)
+  @prop({ required: true })
+  rxPCN: string
+
   @Field(() => String)
   @prop({ required: true })
   rxGroup: string

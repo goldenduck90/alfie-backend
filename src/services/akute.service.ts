@@ -29,7 +29,8 @@ export interface AkuteCreateInsuranceRequest {
   group_name: string
   type: string
   rx_bin: string
-  rx_group: string
+  rx_pcn?: string
+  rx_group?: string
   payor: string
   status: string
   order: number
@@ -463,14 +464,10 @@ class AkuteService {
 
       captureEvent(
         "info",
-        `Lab order created: ${data.id} for user id: ${user._id}`,
+        `AkuteService.createLabOrder: Lab order created: ${data.id} for user id: ${user._id}`,
         {
-          tags: {
-            userId,
-            function: "AkuteService.createLabOrder",
-            createLabOrderRequest,
-            order,
-          },
+          createLabOrderRequest,
+          order,
         }
       )
 
@@ -481,7 +478,7 @@ class AkuteService {
       const document = await this.getDocument(order.document_id)
       captureEvent(
         "info",
-        `Retrieved document ${order.document_id} for lab order ${order.id}`,
+        `AkuteService.createLabOrder: Retrieved document ${order.document_id} for lab order ${order.id}`,
         {
           document,
           orderId: order.id,
@@ -595,7 +592,8 @@ class AkuteService {
         member_id: input.memberId,
         group_id: input.groupId,
         group_name: input.groupName,
-        rx_bin: input.rxBin,
+        rx_bin: input.rxBIN,
+        rx_pcn: input.rxPCN,
         rx_group: input.rxGroup,
         payor: input.payor,
         status: "active",

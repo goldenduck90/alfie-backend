@@ -1,6 +1,7 @@
 import * as SentryObject from "@sentry/node"
 
-const disableSentryConsoleLogs = process.env.DISABLE_SENTRY_CONSOLE_LOGS === "true"
+const disableSentryConsoleLogs =
+  process.env.DISABLE_SENTRY_CONSOLE_LOGS === "true"
 
 export default SentryObject
 
@@ -51,7 +52,10 @@ export function captureException(
 
   if (!error || !(error instanceof Error)) {
     data = data || {}
-    data.error = error
+    data.error = {
+      ...(data.error ?? {}),
+      ...(typeof error === "object" ? error : { error }),
+    }
     error = null
   }
 
@@ -70,11 +74,12 @@ export function captureException(
       console.log(error)
     }
 
-    !disableSentryConsoleLogs && console.log(
-      `[error]${message ? ` ${message}` : ""}${
-        data ? ` - ${JSON.stringify(data)}` : ""
-      }`
-    )
+    !disableSentryConsoleLogs &&
+      console.log(
+        `[error]${message ? ` ${message}` : ""}${
+          data ? ` - ${JSON.stringify(data)}` : ""
+        }`
+      )
     SentryObject.captureException(
       error || new Error(message ?? "Error - see issue context")
     )
@@ -87,14 +92,31 @@ export function captureException(
  */
 function prepareContextObject(data: Record<string, any>) {
   const result: Record<string, Record<string, any>> = {}
-  const dataKey = "Other Values"
-  for (const key in data) {
-    const value = data[key]
-    if (typeof value === "object") {
-      result[key] = value
+  const defaultDataKey = "Other Values"
+
+  const stringifyValue = (v: any) => {
+    if (Array.isArray(v) || typeof v === "object")
+      return JSON.stringify(v, null, "  ")
+    else return v
+  }
+
+  for (const category in data) {
+    const value = data[category]
+    if (Array.isArray(value)) {
+      value.forEach((v, index) => {
+        data[category][`Index: ${index}`] = stringifyValue(v)
+      })
+    } else if (typeof value === "object") {
+      result[category] = Object.keys(value).reduce(
+        (map, key) => ({
+          ...map,
+          [key]: stringifyValue(value[key]),
+        }),
+        {} as Record<string, string>
+      )
     } else {
-      result[dataKey] = result[dataKey] ?? {}
-      result[dataKey][key] = value
+      result[defaultDataKey] = result[defaultDataKey] ?? {}
+      result[defaultDataKey][category] = stringifyValue(value)
     }
   }
 

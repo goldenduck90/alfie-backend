@@ -74,6 +74,10 @@ import { analyzeS3InsuranceCardImage } from "../utils/textract"
 import AnswerType from "../schema/enums/AnswerType"
 import { client } from "../utils/posthog"
 import { captureException, captureEvent } from "../utils/sentry"
+import lookupCPID from "../utils/lookupCPID"
+import extractInsurance from "../utils/extractInsurance"
+import lookupState from "../utils/lookupState"
+import resolveCPIDEntriesToInsurance from "../utils/resolveCPIDEntriesToInsurance"
 
 export const initialUserTasks = [
   TaskType.ID_AND_INSURANCE_UPLOAD,
@@ -738,14 +742,16 @@ class UserService extends EmailService {
   async getUser(userId: string) {
     try {
       const { notFound } = config.get("errors.user") as any
-      const user = await UserModel.findById(userId).populate("provider")
+      const user = await UserModel.findById(userId).populate<{
+        provider: Provider
+      }>("provider")
       if (!user) {
         throw new ApolloError(notFound.message, notFound.code)
       }
       return user
     } catch (error) {
       captureException(error, "UserService.getUser")
-      throw new ApolloError(error.message, error.code)
+      throw new ApolloError(error.message, error.code ?? "ERROR")
     }
   }
 
@@ -767,7 +773,16 @@ class UserService extends EmailService {
     try {
       const provider = await ProviderModel.findById(providerId)
 
-      if (provider.type === Role.Doctor) {
+      if (!provider) {
+        captureEvent(
+          "warning",
+          "UserService.getAllUsersByAProvider providerId not found",
+          {
+            providerId,
+          }
+        )
+        return []
+      } else if (provider.type === Role.Doctor) {
         const results = await UserModel.find({
           state: { $in: provider.licensedStates },
           role: Role.Patient,
@@ -1610,11 +1625,7 @@ class UserService extends EmailService {
     }
     const update = await UserModel.findOneAndUpdate(
       { _id: userId },
-      {
-        $push: {
-          files: { $each: input },
-        },
-      },
+      { $push: { files: { $each: input } } },
       { new: true }
     )
 
@@ -1622,80 +1633,86 @@ class UserService extends EmailService {
       (file) => file.type === FileType.InsuranceCard
     )
     if (insuranceFile) {
-      const bucket: string = config.get("s3.patientBucketName")
-      const insuranceData = await analyzeS3InsuranceCardImage(
-        bucket,
-        insuranceFile.key
-      )
-      const insuranceInput: Insurance = {
-        memberId: insuranceData.member_id,
-        groupId: insuranceData.group_number,
-        groupName: insuranceData.group_name,
-        payor: insuranceData.payer_id,
-        insuranceCompany: insuranceData.payer_name,
-        rxBin: insuranceData.rx_bin,
-        rxGroup: insuranceData.rx_pcn,
-      }
-
-      const logMessage =
-        "UserService.completeUpload - Parsed insurance data from card"
-      captureEvent("info", logMessage, { insuranceInput })
-
-      try {
-        await this.checkInsuranceEligibility(user, insuranceInput)
-      } catch (error) {
-        // error is Sentry captured in checkInsuranceEligibility.
-      }
+      await this.checkInsuranceEligibilityFromFile(insuranceFile, userId)
     }
-
     return update
   }
 
   /** Updates insurance information for a given user. */
   async updateInsurance(user: User, input: Insurance): Promise<void> {
-    // update insurance fields
-    user.insurance = {
-      memberId: input.memberId,
-      groupId: input.groupId,
-      groupName: input.groupName,
-      insuranceCompany: input.insuranceCompany,
-      rxBin: input.rxBin,
-      rxGroup: input.rxGroup,
-      payor: input.payor,
+    try {
+      user.insurance = input
+      await UserModel.findByIdAndUpdate(user._id, user)
+    } catch (error) {
+      captureException(error, "UserService.updateInsurance", {
+        insurance: input,
+      })
     }
-
-    await UserModel.findByIdAndUpdate(user._id, user)
   }
 
+  /** Checks eligibility from an insurance card S3 file. */
+  async checkInsuranceEligibilityFromFile(file: File, userId: string) {
+    if (file.type !== FileType.InsuranceCard) {
+      throw new ApolloError("Eligibility check file must be an insurance card.")
+    }
+    const user = await this.getUser(userId)
+
+    const bucket: string = config.get("s3.patientBucketName")
+    const insuranceData = await analyzeS3InsuranceCardImage(bucket, file.key)
+    const inputs = extractInsurance(insuranceData, {
+      userState: lookupState(user.address.state),
+    })
+
+    return await this.checkInsuranceEligibility(user, inputs)
+  }
+
+  /** Checks eligibility from an Insurance object, e.g. `user.insurance` */
+  async checkInsuranceEligibilityFromData(
+    insurance: Insurance,
+    userId: string
+  ) {
+    const user = await this.getUser(userId)
+
+    const cpids = lookupCPID(insurance.payor, insurance.insuranceCompany, 10)
+    const inputs = resolveCPIDEntriesToInsurance(cpids, insurance)
+
+    return await this.checkInsuranceEligibility(user, inputs)
+  }
+
+  /**
+   * Check eligibility from an array of pre-computed
+   * `<insurance object, CPID>` tuples.
+   */
   async checkInsuranceEligibility(
     user: User,
-    input: Insurance
+    inputs: { insurance: Insurance; cpid: string }[]
   ): Promise<InsuranceEligibilityResponse> {
     let eligible: boolean
     let reason: string | undefined
     let rectifiedInsurance: Insurance | undefined
 
     try {
-      const provider = await ProviderModel.findById(user.provider)
       const result = await this.candidService.checkInsuranceEligibility(
         user,
-        provider,
-        input
+        inputs
       )
 
       eligible = result.eligible
       reason = result.reason
       rectifiedInsurance = result.rectifiedInsurance
 
-      await this.updateInsurance(user, rectifiedInsurance ?? input)
-
-      try {
-        await this.akuteService.createInsurance(
-          user.akutePatientId,
-          rectifiedInsurance || input
-        )
-      } catch (akuteError) {
-        captureException(akuteError, "UserService.checkInsuranceEligibility", { "Insurance Card": input })
+      // only save insurance if eligible
+      if (eligible && rectifiedInsurance) {
+        try {
+          await this.updateInsurance(user, rectifiedInsurance)
+          await this.akuteService.createInsurance(
+            user.akutePatientId,
+            rectifiedInsurance
+          )
+        } catch (error) {
+          // errors are logged in each method call.
+          // ignore and return eligibility results.
+        }
       }
     } catch (error) {
       captureException(
@@ -1715,7 +1732,7 @@ class UserService extends EmailService {
         reason,
       })
 
-      return { eligible, reason }
+      return { eligible, reason, rectifiedInsurance }
     } catch (e) {
       throw new ApolloError(e.message, "ERROR")
     }
