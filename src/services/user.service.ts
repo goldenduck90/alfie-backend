@@ -188,6 +188,8 @@ class UserService extends EmailService {
   }
 
   async createUser(input: CreateUserInput, manual = false) {
+    input.email = input.email.toLowerCase()
+
     console.log("create user", JSON.stringify(input))
     const { alreadyExists, unknownError, emailSendError } = config.get(
       "errors.createUser"
@@ -200,6 +202,7 @@ class UserService extends EmailService {
         ? "messages.userCreatedManually"
         : "messages.userCreatedViaCheckout"
     ) as any
+
     const {
       name,
       email,
@@ -421,11 +424,7 @@ class UserService extends EmailService {
         state: address.state,
         country: "US",
       }
-      const res = await this.withingsService.createOrder(
-        user.id,
-        withingsAddress
-      )
-      console.log(res)
+      await this.withingsService.createOrder(user.id, withingsAddress)
     } catch (err) {
       console.log(err)
     }
@@ -439,6 +438,8 @@ class UserService extends EmailService {
   }
 
   async subscribeEmail(input: SubscribeEmailInput) {
+    input.email = input.email.toLowerCase()
+
     const { email, fullName, location, waitlist, currentMember } = input
     const { unknownError } = config.get("errors.subscribeEmail") as any
     const waitlistMessage = config.get("messages.subscribeEmail")
@@ -518,6 +519,8 @@ class UserService extends EmailService {
   }
 
   async forgotPassword(input: ForgotPasswordInput) {
+    input.email = input.email.toLowerCase()
+
     const { email } = input
     const expirationInMinutes: number = config.get(
       "forgotPasswordExpirationInMinutes"
@@ -631,6 +634,8 @@ class UserService extends EmailService {
   }
 
   async login(input: LoginInput) {
+    input.email = input.email.toLowerCase()
+
     const { email, password, remember, noExpire } = input
     const { invalidCredentials, passwordNotCreated } = config.get(
       "errors.login"
@@ -1286,6 +1291,8 @@ class UserService extends EmailService {
   }
 
   async createOrFindCheckout(input: CreateCheckoutInput) {
+    input.email = input.email.toLowerCase()
+
     try {
       const { checkoutFound, checkoutCreated } = config.get("messages") as any
       const { alreadyCheckedOut } = config.get("errors.checkout") as any
@@ -1787,7 +1794,7 @@ class UserService extends EmailService {
         message,
         level: "warning",
       })
-      throw new ApolloError(errorMessage)
+      return
     }
 
     const message = `[METRIPORT][TIME: ${new Date().toString()}] Successfully updated weight for user: ${

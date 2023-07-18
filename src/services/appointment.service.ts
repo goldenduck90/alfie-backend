@@ -137,6 +137,8 @@ class AppointmentService extends EmailService {
   }
 
   async getCustomerByEmail(email: string) {
+    email = email.toLowerCase()
+
     try {
       const { data: eaCustomers } = await this.axios.get(
         `/customers?q=${encodeURIComponent(email)}`
@@ -172,6 +174,8 @@ class AppointmentService extends EmailService {
    * updates the user with the correct eaCustomerId.
    */
   async createCustomer(input: CreateCustomerInput): Promise<string> {
+    input.email = input.email.toLowerCase()
+
     const { notFound } = config.get("errors.user") as any
     const {
       userId,
@@ -972,6 +976,8 @@ class AppointmentService extends EmailService {
   }
 
   async getProviderByEmail(email: string): Promise<IEAProvider> {
+    email = email.toLowerCase()
+
     const { data: eaProviders } = await this.axios.get<IEAProvider[]>(
       `/providers?q=${encodeURIComponent(email)}`
     )
