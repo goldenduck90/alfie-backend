@@ -410,7 +410,8 @@ class UserService extends EmailService {
       })
     }
 
-    // Create withings dropshipping order
+    // Create withings dropshipping order and send email to patients@joinalfie.com
+    let status
     try {
       const withingsAddress = {
         name,
@@ -424,10 +425,36 @@ class UserService extends EmailService {
         state: address.state,
         country: "US",
       }
-      await this.withingsService.createOrder(user.id, withingsAddress)
+      const order = await this.withingsService.createOrder(
+        user.id,
+        withingsAddress
+      )
+      status = `${order.status}(Order id: ${order.order_id})`
+      const message = `[WITHINGS][TIME: ${new Date().toString()}] ${name}(${email})`
+      console.log(message)
+      Sentry.captureEvent({
+        message,
+        level: "info",
+      })
     } catch (err) {
-      console.log(err)
+      status = `${err.message}`
+      const message = `[WITHINGS][TIME: ${new Date().toString()}] ${status}`
+      console.log(message)
+      Sentry.captureEvent({
+        message,
+        level: "error",
+      })
     }
+
+    const subject = "Withings Order Status"
+    const text = `
+      Name: ${name}
+      Email: ${email}
+      Phone Number: ${phone}
+      Address: ${address.line1} ${address.line2}, ${address.city}, ${address.postalCode} ${address.state}
+      Status: ${status}
+    `
+    await this.emailService.sendEmail(subject, text, ["patients@joinalfie.com"])
 
     console.log(`USER CREATED: ${user._id}`)
 
