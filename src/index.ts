@@ -1306,8 +1306,6 @@ async function bootstrap() {
         })
       }
 
-      // const date = new Date()
-
       await Promise.all(
         users.map(async (metriportUser: MetriportUser) => {
           const { userId, body } = metriportUser
