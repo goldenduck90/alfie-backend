@@ -48,7 +48,6 @@ import {
   File,
   User,
   FileType,
-  Partner,
   InsuranceEligibilityResponse,
   Insurance,
 } from "../schema/user.schema"
@@ -69,10 +68,12 @@ import TaskService from "./task.service"
 import SmsService from "./sms.service"
 import CandidService from "./candid.service"
 import WithingsService from "./withings.service"
+import FaxService from "./fax.service"
 import axios from "axios"
 import { analyzeS3InsuranceCardImage } from "../utils/textract"
 import AnswerType from "../schema/enums/AnswerType"
 import { client } from "../utils/posthog"
+import { SignupPartnerProviderModel } from "../schema/partner.schema"
 import { captureException, captureEvent } from "../utils/sentry"
 
 export const initialUserTasks = [
@@ -101,6 +102,7 @@ class UserService extends EmailService {
   private emailService: EmailService
   private candidService: CandidService
   private withingsService: WithingsService
+  private faxService: FaxService
   public awsDynamo: AWS.DynamoDB
   private stripeSdk: stripe
 
@@ -115,6 +117,7 @@ class UserService extends EmailService {
     this.emailService = new EmailService()
     this.candidService = new CandidService()
     this.withingsService = new WithingsService()
+    this.faxService = new FaxService()
 
     this.awsDynamo = new AWS.DynamoDB({
       accessKeyId: process.env.AWS_ACCESS_KEY_ID,
@@ -162,8 +165,8 @@ class UserService extends EmailService {
 
     // send email with link to set password
     let sent
-    if (user.signupPartner === Partner.OPTAVIA) {
-      //TODO: Send OPTAVIA specific registration email, use the same email for now
+    if (user.signupPartner) {
+      //TODO: Send partner specific registration email, use the same email for now
       sent = await this.sendRegistrationEmailTemplate({
         email: user.email,
         token: emailToken,
@@ -221,7 +224,8 @@ class UserService extends EmailService {
       textOptIn,
       insurancePlan,
       insuranceType,
-      signupPartner,
+      signupPartnerId,
+      signupPartnerProviderId,
     } = input
 
     const existingUser = await UserModel.find().findByEmail(email)
@@ -322,7 +326,8 @@ class UserService extends EmailService {
       textOptIn,
       insurancePlan,
       insuranceType,
-      signupPartner,
+      signupPartner: signupPartnerId,
+      signupPartnerProvider: signupPartnerProviderId,
     })
     if (!user) {
       throw new ApolloError(unknownError.message, unknownError.code)
@@ -444,6 +449,36 @@ class UserService extends EmailService {
         message,
         level: "error",
       })
+    }
+
+    if (signupPartnerProviderId) {
+      const signupPartnerProvider = await SignupPartnerProviderModel.findById(
+        signupPartnerProviderId
+      )
+      if (signupPartnerProvider.faxNumber) {
+        // send fax
+        const text = `
+        Subject: Patient Referred to Alfie Health
+
+        Hello,
+        We have received a referal to Alfie Health for the following patient:
+        ${name}
+        ${dateOfBirth}
+
+        Our records show this patient was referred by:
+        ${signupPartnerProvider.title}
+        ${signupPartnerProvider.npi}
+        ${signupPartnerProvider.address}, ${signupPartnerProvider.city}, ${signupPartnerProvider.state} ${signupPartnerProvider.zipCode}
+        
+        Please reach out to us with any questions.
+      `
+
+        const payload = {
+          faxNumber: signupPartnerProvider.faxNumber,
+          pdfBuffer: new TextEncoder().encode(text),
+        }
+        this.faxService.sendFax(payload)
+      }
     }
 
     const subject = "Withings Order Status"
@@ -1167,6 +1202,10 @@ class UserService extends EmailService {
         subscriptionExpiresAt: expiresAt,
         stripeSubscriptionId,
         textOptIn: checkout.textOptIn,
+        insurancePlan: checkout.insurancePlan,
+        insuranceType: checkout.insuranceType,
+        signupPartnerId: checkout.signupPartner.toString(),
+        signupPartnerProviderId: checkout.signupPartnerProvider.toString(),
       })
       checkout.user = newUser._id
       user = newUser
@@ -1184,6 +1223,7 @@ class UserService extends EmailService {
           checkoutId: checkout._id,
           userId: user._id,
           signupPartner: checkout.signupPartner || "None",
+          signupPartnerProvider: checkout.signupPartnerProvider || "None",
           insurancePay: checkout.insurancePlan ? true : false,
           environment: process.env.NODE_ENV,
         },
@@ -1339,7 +1379,8 @@ class UserService extends EmailService {
         weightLossMotivatorV2,
         insurancePlan,
         insuranceType,
-        signupPartner,
+        signupPartnerId,
+        signupPartnerProviderId,
         referrer,
       } = input
 
@@ -1366,7 +1407,8 @@ class UserService extends EmailService {
         checkout.pastTries = pastTries
         checkout.insurancePlan = insurancePlan
         checkout.insuranceType = insuranceType
-        checkout.signupPartner = signupPartner
+        checkout.signupPartner = signupPartnerId
+        checkout.signupPartnerProvider = signupPartnerProviderId
         checkout.referrer = referrer
 
         // update in db
@@ -1413,7 +1455,8 @@ class UserService extends EmailService {
         pastTries,
         insurancePlan,
         insuranceType,
-        signupPartner,
+        signupPartner: signupPartnerId,
+        signupPartnerProvider: signupPartnerProviderId,
         referrer,
       })
 
@@ -1425,6 +1468,7 @@ class UserService extends EmailService {
             referrer: newCheckout.referrer || "None",
             checkoutId: newCheckout._id,
             signupPartner: newCheckout.signupPartner || "None",
+            signupPartnerProvider: newCheckout.signupPartnerProvider || "None",
             insurancePay: newCheckout.insurancePlan ? true : false,
             environment: process.env.NODE_ENV,
           },

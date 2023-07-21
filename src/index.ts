@@ -635,6 +635,11 @@ async function bootstrap() {
                 stripeCustomerId: pICId,
                 stripePaymentIntentId: pIId,
                 stripeSubscriptionId: null,
+                insurancePlan: pICheckout.insurancePlan,
+                insuranceType: pICheckout.insuranceType,
+                signupPartnerId: pICheckout.signupPartner.toString(),
+                signupPartnerProviderId:
+                  pICheckout.signupPartnerProvider.toString(),
               })
 
               const newUser = pINewUser.user
@@ -648,6 +653,8 @@ async function bootstrap() {
                     checkoutId: pICheckout._id,
                     userId: newUser._id,
                     signupPartner: pICheckout.signupPartner || "None",
+                    signupPartnerProvider:
+                      pICheckout.signupPartnerProvider || "None",
                     insurancePay: pICheckout.insurancePlan ? true : false,
                     environment: process.env.NODE_ENV,
                   },
@@ -921,7 +928,9 @@ async function bootstrap() {
                 subscriptionExpiresAt: new Date(),
                 insurancePlan: sCCheckout.insurancePlan,
                 insuranceType: sCCheckout.insuranceType,
-                signupPartner: sCCheckout.signupPartner,
+                signupPartnerId: sCCheckout.signupPartner.toString(),
+                signupPartnerProviderId:
+                  sCCheckout.signupPartnerProvider.toString(),
               })
 
               if (process.env.NODE_ENV === "production") {
@@ -933,6 +942,8 @@ async function bootstrap() {
                     checkoutId: sCCheckout._id,
                     userId: newUser.user._id,
                     signupPartner: sCCheckout.signupPartner || "None",
+                    signupPartnerProvider:
+                      sCCheckout.signupPartnerProvider || "None",
                     insurancePay: sCCheckout.insurancePlan ? true : false,
                     environment: process.env.NODE_ENV,
                   },
