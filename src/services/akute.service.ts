@@ -18,7 +18,7 @@ import {
 } from "../schema/user.schema"
 import { calculateBMI } from "../utils/calculateBMI"
 import { Provider } from "../schema/provider.schema"
-import calculateSetting, { SettingsList } from "../utils/calculateSetting"
+import { calculateSetting, SettingsList } from "../utils/calculateSetting"
 import { captureEvent, captureException } from "../utils/sentry"
 import EmailService from "./email.service"
 

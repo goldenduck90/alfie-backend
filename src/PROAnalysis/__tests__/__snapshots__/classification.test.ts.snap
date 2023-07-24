@@ -1,0 +1,108 @@
+// Jest Snapshot v1, https://goo.gl/fbAQLP
+
+exports[`classification Should classify Ember from Activity correctly Classification (2023-07-01T00:00:00.000Z, 75, 80) 1`] = `[]`;
+
+exports[`classification Should classify Ember from Activity correctly Classification (2023-07-03T00:00:00.000Z, 25, 30) 1`] = `[]`;
+
+exports[`classification Should classify Ember from Activity correctly Classification (2023-07-05T00:00:00.000Z, 50, 60) 1`] = `[]`;
+
+exports[`classification Should classify Ember from Activity correctly Classification (2023-07-07T00:00:00.000Z, 0, 5) 1`] = `
+[
+  {
+    "calculatedPercentile": 95,
+    "classification": "Ember",
+    "date": 2023-07-07T00:00:00.000Z,
+    "percentile": 99,
+  },
+]
+`;
+
+exports[`classification Should classify Ember from Activity correctly Classification (2023-07-07T00:00:00.000Z, 25, 24) 1`] = `
+[
+  {
+    "calculatedPercentile": 76,
+    "classification": "Ember",
+    "date": 2023-07-07T00:00:00.000Z,
+    "percentile": 75,
+  },
+]
+`;
+
+exports[`classification Should classify Growler/Rover from Hunger correctly Classification (2023-07-01T00:00:00.000Z, 5, 8) 1`] = `
+[
+  {
+    "calculatedPercentile": 95,
+    "classification": "Growler",
+    "date": 2023-07-01T00:00:00.000Z,
+    "percentile": undefined,
+  },
+  {
+    "calculatedPercentile": 95,
+    "classification": "Rover",
+    "date": 2023-07-01T00:00:00.000Z,
+    "percentile": undefined,
+  },
+]
+`;
+
+exports[`classification Should classify Growler/Rover from Hunger correctly Classification (2023-07-03T00:00:00.000Z, 30, 7) 1`] = `
+[
+  {
+    "calculatedPercentile": 70,
+    "classification": "Growler",
+    "date": 2023-07-03T00:00:00.000Z,
+    "percentile": undefined,
+  },
+]
+`;
+
+exports[`classification Should classify Growler/Rover from Hunger correctly Classification (2023-07-05T00:00:00.000Z, 15, 26) 1`] = `
+[
+  {
+    "calculatedPercentile": 85,
+    "classification": "Rover",
+    "date": 2023-07-05T00:00:00.000Z,
+    "percentile": undefined,
+  },
+]
+`;
+
+exports[`classification Should classify Growler/Rover from Hunger correctly Classification (2023-07-07T00:00:00.000Z, 60, 45) 1`] = `[]`;
+
+exports[`classification Should classify Growler/Rover from Hunger correctly Classification (2023-07-09T00:00:00.000Z, 80, 63) 1`] = `[]`;
+
+exports[`classification Should classify Growler/Rover from Hunger correctly Classification (2023-07-11T00:00:00.000Z, 48, 82) 1`] = `[]`;
+
+exports[`classification Should classify Growler/Rover from Hunger correctly Classification (2023-07-13T00:00:00.000Z, 80, 67) 1`] = `[]`;
+
+exports[`classification Should classify Rover from Ad Libitum correctly Classification ($date, $percentile, $calculatedPercentile) 1`] = `[]`;
+
+exports[`classification Should classify Rover from Ad Libitum correctly Classification ($date, $percentile, $calculatedPercentile) 2`] = `[]`;
+
+exports[`classification Should classify Rover from Ad Libitum correctly Classification ($date, $percentile, $calculatedPercentile) 3`] = `[]`;
+
+exports[`classification Should classify Rover from Ad Libitum correctly Classification ($date, $percentile, $calculatedPercentile) 4`] = `
+[
+  {
+    "calculatedPercentile": 80,
+    "classification": "Rover",
+    "date": 2023-07-07T00:00:00.000Z,
+    "percentile": 75,
+  },
+]
+`;
+
+exports[`classification Should classify Rover from Ad Libitum correctly Classification ($date, $percentile, $calculatedPercentile) 5`] = `[]`;
+
+exports[`classification Should classify Rover from Ad Libitum correctly Classification ($date, $percentile, $calculatedPercentile) 6`] = `[]`;
+
+exports[`classification Should classify Rover from Ad Libitum correctly Classification ($date, $percentile, $calculatedPercentile) 7`] = `
+[
+  {
+    "calculatedPercentile": 90,
+    "classification": "Rover",
+    "date": 2023-07-11T00:00:00.000Z,
+    "percentile": 99,
+  },
+]
+`;

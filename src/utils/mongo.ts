@@ -14,4 +14,15 @@ export async function connectToMongo() {
     console.error(error)
     process.exit(1)
   }
+
+  const cleanup = async () => {
+    await disconnect()
+    process.exit()
+  }
+  process.on("SIGINT", cleanup)
+  process.on("SIGTERM", cleanup)
+}
+
+export async function disconnect() {
+  await mongoose.connection.close()
 }

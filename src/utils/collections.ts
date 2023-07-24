@@ -60,3 +60,14 @@ export const sorted = <T>(
     )
     // map to the item, without the computed value
     .map(({ item }) => item)
+
+/** Returns an array with the `subArray` repeated `times` times. */
+export const repeat = <T>(subArray: T[], times: number) => {
+  if (times < 0)
+    throw new TypeError("repeat `times` argument must be non-negative.")
+
+  return new Array(times)
+    .fill(null)
+    .map(() => [...subArray])
+    .flatMap((x) => x)
+}

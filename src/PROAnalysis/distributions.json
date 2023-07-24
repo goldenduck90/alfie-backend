@@ -1,0 +1,52 @@
+{
+  "MP_FEELING": {
+    "calculated": {
+      "mean": 3.9,
+      "standardDeviation": 3.1
+    },
+    "display": {
+      "mean": 3.9,
+      "standardDeviation": 3.1
+    }
+  },
+  "MP_HUNGER": {
+    "calculated": {
+      "mean": 64,
+      "standardDeviation": 28.1
+    },
+    "display": {
+      "mean": 64,
+      "standardDeviation": 28.1
+    }
+  },
+  "AD_LIBITUM": {
+    "calculated": {
+      "mean": 803,
+      "standardDeviation": 291.85
+    },
+    "display": {
+      "mean": 803,
+      "standardDeviation": 291.85
+    }
+  },
+  "MP_ACTIVITY": {
+    "calculated": {
+      "mean": 6000,
+      "standardDeviation": 3400
+    },
+    "display": {
+      "mean": 5700,
+      "standardDeviation": 4500
+    }
+  },
+  "TEFQ": {
+    "calculated": {
+      "mean": 5.14,
+      "standardDeviation": 2.65
+    },
+    "display": {
+      "mean": 5.14,
+      "standardDeviation": 2.65
+    }
+  }
+}

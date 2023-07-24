@@ -25,7 +25,7 @@ import { Provider } from "../schema/provider.schema"
 import { TaskType } from "../schema/task.schema"
 import { UserTask } from "../schema/task.user.schema"
 import TaskService from "../services/task.service"
-import calculateSetting, { SettingsList } from "../utils/calculateSetting"
+import { calculateSetting, SettingsList } from "../utils/calculateSetting"
 import { calculateBMI } from "../utils/calculateBMI"
 import batchAsync from "../utils/batchAsync"
 

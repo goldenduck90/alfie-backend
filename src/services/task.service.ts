@@ -34,6 +34,7 @@ import EmailService from "./email.service"
 import { calculateBMI } from "../utils/calculateBMI"
 import Role from "../schema/enums/Role"
 import { captureEvent, captureException } from "../utils/sentry"
+import { groupCollectionByField, mapCollectionByField, sorted } from "../utils/collections"
 
 class TaskService {
   private akuteService: AkuteService
@@ -281,25 +282,26 @@ class TaskService {
       }
 
       for (const user of users) {
-        if (user.score.length > 0 && user.score[0] !== null) {
-          const scoresByTask = new Map<string, Score[]>()
-
-          // group scores by task
-          for (const score of user.score) {
-            if (!scoresByTask.has(score.task)) {
-              scoresByTask.set(score.task, [])
-            }
-            scoresByTask.get(score.task).push(score)
-          }
+        const userScores = (user.score ?? []).filter((s) => s)
+        if (userScores.length > 0) {
+          const scoresByTask = groupCollectionByField(
+            userScores,
+            (score) => String(score.task)
+          )
 
           const scores: Score[] = []
 
           // get most recent score for each task
-          for (const taskScores of scoresByTask.values()) {
-            const mostRecentScore = taskScores.sort(
-              (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+          for (const taskScores of Object.values(scoresByTask)) {
+            const mostRecentScore = sorted(
+              taskScores,
+              (score) => new Date(score.date).getTime(),
+              "descending"
             )[0]
-            scores.push(mostRecentScore)
+
+            if (mostRecentScore) {
+              scores.push(mostRecentScore)
+            }
           }
 
           const classifications = classifyUser(scores)
@@ -328,25 +330,24 @@ class TaskService {
       const user = await UserModel.findById(userId)
 
       if (user?.score?.filter((score) => score).length > 0) {
-        const scoresByTask = new Map<string, Score[]>()
-
         // group scores by task
-        for (const score of user.score) {
-          if (!scoresByTask.has(score.task)) {
-            scoresByTask.set(score.task, [])
-          }
-          scoresByTask.get(score.task).push(score)
-        }
+        const scoresByTask = groupCollectionByField(
+          (user.score ?? []).filter((s) => s),
+          (score) => String(score.task)
+        )
 
-        const scores = []
+        const scores: Score[] = []
 
         // get most recent score for each task
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        for (const taskScores of scoresByTask.values()) {
-          const mostRecentScore = taskScores.sort(
-            (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+        for (const taskScores of Object.values(scoresByTask)) {
+          const mostRecentScore = sorted(
+            taskScores,
+            (score) => new Date(score.date).getTime(),
+            "descending"
           )[0]
-          scores.push(mostRecentScore)
+          if (mostRecentScore) {
+            scores.push(mostRecentScore)
+          }
         }
 
         const classifications = classifyUser(scores)
