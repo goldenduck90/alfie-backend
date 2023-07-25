@@ -1796,6 +1796,43 @@ class UserService extends EmailService {
   }
 
   /**
+   * Complete withings scale connect task on device connected event
+   */
+  async processWithingsScaleConnected(metriportUserId: string) {
+    const user = await UserModel.findOne({ metriportUserId }).populate<{
+      provider: Provider
+    }>("provider")
+
+    if (!user) {
+      const message = `[METRIPORT][TIME: ${new Date().toString()}] User not found for metriport ID: ${metriportUserId}`
+      console.log(message)
+      Sentry.captureEvent({
+        message,
+        level: "warning",
+      })
+      return
+    }
+
+    user.hasScale = true
+    await user.save()
+
+    const task = await TaskModel.findOne({
+      type: TaskType.CONNECT_WITHINGS_SCALE,
+    })
+
+    const incompleteUserTask = await UserTaskModel.findOne({
+      user: user._id,
+      task: task._id,
+      completed: false,
+    })
+    if (incompleteUserTask) {
+      await this.taskService.completeUserTask({
+        _id: incompleteUserTask._id.toString(),
+      })
+    }
+  }
+
+  /**
    * Record a withings scale reading and process insurance.
    */
   async processWithingsScaleReading(
@@ -1814,26 +1851,6 @@ class UserService extends EmailService {
         level: "warning",
       })
       return
-    }
-
-    if (!user.hasScale) {
-      user.hasScale = true
-      await user.save()
-    }
-
-    const connectScaleTask = await TaskModel.findOne({
-      type: TaskType.CONNECT_WITHINGS_SCALE,
-    })
-
-    const incompleteConnectScaleUserTask = await UserTaskModel.findOne({
-      user: user._id,
-      task: connectScaleTask._id,
-      completed: false,
-    })
-    if (incompleteConnectScaleUserTask) {
-      await this.taskService.completeUserTask({
-        _id: incompleteConnectScaleUserTask._id.toString(),
-      })
     }
 
     const weightLogTask = await TaskModel.findOne({ type: TaskType.WEIGHT_LOG })
