@@ -1,15 +1,5 @@
 [
   {
-    "payer_id": "Do Not Bill",
-    "primary_name": "",
-    "cpid": ""
-  },
-  {
-    "payer_id": "Cash Pay",
-    "primary_name": "",
-    "cpid": ""
-  },
-  {
     "payer_id": "00019",
     "primary_name": "COX HEALTH PLAN",
     "cpid": "2482"

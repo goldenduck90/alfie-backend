@@ -7,13 +7,7 @@ import {
 } from "@typegoose/typegoose"
 import { AsQueryMethod } from "@typegoose/typegoose/lib/types"
 import mongoose from "mongoose"
-import {
-  Field,
-  InputType,
-  Int,
-  ObjectType,
-  registerEnumType,
-} from "type-graphql"
+import { Field, InputType, Int, ObjectType } from "type-graphql"
 import Role from "./enums/Role"
 
 function findByEmail(
@@ -34,32 +28,6 @@ interface QueryHelpers {
   findByEmail: AsQueryMethod<typeof findByEmail>
   findByEmailToken: AsQueryMethod<typeof findByEmailToken>
 }
-
-export enum ProviderCode {
-  Admitting = "AD",
-  Attending = "AT",
-  Billing = "BI",
-  Consulting = "CO",
-  Covering = "CV",
-  Hospital = "H",
-  HomeHealthCare = "HH",
-  Laboratory = "LA",
-  OtherPhysician = "OT",
-  Pharmacist = "P1",
-  Pharmacy = "P2",
-  PrimaryCarePhysician = "PC",
-  Performing = "PE",
-  RuralHealthClinic = "R",
-  Referring = "RF",
-  Submitting = "SB",
-  SkilledNursingFacility = "SK",
-  Supervising = "SU",
-}
-
-registerEnumType(ProviderCode, {
-  name: "ProviderCode",
-  description: "Provider code",
-})
 
 @queryMethod(findByEmail)
 @queryMethod(findByEmailToken)
@@ -101,10 +69,6 @@ export class Provider {
   @prop({ required: true })
   email: string
 
-  @Field(() => ProviderCode, { nullable: true })
-  @prop({ required: false })
-  providerCode?: ProviderCode
-
   @Field(() => Int, { nullable: true })
   @prop({ required: true, default: 0 })
   numberOfPatients: number
@@ -139,9 +103,6 @@ export class ProviderInput {
 
   @Field(() => String)
   npi: string
-
-  @Field(() => ProviderCode)
-  providerCode?: ProviderCode
 
   @Field(() => [String])
   licensedStates: mongoose.Types.Array<string>

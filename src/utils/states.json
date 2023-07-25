@@ -1,0 +1,257 @@
+[
+  {
+    "eaStateId": 1,
+    "name": "Alabama",
+    "code": "AL"
+  },
+  {
+    "eaStateId": 2,
+    "name": "Alaska",
+    "code": "AK"
+  },
+  {
+    "eaStateId": 3,
+    "name": "Arizona",
+    "code": "AZ"
+  },
+  {
+    "eaStateId": 4,
+    "name": "Arkansas",
+    "code": "AR"
+  },
+  {
+    "eaStateId": 5,
+    "name": "California",
+    "code": "CA"
+  },
+  {
+    "eaStateId": 6,
+    "name": "Colorado",
+    "code": "CO"
+  },
+  {
+    "eaStateId": 7,
+    "name": "Connecticut",
+    "code": "CT"
+  },
+  {
+    "eaStateId": 8,
+    "name": "Delaware",
+    "code": "DE"
+  },
+  {
+    "eaStateId": 9,
+    "name": "Florida",
+    "code": "FL"
+  },
+  {
+    "eaStateId": 10,
+    "name": "Georgia",
+    "code": "GA"
+  },
+  {
+    "eaStateId": 11,
+    "name": "Hawaii",
+    "code": "HI"
+  },
+  {
+    "eaStateId": 12,
+    "name": "Idaho",
+    "code": "ID"
+  },
+  {
+    "eaStateId": 13,
+    "name": "Illinois",
+    "code": "IL"
+  },
+  {
+    "eaStateId": 14,
+    "name": "Indiana",
+    "code": "IN"
+  },
+  {
+    "eaStateId": 15,
+    "name": "Iowa",
+    "code": "IA"
+  },
+  {
+    "eaStateId": 16,
+    "name": "Kansas",
+    "code": "KS"
+  },
+  {
+    "eaStateId": 17,
+    "name": "Kentucky",
+    "code": "KY"
+  },
+  {
+    "eaStateId": 18,
+    "name": "Louisiana",
+    "code": "LA"
+  },
+  {
+    "eaStateId": 19,
+    "name": "Maine",
+    "code": "ME"
+  },
+  {
+    "eaStateId": 20,
+    "name": "Maryland",
+    "code": "MD"
+  },
+  {
+    "eaStateId": 21,
+    "name": "Massachusetts",
+    "code": "MA"
+  },
+  {
+    "eaStateId": 22,
+    "name": "Michigan",
+    "code": "MI"
+  },
+  {
+    "eaStateId": 23,
+    "name": "Minnesota",
+    "code": "MN"
+  },
+  {
+    "eaStateId": 24,
+    "name": "Mississippi",
+    "code": "MS"
+  },
+  {
+    "eaStateId": 25,
+    "name": "Missouri",
+    "code": "MO"
+  },
+  {
+    "eaStateId": 26,
+    "name": "Montana",
+    "code": "MT"
+  },
+  {
+    "eaStateId": 27,
+    "name": "Nebraska",
+    "code": "NE"
+  },
+  {
+    "eaStateId": 28,
+    "name": "Nevada",
+    "code": "NV"
+  },
+  {
+    "eaStateId": 29,
+    "name": "New Hampshire",
+    "code": "NH"
+  },
+  {
+    "eaStateId": 30,
+    "name": "New Jersey",
+    "code": "NJ"
+  },
+  {
+    "eaStateId": 31,
+    "name": "New Mexico",
+    "code": "NM"
+  },
+  {
+    "eaStateId": 32,
+    "name": "New York",
+    "code": "NY"
+  },
+  {
+    "eaStateId": 33,
+    "name": "North Carolina",
+    "code": "NC"
+  },
+  {
+    "eaStateId": 34,
+    "name": "North Dakota",
+    "code": "ND"
+  },
+  {
+    "eaStateId": 35,
+    "name": "Ohio",
+    "code": "OH"
+  },
+  {
+    "eaStateId": 36,
+    "name": "Oklahoma",
+    "code": "OK"
+  },
+  {
+    "eaStateId": 37,
+    "name": "Oregon",
+    "code": "OR"
+  },
+  {
+    "eaStateId": 38,
+    "name": "Pennsylvania",
+    "code": "PA"
+  },
+  {
+    "eaStateId": 39,
+    "name": "Rhode Island",
+    "code": "RI"
+  },
+  {
+    "eaStateId": 40,
+    "name": "South Carolina",
+    "code": "SC"
+  },
+  {
+    "eaStateId": 41,
+    "name": "South Dakota",
+    "code": "SD"
+  },
+  {
+    "eaStateId": 42,
+    "name": "Tennessee",
+    "code": "TN"
+  },
+  {
+    "eaStateId": 43,
+    "name": "Texas",
+    "code": "TX"
+  },
+  {
+    "eaStateId": 44,
+    "name": "Utah",
+    "code": "UT"
+  },
+  {
+    "eaStateId": 45,
+    "name": "Vermont",
+    "code": "VT"
+  },
+  {
+    "eaStateId": 46,
+    "name": "Virginia",
+    "code": "VA"
+  },
+  {
+    "eaStateId": 47,
+    "name": "Washington",
+    "code": "WA"
+  },
+  {
+    "eaStateId": 48,
+    "name": "West Virginia",
+    "code": "WV"
+  },
+  {
+    "eaStateId": 49,
+    "name": "Wisconsin",
+    "code": "WI"
+  },
+  {
+    "eaStateId": 50,
+    "name": "Wyoming",
+    "code": "WY"
+  },
+  {
+    "eaStateId": 51,
+    "name": "District of Columbia",
+    "code": "DC"
+  }
+]
