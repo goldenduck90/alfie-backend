@@ -15,6 +15,20 @@ class ProviderService {
     this.emailService = new EmailService()
   }
 
+  async getProviderByEmail(email: string) {
+    const provider = await ProviderModel.findOne({ email })
+    if (provider) {
+      return provider
+    } else {
+      throw new ApolloError("Provider not found.", "NOT_FOUND")
+    }
+  }
+
+  async listProviders() {
+    const providers = await ProviderModel.find()
+    return providers
+  }
+
   async getNextAvailableProvider(state: string, update = false) {
     // Only return providers where the type === "Practitioner"
     const providers = await ProviderModel.find({
@@ -72,7 +86,7 @@ class ProviderService {
       )
       if (!sendBirdId) {
         console.log(
-          `Error occured creating sendbird ID for provider: ${provider._id}`
+          `Error occurred creating sendbird ID for provider: ${provider._id}`
         )
       }
 

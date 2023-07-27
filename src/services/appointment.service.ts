@@ -124,7 +124,58 @@ class AppointmentService extends EmailService {
     })
   }
 
-  async createCustomer(input: CreateCustomerInput) {
+  /** Returns the customer if it exists, otherwise returns null. */
+  async getCustomer(eaCustomerId: string) {
+    try {
+      const { data: customer } = await this.axios.get<IEACustomer>(
+        `/customers/${eaCustomerId}`
+      )
+      return customer
+    } catch (error) {
+      return null
+    }
+  }
+
+  async getCustomerByEmail(email: string) {
+    email = email.toLowerCase()
+
+    try {
+      const { data: eaCustomers } = await this.axios.get(
+        `/customers?q=${encodeURIComponent(email)}`
+      )
+
+      return eaCustomers[0] ?? null
+    } catch (error) {
+      captureException(error, "AppointmentService.getCustomerByEmail")
+    }
+  }
+
+  /** Updates the given customer. */
+  async updateCustomer(eaCustomerId: string, customerData: IEACustomer) {
+    try {
+      const { data: customer } = await this.axios.put<IEACustomer>(
+        `/customers/${eaCustomerId}`,
+        customerData
+      )
+
+      return customer
+    } catch (error) {
+      captureException(error, "ApointmentService.updateCustomer", {
+        eaCustomerId,
+        customerData,
+      })
+      throw new ApolloError("Error updating customer.")
+    }
+  }
+
+  /**
+   * Creates a customer, returning the customer ID.
+   * If a customer with the given email already exists,
+   * updates the user with the correct eaCustomerId.
+   */
+  async createCustomer(input: CreateCustomerInput): Promise<string> {
+    input.email = input.email.toLowerCase()
+
     const { notFound } = config.get("errors.user") as any
     const {
       userId,
@@ -148,16 +199,14 @@ class AppointmentService extends EmailService {
         }
       }
 
-      const { data: eaCustomer } = await this.axios.get(
-        `/customers?q=${encodeURIComponent(email)}`
-      )
-      if (eaCustomer.length) {
+      const eaCustomer = await this.getCustomerByEmail(email)
+      if (eaCustomer) {
         if (updateUser) {
           await UserModel.findByIdAndUpdate(userId, {
             eaCustomerId: eaCustomer[0].id,
           })
         }
-        return eaCustomer[0].id
+        return eaCustomer[0]
       }
 
       const { data } = await this.axios.post<IEACustomer>("/customers", {
@@ -180,8 +229,7 @@ class AppointmentService extends EmailService {
         })
       }
 
-      // return easyappointments customer id
-      return data.id
+      return String(data.id)
     } catch (error) {
       Sentry.captureException(error)
       throw new ApolloError(error.message, "ERROR")
@@ -833,6 +881,81 @@ class AppointmentService extends EmailService {
     }
   }
 
+  getStateId(state: string): number | null {
+    const stateIndices = [
+      null,
+      "AL",
+      "AK",
+      "AZ",
+      "AR",
+      "CA",
+      "CO",
+      "CT",
+      "DE",
+      "FL",
+      "GA",
+      "HI",
+      "ID",
+      "IL",
+      "IN",
+      "IA",
+      "KS",
+      "KY",
+      "LA",
+      "ME",
+      "MD",
+      "MA",
+      "MI",
+      "MN",
+      "MS",
+      "MO",
+      "MT",
+      "NE",
+      "NV",
+      "NH",
+      "NJ",
+      "NM",
+      "NY",
+      "NC",
+      "ND",
+      "OH",
+      "OK",
+      "OR",
+      "PA",
+      "RI",
+      "SC",
+      "SD",
+      "TN",
+      "TX",
+      "UT",
+      "VT",
+      "VA",
+      "WA",
+      "WV",
+      "WI",
+      "WY",
+      "DC",
+    ]
+    const index = stateIndices.indexOf(state)
+    return index === -1 ? null : index
+  }
+
+  async createProvider(providerData: IEAProvider): Promise<IEAProvider> {
+    try {
+      const { data } = await this.axios.post<IEAProvider>(
+        "/providers",
+        providerData
+      )
+
+      return data
+    } catch (error) {
+      captureException(error, "AppointmentService.createProvider", {
+        providerData,
+      })
+      throw new ApolloError("Error creating provider.", "ERROR")
+    }
+  }
+
   async updateProvider(
     eaProviderId: string,
     providerData: IEAProvider
@@ -843,9 +966,23 @@ class AppointmentService extends EmailService {
         providerData
       )
       return data
-    } catch (err) {
-      Sentry.captureException(err)
+    } catch (error) {
+      captureException(error, "AppointmentService.updateProvider", {
+        eaProviderId,
+        providerData,
+      })
+      return null
     }
+  }
+
+  async getProviderByEmail(email: string): Promise<IEAProvider> {
+    email = email.toLowerCase()
+
+    const { data: eaProviders } = await this.axios.get<IEAProvider[]>(
+      `/providers?q=${encodeURIComponent(email)}`
+    )
+
+    return eaProviders[0] ?? null
   }
 
   async getProvider(eaProviderId: string): Promise<IEAProvider> {
@@ -855,7 +992,7 @@ class AppointmentService extends EmailService {
       )
       return data
     } catch (err) {
-      Sentry.captureException(err)
+      return null
     }
   }
 

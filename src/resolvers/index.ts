@@ -5,6 +5,7 @@ import AppointmentResolver from "./appointment.resolver"
 import GooglePlacesResolver from "./googlePlaces.resolver"
 import ProviderResolver from "./provider.resolver"
 import FileResolver from "./file.resolver"
+import PartnerResolver from "./partner.resolver"
 
 export default [
   UserResolver,
@@ -14,4 +15,5 @@ export default [
   GooglePlacesResolver,
   ProviderResolver,
   FileResolver,
+  PartnerResolver,
 ] as const

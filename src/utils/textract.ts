@@ -1,18 +1,24 @@
-import * as Sentry from "@sentry/node"
 import { ApolloError } from "apollo-server-errors"
 import Textract from "aws-sdk/clients/textract"
+import { captureException } from "./sentry"
 
 export interface AnalyzeS3InsuranceCardImageResult {
-  group_number: string
-  group_name: string
-  plan_name: string
-  plan_type: string
-  insurance_type: string
-  member_id: string
-  payer_id: string
-  payer_name: string
-  rx_bin: string
-  rx_pcn: string
+  insurance: {
+    group_number: string
+    group_name: string
+    plan_name: string
+    plan_type: string
+    insurance_type: string
+    member_id: string
+    payer_id: string
+    payer_name: string
+    rx_bin: string
+    rx_pcn: string
+    rx_group: string
+    state: string
+  }
+  words: string[]
+  lines: string[]
 }
 
 /**
@@ -22,12 +28,58 @@ export const analyzeS3InsuranceCardImage = async (
   bucket: string,
   objectName: string
 ): Promise<AnalyzeS3InsuranceCardImageResult> => {
+  const result = await textractS3Object(bucket, objectName, [
+    { question: "What is the Group Number?", key: "group_number" },
+    { question: "What is the Group Name?", key: "group_name" },
+    { question: "What is the State?", key: "state" },
+    { question: "What is the Plan Type?", key: "plan_type" },
+    { question: "What is the Member ID?", key: "member_id" },
+    { question: "What is the Payer ID?", key: "payer_id" },
+    {
+      question: "What is the Insurance Company Name?",
+      key: "payer_name",
+    },
+    { question: "What is the Rx BIN?", key: "rx_bin" },
+    { question: "What is the Rx PCN?", key: "rx_pcn" },
+    { question: "What is the Rx Group?", key: "rx_group" },
+  ])
+
+  return {
+    insurance: result.queries as any,
+    words: result.words,
+    lines: result.lines,
+  }
+}
+
+export interface TextractS3ObjectResult {
+  /** Results to queries in `queries` parameter. */
+  queries: Record<string, string>
+  /** Words found on the image. */
+  words: string[]
+  /** Lines of text found on the image. */
+  lines: string[]
+}
+
+/**
+ * Uses AWS Textract API to extract data from an insurance card stored in S3.
+ */
+export const textractS3Object = async (
+  bucket: string,
+  objectName: string,
+  /** A collection of queries against the textract API. */
+  queries: {
+    /** The Text field of a query. */
+    question: string
+    /** The Alias field of a query. */
+    key: string
+  }[]
+): Promise<TextractS3ObjectResult> => {
   const textract = new Textract({
     region: "us-east-1",
   })
 
   try {
-    const data = await new Promise<AnalyzeS3InsuranceCardImageResult>(
+    const data = await new Promise<TextractS3ObjectResult>(
       (resolve, reject) => {
         textract.analyzeDocument(
           {
@@ -39,24 +91,10 @@ export const analyzeS3InsuranceCardImage = async (
             },
             FeatureTypes: ["QUERIES"],
             QueriesConfig: {
-              Queries: [
-                { Text: "What is the Group Number?", Alias: "group_number" },
-                { Text: "What is the Group Name?", Alias: "group_name" },
-                // { Text: "What is the Plan Name?", Alias: "plan_name" },
-                // { Text: "What is the Plan Type?", Alias: "plan_type" },
-                // {
-                //   Text: "What is the Insurance Type?",
-                //   Alias: "insurance_type",
-                // },
-                { Text: "What is the Member ID?", Alias: "member_id" },
-                { Text: "What is the Payer ID?", Alias: "payer_id" },
-                {
-                  Text: "What is the Insurance Company Name?",
-                  Alias: "payer_name",
-                },
-                { Text: "What is the Rx Bin?", Alias: "rx_bin" },
-                { Text: "What is the Rx PCN?", Alias: "rx_pcn" },
-              ],
+              Queries: queries.map((query) => ({
+                Text: query.question,
+                Alias: query.key,
+              })),
             },
           },
           (err, res) => {
@@ -66,6 +104,8 @@ export const analyzeS3InsuranceCardImage = async (
 
             const idToText: Record<string, string> = {}
             const idToAlias: Record<string, string> = {}
+            const words: string[] = []
+            const lines: string[] = []
 
             res.Blocks.forEach((block) => {
               if (block.BlockType === "QUERY_RESULT") {
@@ -78,6 +118,10 @@ export const analyzeS3InsuranceCardImage = async (
                     })
                   }
                 })
+              } else if (block.BlockType === "WORD") {
+                words.push(block.Text)
+              } else if (block.BlockType === "LINE") {
+                lines.push(block.Text)
               }
             })
 
@@ -86,19 +130,23 @@ export const analyzeS3InsuranceCardImage = async (
               result[idToAlias[key]] = idToText[key]
             })
 
-            resolve(result as any)
+            resolve({
+              queries: result as any,
+              words,
+              lines,
+            })
           }
         )
       }
     )
 
     return data
-  } catch (err) {
-    Sentry.captureException(err)
-    console.log(
-      `Error running AWS textract on image at ${bucket}, ${objectName}`,
-      err
-    )
-    throw new ApolloError(err.message, "TEXT_EXTRACT_ERROR")
+  } catch (error) {
+    captureException(error, "textractS3Object", {
+      bucket,
+      objectName,
+      queries,
+    })
+    throw new ApolloError("Error extracting text.", "TEXT_EXTRACT_ERROR")
   }
 }

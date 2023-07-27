@@ -157,9 +157,9 @@ export default class UserResolver {
   ): Promise<InsuranceEligibilityResponse> {
     const user = await this.userService.getUser(userId)
 
-    const eligible = await this.userService.checkInsuranceEligibility(
-      user,
-      input
+    const eligible = await this.userService.checkInsuranceEligibilityFromData(
+      input,
+      user._id.toString()
     )
 
     return eligible

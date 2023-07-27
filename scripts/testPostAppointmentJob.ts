@@ -30,7 +30,7 @@ async function testPostAppointmentJob() {
   user.eaHealthCoachId = "22"
 
   const provider = await ProviderModel.findOne({ eaProviderId: "2" })
-  user.provider = provider._id
+  user.provider = provider
   await user.save()
 
   const timezone = "America/New_York"
