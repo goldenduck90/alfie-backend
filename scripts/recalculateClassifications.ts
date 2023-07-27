@@ -1,7 +1,7 @@
+import runShell, { createProgram } from "./utils/runShell"
 import TaskService from "../src/services/task.service"
 import UserService from "../src/services/user.service"
 import { pickFields } from "../src/utils/collections"
-import runShell, { createProgram } from "./utils/runShell"
 import { writeFileSync } from "fs"
 import { resolve } from "path"
 
