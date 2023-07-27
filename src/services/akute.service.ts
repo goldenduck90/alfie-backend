@@ -27,11 +27,14 @@ export interface AkuteCreateInsuranceRequest {
   member_id: string
   group_id: string
   group_name: string
+  type: string
   rx_bin: string
-  rx_group: string
+  rx_pcn?: string
+  rx_group?: string
   payor: string
   status: string
   order: number
+  relationship_to_subscriber: string
 }
 
 /** Response from a POST to /insurance */
@@ -125,6 +128,8 @@ class AkuteService {
   }
 
   async createPatient(input: CreatePatientInput) {
+    input.email = input.email.toLowerCase()
+
     const {
       firstName: first_name,
       lastName: last_name,
@@ -140,6 +145,15 @@ class AkuteService {
       sex,
       dateOfBirth,
     } = input
+
+    const parsedPhone = primary_phone_number
+      .replace("+1", "")
+      .replace("+0", "")
+      .replace("+", "")
+      .replace(/-/g, "")
+      .replace(" ", "")
+      .replace(")", "")
+      .replace("(", "")
 
     try {
       const { status, data: patientData } = await this.axios.get(
@@ -161,12 +175,7 @@ class AkuteService {
         address_state,
         address_zipcode: address_zipcode.slice(0, 5),
         email,
-        primary_phone_number: primary_phone_number
-          .replace("+1", "")
-          .replace(/-/g, "")
-          .replace(" ", "")
-          .replace(")", "")
-          .replace("(", ""),
+        primary_phone_number: parsedPhone,
         primary_phone_type: "mobile",
         appointment_state: address_state,
       })
@@ -457,14 +466,10 @@ class AkuteService {
 
       captureEvent(
         "info",
-        `Lab order created: ${data.id} for user id: ${user._id}`,
+        `AkuteService.createLabOrder: Lab order created: ${data.id} for user id: ${user._id}`,
         {
-          tags: {
-            userId,
-            function: "AkuteService.createLabOrder",
-            createLabOrderRequest,
-            order,
-          },
+          createLabOrderRequest,
+          order,
         }
       )
 
@@ -475,7 +480,7 @@ class AkuteService {
       const document = await this.getDocument(order.document_id)
       captureEvent(
         "info",
-        `Retrieved document ${order.document_id} for lab order ${order.id}`,
+        `AkuteService.createLabOrder: Retrieved document ${order.document_id} for lab order ${order.id}`,
         {
           document,
           orderId: order.id,
@@ -584,14 +589,17 @@ class AkuteService {
   ): Promise<AkuteInsuranceResponse> {
     try {
       const createInsuranceRequest: AkuteCreateInsuranceRequest = {
+        type: "rx",
         patient_id: akuteId,
         member_id: input.memberId,
         group_id: input.groupId,
         group_name: input.groupName,
-        rx_bin: input.rxBin,
+        rx_bin: input.rxBIN,
+        rx_pcn: input.rxPCN,
         rx_group: input.rxGroup,
         payor: input.payor,
         status: "active",
+        relationship_to_subscriber: "self",
         order: 1,
       }
       const { data } = await this.axios.post<AkuteInsuranceResponse>(

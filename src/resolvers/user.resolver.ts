@@ -102,14 +102,15 @@ export default class UserResolver {
   @Authorized([Role.Practitioner, Role.Doctor, Role.Admin, Role.HealthCoach])
   // Query returns an array of User and a custom field called tasks
   @Query(() => [User])
-  getAllPatientsByPractitioner(@Ctx() context: Context) {
+  getAllPatientsByProvider(@Ctx() context: Context) {
     return this.userService.getAllUsersByAProvider(context.user._id)
   }
+
   @Authorized([Role.Practitioner, Role.Doctor, Role.Admin, Role.HealthCoach])
   // Query returns an array of User and a custom field called tasks
   @Query(() => [User])
-  getAllPatientsByHealthCoach(@Ctx() context: Context) {
-    return this.userService.getAllUsersByAHealthCoach(context.user._id)
+  getAllPatientsByHealthCoach() {
+    return this.userService.getAllUsersByAHealthCoach()
   }
   @Authorized([Role.Doctor, Role.Admin, Role.Practitioner, Role.HealthCoach])
   @Query(() => [UserTask])
@@ -156,9 +157,9 @@ export default class UserResolver {
   ): Promise<InsuranceEligibilityResponse> {
     const user = await this.userService.getUser(userId)
 
-    const eligible = await this.userService.checkInsuranceEligibility(
-      user,
-      input
+    const eligible = await this.userService.checkInsuranceEligibilityFromData(
+      input,
+      user._id.toString()
     )
 
     return eligible

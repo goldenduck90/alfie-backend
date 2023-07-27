@@ -2,7 +2,9 @@ import { calculateScore } from "../PROAnalysis"
 import { Task } from "../schema/task.schema"
 import { UserTaskModel } from "../schema/task.user.schema"
 import { UserModel } from "../schema/user.schema"
+import { captureException } from "../utils/sentry"
 
+/** Calculate all patient scores based on completed tasks, using the most recent answers. */
 export async function calculatePatientScores(userId: string) {
   try {
     // First find all user tasks that are completed
@@ -40,8 +42,6 @@ export async function calculatePatientScores(userId: string) {
     })
 
     // For each task, calculate the score by using the calculateScore function
-    // const score = calculateScore(lastTask, userTask, task.type)
-
     const scores = tasks.map((task) => {
       const taskType = task.currentTask.task.type
       return calculateScore(task.previousTask, task.currentTask, taskType)
@@ -66,9 +66,11 @@ export async function calculatePatientScores(userId: string) {
       await user.save()
       return uniqueScores
     } catch (err) {
-      console.log("error calculating score: ", err)
+      captureException(err, "calculatePatientScores - error saving scores")
+      throw err
     }
   } catch (error) {
-    console.log(error, "error calculating score")
+    captureException(error, "calculatePatientScores - error calculating scores")
+    throw error
   }
 }

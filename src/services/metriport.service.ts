@@ -5,8 +5,9 @@ import { MetriportConnectResponse } from "../schema/metriport.schema"
 
 export interface MetriportUser {
   userId: string
+  provider?: string
   body?: {
-    weight_kg: number
+    weight_kg?: number
   }[]
 }
 class MetriportService {

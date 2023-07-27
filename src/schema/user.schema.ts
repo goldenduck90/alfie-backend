@@ -28,6 +28,7 @@ import {
   registerEnumType,
 } from "type-graphql"
 import { Provider } from "./provider.schema"
+import { SignupPartner, SignupPartnerProvider } from "./partner.schema"
 import Role from "./enums/Role"
 
 const {
@@ -64,22 +65,15 @@ registerEnumType(Role, {
   description: "The user roles a user can be assigned to",
 })
 
-export enum Partner {
-  OPTAVIA = "OPTAVIA",
-}
-
-registerEnumType(Partner, {
-  name: "Partner",
-  description: "Sign up partner",
-})
-
 export enum InsurancePlan {
-  ANTHEM_BLUE_CROSS = "ANTHEM_BLUE_CROSS",
+  BCBS = "BCBS",
+  ANTHEM_BCBS = "ANTHEM_BCBS",
+  EMPIRE_BCBS = "EMPIRE_BCBS",
+  CAREFIRST_BCBS = "CAREFIRST_BCBS",
+  HORIZON_BCBS = "HORIZON_BCBS",
   HUMANA = "HUMANA",
-  BLUE_CROSS_BLUE_SHIELD = "BLUE_CROSS_BLUE_SHIELD",
   PARTNER_DIRECT = "PARTNER_DIRECT",
   AETNA = "AETNA",
-  EMPIRE_BLUECROSS_BLUESHIELD = "EMPIRE_BLUECROSS_BLUESHIELD",
   UNITED_HEALTHCARE = "UNITED_HEALTHCARE",
   CIGNA = "CIGNA",
   MEDICARE = "MEDICARE",
@@ -138,9 +132,12 @@ export class Insurance {
 
   @Field(() => String)
   @prop({ required: true })
-  rxBin: string
+  rxBIN: string
 
-  /** Also called RxPCN. */
+  @Field(() => String)
+  @prop({ required: true })
+  rxPCN: string
+
   @Field(() => String)
   @prop({ required: true })
   rxGroup: string
@@ -307,11 +304,19 @@ export class Score {
   @prop({ required: false })
   providerMessage?: string
 }
+
+export enum ClassificationType {
+  Empath = "Empath",
+  Ember = "Ember",
+  Growler = "Growler",
+  Rover = "Rover",
+}
+
 @ObjectType()
 export class Classification {
-  @Field(() => String)
+  @Field()
   @prop({ required: true })
-  classification: string
+  classification: ClassificationType
 
   @Field(() => String)
   @prop({ required: true })
@@ -328,6 +333,14 @@ export class Classification {
   @Field(() => Float, { nullable: true })
   @prop({ required: false })
   calculated30minsPercent?: number
+
+  @Field(() => Float, { nullable: true })
+  @prop({ required: false })
+  calculatedPercentile30Mins?: number
+
+  @Field(() => Float, { nullable: true })
+  @prop({ required: false })
+  calculatedPercentile2Hour?: number
 
   @Field(() => String, { nullable: true })
   @prop({ required: false })
@@ -494,11 +507,11 @@ export class User {
 
   @Field(() => [Weight])
   @prop({ default: [], required: true })
-  weights: mongoose.Types.Array<Weight>
+  weights: Weight[]
 
   @Field(() => [Score])
   @prop({ default: [], required: false })
-  score: mongoose.Types.Array<Score>
+  score: Score[]
 
   @Field(() => Gender)
   @prop({ enum: Gender, type: String, required: true })
@@ -592,9 +605,13 @@ export class User {
   @prop({ enum: InsuranceType, type: String, required: false })
   insuranceType?: InsuranceType
 
-  @Field(() => Partner, { nullable: true })
-  @prop({ enum: Partner, required: false })
-  signupPartner?: Partner
+  @Field(() => SignupPartner, { nullable: true })
+  @prop({ ref: () => SignupPartner, required: false })
+  signupPartner?: Ref<SignupPartner>
+
+  @Field(() => SignupPartnerProvider, { nullable: true })
+  @prop({ ref: () => SignupPartnerProvider, required: false })
+  signupPartnerProvider?: Ref<SignupPartnerProvider>
 }
 
 export const UserModel = getModelForClass<typeof User, QueryHelpers>(User, {
@@ -743,8 +760,11 @@ export class CreateUserInput {
   @Field(() => InsuranceType, { nullable: true })
   insuranceType?: InsuranceType
 
-  @Field(() => Partner, { nullable: true })
-  signupPartner?: Partner
+  @Field(() => String, { nullable: true })
+  signupPartnerId?: string
+
+  @Field(() => String, { nullable: true })
+  signupPartnerProviderId?: string
 }
 
 @InputType()

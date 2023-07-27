@@ -475,7 +475,7 @@ export const findAndTriggerEntireSendBirdFlowForAllUsersAndProvider =
               : userChannels
           channelsToDeleteDuplicates.push(...channelsToRemove)
         }),
-        sendbirdBatchSize
+        { batchSize: sendbirdBatchSize }
       )
 
       // delete users who do not have a corresponding database ID.
@@ -524,7 +524,7 @@ export const findAndTriggerEntireSendBirdFlowForAllUsersAndProvider =
                   console.log(`* Preview Delete: ${log}`)
                 }
               }),
-              sendbirdBatchSize
+              { batchSize: sendbirdBatchSize }
             )
           } else {
             console.log("All channels are valid, nothing to delete.")
@@ -554,7 +554,7 @@ export const findAndTriggerEntireSendBirdFlowForAllUsersAndProvider =
               await deleteSendBirdUser(user.user_id)
             }
           }),
-          sendbirdBatchSize
+          { batchSize: sendbirdBatchSize }
         )
       } else if (options.removeUnusedUsers) {
         console.log("All users are valid, nothing to delete.")
@@ -581,7 +581,7 @@ export const findAndTriggerEntireSendBirdFlowForAllUsersAndProvider =
             )
             await new Promise((resolve) => setTimeout(resolve, 2000))
           }),
-          sendbirdBatchSize
+          { batchSize: sendbirdBatchSize }
         )
       } else {
         console.log("All providers have sendbird users.")
@@ -609,7 +609,7 @@ export const findAndTriggerEntireSendBirdFlowForAllUsersAndProvider =
           // 10 second delay between batches
           await new Promise((resolve) => setTimeout(resolve, 10000))
         }),
-        sendbirdBatchSize
+        { batchSize: sendbirdBatchSize }
       )
       console.log("All channels created and messages sent!")
     } catch (error) {

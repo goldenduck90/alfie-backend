@@ -196,6 +196,9 @@ export class GetTimeslotsInput {
 
   @Field(() => String, { nullable: true })
   userId?: string
+
+  @Field(() => Boolean, { nullable: true })
+  healthCoach?: boolean
 }
 
 @InputType()
@@ -259,6 +262,9 @@ export class CreateAppointmentInput {
 
   @Field(() => String, { nullable: true })
   userTaskId?: string
+
+  @Field(() => Boolean, { nullable: true })
+  healthCoach?: boolean
 }
 
 @InputType()

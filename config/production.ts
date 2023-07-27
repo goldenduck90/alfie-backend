@@ -15,8 +15,13 @@ export default {
     apiUrl: "https://api.joincandidhealth.com/api",
     clientId: process.env.CANDID_CLIENT_ID,
     clientSecret: process.env.CANDID_CLIENT_SECRET,
-    serviceTypeCode: "3",
+    serviceTypeCodes: ["3", "BZ", "30"],
     settings: candidHealth,
+  },
+  withings: {
+    apiUrl: "https://wbsapi.withings.net",
+    clientId: process.env.WITHINGS_CLIENT_ID,
+    clientSecret: process.env.WITHINGS_CLIENT_SECRET,
   },
   defaultPriceId: "price_1KMv4hDOjl0X0gOqRIWXpGVz",
   s3: {

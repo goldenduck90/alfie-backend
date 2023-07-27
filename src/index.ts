@@ -635,6 +635,11 @@ async function bootstrap() {
                 stripeCustomerId: pICId,
                 stripePaymentIntentId: pIId,
                 stripeSubscriptionId: null,
+                insurancePlan: pICheckout.insurancePlan,
+                insuranceType: pICheckout.insuranceType,
+                signupPartnerId: pICheckout.signupPartner.toString(),
+                signupPartnerProviderId:
+                  pICheckout.signupPartnerProvider.toString(),
               })
 
               const newUser = pINewUser.user
@@ -648,6 +653,8 @@ async function bootstrap() {
                     checkoutId: pICheckout._id,
                     userId: newUser._id,
                     signupPartner: pICheckout.signupPartner || "None",
+                    signupPartnerProvider:
+                      pICheckout.signupPartnerProvider || "None",
                     insurancePay: pICheckout.insurancePlan ? true : false,
                     environment: process.env.NODE_ENV,
                   },
@@ -921,7 +928,9 @@ async function bootstrap() {
                 subscriptionExpiresAt: new Date(),
                 insurancePlan: sCCheckout.insurancePlan,
                 insuranceType: sCCheckout.insuranceType,
-                signupPartner: sCCheckout.signupPartner,
+                signupPartnerId: sCCheckout.signupPartner.toString(),
+                signupPartnerProviderId:
+                  sCCheckout.signupPartnerProvider.toString(),
               })
 
               if (process.env.NODE_ENV === "production") {
@@ -933,6 +942,8 @@ async function bootstrap() {
                     checkoutId: sCCheckout._id,
                     userId: newUser.user._id,
                     signupPartner: sCCheckout.signupPartner || "None",
+                    signupPartnerProvider:
+                      sCCheckout.signupPartnerProvider || "None",
                     insurancePay: sCCheckout.insurancePlan ? true : false,
                     environment: process.env.NODE_ENV,
                   },
@@ -1295,17 +1306,31 @@ async function bootstrap() {
         })
       }
 
-      // const date = new Date()
-
-      await Promise.all(
-        users.map(async (metriportUser: MetriportUser) => {
-          const { userId, body } = metriportUser
-          if (body?.[0]?.weight_kg) {
-            const weightLbs = Math.floor(body[0].weight_kg * 2.2)
-            await userService.processWithingsScaleReading(userId, weightLbs)
-          }
-        })
-      )
+      switch (meta.type) {
+        case "devices.provider-connected":
+          await Promise.all(
+            users.map(async (metriportUser: MetriportUser) => {
+              const { userId, provider } = metriportUser
+              if (provider === "withings") {
+                await userService.processWithingsScaleConnected(userId)
+              }
+            })
+          )
+          break
+        case "devices.health-data":
+          await Promise.all(
+            users.map(async (metriportUser: MetriportUser) => {
+              const { userId, body } = metriportUser
+              if (body?.[0]?.weight_kg) {
+                const weightLbs = Math.floor(body[0].weight_kg * 2.2)
+                await userService.processWithingsScaleReading(userId, weightLbs)
+              }
+            })
+          )
+          break
+        default:
+          break
+      }
 
       return res.status(200).send({ message: "Webhook processed successfully" })
     } catch (err) {

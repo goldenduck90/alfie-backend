@@ -18,8 +18,13 @@ export default {
     apiUrl: "https://api-staging.joincandidhealth.com/api",
     clientId: process.env.CANDID_CLIENT_ID,
     clientSecret: process.env.CANDID_CLIENT_SECRET,
-    serviceTypeCode: "90",
+    serviceTypeCodes: ["90", "3", "30", "BZ"],
     settings: candidHealth,
+  },
+  withings: {
+    apiUrl: "https://wbsapi.withings.net",
+    clientId: process.env.WITHINGS_CLIENT_ID,
+    clientSecret: process.env.WITHINGS_CLIENT_SECRET,
   },
   defaultPriceId: "price_1KMviXDOjl0X0gOq9Pk7gRFE",
   dynamoDb: {
