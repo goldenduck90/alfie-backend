@@ -18,20 +18,14 @@ export function calculateMPFeelingScore(
   // We first need to create a score for the lastTask and the currentTask
   // We will create a score for task in it's entirety all the scores added together for each question will equal the score for the task
 
-  const lastTaskScore = sumAnswersByMap(
-    lastTask.answers,
-    mpFeelingQuestions
-  )
+  const lastTaskScore = sumAnswersByMap(lastTask.answers, mpFeelingQuestions)
   const currentTaskScore = sumAnswersByMap(
     currentTask.answers,
     mpFeelingQuestions
   )
 
   const score = currentTaskScore - lastTaskScore
-  const percentDifference = getPercentageChange(
-    lastTaskScore,
-    currentTaskScore
-  )
+  const percentDifference = getPercentageChange(lastTaskScore, currentTaskScore)
   const increased = score > 0
   const percentile =
     distributions.MP_FEELING.display.percentile(currentTaskScore)
@@ -60,7 +54,7 @@ function calculateSingleMPFeeling(
     mpFeelingQuestions
   )
 
-  const percentile = 
+  const percentile =
     distributions.MP_FEELING.display.percentile(currentTaskScore)
 
   const calculatedPercentile =
@@ -91,10 +85,7 @@ function calculateActivityScore(
   const currentTaskScore = Number(currentTask?.answers[0]?.value)
 
   const score = currentTaskScore - lastTaskScore
-  const percentDifference = getPercentageChange(
-    lastTaskScore,
-    currentTaskScore
-  )
+  const percentDifference = getPercentageChange(lastTaskScore, currentTaskScore)
   const increased = currentTaskScore > lastTaskScore
 
   switch (task) {
@@ -188,14 +179,18 @@ function calculateSingleMPHunger(currentTask: UserTask, task: TaskType): Score {
   const calculatedPercentile1Hour =
     distributions.MP_HUNGER.calculated.percentile(hungerLevel1Hour)
 
+  const percentile30Minutes =
+    distributions.MP_HUNGER.display.percentile(hungerLevel30Minutes)
+  const percentile1Hour =
+    distributions.MP_HUNGER.display.percentile(hungerLevel1Hour)
+
   return {
     calculatedPercentile: calculatedPercentile1Hour,
     calculatedPercentile30Minutes,
     calculatedPercentile1Hour,
-    percentile30Minutes:
-      distributions.MP_HUNGER.display.percentile(hungerLevel30Minutes),
-    percentile1Hour:
-      distributions.MP_HUNGER.display.percentile(hungerLevel1Hour),
+    percentile: percentile1Hour,
+    percentile30Minutes,
+    percentile1Hour,
     latest: String(hungerLevel1Hour),
     date: currentTask.completedAt,
     task,
@@ -207,7 +202,6 @@ function calculateHungerScore(
   currentTask: UserTask,
   task: TaskType
 ): Score {
-
   const currentHungerLevel1Hour = getAnswerByKey(
     currentTask.answers,
     "hungerLevel1Hour",
@@ -239,30 +233,34 @@ function calculateHungerScore(
   )
 
   const increased1Hour = currentHungerLevel1Hour > lastHungerLevel1Hour
-  const increased30Minutes = currentHungerLevel30Minutes > lastHungerLevel30Minutes
+  const increased30Minutes =
+    currentHungerLevel30Minutes > lastHungerLevel30Minutes
 
-  const percentile1Hour =
-    distributions.MP_HUNGER.display.percentile(currentHungerLevel1Hour)
-  const percentile30Minutes =
-    distributions.MP_HUNGER.display.percentile(currentHungerLevel30Minutes)
+  const percentile1Hour = distributions.MP_HUNGER.display.percentile(
+    currentHungerLevel1Hour
+  )
+  const percentile30Minutes = distributions.MP_HUNGER.display.percentile(
+    currentHungerLevel30Minutes
+  )
 
   const calculatedPercentile1Hour =
     distributions.MP_HUNGER.calculated.percentile(currentHungerLevel1Hour)
   const calculatedPercentile30Minutes =
     distributions.MP_HUNGER.calculated.percentile(currentHungerLevel30Minutes)
 
-  const message =
-    `Your hunger level has ${
-      increased1Hour ? "increased" : "decreased"
-    } by ${change1Hour}% for 2 hours and ${
-      increased30Minutes ? "increased" : "decreased"
-    } by ${change30Minutes}% for 30 minutes and you scored within the ${
-      ordinal(percentile1Hour)
-    } percentile for 2 hours and ${
-      ordinal(percentile30Minutes)
-    } percentile for 30 minutes`
+  const message = `Your hunger level has ${
+    increased1Hour ? "increased" : "decreased"
+  } by ${change1Hour}% for 2 hours and ${
+    increased30Minutes ? "increased" : "decreased"
+  } by ${change30Minutes}% for 30 minutes and you scored within the ${ordinal(
+    percentile1Hour
+  )} percentile for 2 hours and ${ordinal(
+    percentile30Minutes
+  )} percentile for 30 minutes`
 
   return {
+    calculatedPercentile: calculatedPercentile1Hour,
+    percentile: percentile1Hour,
     calculatedPercentile1Hour,
     calculatedPercentile30Minutes,
     percentile1Hour,
@@ -378,10 +376,7 @@ function calculateGsrs(
 ): Score {
   // lastTask.answers is an array of objects and each object has a key and value
   const lastGsrs = sumAnswersByMap(lastTask.answers, gsrsQuestions)
-  const currentGsrs = sumAnswersByMap(
-    currentTask.answers,
-    gsrsQuestions
-  )
+  const currentGsrs = sumAnswersByMap(currentTask.answers, gsrsQuestions)
 
   const currentGsrsPercentDifference = getPercentageChange(
     lastGsrs,
@@ -410,10 +405,7 @@ function calculateGsrs(
 
 function calculateSingleGsrs(currentTask: UserTask, task: TaskType): Score {
   // lastTask.answers is an array of objects and each object has a key and value
-  const currentGsrs = sumAnswersByMap(
-    currentTask.answers,
-    gsrsQuestions
-  )
+  const currentGsrs = sumAnswersByMap(currentTask.answers, gsrsQuestions)
   const message = `Your GSRS is ${currentGsrs}`
 
   return {
@@ -432,22 +424,12 @@ function calculateTefq(
   currentTask: UserTask,
   task: TaskType
 ): Score {
-  const lastTefq = sumAnswersByMap(
-    lastTask.answers,
-    tefqQuestions
-  )
-  const currentTefq = sumAnswersByMap(
-    currentTask.answers,
-    tefqQuestions
-  )
+  const lastTefq = sumAnswersByMap(lastTask.answers, tefqQuestions)
+  const currentTefq = sumAnswersByMap(currentTask.answers, tefqQuestions)
 
-  const percentile =
-    distributions.TEFQ.display.percentile(currentTefq)
+  const percentile = distributions.TEFQ.display.percentile(currentTefq)
 
-  const percentDifference = getPercentageChange(
-    lastTefq,
-    currentTefq
-  )
+  const percentDifference = getPercentageChange(lastTefq, currentTefq)
   const increased = currentTefq > lastTefq
 
   const message = `Your TEFQ has ${
@@ -471,15 +453,13 @@ function calculateTefq(
 }
 
 function calculateSingleTefq(currentTask: UserTask, task: TaskType): Score {
-  const currentTefq = sumAnswersByMap(
-    currentTask.answers,
-    tefqQuestions
-  )
+  const currentTefq = sumAnswersByMap(currentTask.answers, tefqQuestions)
 
-  const percentile =
-    distributions.TEFQ.display.percentile(currentTefq)
+  const percentile = distributions.TEFQ.display.percentile(currentTefq)
 
-  const message = `Your TEFQ is ${currentTefq} and your percentile is ${ordinal(percentile)}`
+  const message = `Your TEFQ is ${currentTefq} and your percentile is ${ordinal(
+    percentile
+  )}`
 
   const calculatedPercentile =
     distributions.TEFQ.calculated.percentile(currentTefq)
@@ -504,10 +484,7 @@ function calculateAdLibitumScore(
   const lastCalories = Number(lastTask.answers[0]?.value ?? 0)
   const currentCalories = Number(currentTask.answers[0]?.value ?? 0)
 
-  const percentDifference = getPercentageChange(
-    lastCalories,
-    currentCalories
-  )
+  const percentDifference = getPercentageChange(lastCalories, currentCalories)
   const increased = currentCalories > lastCalories
   const message = `Your calories have ${
     increased ? "increased" : "decreased"
@@ -539,7 +516,7 @@ function calculateSingleAdLibitum(
   const percentile =
     distributions.AD_LIBITUM.display.percentile(currentCalories)
   const calculatedPercentile =
-    distributions.AD_LIBITUM.calculated.percentile(currentCalories)  
+    distributions.AD_LIBITUM.calculated.percentile(currentCalories)
 
   return {
     calculatedPercentile,
@@ -626,7 +603,9 @@ export function sumAnswersByMap(
     } else if (answer.type === AnswerType.NUMBER) {
       return sum + Number(answer.value)
     } else {
-      throw new Error(`Unexpected answer type ${answer.type} in score calculation.`)
+      throw new Error(
+        `Unexpected answer type ${answer.type} in score calculation.`
+      )
     }
   }, 0)
 }

@@ -48,7 +48,11 @@ export const calculateSetting = <T = ResolvedSetting>(
   /** Values to use when evaluating conditions. */
   values: ResolvedSetting
 ): T => {
-  const result: Record<string, any[]> = calculateSettings(settings, vars, values)
+  const result: Record<string, any[]> = calculateSettings(
+    settings,
+    vars,
+    values
+  )
 
   // take the first item from each key of `result`
   const initialResult: Record<string, any[]> = {}
@@ -61,6 +65,11 @@ export const calculateSetting = <T = ResolvedSetting>(
 
 /**
  * Resolves the requested vars to their values from the settings list.
+ * Each variable in `vars` is resolved separately, so the lengths for each key
+ * in the result corresponding to the resolved variables from `vars` may not be equal.
+ * Whereas `calculateSetting` only returns the first resolved variable that matches
+ * the conditions, for each var in `vars`, `calculateSettings` returns all resolved
+ * variables that match the conditions.
  */
 export const calculateSettings = <T = ResolvedSetting<any[]>>(
   /** A list of settings with conditions and resulting variable values. */
@@ -118,11 +127,10 @@ export const passesConditions = (
       const value = values[valueKey]
 
       const targetValue = condition[valueKey]
-      if (
-        typeof targetValue === "object" &&
-        targetValue.range !== undefined
-      ) {
-        const range = (targetValue.range as (number | null)[]).map((num) => num === null ? Infinity : num)
+      if (typeof targetValue === "object" && targetValue.range !== undefined) {
+        const range = (targetValue.range as (number | null)[]).map((num) =>
+          num === null ? Infinity : num
+        )
         return value >= range[0] && value <= range[1]
       } else if (Array.isArray(targetValue)) {
         return targetValue.includes(value)

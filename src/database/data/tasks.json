@@ -1,0 +1,525 @@
+[
+  {
+    "notifyWhenPastDue": false,
+    "notifyProviderWhenPastDue": false,
+    "notifyHealthCoachWhenPastDue": false,
+    "canHaveMultiple": false,
+    "highPriority": false,
+    "questions": [],
+    "name": "ID & Insurance Verification Test",
+    "notifyWhenAssigned": false,
+    "type": "ID_AND_INSURANCE_UPLOAD",
+    "daysTillDue": null
+  },
+  {
+    "notifyWhenPastDue": false,
+    "notifyProviderWhenPastDue": false,
+    "notifyHealthCoachWhenPastDue": false,
+    "highPriority": false,
+    "name": "Medical Questionnaire",
+    "notifyWhenAssigned": false,
+    "type": "NEW_PATIENT_INTAKE_FORM",
+    "canHaveMultiple": false,
+    "daysTillDue": null,
+    "questions": [
+      {
+        "key": "allergies",
+        "type": "STRING"
+      },
+      {
+        "key": "conditions",
+        "type": "ARRAY"
+      },
+      {
+        "key": "pharmacyLocation",
+        "type": "STRING"
+      },
+      {
+        "key": "usePillPack",
+        "type": "BOOLEAN"
+      },
+      {
+        "key": "previousConditions",
+        "type": "ARRAY"
+      },
+      {
+        "key": "hasSurgeries",
+        "type": "BOOLEAN"
+      },
+      {
+        "key": "surgicalHistory",
+        "type": "STRING"
+      },
+      {
+        "key": "hasRequiredLabs",
+        "type": "BOOLEAN"
+      },
+      {
+        "key": "weightLossAttemptTime",
+        "type": "STRING"
+      },
+      {
+        "key": "weightManagementMethods",
+        "type": "ARRAY"
+      }
+    ]
+  },
+  {
+    "name": "Metabolic Profile: Hunger",
+    "notifyWhenAssigned": false,
+    "type": "MP_HUNGER",
+    "daysTillDue": 7,
+    "interval": 21,
+    "canHaveMultiple": false,
+    "highPriority": false,
+    "notifyHealthCoachWhenPastDue": false,
+    "notifyProviderWhenPastDue": false,
+    "notifyWhenPastDue": false,
+    "questions": [
+      {
+        "key": "foodEaten",
+        "type": "STRING"
+      },
+      {
+        "key": "hungerLevel30Mins",
+        "type": "NUMBER"
+      },
+      {
+        "key": "hungerLevel1Hour",
+        "type": "NUMBER"
+      }
+    ]
+  },
+  {
+    "name": "Metabolic Profile: Feeling",
+    "notifyWhenAssigned": false,
+    "type": "MP_FEELING",
+    "daysTillDue": 7,
+    "interval": 21,
+    "canHaveMultiple": false,
+    "highPriority": false,
+    "notifyHealthCoachWhenPastDue": false,
+    "notifyProviderWhenPastDue": false,
+    "notifyWhenPastDue": false,
+    "questions": [
+      {
+        "key": "tenseLevel",
+        "type": "STRING"
+      },
+      {
+        "key": "frightenedLevel",
+        "type": "STRING"
+      },
+      {
+        "key": "worryAmount",
+        "type": "STRING"
+      },
+      {
+        "key": "easeFrequency",
+        "type": "STRING"
+      },
+      {
+        "key": "frightenedFrequency",
+        "type": "STRING"
+      },
+      {
+        "key": "restlessAmount",
+        "type": "STRING"
+      },
+      {
+        "key": "panicFrequency",
+        "type": "STRING"
+      }
+    ]
+  },
+  {
+    "notifyWhenPastDue": false,
+    "notifyHealthCoachWhenPastDue": false,
+    "interval": 7,
+    "name": "Log your Blood Pressure",
+    "notifyWhenAssigned": true,
+    "type": "BP_LOG",
+    "canHaveMultiple": true,
+    "highPriority": true,
+    "notifyCareCoordinatorWhenPastDue": true,
+    "notifyProviderWhenPastDue": true,
+    "daysTillDue": 2,
+    "questions": [
+      {
+        "key": "systolicBp",
+        "type": "NUMBER"
+      },
+      {
+        "key": "diastolicBp",
+        "type": "NUMBER"
+      }
+    ]
+  },
+  {
+    "notifyHealthCoachWhenPastDue": false,
+    "name": "Enter your Weight",
+    "notifyWhenAssigned": false,
+    "type": "WEIGHT_LOG",
+    "canHaveMultiple": false,
+    "highPriority": false,
+    "notifyCareCoordinatorWhenPastDue": true,
+    "notifyProviderWhenPastDue": true,
+    "notifyWhenPastDue": true,
+    "interval": 1,
+    "daysTillDue": 1,
+    "questions": [
+      {
+        "key": "weight",
+        "type": "NUMBER"
+      }
+    ]
+  },
+  {
+    "notifyHealthCoachWhenPastDue": false,
+    "name": "Waist Measurement",
+    "notifyWhenAssigned": false,
+    "type": "WAIST_LOG",
+    "canHaveMultiple": false,
+    "highPriority": false,
+    "notifyCareCoordinatorWhenPastDue": true,
+    "notifyProviderWhenPastDue": false,
+    "notifyWhenPastDue": true,
+    "daysTillDue": 7,
+    "interval": 21,
+    "questions": [
+      {
+        "key": "waist",
+        "type": "NUMBER"
+      }
+    ]
+  },
+  {
+    "name": "Metabolic Profile: Activity",
+    "notifyWhenAssigned": false,
+    "type": "MP_ACTIVITY",
+    "canHaveMultiple": false,
+    "interval": 7,
+    "highPriority": false,
+    "notifyCareCoordinatorWhenPastDue": true,
+    "notifyWhenPastDue": true,
+    "daysTillDue": 2,
+    "notifyHealthCoachWhenPastDue": false,
+    "notifyProviderWhenPastDue": false,
+    "questions": [
+      {
+        "key": "stepsPerDay",
+        "type": "NUMBER"
+      }
+    ]
+  },
+  {
+    "notifyHealthCoachWhenPastDue": false,
+    "daysTillDue": 2,
+    "name": "Metabolic Profile: Blue Capsule",
+    "notifyWhenAssigned": false,
+    "type": "MP_BLUE_CAPSULE",
+    "canHaveMultiple": false,
+    "highPriority": true,
+    "notifyCareCoordinatorWhenPastDue": true,
+    "notifyProviderWhenPastDue": true,
+    "notifyWhenPastDue": true,
+    "questions": [
+      {
+        "key": "bluePillTimeTaken",
+        "type": "DATE"
+      },
+      {
+        "key": "foodTaken",
+        "type": "STRING"
+      }
+    ]
+  },
+  {
+    "notifyHealthCoachWhenPastDue": false,
+    "daysTillDue": 2,
+    "name": "Metabolic Profile: Blue Capsule Part 2",
+    "notifyWhenAssigned": true,
+    "type": "MP_BLUE_CAPSULE_2",
+    "canHaveMultiple": false,
+    "highPriority": true,
+    "notifyCareCoordinatorWhenPastDue": true,
+    "notifyProviderWhenPastDue": true,
+    "notifyWhenPastDue": true,
+    "questions": [
+      {
+        "key": "bluePillPartTwoTimeTaken",
+        "type": "DATE"
+      }
+    ]
+  },
+  {
+    "notifyHealthCoachWhenPastDue": false,
+    "highPriority": false,
+    "questions": [],
+    "name": "Schedule an Appointment",
+    "notifyWhenAssigned": true,
+    "type": "SCHEDULE_APPOINTMENT",
+    "canHaveMultiple": false,
+    "notifyProviderWhenPastDue": true,
+    "notifyWhenPastDue": true,
+    "daysTillDue": 1,
+    "interval": 30
+  },
+  {
+    "notifyHealthCoachWhenPastDue": false,
+    "name": "Daily food log",
+    "notifyWhenAssigned": false,
+    "type": "FOOD_LOG",
+    "canHaveMultiple": false,
+    "interval": 1,
+    "highPriority": false,
+    "notifyCareCoordinatorWhenPastDue": false,
+    "notifyProviderWhenPastDue": false,
+    "notifyWhenPastDue": false,
+    "daysTillDue": 1,
+    "questions": [
+      {
+        "key": "breakfast",
+        "type": "STRING"
+      },
+      {
+        "key": "lunch",
+        "type": "STRING"
+      },
+      {
+        "key": "dinner",
+        "type": "STRING"
+      }
+    ]
+  },
+  {
+    "notifyHealthCoachWhenPastDue": false,
+    "daysTillDue": 7,
+    "name": "The Three-Factor Eating Questionnaire",
+    "notifyWhenAssigned": false,
+    "type": "TEFQ",
+    "canHaveMultiple": false,
+    "interval": 21,
+    "highPriority": false,
+    "notifyCareCoordinatorWhenPastDue": true,
+    "notifyProviderWhenPastDue": true,
+    "notifyWhenPastDue": true,
+    "questions": [
+      {
+        "key": "alwaysEating",
+        "type": "STRING"
+      },
+      {
+        "key": "smallHelpings",
+        "type": "STRING"
+      },
+      {
+        "key": "anxiousEating",
+        "type": "STRING"
+      },
+      {
+        "key": "uncontrollableEating",
+        "type": "STRING"
+      },
+      {
+        "key": "eatingWithOthers",
+        "type": "STRING"
+      },
+      {
+        "key": "overeatingWhenBlue",
+        "type": "STRING"
+      },
+      {
+        "key": "delicacyEating",
+        "type": "STRING"
+      },
+      {
+        "key": "bottomlessPit",
+        "type": "STRING"
+      },
+      {
+        "key": "alwaysHungry",
+        "type": "STRING"
+      },
+      {
+        "key": "lonelyEating",
+        "type": "STRING"
+      },
+      {
+        "key": "holdBack",
+        "type": "STRING"
+      },
+      {
+        "key": "fatFoods",
+        "type": "STRING"
+      },
+      {
+        "key": "alwaysHungry2",
+        "type": "STRING"
+      },
+      {
+        "key": "howOftenHungry",
+        "type": "STRING"
+      },
+      {
+        "key": "avoidStockingUp",
+        "type": "STRING"
+      },
+      {
+        "key": "conciouslyEatLess",
+        "type": "STRING"
+      },
+      {
+        "key": "eatingBinges",
+        "type": "STRING"
+      },
+      {
+        "key": "restraint",
+        "type": "NUMBER"
+      }
+    ]
+  },
+  {
+    "notifyHealthCoachWhenPastDue": false,
+    "daysTillDue": 7,
+    "name": "Gastrointestinal Symptoms Rating Scale",
+    "notifyWhenAssigned": false,
+    "type": "GSRS",
+    "canHaveMultiple": false,
+    "interval": 21,
+    "highPriority": false,
+    "notifyCareCoordinatorWhenPastDue": true,
+    "notifyProviderWhenPastDue": true,
+    "notifyWhenPastDue": true,
+    "questions": [
+      {
+        "key": "painOrDiscomfort",
+        "type": "STRING"
+      },
+      {
+        "key": "heartBurn",
+        "type": "STRING"
+      },
+      {
+        "key": "acidReflux",
+        "type": "STRING"
+      },
+      {
+        "key": "hungerPains",
+        "type": "STRING"
+      },
+      {
+        "key": "nausea",
+        "type": "STRING"
+      },
+      {
+        "key": "rumbling",
+        "type": "STRING"
+      },
+      {
+        "key": "bloated",
+        "type": "STRING"
+      },
+      {
+        "key": "burping",
+        "type": "STRING"
+      },
+      {
+        "key": "gas",
+        "type": "STRING"
+      },
+      {
+        "key": "constipation",
+        "type": "STRING"
+      },
+      {
+        "key": "diarrhea",
+        "type": "STRING"
+      },
+      {
+        "key": "looseStools",
+        "type": "STRING"
+      },
+      {
+        "key": "hardStools",
+        "type": "STRING"
+      },
+      {
+        "key": "urgentBowel",
+        "type": "STRING"
+      },
+      {
+        "key": "completeBowels",
+        "type": "STRING"
+      }
+    ]
+  },
+  {
+    "notifyHealthCoachWhenPastDue": false,
+    "daysTillDue": 1,
+    "name": "Lab Corp Selection",
+    "notifyWhenAssigned": true,
+    "type": "LAB_SELECTION",
+    "canHaveMultiple": false,
+    "interval": 0,
+    "highPriority": false,
+    "notifyCareCoordinatorWhenPastDue": true,
+    "notifyProviderWhenPastDue": true,
+    "notifyWhenPastDue": true,
+    "questions": [
+      {
+        "key": "labCorpLocation",
+        "type": "STRING"
+      },
+      {
+        "key": "hasRequiredLabs",
+        "type": "BOOLEAN"
+      }
+    ]
+  },
+  {
+    "name": "Ad Libitum Meal",
+    "notifyWhenAssigned": true,
+    "type": "AD_LIBITUM",
+    "canHaveMultiple": false,
+    "interval": 21,
+    "highPriority": true,
+    "notifyCareCoordinatorWhenPastDue": true,
+    "notifyProviderWhenPastDue": true,
+    "notifyWhenPastDue": true,
+    "daysTillDue": 7,
+    "notifyHealthCoachWhenPastDue": false,
+    "questions": [
+      {
+        "key": "calories",
+        "type": "NUMBER"
+      }
+    ]
+  },
+  {
+    "notifyHealthCoachWhenPastDue": false,
+    "questions": [],
+    "name": "Schedule an Appointment with Health Coach",
+    "notifyWhenAssigned": true,
+    "type": "SCHEDULE_HEALTH_COACH_APPOINTMENT",
+    "canHaveMultiple": false,
+    "interval": 14,
+    "highPriority": true,
+    "notifyCareCoordinatorWhenPastDue": false,
+    "notifyProviderWhenPastDue": false,
+    "notifyWhenPastDue": false,
+    "daysTillDue": 1
+  },
+  {
+    "name": "Connect Withings Scale",
+    "notifyWhenAssigned": false,
+    "notifyWhenPastDue": false,
+    "notifyProviderWhenPastDue": false,
+    "notifyHealthCoachWhenPastDue": false,
+    "type": "CONNECT_WITHINGS_SCALE",
+    "canHaveMultiple": false,
+    "daysTillDue": 6,
+    "highPriority": false,
+    "questions": []
+  }
+]

@@ -31,16 +31,16 @@ exports[`classification Should classify Ember from Activity correctly Classifica
 exports[`classification Should classify Growler/Rover from Hunger correctly Classification (2023-07-01T00:00:00.000Z, 5, 8) 1`] = `
 [
   {
-    "calculatedPercentile": 95,
+    "calculatedPercentile": 92,
     "classification": "Growler",
     "date": 2023-07-01T00:00:00.000Z,
-    "percentile": undefined,
+    "percentile": 99,
   },
   {
     "calculatedPercentile": 95,
     "classification": "Rover",
     "date": 2023-07-01T00:00:00.000Z,
-    "percentile": undefined,
+    "percentile": 99,
   },
 ]
 `;
@@ -48,10 +48,10 @@ exports[`classification Should classify Growler/Rover from Hunger correctly Clas
 exports[`classification Should classify Growler/Rover from Hunger correctly Classification (2023-07-03T00:00:00.000Z, 30, 7) 1`] = `
 [
   {
-    "calculatedPercentile": 70,
+    "calculatedPercentile": 93,
     "classification": "Growler",
     "date": 2023-07-03T00:00:00.000Z,
-    "percentile": undefined,
+    "percentile": 99,
   },
 ]
 `;
@@ -62,7 +62,7 @@ exports[`classification Should classify Growler/Rover from Hunger correctly Clas
     "calculatedPercentile": 85,
     "classification": "Rover",
     "date": 2023-07-05T00:00:00.000Z,
-    "percentile": undefined,
+    "percentile": 99,
   },
 ]
 `;

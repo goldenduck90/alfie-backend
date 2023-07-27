@@ -1,6 +1,6 @@
 // Jest Snapshot v1, https://goo.gl/fbAQLP
 
-exports[`Score calculation Should score AD_LIBITUM high percentile correctly 1`] = `
+exports[`Score calculation AD_LIBITUM high percentile 1`] = `
 {
   "calculatedPercentile": 84,
   "date": 2023-01-01T00:00:00.000Z,
@@ -12,7 +12,7 @@ exports[`Score calculation Should score AD_LIBITUM high percentile correctly 1`]
 }
 `;
 
-exports[`Score calculation Should score AD_LIBITUM high percentile correctly 2`] = `
+exports[`Score calculation AD_LIBITUM high percentile 2`] = `
 {
   "calculatedPercentile": 84,
   "date": 2023-01-01T00:00:00.000Z,
@@ -26,7 +26,7 @@ exports[`Score calculation Should score AD_LIBITUM high percentile correctly 2`]
 }
 `;
 
-exports[`Score calculation Should score AD_LIBITUM highest percentile correctly 1`] = `
+exports[`Score calculation AD_LIBITUM highest percentile 1`] = `
 {
   "calculatedPercentile": 95,
   "date": 2023-01-01T00:00:00.000Z,
@@ -38,7 +38,7 @@ exports[`Score calculation Should score AD_LIBITUM highest percentile correctly 
 }
 `;
 
-exports[`Score calculation Should score AD_LIBITUM highest percentile correctly 2`] = `
+exports[`Score calculation AD_LIBITUM highest percentile 2`] = `
 {
   "calculatedPercentile": 95,
   "date": 2023-01-01T00:00:00.000Z,
@@ -52,7 +52,7 @@ exports[`Score calculation Should score AD_LIBITUM highest percentile correctly 
 }
 `;
 
-exports[`Score calculation Should score AD_LIBITUM low percentile correctly 1`] = `
+exports[`Score calculation AD_LIBITUM low percentile 1`] = `
 {
   "calculatedPercentile": 36,
   "date": 2023-01-01T00:00:00.000Z,
@@ -64,7 +64,7 @@ exports[`Score calculation Should score AD_LIBITUM low percentile correctly 1`] 
 }
 `;
 
-exports[`Score calculation Should score AD_LIBITUM low percentile correctly 2`] = `
+exports[`Score calculation AD_LIBITUM low percentile 2`] = `
 {
   "calculatedPercentile": 36,
   "date": 2023-01-01T00:00:00.000Z,
@@ -78,7 +78,7 @@ exports[`Score calculation Should score AD_LIBITUM low percentile correctly 2`] 
 }
 `;
 
-exports[`Score calculation Should score AD_LIBITUM lowest percentile correctly 1`] = `
+exports[`Score calculation AD_LIBITUM lowest percentile 1`] = `
 {
   "calculatedPercentile": 14,
   "date": 2023-01-01T00:00:00.000Z,
@@ -90,7 +90,7 @@ exports[`Score calculation Should score AD_LIBITUM lowest percentile correctly 1
 }
 `;
 
-exports[`Score calculation Should score AD_LIBITUM lowest percentile correctly 2`] = `
+exports[`Score calculation AD_LIBITUM lowest percentile 2`] = `
 {
   "calculatedPercentile": 14,
   "date": 2023-01-01T00:00:00.000Z,
@@ -104,7 +104,7 @@ exports[`Score calculation Should score AD_LIBITUM lowest percentile correctly 2
 }
 `;
 
-exports[`Score calculation Should score AD_LIBITUM mid percentile correctly 1`] = `
+exports[`Score calculation AD_LIBITUM mid percentile 1`] = `
 {
   "calculatedPercentile": 49,
   "date": 2023-01-01T00:00:00.000Z,
@@ -116,7 +116,7 @@ exports[`Score calculation Should score AD_LIBITUM mid percentile correctly 1`] 
 }
 `;
 
-exports[`Score calculation Should score AD_LIBITUM mid percentile correctly 2`] = `
+exports[`Score calculation AD_LIBITUM mid percentile 2`] = `
 {
   "calculatedPercentile": 49,
   "date": 2023-01-01T00:00:00.000Z,
@@ -130,33 +130,7 @@ exports[`Score calculation Should score AD_LIBITUM mid percentile correctly 2`] 
 }
 `;
 
-exports[`Score calculation Should score AD_LIBITUM mid-high percentile 2 correctly 1`] = `
-{
-  "calculatedPercentile": 75,
-  "date": 2023-01-01T00:00:00.000Z,
-  "latest": "1001",
-  "message": "Current calories consumed is: 1001",
-  "percentile": 75,
-  "score": 1001,
-  "task": "AD_LIBITUM",
-}
-`;
-
-exports[`Score calculation Should score AD_LIBITUM mid-high percentile 2 correctly 2`] = `
-{
-  "calculatedPercentile": 75,
-  "date": 2023-01-01T00:00:00.000Z,
-  "increased": false,
-  "latest": "1001",
-  "message": "Your calories have decreased by 23%",
-  "percentDifference": 23,
-  "percentile": 75,
-  "score": 23,
-  "task": "AD_LIBITUM",
-}
-`;
-
-exports[`Score calculation Should score AD_LIBITUM mid-high percentile correctly 1`] = `
+exports[`Score calculation AD_LIBITUM mid-high percentile 1`] = `
 {
   "calculatedPercentile": 63,
   "date": 2023-01-01T00:00:00.000Z,
@@ -168,7 +142,7 @@ exports[`Score calculation Should score AD_LIBITUM mid-high percentile correctly
 }
 `;
 
-exports[`Score calculation Should score AD_LIBITUM mid-high percentile correctly 2`] = `
+exports[`Score calculation AD_LIBITUM mid-high percentile 2`] = `
 {
   "calculatedPercentile": 63,
   "date": 2023-01-01T00:00:00.000Z,
@@ -182,7 +156,33 @@ exports[`Score calculation Should score AD_LIBITUM mid-high percentile correctly
 }
 `;
 
-exports[`Score calculation Should score MP_ACTIVITY high percentile correctly 1`] = `
+exports[`Score calculation AD_LIBITUM mid-high percentile 2 1`] = `
+{
+  "calculatedPercentile": 75,
+  "date": 2023-01-01T00:00:00.000Z,
+  "latest": "1001",
+  "message": "Current calories consumed is: 1001",
+  "percentile": 75,
+  "score": 1001,
+  "task": "AD_LIBITUM",
+}
+`;
+
+exports[`Score calculation AD_LIBITUM mid-high percentile 2 2`] = `
+{
+  "calculatedPercentile": 75,
+  "date": 2023-01-01T00:00:00.000Z,
+  "increased": false,
+  "latest": "1001",
+  "message": "Your calories have decreased by 23%",
+  "percentDifference": 23,
+  "percentile": 75,
+  "score": 23,
+  "task": "AD_LIBITUM",
+}
+`;
+
+exports[`Score calculation MP_ACTIVITY high percentile 1`] = `
 {
   "calculatedPercentile": 81,
   "date": 2023-01-01T00:00:00.000Z,
@@ -193,7 +193,7 @@ exports[`Score calculation Should score MP_ACTIVITY high percentile correctly 1`
 }
 `;
 
-exports[`Score calculation Should score MP_ACTIVITY high percentile correctly 2`] = `
+exports[`Score calculation MP_ACTIVITY high percentile 2`] = `
 {
   "calculatedPercentile": 81,
   "date": 2023-01-01T00:00:00.000Z,
@@ -207,7 +207,7 @@ exports[`Score calculation Should score MP_ACTIVITY high percentile correctly 2`
 }
 `;
 
-exports[`Score calculation Should score MP_ACTIVITY highest percentile correctly 1`] = `
+exports[`Score calculation MP_ACTIVITY highest percentile 1`] = `
 {
   "calculatedPercentile": 96,
   "date": 2023-01-01T00:00:00.000Z,
@@ -218,7 +218,7 @@ exports[`Score calculation Should score MP_ACTIVITY highest percentile correctly
 }
 `;
 
-exports[`Score calculation Should score MP_ACTIVITY highest percentile correctly 2`] = `
+exports[`Score calculation MP_ACTIVITY highest percentile 2`] = `
 {
   "calculatedPercentile": 96,
   "date": 2023-01-01T00:00:00.000Z,
@@ -232,7 +232,7 @@ exports[`Score calculation Should score MP_ACTIVITY highest percentile correctly
 }
 `;
 
-exports[`Score calculation Should score MP_ACTIVITY low percentile correctly 1`] = `
+exports[`Score calculation MP_ACTIVITY low percentile 1`] = `
 {
   "calculatedPercentile": 18,
   "date": 2023-01-01T00:00:00.000Z,
@@ -243,7 +243,7 @@ exports[`Score calculation Should score MP_ACTIVITY low percentile correctly 1`]
 }
 `;
 
-exports[`Score calculation Should score MP_ACTIVITY low percentile correctly 2`] = `
+exports[`Score calculation MP_ACTIVITY low percentile 2`] = `
 {
   "calculatedPercentile": 18,
   "date": 2023-01-01T00:00:00.000Z,
@@ -257,7 +257,7 @@ exports[`Score calculation Should score MP_ACTIVITY low percentile correctly 2`]
 }
 `;
 
-exports[`Score calculation Should score MP_ACTIVITY mid percentile correctly 1`] = `
+exports[`Score calculation MP_ACTIVITY mid percentile 1`] = `
 {
   "calculatedPercentile": 22,
   "date": 2023-01-01T00:00:00.000Z,
@@ -268,7 +268,7 @@ exports[`Score calculation Should score MP_ACTIVITY mid percentile correctly 1`]
 }
 `;
 
-exports[`Score calculation Should score MP_ACTIVITY mid percentile correctly 2`] = `
+exports[`Score calculation MP_ACTIVITY mid percentile 2`] = `
 {
   "calculatedPercentile": 22,
   "date": 2023-01-01T00:00:00.000Z,
@@ -282,7 +282,7 @@ exports[`Score calculation Should score MP_ACTIVITY mid percentile correctly 2`]
 }
 `;
 
-exports[`Score calculation Should score MP_FEELING high percentile correctly 1`] = `
+exports[`Score calculation MP_FEELING high percentile 1`] = `
 {
   "calculatedPercentile": 99,
   "date": 2023-01-01T00:00:00.000Z,
@@ -293,7 +293,7 @@ exports[`Score calculation Should score MP_FEELING high percentile correctly 1`]
 }
 `;
 
-exports[`Score calculation Should score MP_FEELING high percentile correctly 2`] = `
+exports[`Score calculation MP_FEELING high percentile 2`] = `
 {
   "calculatedPercentile": 99,
   "date": 2023-01-01T00:00:00.000Z,
@@ -307,7 +307,7 @@ exports[`Score calculation Should score MP_FEELING high percentile correctly 2`]
 }
 `;
 
-exports[`Score calculation Should score MP_FEELING low percentile correctly 1`] = `
+exports[`Score calculation MP_FEELING low percentile 1`] = `
 {
   "calculatedPercentile": 10,
   "date": 2023-01-01T00:00:00.000Z,
@@ -318,7 +318,7 @@ exports[`Score calculation Should score MP_FEELING low percentile correctly 1`] 
 }
 `;
 
-exports[`Score calculation Should score MP_FEELING low percentile correctly 2`] = `
+exports[`Score calculation MP_FEELING low percentile 2`] = `
 {
   "calculatedPercentile": 10,
   "date": 2023-01-01T00:00:00.000Z,
@@ -332,7 +332,7 @@ exports[`Score calculation Should score MP_FEELING low percentile correctly 2`] 
 }
 `;
 
-exports[`Score calculation Should score MP_FEELING mid percentile correctly 1`] = `
+exports[`Score calculation MP_FEELING mid percentile 1`] = `
 {
   "calculatedPercentile": 97,
   "date": 2023-01-01T00:00:00.000Z,
@@ -343,7 +343,7 @@ exports[`Score calculation Should score MP_FEELING mid percentile correctly 1`] 
 }
 `;
 
-exports[`Score calculation Should score MP_FEELING mid percentile correctly 2`] = `
+exports[`Score calculation MP_FEELING mid percentile 2`] = `
 {
   "calculatedPercentile": 97,
   "date": 2023-01-01T00:00:00.000Z,
@@ -357,21 +357,23 @@ exports[`Score calculation Should score MP_FEELING mid percentile correctly 2`] 
 }
 `;
 
-exports[`Score calculation Should score MP_HUNGER high hunger level, less hungry correctly 1`] = `
+exports[`Score calculation MP_HUNGER high hunger level, less hungry 1`] = `
 {
   "calculatedPercentile": 71,
   "calculatedPercentile1Hour": 71,
   "calculatedPercentile30Minutes": 82,
   "date": 2023-01-01T00:00:00.000Z,
   "latest": "80",
+  "percentile": 71,
   "percentile1Hour": 71,
   "percentile30Minutes": 82,
   "task": "MP_HUNGER",
 }
 `;
 
-exports[`Score calculation Should score MP_HUNGER high hunger level, less hungry correctly 2`] = `
+exports[`Score calculation MP_HUNGER high hunger level, less hungry 2`] = `
 {
+  "calculatedPercentile": 71,
   "calculatedPercentile1Hour": 71,
   "calculatedPercentile30Minutes": 82,
   "date": 2023-01-01T00:00:00.000Z,
@@ -381,27 +383,30 @@ exports[`Score calculation Should score MP_HUNGER high hunger level, less hungry
   "message": "Your hunger level has increased by 14% for 2 hours and decreased by 10% for 30 minutes and you scored within the 71st percentile for 2 hours and 82nd percentile for 30 minutes",
   "percentDifference1Hour": 14,
   "percentDifference30Minutes": 10,
+  "percentile": 71,
   "percentile1Hour": 71,
   "percentile30Minutes": 82,
   "task": "MP_HUNGER",
 }
 `;
 
-exports[`Score calculation Should score MP_HUNGER high hunger level, more hungry correctly 1`] = `
+exports[`Score calculation MP_HUNGER high hunger level, more hungry 1`] = `
 {
   "calculatedPercentile": 82,
   "calculatedPercentile1Hour": 82,
   "calculatedPercentile30Minutes": 71,
   "date": 2023-01-01T00:00:00.000Z,
   "latest": "90",
+  "percentile": 82,
   "percentile1Hour": 82,
   "percentile30Minutes": 71,
   "task": "MP_HUNGER",
 }
 `;
 
-exports[`Score calculation Should score MP_HUNGER high hunger level, more hungry correctly 2`] = `
+exports[`Score calculation MP_HUNGER high hunger level, more hungry 2`] = `
 {
+  "calculatedPercentile": 82,
   "calculatedPercentile1Hour": 82,
   "calculatedPercentile30Minutes": 71,
   "date": 2023-01-01T00:00:00.000Z,
@@ -411,27 +416,30 @@ exports[`Score calculation Should score MP_HUNGER high hunger level, more hungry
   "message": "Your hunger level has increased by 12% for 2 hours and increased by 14% for 30 minutes and you scored within the 82nd percentile for 2 hours and 71st percentile for 30 minutes",
   "percentDifference1Hour": 12,
   "percentDifference30Minutes": 14,
+  "percentile": 82,
   "percentile1Hour": 82,
   "percentile30Minutes": 71,
   "task": "MP_HUNGER",
 }
 `;
 
-exports[`Score calculation Should score MP_HUNGER low hunger level, less hungry correctly 1`] = `
+exports[`Score calculation MP_HUNGER low hunger level, less hungry 1`] = `
 {
   "calculatedPercentile": 4,
   "calculatedPercentile1Hour": 4,
   "calculatedPercentile30Minutes": 11,
   "date": 2023-01-01T00:00:00.000Z,
   "latest": "15",
+  "percentile": 4,
   "percentile1Hour": 4,
   "percentile30Minutes": 11,
   "task": "MP_HUNGER",
 }
 `;
 
-exports[`Score calculation Should score MP_HUNGER low hunger level, less hungry correctly 2`] = `
+exports[`Score calculation MP_HUNGER low hunger level, less hungry 2`] = `
 {
+  "calculatedPercentile": 4,
   "calculatedPercentile1Hour": 4,
   "calculatedPercentile30Minutes": 11,
   "date": 2023-01-01T00:00:00.000Z,
@@ -441,27 +449,30 @@ exports[`Score calculation Should score MP_HUNGER low hunger level, less hungry 
   "message": "Your hunger level has decreased by 25% for 2 hours and decreased by 25% for 30 minutes and you scored within the 4th percentile for 2 hours and 11st percentile for 30 minutes",
   "percentDifference1Hour": 25,
   "percentDifference30Minutes": 25,
+  "percentile": 4,
   "percentile1Hour": 4,
   "percentile30Minutes": 11,
   "task": "MP_HUNGER",
 }
 `;
 
-exports[`Score calculation Should score MP_HUNGER low hunger level, more hungry correctly 1`] = `
+exports[`Score calculation MP_HUNGER low hunger level, more hungry 1`] = `
 {
   "calculatedPercentile": 11,
   "calculatedPercentile1Hour": 11,
   "calculatedPercentile30Minutes": 4,
   "date": 2023-01-01T00:00:00.000Z,
   "latest": "30",
+  "percentile": 11,
   "percentile1Hour": 11,
   "percentile30Minutes": 4,
   "task": "MP_HUNGER",
 }
 `;
 
-exports[`Score calculation Should score MP_HUNGER low hunger level, more hungry correctly 2`] = `
+exports[`Score calculation MP_HUNGER low hunger level, more hungry 2`] = `
 {
+  "calculatedPercentile": 11,
   "calculatedPercentile1Hour": 11,
   "calculatedPercentile30Minutes": 4,
   "date": 2023-01-01T00:00:00.000Z,
@@ -471,6 +482,7 @@ exports[`Score calculation Should score MP_HUNGER low hunger level, more hungry 
   "message": "Your hunger level has increased by 7% for 2 hours and increased by 50% for 30 minutes and you scored within the 11st percentile for 2 hours and 4th percentile for 30 minutes",
   "percentDifference1Hour": 7,
   "percentDifference30Minutes": 50,
+  "percentile": 11,
   "percentile1Hour": 11,
   "percentile30Minutes": 4,
   "task": "MP_HUNGER",

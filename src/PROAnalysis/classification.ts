@@ -5,6 +5,7 @@ import {
 } from "../schema/user.schema"
 import { TaskType } from "../schema/task.schema"
 import { calculateSetting, calculateSettings } from "../utils/calculateSetting"
+import classificationCriteria from "./classificationsConfig.json"
 
 /**
  * Given this array of objects we need to classify a patient as each of the following and their percentile for each classification:
@@ -39,15 +40,10 @@ export function classifyUser(scores: Score[]): Classification[] {
       case TaskType.MP_ACTIVITY:
       case TaskType.AD_LIBITUM:
       case TaskType.MP_FEELING: {
-        const { classificationType, inverse } =
-          calculateSetting<{
-            classificationType: ClassificationType
-            inverse: boolean
-          }>(
-            classificationCriteria,
-            ["classificationType", "inverse"],
-            score
-          )
+        const { classificationType, inverse } = calculateSetting<{
+          classificationType: ClassificationType
+          inverse: boolean
+        }>(classificationCriteria, ["classificationType", "inverse"], score)
 
         if (classificationType) {
           classifications.push({
@@ -58,29 +54,40 @@ export function classifyUser(scores: Score[]): Classification[] {
               : score.percentile,
             calculatedPercentile: inverse
               ? inversePercentile(score.calculatedPercentile)
-              : score.calculatedPercentile
+              : score.calculatedPercentile,
           })
         }
         break
       }
       case TaskType.MP_HUNGER: {
-        const { classificationType, inverse } =
-          calculateSettings<{
-            classificationType: ClassificationType[]
-            inverse: boolean[]
-          }>(
-            classificationCriteria,
-            ["classificationType", "inverse"],
-            score
-          )
+        const { classificationType, inverse, field } = calculateSettings<{
+          classificationType: ClassificationType[]
+          inverse: boolean[]
+          field: ("1Hour" | "30Minutes")[]
+        }>(
+          classificationCriteria,
+          ["classificationType", "inverse", "field"],
+          score
+        )
 
-        const hungerClassifications: Classification[] =
-          classificationType.map((classification, index) => ({
-            classification,
-            date: score.date,
-            percentile: inverse[index] ? inversePercentile(score.percentile) : score.percentile,
-            calculatedPercentile: inverse[index] ? inversePercentile(score.calculatedPercentile) : score.calculatedPercentile,
-          }))
+        const hungerClassifications: Classification[] = classificationType.map(
+          (classification, index) => {
+            const f: "1Hour" | "30Minutes" = field[index]
+            const calculatedPercentile = score[`calculatedPercentile${f}`]
+            const percentile = (score as any)[`percentile${f}`]
+
+            return {
+              classification,
+              date: score.date,
+              percentile: inverse[index]
+                ? inversePercentile(percentile)
+                : percentile,
+              calculatedPercentile: inverse[index]
+                ? inversePercentile(calculatedPercentile)
+                : calculatedPercentile,
+            }
+          }
+        )
 
         classifications.push(...hungerClassifications)
         break
@@ -97,8 +104,8 @@ export function classifyUser(scores: Score[]): Classification[] {
  * Returns the inverse of a percentile. For example, the inverse of 80 is 20, or `100 - p`.
  * Returns the percentile in the same type passed, string or number.
  */
-function inversePercentile(percentile: string): string;
-function inversePercentile(percentile: number): number;
+function inversePercentile(percentile: string): string
+function inversePercentile(percentile: number): number
 function inversePercentile(percentile: string | number): string | number {
   if (typeof percentile === "string") {
     return `${Math.min(99, 100 - parseInt(percentile))}`
@@ -108,39 +115,3 @@ function inversePercentile(percentile: string | number): string | number {
     return percentile
   }
 }
-
-export const classificationCriteria = [
-  {
-    vars: { classificationType: ClassificationType.Empath, inverse: false },
-    conditions: [{
-      task: TaskType.MP_FEELING,
-      calculatedPercentile: { range: [75, 100] },
-    }],
-  },
-  {
-    vars: { classificationType: ClassificationType.Ember, inverse: true },
-    conditions: [{
-      task: TaskType.MP_ACTIVITY,
-      calculatedPercentile: { range: [0, 25] },
-    }],
-  },
-  {
-    vars: { classificationType: ClassificationType.Growler, inverse: true },
-    conditions: [{
-      task: TaskType.MP_HUNGER,
-      calculatedPercentile1Hour: { range: [0, 25] },
-    }],
-  },
-  {
-    vars: { classificationType: ClassificationType.Rover, inverse: true },
-    conditions: [
-      { task: TaskType.MP_HUNGER, calculatedPercentile30Minutes: { range: [0, 25] } },
-    ],
-  },
-  {
-    vars: { test: 10, classificationType: ClassificationType.Rover, inverse: false },
-    conditions: [
-      { task: TaskType.AD_LIBITUM, calculatedPercentile: { range: [75, 100] } },
-    ],
-  }
-]

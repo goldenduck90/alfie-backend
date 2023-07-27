@@ -135,20 +135,20 @@ export class Insurance {
   groupId: string
 
   @Field(() => String)
-  @prop({ required: true })
-  groupName: string
+  @prop()
+  groupName?: string
 
   @Field(() => String)
-  @prop({ required: true })
-  rxBIN: string
+  @prop()
+  rxBIN?: string
 
   @Field(() => String)
-  @prop({ required: true })
-  rxPCN: string
+  @prop()
+  rxPCN?: string
 
   @Field(() => String)
-  @prop({ required: true })
-  rxGroup: string
+  @prop()
+  rxGroup?: string
 }
 
 @ObjectType()
@@ -322,26 +322,11 @@ export class Classification {
   @prop({ required: false })
   calculatedPercentile?: number
 
-  @Field(() => Float, { nullable: true })
-  @prop({ required: false })
-  calculated1hourPercent?: number
-
-  @Field(() => Float, { nullable: true })
-  @prop({ required: false })
-  calculated30minsPercent?: number
-
-  @Field(() => Float, { nullable: true })
-  @prop({ required: false })
-  calculatedPercentile30Mins?: number
-
-  @Field(() => Float, { nullable: true })
-  @prop({ required: false })
-  calculatedPercentile2Hours?: number
-
   @Field(() => Date)
   @prop({ required: true })
   date: Date
 }
+
 @ObjectType()
 @InputType("FileMetadataInput")
 export class FileMetadata {

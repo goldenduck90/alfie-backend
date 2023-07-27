@@ -1,4 +1,8 @@
-import { SettingsList, calculateSetting, calculateSettings } from "../calculateSetting"
+import {
+  SettingsList,
+  calculateSetting,
+  calculateSettings,
+} from "../calculateSetting"
 
 describe("calculateSetting util", () => {
   describe("calculateSetting (resolves to first matching var)", () => {
@@ -11,7 +15,7 @@ describe("calculateSetting util", () => {
           },
           {
             vars: { example: 10, example2: 50 },
-            conditions: [{ param1: 5, param2: 12 }]
+            conditions: [{ param1: 5, param2: 12 }],
           },
         ],
         ["example", "example3"],
@@ -34,23 +38,18 @@ describe("calculateSetting util", () => {
           conditions: [
             { param1: [2, 4, 5], param2: { range: [8, 25] } },
             { param1: (v: number) => v % 10 === 3 },
-          ]
-        }
+          ],
+        },
       ]
 
-      const result = calculateSetting(
-        settings,
-        ["example1"],
-        { param1: 3 }
-      )
+      const result = calculateSetting(settings, ["example1"], { param1: 3 })
       // the function condition for param1 should return true
       expect(result.example1).toBe(10)
-      
-      const result2 = calculateSetting(
-        settings,
-        ["example1"],
-        { param1: 5, param2: 25 }
-      )
+
+      const result2 = calculateSetting(settings, ["example1"], {
+        param1: 5,
+        param2: 25,
+      })
       // both of the fields in the first condition should pass
       expect(result2.example1).toBe(10)
     })
@@ -78,12 +77,10 @@ describe("calculateSetting util", () => {
       ]
 
       // typed examples
-      const result =
-        calculateSettings<{ example1: number[], example2: number[] }>(
-          settings,
-          ["example1", "example2"],
-          { param1: 3, param2: 4 }
-        )
+      const result = calculateSettings<{
+        example1: number[]
+        example2: number[]
+      }>(settings, ["example1", "example2"], { param1: 3, param2: 4 })
 
       expect(result.example1).toBeDefined()
       expect(result.example1).toHaveLength(3)

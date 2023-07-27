@@ -1,16 +1,23 @@
 import { calculateScore, sumAnswersByMap } from ".."
 import AnswerType from "../../schema/enums/AnswerType"
-import { TaskModel, TaskType } from "../../schema/task.schema"
+import { Task, TaskModel, TaskType } from "../../schema/task.schema"
 import { UserAnswerTypes, UserTask } from "../../schema/task.user.schema"
 import { repeat } from "../../utils/collections"
-import { connectToMongo, disconnect } from "../../utils/mongo"
+import { connectToMongo, disconnect } from "../../utils/tests/mongo"
 import { range } from "../../utils/statistics"
 import { distributions } from "../distributions"
 import { mpFeelingQuestions } from "../questions"
+import { initializeCollection } from "../../database/initializeCollection"
+import tasksData from "../../database/data/tasks.json"
 
 describe("Score calculation", () => {
+  beforeAll(async () => {
+    await connectToMongo()
+    await initializeCollection<Task>(TaskModel, tasksData, (task) =>
+      String(task.type)
+    )
+  }, 30e3)
 
-  beforeAll(() => connectToMongo())
   afterAll(() => disconnect())
 
   const answerSets = [
@@ -153,7 +160,7 @@ describe("Score calculation", () => {
                   ? Object.keys(questionsMap[question.key])[entries[index]]
                   : entries[index],
             } as UserAnswerTypes)
-          )
+        )
 
       userTask.answers = formatAnswers(answers)
       previousUserTask.answers = formatAnswers(previousAnswers)

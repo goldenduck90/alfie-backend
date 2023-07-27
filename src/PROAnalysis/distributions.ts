@@ -1,6 +1,6 @@
 import { TaskType } from "../schema/task.schema"
-import { NormalDistribution } from "../utils/statistics"
-import config from "./distributions.json"
+import { NormalDistribution } from "../utils/NormalDistribution"
+import config from "./distributionsConfig.json"
 
 // Import distributions.json into NormalDistributions
 // mapped by task type and calculated/display intent.
@@ -10,8 +10,7 @@ const dist: Record<string, Record<string, NormalDistribution>> = {}
 
 taskTypes.forEach((taskType) => {
   dist[taskType] = {} as any
-
-  ["calculated", "display"].forEach((category) => {
+  ;["calculated", "display"].forEach((category) => {
     const params = (config as any)[taskType][category]
     dist[taskType][category] = new NormalDistribution(
       params.mean,
@@ -20,4 +19,7 @@ taskTypes.forEach((taskType) => {
   })
 })
 
-export const distributions: Record<TaskType, Record<"calculated" | "display", NormalDistribution>> = dist as any
+export const distributions: Record<
+  TaskType,
+  Record<"calculated" | "display", NormalDistribution>
+> = dist as any
