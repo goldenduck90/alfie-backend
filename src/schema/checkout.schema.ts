@@ -15,10 +15,10 @@ import {
   Address,
   Gender,
   User,
-  Partner,
   InsurancePlan,
   InsuranceType,
 } from "./user.schema"
+import { SignupPartner, SignupPartnerProvider } from "./partner.schema"
 
 const { email: emailValidation, phone: phoneValidation } = config.get(
   "validations"
@@ -161,9 +161,13 @@ export class Checkout {
   @prop({ enum: InsuranceType, type: String, required: false })
   insuranceType?: InsuranceType
 
-  @Field(() => Partner, { nullable: true })
-  @prop({ enum: Partner, type: String, required: false })
-  signupPartner?: Partner
+  @Field(() => SignupPartner, { nullable: true })
+  @prop({ ref: () => SignupPartner, required: false })
+  signupPartner?: Ref<SignupPartner>
+
+  @Field(() => SignupPartnerProvider, { nullable: true })
+  @prop({ ref: () => SignupPartnerProvider, required: false })
+  signupPartnerProvider?: Ref<SignupPartnerProvider>
 
   @Field(() => String, { nullable: true })
   @prop({ type: String, required: false })
@@ -220,8 +224,11 @@ export class CreateCheckoutInput {
   @Field(() => InsuranceType, { nullable: true })
   insuranceType?: InsuranceType
 
-  @Field(() => Partner, { nullable: true })
-  signupPartner?: Partner
+  @Field(() => String, { nullable: true })
+  signupPartnerId?: string
+
+  @Field(() => String, { nullable: true })
+  signupPartnerProviderId?: string
 
   @Field(() => String, { nullable: true })
   referrer?: string

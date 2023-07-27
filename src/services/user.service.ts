@@ -48,7 +48,6 @@ import {
   File,
   User,
   FileType,
-  Partner,
   InsuranceEligibilityResponse,
   Insurance,
 } from "../schema/user.schema"
@@ -69,10 +68,12 @@ import TaskService from "./task.service"
 import SmsService from "./sms.service"
 import CandidService from "./candid.service"
 import WithingsService from "./withings.service"
+import FaxService from "./fax.service"
 import axios from "axios"
 import { analyzeS3InsuranceCardImage } from "../utils/textract"
 import AnswerType from "../schema/enums/AnswerType"
 import { client } from "../utils/posthog"
+import { SignupPartnerProviderModel } from "../schema/partner.schema"
 import { captureException, captureEvent } from "../utils/sentry"
 import lookupCPID from "../utils/lookupCPID"
 import extractInsurance from "../utils/extractInsurance"
@@ -105,6 +106,7 @@ class UserService extends EmailService {
   private emailService: EmailService
   private candidService: CandidService
   private withingsService: WithingsService
+  private faxService: FaxService
   public awsDynamo: AWS.DynamoDB
   private stripeSdk: stripe
 
@@ -119,6 +121,7 @@ class UserService extends EmailService {
     this.emailService = new EmailService()
     this.candidService = new CandidService()
     this.withingsService = new WithingsService()
+    this.faxService = new FaxService()
 
     this.awsDynamo = new AWS.DynamoDB({
       accessKeyId: process.env.AWS_ACCESS_KEY_ID,
@@ -166,8 +169,8 @@ class UserService extends EmailService {
 
     // send email with link to set password
     let sent
-    if (user.signupPartner === Partner.OPTAVIA) {
-      //TODO: Send OPTAVIA specific registration email, use the same email for now
+    if (user.signupPartner) {
+      //TODO: Send partner specific registration email, use the same email for now
       sent = await this.sendRegistrationEmailTemplate({
         email: user.email,
         token: emailToken,
@@ -192,6 +195,8 @@ class UserService extends EmailService {
   }
 
   async createUser(input: CreateUserInput, manual = false) {
+    input.email = input.email.toLowerCase()
+
     console.log("create user", JSON.stringify(input))
     const { alreadyExists, unknownError, emailSendError } = config.get(
       "errors.createUser"
@@ -204,6 +209,7 @@ class UserService extends EmailService {
         ? "messages.userCreatedManually"
         : "messages.userCreatedViaCheckout"
     ) as any
+
     const {
       name,
       email,
@@ -222,7 +228,8 @@ class UserService extends EmailService {
       textOptIn,
       insurancePlan,
       insuranceType,
-      signupPartner,
+      signupPartnerId,
+      signupPartnerProviderId,
     } = input
 
     const existingUser = await UserModel.find().findByEmail(email)
@@ -323,7 +330,8 @@ class UserService extends EmailService {
       textOptIn,
       insurancePlan,
       insuranceType,
-      signupPartner,
+      signupPartner: signupPartnerId,
+      signupPartnerProvider: signupPartnerProviderId,
     })
     if (!user) {
       throw new ApolloError(unknownError.message, unknownError.code)
@@ -411,7 +419,8 @@ class UserService extends EmailService {
       })
     }
 
-    // Create withings dropshipping order
+    // Create withings dropshipping order and send email to patients@joinalfie.com
+    let status
     try {
       const withingsAddress = {
         name,
@@ -425,14 +434,66 @@ class UserService extends EmailService {
         state: address.state,
         country: "US",
       }
-      const res = await this.withingsService.createOrder(
+      const order = await this.withingsService.createOrder(
         user.id,
         withingsAddress
       )
-      console.log(res)
+      status = `${order.status}(Order id: ${order.order_id})`
+      const message = `[WITHINGS][TIME: ${new Date().toString()}] ${name}(${email})`
+      console.log(message)
+      Sentry.captureEvent({
+        message,
+        level: "info",
+      })
     } catch (err) {
-      console.log(err)
+      status = `${err.message}`
+      const message = `[WITHINGS][TIME: ${new Date().toString()}] ${status}`
+      console.log(message)
+      Sentry.captureEvent({
+        message,
+        level: "error",
+      })
     }
+
+    if (signupPartnerProviderId) {
+      const signupPartnerProvider = await SignupPartnerProviderModel.findById(
+        signupPartnerProviderId
+      )
+      if (signupPartnerProvider.faxNumber) {
+        // send fax
+        const text = `
+        Subject: Patient Referred to Alfie Health
+
+        Hello,
+        We have received a referal to Alfie Health for the following patient:
+        ${name}
+        ${dateOfBirth}
+
+        Our records show this patient was referred by:
+        ${signupPartnerProvider.title}
+        ${signupPartnerProvider.npi}
+        ${signupPartnerProvider.address}, ${signupPartnerProvider.city}, ${signupPartnerProvider.state} ${signupPartnerProvider.zipCode}
+        
+        Please reach out to us with any questions.
+      `
+
+        const payload = {
+          faxNumber: signupPartnerProvider.faxNumber,
+          pdfBuffer: new TextEncoder().encode(text),
+        }
+        this.faxService.sendFax(payload)
+      }
+    }
+
+    const subject = "Withings Order Status"
+    const text = `
+      Name: ${name}
+      Email: ${email}
+      Phone Number: ${phone}
+      Address: ${address.line1} ${address.line2}, ${address.city}, ${address.postalCode} ${address.state}
+      Status: ${status}
+    `
+    await this.emailService.sendEmail(subject, text, ["patients@joinalfie.com"])
 
     console.log(`USER CREATED: ${user._id}`)
 
@@ -443,6 +504,8 @@ class UserService extends EmailService {
   }
 
   async subscribeEmail(input: SubscribeEmailInput) {
+    input.email = input.email.toLowerCase()
+
     const { email, fullName, location, waitlist, currentMember } = input
     const { unknownError } = config.get("errors.subscribeEmail") as any
     const waitlistMessage = config.get("messages.subscribeEmail")
@@ -522,6 +585,8 @@ class UserService extends EmailService {
   }
 
   async forgotPassword(input: ForgotPasswordInput) {
+    input.email = input.email.toLowerCase()
+
     const { email } = input
     const expirationInMinutes: number = config.get(
       "forgotPasswordExpirationInMinutes"
@@ -635,6 +700,8 @@ class UserService extends EmailService {
   }
 
   async login(input: LoginInput) {
+    input.email = input.email.toLowerCase()
+
     const { email, password, remember, noExpire } = input
     const { invalidCredentials, passwordNotCreated } = config.get(
       "errors.login"
@@ -1150,6 +1217,10 @@ class UserService extends EmailService {
         subscriptionExpiresAt: expiresAt,
         stripeSubscriptionId,
         textOptIn: checkout.textOptIn,
+        insurancePlan: checkout.insurancePlan,
+        insuranceType: checkout.insuranceType,
+        signupPartnerId: checkout.signupPartner.toString(),
+        signupPartnerProviderId: checkout.signupPartnerProvider.toString(),
       })
       checkout.user = newUser._id
       user = newUser
@@ -1167,6 +1238,7 @@ class UserService extends EmailService {
           checkoutId: checkout._id,
           userId: user._id,
           signupPartner: checkout.signupPartner || "None",
+          signupPartnerProvider: checkout.signupPartnerProvider || "None",
           insurancePay: checkout.insurancePlan ? true : false,
           environment: process.env.NODE_ENV,
         },
@@ -1301,6 +1373,8 @@ class UserService extends EmailService {
   }
 
   async createOrFindCheckout(input: CreateCheckoutInput) {
+    input.email = input.email.toLowerCase()
+
     try {
       const { checkoutFound, checkoutCreated } = config.get("messages") as any
       const { alreadyCheckedOut } = config.get("errors.checkout") as any
@@ -1320,7 +1394,8 @@ class UserService extends EmailService {
         weightLossMotivatorV2,
         insurancePlan,
         insuranceType,
-        signupPartner,
+        signupPartnerId,
+        signupPartnerProviderId,
         referrer,
       } = input
 
@@ -1347,7 +1422,8 @@ class UserService extends EmailService {
         checkout.pastTries = pastTries
         checkout.insurancePlan = insurancePlan
         checkout.insuranceType = insuranceType
-        checkout.signupPartner = signupPartner
+        checkout.signupPartner = signupPartnerId
+        checkout.signupPartnerProvider = signupPartnerProviderId
         checkout.referrer = referrer
 
         // update in db
@@ -1394,7 +1470,8 @@ class UserService extends EmailService {
         pastTries,
         insurancePlan,
         insuranceType,
-        signupPartner,
+        signupPartner: signupPartnerId,
+        signupPartnerProvider: signupPartnerProviderId,
         referrer,
       })
 
@@ -1406,6 +1483,7 @@ class UserService extends EmailService {
             referrer: newCheckout.referrer || "None",
             checkoutId: newCheckout._id,
             signupPartner: newCheckout.signupPartner || "None",
+            signupPartnerProvider: newCheckout.signupPartnerProvider || "None",
             insurancePay: newCheckout.insurancePlan ? true : false,
             environment: process.env.NODE_ENV,
           },
@@ -1739,6 +1817,43 @@ class UserService extends EmailService {
   }
 
   /**
+   * Complete withings scale connect task on device connected event
+   */
+  async processWithingsScaleConnected(metriportUserId: string) {
+    const user = await UserModel.findOne({ metriportUserId }).populate<{
+      provider: Provider
+    }>("provider")
+
+    if (!user) {
+      const message = `[METRIPORT][TIME: ${new Date().toString()}] User not found for metriport ID: ${metriportUserId}`
+      console.log(message)
+      Sentry.captureEvent({
+        message,
+        level: "warning",
+      })
+      return
+    }
+
+    user.hasScale = true
+    await user.save()
+
+    const task = await TaskModel.findOne({
+      type: TaskType.CONNECT_WITHINGS_SCALE,
+    })
+
+    const incompleteUserTask = await UserTaskModel.findOne({
+      user: user._id,
+      task: task._id,
+      completed: false,
+    })
+    if (incompleteUserTask) {
+      await this.taskService.completeUserTask({
+        _id: incompleteUserTask._id.toString(),
+      })
+    }
+  }
+
+  /**
    * Record a withings scale reading and process insurance.
    */
   async processWithingsScaleReading(
@@ -1757,26 +1872,6 @@ class UserService extends EmailService {
         level: "warning",
       })
       return
-    }
-
-    if (!user.hasScale) {
-      user.hasScale = true
-      await user.save()
-    }
-
-    const connectScaleTask = await TaskModel.findOne({
-      type: TaskType.CONNECT_WITHINGS_SCALE,
-    })
-
-    const incompleteConnectScaleUserTask = await UserTaskModel.findOne({
-      user: user._id,
-      task: connectScaleTask._id,
-      completed: false,
-    })
-    if (incompleteConnectScaleUserTask) {
-      await this.taskService.completeUserTask({
-        _id: incompleteConnectScaleUserTask._id.toString(),
-      })
     }
 
     const weightLogTask = await TaskModel.findOne({ type: TaskType.WEIGHT_LOG })
@@ -1808,7 +1903,7 @@ class UserService extends EmailService {
         message,
         level: "warning",
       })
-      throw new ApolloError(errorMessage)
+      return
     }
 
     const message = `[METRIPORT][TIME: ${new Date().toString()}] Successfully updated weight for user: ${

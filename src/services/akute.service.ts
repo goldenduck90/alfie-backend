@@ -128,6 +128,8 @@ class AkuteService {
   }
 
   async createPatient(input: CreatePatientInput) {
+    input.email = input.email.toLowerCase()
+
     const {
       firstName: first_name,
       lastName: last_name,
