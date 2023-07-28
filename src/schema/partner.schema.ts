@@ -1,6 +1,16 @@
-import { Field, ObjectType } from "type-graphql"
+import { Field, ObjectType, registerEnumType } from "type-graphql"
 import { getModelForClass, index, prop } from "@typegoose/typegoose"
 import { Ref } from "@typegoose/typegoose/lib/types"
+
+export enum FlowType {
+  SingleStep = "SingleStep",
+  MultiStep = "MultiStep",
+}
+
+registerEnumType(FlowType, {
+  name: "FlowType",
+  description: "Signup flow type whether single step or multi step",
+})
 
 @index({ title: 1 }, { unique: true })
 @ObjectType()
@@ -15,6 +25,13 @@ export class SignupPartner {
   @Field(() => String, { nullable: true })
   @prop({ required: false })
   logoUrl: string
+
+  @Field(() => FlowType)
+  @prop({
+    default: FlowType.SingleStep,
+    required: true,
+  })
+  flowType: FlowType
 }
 
 export const SignupPartnerModel = getModelForClass<typeof SignupPartner>(
