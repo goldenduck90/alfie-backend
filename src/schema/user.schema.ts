@@ -127,20 +127,20 @@ export class Insurance {
   groupId: string
 
   @Field(() => String)
-  @prop({ required: true })
-  groupName: string
+  @prop()
+  groupName?: string
 
   @Field(() => String)
-  @prop({ required: true })
-  rxBIN: string
+  @prop()
+  rxBIN?: string
 
   @Field(() => String)
-  @prop({ required: true })
-  rxPCN: string
+  @prop()
+  rxPCN?: string
 
   @Field(() => String)
-  @prop({ required: true })
-  rxGroup: string
+  @prop()
+  rxGroup?: string
 }
 
 @ObjectType()
