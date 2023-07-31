@@ -99,6 +99,10 @@ class ProviderService {
       created: result.upsertedCount,
     }
   }
+
+  async getProviderById(providerId: string) {
+    return ProviderModel.findById(providerId)
+  }
 }
 
 export default ProviderService

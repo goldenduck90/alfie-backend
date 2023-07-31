@@ -6,6 +6,7 @@ export enum Role {
   Nutritionist = "Nutritionist",
   CareCoordinator = "CareCoordinator",
   Admin = "Admin",
+  Internal = "Internal",
 }
 
 export default Role
