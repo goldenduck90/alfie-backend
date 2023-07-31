@@ -1,6 +1,5 @@
 import { Arg, Query, Resolver } from "type-graphql"
 import {
-  SignupPartner,
   SignupPartnerProvider,
   SingupPartnerResponse,
 } from "../schema/partner.schema"

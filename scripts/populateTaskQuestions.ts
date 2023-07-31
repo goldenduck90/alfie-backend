@@ -39,6 +39,7 @@ function taskQuestionsData(): Record<string, TaskQuestion[]> {
       { key: "hasSurgeries", type: AnswerType.BOOLEAN },
       { key: "surgicalHistory", type: AnswerType.STRING },
       { key: "hasRequiredLabs", type: AnswerType.BOOLEAN },
+      { key: "requiredLabs", type: AnswerType.ARRAY },
       { key: "weightLossAttemptTime", type: AnswerType.STRING },
       { key: "weightManagementMethods", type: AnswerType.ARRAY },
     ],
