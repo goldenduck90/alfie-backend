@@ -121,7 +121,7 @@ class InternalOperationsService {
         set: {
           name,
           dateOfBirth,
-          email,
+          email: email.toLowerCase(),
           phoneNumber,
           gender,
           address: {
@@ -162,7 +162,7 @@ class InternalOperationsService {
         set: {
           firstName,
           lastName,
-          email,
+          email: email.toLowerCase(),
           npi,
           licensedStates,
           providerCode,
@@ -180,7 +180,7 @@ class InternalOperationsService {
       const newProvider = await UserModel.create({
         firstName,
         lastName,
-        email,
+        email: email.toLowerCase(),
         npi,
         licensedStates,
         providerCode,
