@@ -1,5 +1,5 @@
 import { ApolloError } from "apollo-server-errors"
-import { Insurance, UserModel } from "./../schema/user.schema"
+import { Address, Insurance, UserModel } from "./../schema/user.schema"
 interface PatientReassignInput {
   patientId: string
   newProviderId: string
@@ -17,7 +17,7 @@ interface PatientModifyInput {
   email: string
   phoneNumber: string
   gender: string
-  address: string
+  address: Address
   city: string
   state: string
   zip: string
@@ -94,10 +94,7 @@ class InternalOperationsService {
         email,
         phoneNumber,
         gender,
-        address,
-        city,
-        state,
-        zip,
+        address: { line1, city, state, postalCode },
         insurance: {
           memberId,
           insuranceCompany,
@@ -117,9 +114,9 @@ class InternalOperationsService {
           phoneNumber,
           gender,
           address: {
-            line1: address,
-            state: state,
-            postalCode: zip,
+            line1,
+            state,
+            postalCode,
             city,
           },
           insurance: {
