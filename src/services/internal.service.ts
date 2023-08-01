@@ -18,9 +18,6 @@ interface PatientModifyInput {
   phoneNumber: string
   gender: string
   address: Address
-  city: string
-  state: string
-  zip: string
   insurance: Insurance
 }
 
