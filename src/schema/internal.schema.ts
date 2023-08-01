@@ -1,4 +1,5 @@
-import { ObjectType, Field, InputType } from "type-graphql"
+import { Insurance } from "./user.schema"
+import { Field, InputType } from "type-graphql"
 
 // Input Types
 @InputType()
@@ -52,15 +53,7 @@ export class PatientModifyInput {
   zip: string
 
   @Field()
-  insurance: {
-    memberId: string
-    insuranceCompany: string
-    groupId: string
-    groupName: string
-    rxBin: string
-    rxGroup: string
-    payor: string
-  }
+  insurance: Insurance
 }
 
 @InputType()
@@ -106,13 +99,4 @@ export class ProviderCreateInput {
 
   @Field()
   providerCode: string
-}
-
-// Object Type
-@ObjectType()
-export class User {
-  @Field(() => String)
-  id: string
-
-  // Other fields as per your schema...
 }
