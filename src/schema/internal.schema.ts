@@ -44,15 +44,6 @@ export class PatientModifyInput {
   address: Address
 
   @Field()
-  city: string
-
-  @Field()
-  state: string
-
-  @Field()
-  zip: string
-
-  @Field()
   insurance: Insurance
 }
 
