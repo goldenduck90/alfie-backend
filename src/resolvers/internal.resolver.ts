@@ -26,9 +26,10 @@ export default class InternalResolver {
   }
 
   @Authorized([Role.Internal])
-  @Mutation(() => User)
+  @Mutation(() => Boolean)
   internalPatientModify(@Arg("input") input: PatientModifyInput) {
-    return this.internalService.internalPatientModify(input)
+    this.internalService.internalPatientModify(input)
+    return true
   }
 
   @Authorized([Role.Internal])

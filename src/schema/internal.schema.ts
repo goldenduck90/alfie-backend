@@ -42,8 +42,8 @@ export class PatientModifyInput {
 
   @Field()
   address: Address
-
-  @Field()
+  // insurance should not be required
+  @Field(() => Insurance, { nullable: true })
   insurance: Insurance
 }
 

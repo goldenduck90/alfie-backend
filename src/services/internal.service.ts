@@ -83,6 +83,7 @@ class InternalOperationsService {
       )
     }
   }
+
   async internalPatientModify(input: PatientModifyInput) {
     try {
       const {
