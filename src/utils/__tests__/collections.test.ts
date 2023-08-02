@@ -14,6 +14,7 @@ describe("collections", () => {
     expect(deepEquals([1, 2, 3, 4], [1, 2, 3, 4])).toBe(true)
     expect(deepEquals([1, 2, 3, 4], [4, 3, 2, 1])).toBe(false)
     expect(deepEquals({ a: [1, 2, 3], b: 8 }, { a: [1, 2], b: 8 })).toBe(false)
+    expect(deepEquals({ a: null }, { a: null })).toBe(true)
 
     class Test {
       circular: Test

@@ -6,7 +6,7 @@
     "canHaveMultiple": false,
     "highPriority": false,
     "questions": [],
-    "name": "ID & Insurance Verification Test",
+    "name": "ID & Insurance Verification",
     "notifyWhenAssigned": false,
     "type": "ID_AND_INSURANCE_UPLOAD",
     "daysTillDue": null
@@ -451,29 +451,6 @@
       {
         "key": "completeBowels",
         "type": "STRING"
-      }
-    ]
-  },
-  {
-    "notifyHealthCoachWhenPastDue": false,
-    "daysTillDue": 1,
-    "name": "Lab Corp Selection",
-    "notifyWhenAssigned": true,
-    "type": "LAB_SELECTION",
-    "canHaveMultiple": false,
-    "interval": 0,
-    "highPriority": false,
-    "notifyCareCoordinatorWhenPastDue": true,
-    "notifyProviderWhenPastDue": true,
-    "notifyWhenPastDue": true,
-    "questions": [
-      {
-        "key": "labCorpLocation",
-        "type": "STRING"
-      },
-      {
-        "key": "hasRequiredLabs",
-        "type": "BOOLEAN"
       }
     ]
   },

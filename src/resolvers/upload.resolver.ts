@@ -42,8 +42,7 @@ export default class UploadResolver {
   @Mutation(() => User)
   completeUpload(
     @Ctx() context: Context,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    @Arg("files", (_) => [File]) files: File[]
+    @Arg("files", () => [File]) files: File[]
   ) {
     return this.userService.completeUpload(files, context.user._id)
   }

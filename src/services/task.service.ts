@@ -441,7 +441,7 @@ class TaskService {
       userTask.answers = []
       if (answers) {
         // correct answers from the questions schema
-        const { correctedAnswers, isChanged } = this.getCorrectedUserAnswers(
+        const { correctedAnswers } = this.getCorrectedUserAnswers(
           answers,
           task.questions
         )
