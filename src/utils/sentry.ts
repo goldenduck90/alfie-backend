@@ -90,7 +90,7 @@ export function captureException(
  * Converts the data passed to the sentry log function into a format
  * that will be compatible with Sentry's UI view of the event contexts.
  */
-function prepareContextObject(data: Record<string, any>) {
+export function prepareContextObject(data: Record<string, any>) {
   const result: Record<string, Record<string, any>> = {}
   const defaultDataKey = "Other Values"
 
@@ -103,8 +103,9 @@ function prepareContextObject(data: Record<string, any>) {
   for (const category in data) {
     const value = data[category]
     if (Array.isArray(value)) {
+      result[category] = result[category] ?? {}
       value.forEach((v, index) => {
-        data[category][`Index: ${index}`] = stringifyValue(v)
+        result[category][`Index: ${index}`] = stringifyValue(v)
       })
     } else if (typeof value === "object") {
       result[category] = Object.keys(value).reduce(

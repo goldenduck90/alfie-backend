@@ -1,0 +1,74 @@
+[
+  {
+    "vars": {
+      "classificationType": "Empath",
+      "inverse": false
+    },
+    "conditions": [
+      {
+        "task": "MP_FEELING",
+        "calculatedPercentile": {
+          "range": [75, 100]
+        }
+      }
+    ]
+  },
+  {
+    "vars": {
+      "classificationType": "Ember",
+      "inverse": true
+    },
+    "conditions": [
+      {
+        "task": "MP_ACTIVITY",
+        "calculatedPercentile": {
+          "range": [0, 25]
+        }
+      }
+    ]
+  },
+  {
+    "vars": {
+      "classificationType": "Growler",
+      "inverse": true,
+      "field": "1Hour"
+    },
+    "conditions": [
+      {
+        "task": "MP_HUNGER",
+        "calculatedPercentile1Hour": {
+          "range": [0, 25]
+        }
+      }
+    ]
+  },
+  {
+    "vars": {
+      "classificationType": "Rover",
+      "inverse": true,
+      "field": "30Minutes"
+    },
+    "conditions": [
+      {
+        "task": "MP_HUNGER",
+        "calculatedPercentile30Minutes": {
+          "range": [0, 25]
+        }
+      }
+    ]
+  },
+  {
+    "vars": {
+      "classificationType": "Rover",
+      "inverse": false
+    },
+    "conditions": [
+      {
+        "task": "AD_LIBITUM",
+        "calculatedPercentile": {
+          "range": [75, 100]
+        }
+      }
+    ]
+  }
+]

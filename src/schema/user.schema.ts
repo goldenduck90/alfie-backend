@@ -192,13 +192,13 @@ export class Score {
   @prop({ required: false })
   score?: number
 
-  @Field(() => String, { nullable: true })
+  @Field(() => Float, { nullable: true })
   @prop({ required: false })
-  percentile1hour?: string
+  percentile1Hour?: number
 
-  @Field(() => String, { nullable: true })
+  @Field(() => Float, { nullable: true })
   @prop({ required: false })
-  percentile?: string
+  percentile?: number
 
   @Field(() => Float, { nullable: true })
   @prop({ required: false })
@@ -206,23 +206,19 @@ export class Score {
 
   @Field(() => Float, { nullable: true })
   @prop({ required: false })
-  calculated1hourPercent?: number
+  calculatedPercentile1Hour?: number
 
   @Field(() => Float, { nullable: true })
   @prop({ required: false })
-  calculated30minsPercent?: number
+  calculatedPercentile30Minutes?: number
 
-  @Field(() => String, { nullable: true })
+  @Field(() => Float, { nullable: true })
   @prop({ required: false })
-  percentile30mins?: string
+  percentile30Minutes?: number
 
   @Field(() => String, { nullable: true })
   @prop({ required: false })
   latest?: string
-
-  @Field(() => Float, { nullable: true })
-  @prop({ required: false })
-  total?: number
 
   @Field(() => Float, { nullable: true })
   @prop({ required: false })
@@ -248,21 +244,13 @@ export class Score {
   @prop({ default: Date.now(), required: false })
   date: Date
 
-  @Field(() => String, { nullable: true })
+  @Field(() => Boolean, { nullable: true })
   @prop({ required: false })
-  score1hour?: string
-
-  @Field(() => String, { nullable: true })
-  @prop({ required: false })
-  score30mins?: string
+  increased1Hour?: boolean
 
   @Field(() => Boolean, { nullable: true })
   @prop({ required: false })
-  increased1hour?: boolean
-
-  @Field(() => Boolean, { nullable: true })
-  @prop({ required: false })
-  increased30Mins?: boolean
+  increased30Minutes?: boolean
 
   @Field(() => Number, { nullable: true })
   @prop({ required: false })
@@ -274,7 +262,7 @@ export class Score {
 
   @Field(() => Float, { nullable: true })
   @prop({ required: false })
-  percentDifference30Mins?: number
+  percentDifference30Minutes?: number
 
   @Field(() => Float, { nullable: true })
   @prop({ required: false })
@@ -318,38 +306,19 @@ export class Classification {
   @prop({ required: true })
   classification: ClassificationType
 
-  @Field(() => String)
+  @Field(() => Number)
   @prop({ required: true })
-  percentile: string
+  percentile: number
 
   @Field(() => Float, { nullable: true })
   @prop({ required: false })
   calculatedPercentile?: number
 
-  @Field(() => Float, { nullable: true })
-  @prop({ required: false })
-  calculated1hourPercent?: number
-
-  @Field(() => Float, { nullable: true })
-  @prop({ required: false })
-  calculated30minsPercent?: number
-
-  @Field(() => Float, { nullable: true })
-  @prop({ required: false })
-  calculatedPercentile30Mins?: number
-
-  @Field(() => Float, { nullable: true })
-  @prop({ required: false })
-  calculatedPercentile2Hour?: number
-
-  @Field(() => String, { nullable: true })
-  @prop({ required: false })
-  displayPercentile?: string
-
   @Field(() => Date)
   @prop({ required: true })
   date: Date
 }
+
 @ObjectType()
 @InputType("FileMetadataInput")
 export class FileMetadata {
