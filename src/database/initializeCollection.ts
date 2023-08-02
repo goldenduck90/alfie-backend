@@ -38,7 +38,9 @@ export async function initializeCollection<T = any>(
     .map((key) => dataByKey[key])
     .filter((template) => template)
 
-  const newDocs = await model.create(...missingDocs)
+  const newDocs = await Promise.all(
+    missingDocs.map(async (doc) => await model.create(doc))
+  )
   const changedDocs = await Promise.all(
     keys
       .filter((key) => existingByKey[key])
@@ -65,19 +67,33 @@ export async function initializeCollection<T = any>(
       })
       .map((key) => ({
         data: dataByKey[key] as any,
-        doc: existingByKey[key] as unknown as { _id: string },
+        doc: existingByKey[key] as any,
       }))
       .map(async ({ data, doc }) => {
-        const updatedDoc = await model.findOne({ _id: doc._id })
-        for (const field in data) (updatedDoc as any)[field] = data[field]
-
-        await updatedDoc.save()
-        return updatedDoc
+        await model.findByIdAndUpdate(doc._id, {
+          $set: data,
+        })
+        const updated = await model.findById(doc._id)
+        return updated
       })
   )
 
+  // delete documents that do not exist in the rawData
+  const docsToDelete = Object.keys(existingByKey)
+    .filter((key) => existingByKey[key] && !dataByKey[key])
+    .map((key) => existingByKey[key])
+
+  const deletedDocs = await Promise.all(
+    docsToDelete.map(async (doc) => {
+      await model.findByIdAndDelete((doc as any)._id)
+      return doc
+    })
+  )
+
   return {
+    originalDocuments: existing,
     newDocuments: newDocs,
     changedDocuments: changedDocs,
+    deletedDocuments: deletedDocs,
   }
 }

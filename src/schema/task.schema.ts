@@ -105,6 +105,10 @@ export class Task {
   @prop({ required: false, default: false })
   notifyHealthCoachWhenPastDue?: boolean
 
+  @Field(() => Boolean)
+  @prop({ required: false, default: false })
+  notifyCareCoordinatorWhenPastDue?: boolean
+
   @Field(() => TaskType)
   @prop({ enum: TaskType, type: String, required: true })
   type: TaskType

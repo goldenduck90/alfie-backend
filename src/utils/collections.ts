@@ -114,8 +114,12 @@ export function deepEquals(
   stack2.push(obj2)
 
   const recurse = () => {
-    const getType = (obj: unknown) =>
-      obj instanceof Array ? "array" : typeof obj
+    const getType = (obj: unknown) => {
+      if (obj instanceof Array) return "array"
+      else if (obj === null) return "null"
+      else return typeof obj
+    }
+
     const type1 = getType(obj1)
     const type2 = getType(obj2)
     if (type1 !== type2) return false
