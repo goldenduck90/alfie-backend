@@ -6,6 +6,7 @@ import GooglePlacesResolver from "./googlePlaces.resolver"
 import ProviderResolver from "./provider.resolver"
 import FileResolver from "./file.resolver"
 import PartnerResolver from "./partner.resolver"
+import InternalResolver from "./internal.resolver"
 
 export default [
   UserResolver,
@@ -16,4 +17,5 @@ export default [
   ProviderResolver,
   FileResolver,
   PartnerResolver,
+  InternalResolver,
 ] as const
