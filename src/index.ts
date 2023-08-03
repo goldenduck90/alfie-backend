@@ -1292,61 +1292,70 @@ async function bootstrap() {
     }
   )
 
-  app.post("/metriportWebhooks", express.json(), async (req: Request, res: Response) => {
-    console.log(req.body)
-    try {
-      const key = req.get("x-webhook-key")
-      if (key !== process.env.METRIPORT_WEBHOOK_KEY) {
-        return res.sendStatus(401)
+  app.post(
+    "/metriportWebhooks",
+    express.json(),
+    async (req: Request, res: Response) => {
+      console.log(req.body)
+      try {
+        const key = req.get("x-webhook-key")
+        if (key !== process.env.METRIPORT_WEBHOOK_KEY) {
+          return res.sendStatus(401)
+        }
+
+        const { ping, meta, users } = req.body
+
+        if (ping) {
+          return res.status(200).send({
+            pong: ping,
+          })
+        }
+
+        if (!meta || !users) {
+          return res.status(400).send({
+            message: "Bad Request",
+          })
+        }
+
+        switch (meta.type) {
+          case "devices.provider-connected":
+            await Promise.all(
+              users.map(async (metriportUser: MetriportUser) => {
+                const { userId, providers } = metriportUser
+                if (providers.includes("withings")) {
+                  await userService.processWithingsScaleConnected(userId)
+                }
+              })
+            )
+            break
+          case "devices.health-data":
+            await Promise.all(
+              users.map(async (metriportUser: MetriportUser) => {
+                const { userId, body } = metriportUser
+                if (body?.[0]?.weight_kg) {
+                  const weightLbs = Math.floor(body[0].weight_kg * 2.2)
+                  await userService.processWithingsScaleReading(
+                    userId,
+                    weightLbs
+                  )
+                }
+              })
+            )
+            break
+          default:
+            break
+        }
+
+        return res
+          .status(200)
+          .send({ message: "Webhook processed successfully" })
+      } catch (err) {
+        console.log(err)
+        Sentry.captureException(err)
+        res.sendStatus(500)
       }
-
-      const { ping, meta, users } = req.body
-
-      if (ping) {
-        return res.status(200).send({
-          pong: ping,
-        })
-      }
-
-      if (!meta || !users) {
-        return res.status(400).send({
-          message: "Bad Request",
-        })
-      }
-
-      switch (meta.type) {
-        case "devices.provider-connected":
-          await Promise.all(
-            users.map(async (metriportUser: MetriportUser) => {
-              const { userId, providers } = metriportUser
-              if (providers.includes("withings")) {
-                await userService.processWithingsScaleConnected(userId)
-              }
-            })
-          )
-          break
-        case "devices.health-data":
-          await Promise.all(
-            users.map(async (metriportUser: MetriportUser) => {
-              const { userId, body } = metriportUser
-              if (body?.[0]?.weight_kg) {
-                const weightLbs = Math.floor(body[0].weight_kg * 2.2)
-                await userService.processWithingsScaleReading(userId, weightLbs)
-              }
-            })
-          )
-          break
-        default:
-          break
-      }
-
-      return res.status(200).send({ message: "Webhook processed successfully" })
-    } catch (err) {
-      console.log(err)
-      Sentry.captureException(err)
-      res.sendStatus(500)
     }
-  })
+  )
 
   // app.listen on express server
   app.listen({ port: process.env.PORT || 4000 }, async () => {

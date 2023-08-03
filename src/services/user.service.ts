@@ -437,7 +437,7 @@ class UserService extends EmailService {
 
       const testmode =
         process.env.NODE_ENV !== "production" ? TEST_MODE.SHIPPED : undefined
-      
+
       const order = await this.withingsService.createOrder(
         user.id,
         withingsAddress,
