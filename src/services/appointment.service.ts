@@ -247,6 +247,9 @@ class AppointmentService extends EmailService {
         healthCoach,
       } = input
       const { notFound, noEaCustomerId } = config.get("errors.user") as any
+      const { notFound: providerNotFound } = config.get(
+        "errors.provider"
+      ) as any
 
       let eaProviderId
       if (!bypassNotice) {
@@ -262,7 +265,10 @@ class AppointmentService extends EmailService {
         if (!healthCoach) {
           const provider = await ProviderModel.findById(_user.provider)
           if (!provider) {
-            throw new ApolloError(notFound.message, notFound.code)
+            throw new ApolloError(
+              providerNotFound.message,
+              providerNotFound.code
+            )
           }
 
           if (!provider.eaProviderId) {
@@ -274,9 +280,13 @@ class AppointmentService extends EmailService {
           eaProviderId = 118
         }
       } else if (!healthCoach) {
-        const provider = await ProviderModel.findById(user._id)
-        if (!provider) {
+        const _user = await UserModel.findById(user._id)
+        if (!_user) {
           throw new ApolloError(notFound.message, notFound.code)
+        }
+        const provider = await ProviderModel.findById(user.provider)
+        if (!provider) {
+          throw new ApolloError(providerNotFound.message, providerNotFound.code)
         }
 
         if (!provider.eaProviderId) {
@@ -313,7 +323,7 @@ class AppointmentService extends EmailService {
 
       const { data: response } = await this.axios.get("/availabilities", {
         params: {
-          eaProviderId: eaProviderId,
+          eaProviderId,
           eaServiceId: 1,
           selectedDate,
           timezone,
