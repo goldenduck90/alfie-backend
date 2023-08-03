@@ -6,7 +6,6 @@ import {
 } from "../schema/insurance.schema"
 
 export default class InsuranceService {
-
   /** Whether the given plan and insurance type are covered. */
   async isCovered(
     planValue: InsurancePlanValue | null,
