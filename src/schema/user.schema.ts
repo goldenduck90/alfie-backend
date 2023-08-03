@@ -30,6 +30,7 @@ import {
 import { Provider } from "./provider.schema"
 import { SignupPartner, SignupPartnerProvider } from "./partner.schema"
 import Role from "./enums/Role"
+import { InsurancePlanValue, InsuranceTypeValue } from "./insurance.schema"
 
 const {
   email: emailValidation,
@@ -63,40 +64,6 @@ registerEnumType(Gender, {
 registerEnumType(Role, {
   name: "Role",
   description: "The user roles a user can be assigned to",
-})
-
-export enum InsurancePlan {
-  BCBS = "BCBS",
-  ANTHEM_BCBS = "ANTHEM_BCBS",
-  EMPIRE_BCBS = "EMPIRE_BCBS",
-  CAREFIRST_BCBS = "CAREFIRST_BCBS",
-  HORIZON_BCBS = "HORIZON_BCBS",
-  HUMANA = "HUMANA",
-  PARTNER_DIRECT = "PARTNER_DIRECT",
-  AETNA = "AETNA",
-  UNITED_HEALTHCARE = "UNITED_HEALTHCARE",
-  CIGNA = "CIGNA",
-  MEDICARE = "MEDICARE",
-  MEDICAID = "MEDICAID",
-  OTHER = "OTHER",
-}
-
-registerEnumType(InsurancePlan, {
-  name: "InsurancePlan",
-  description: "Insurance plans",
-})
-
-export enum InsuranceType {
-  EPO = "EPO",
-  POS = "POS",
-  PPO = "PPO",
-  HMO = "HMO",
-  GOVERNMENT_MEDICAID_TRICARE_CHIP = "GOVERNMENT_MEDICAID_TRICARE_CHIP",
-}
-
-registerEnumType(InsuranceType, {
-  name: "InsuranceType",
-  description: "Insurance types",
 })
 
 @ObjectType()
@@ -566,13 +533,13 @@ export class User {
   @prop({ required: false })
   insurance?: Insurance
 
-  @Field(() => InsurancePlan, { nullable: true })
-  @prop({ enum: InsurancePlan, type: String, required: false })
-  insurancePlan?: InsurancePlan
+  @Field(() => InsurancePlanValue, { nullable: true })
+  @prop({ enum: InsurancePlanValue, type: String, required: false })
+  insurancePlan?: InsurancePlanValue
 
-  @Field(() => InsuranceType, { nullable: true })
-  @prop({ enum: InsuranceType, type: String, required: false })
-  insuranceType?: InsuranceType
+  @Field(() => InsuranceTypeValue, { nullable: true })
+  @prop({ enum: InsuranceTypeValue, type: String, required: false })
+  insuranceType?: InsuranceTypeValue
 
   @Field(() => SignupPartner, { nullable: true })
   @prop({ ref: () => SignupPartner, required: false })
@@ -723,11 +690,11 @@ export class CreateUserInput {
   })
   metriportUserId?: string
 
-  @Field(() => InsurancePlan, { nullable: true })
-  insurancePlan?: InsurancePlan
+  @Field(() => InsurancePlanValue, { nullable: true })
+  insurancePlan?: InsurancePlanValue
 
-  @Field(() => InsuranceType, { nullable: true })
-  insuranceType?: InsuranceType
+  @Field(() => InsuranceTypeValue, { nullable: true })
+  insuranceType?: InsuranceTypeValue
 
   @Field(() => String, { nullable: true })
   signupPartnerId?: string

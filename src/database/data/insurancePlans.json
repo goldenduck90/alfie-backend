@@ -1,54 +1,56 @@
 [
   {
     "name": "Blue Cross Blue Shield",
-    "type": "BCBS"
+    "value": "BCBS"
   },
   {
     "name": "Anthem BCBS",
-    "type": "ANTHEM_BCBS"
+    "value": "ANTHEM_BCBS"
   },
   {
     "name": "Empire BCBS",
-    "type": "EMPIRE_BCBS"
+    "value": "EMPIRE_BCBS"
   },
   {
     "name": "Carefirst BCBS",
-    "type": "CAREFIRST_BCBS"
+    "value": "CAREFIRST_BCBS"
   },
   {
     "name": "Horizon BCBS",
-    "type": "HORIZON_BCBS"
+    "value": "HORIZON_BCBS"
   },
   {
     "name": "Humana",
-    "type": "HUMANA"
+    "value": "HUMANA"
   },
   {
     "name": "Partner Direct",
-    "type": "PARTNER_DIRECT"
+    "value": "PARTNER_DIRECT"
   },
   {
     "name": "Aetna",
-    "type": "AETNA"
+    "value": "AETNA"
   },
   {
     "name": "United Healthcare",
-    "type": "UNITED_HEALTHCARE"
+    "value": "UNITED_HEALTHCARE"
   },
   {
     "name": "Cigna",
-    "type": "CIGNA"
+    "value": "CIGNA"
   },
   {
     "name": "Medicare",
-    "type": "MEDICARE"
+    "value": "MEDICARE",
+    "types": ["GOVERNMENT_MEDICAID_TRICARE_CHIP"]
   },
   {
     "name": "Medicaid",
-    "type": "MEDICAID"
+    "value": "MEDICAID",
+    "types": ["GOVERNMENT_MEDICAID_TRICARE_CHIP"]
   },
   {
     "name": "Other",
-    "type": "OTHER"
+    "value": "OTHER"
   }
 ]

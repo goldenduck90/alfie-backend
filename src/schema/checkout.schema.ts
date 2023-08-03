@@ -11,14 +11,9 @@ import { AsQueryMethod, Ref } from "@typegoose/typegoose/lib/types"
 import { IsEmail, IsPhoneNumber } from "class-validator"
 import { Field, InputType, ObjectType } from "type-graphql"
 import config from "config"
-import {
-  Address,
-  Gender,
-  User,
-  InsurancePlan,
-  InsuranceType,
-} from "./user.schema"
+import { Address, Gender, User } from "./user.schema"
 import { SignupPartner, SignupPartnerProvider } from "./partner.schema"
+import { InsurancePlanValue, InsuranceTypeValue } from "./insurance.schema"
 
 const { email: emailValidation, phone: phoneValidation } = config.get(
   "validations"
@@ -153,13 +148,17 @@ export class Checkout {
   @prop({ required: true, allowMixed: Severity.ALLOW })
   pastTries: string[]
 
-  @Field(() => InsurancePlan, { nullable: true })
-  @prop({ enum: InsurancePlan, type: String, required: false })
-  insurancePlan?: InsurancePlan
+  @Field(() => InsurancePlanValue, { nullable: true })
+  @prop({ enum: InsurancePlanValue, type: String, required: false })
+  insurancePlan?: InsurancePlanValue
 
-  @Field(() => InsuranceType, { nullable: true })
-  @prop({ enum: InsuranceType, type: String, required: false })
-  insuranceType?: InsuranceType
+  @Field(() => InsuranceTypeValue, { nullable: true })
+  @prop({ enum: InsuranceTypeValue, type: String, required: false })
+  insuranceType?: InsuranceTypeValue
+
+  @Field(() => Boolean)
+  @prop({ type: Boolean, required: true })
+  covered: boolean
 
   @Field(() => SignupPartner, { nullable: true })
   @prop({ ref: () => SignupPartner, required: false })
@@ -218,11 +217,11 @@ export class CreateCheckoutInput {
   @Field(() => [String])
   pastTries: string[]
 
-  @Field(() => InsurancePlan, { nullable: true })
-  insurancePlan?: InsurancePlan
+  @Field(() => InsurancePlanValue, { nullable: true })
+  insurancePlan?: InsurancePlanValue
 
-  @Field(() => InsuranceType, { nullable: true })
-  insuranceType?: InsuranceType
+  @Field(() => InsuranceTypeValue, { nullable: true })
+  insuranceType?: InsuranceTypeValue
 
   @Field(() => String, { nullable: true })
   signupPartnerId?: string
