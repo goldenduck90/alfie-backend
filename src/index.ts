@@ -1310,8 +1310,8 @@ async function bootstrap() {
         case "devices.provider-connected":
           await Promise.all(
             users.map(async (metriportUser: MetriportUser) => {
-              const { userId, provider } = metriportUser
-              if (provider === "withings") {
+              const { userId, providers } = metriportUser
+              if (providers.includes("withings")) {
                 await userService.processWithingsScaleConnected(userId)
               }
             })
