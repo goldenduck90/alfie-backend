@@ -637,9 +637,9 @@ async function bootstrap() {
                 stripeSubscriptionId: null,
                 insurancePlan: pICheckout.insurancePlan,
                 insuranceType: pICheckout.insuranceType,
-                signupPartnerId: pICheckout.signupPartner.toString(),
+                signupPartnerId: pICheckout.signupPartner?.toString(),
                 signupPartnerProviderId:
-                  pICheckout.signupPartnerProvider.toString(),
+                  pICheckout.signupPartnerProvider?.toString(),
               })
 
               const newUser = pINewUser.user
@@ -928,9 +928,9 @@ async function bootstrap() {
                 subscriptionExpiresAt: new Date(),
                 insurancePlan: sCCheckout.insurancePlan,
                 insuranceType: sCCheckout.insuranceType,
-                signupPartnerId: sCCheckout.signupPartner.toString(),
+                signupPartnerId: sCCheckout.signupPartner?.toString(),
                 signupPartnerProviderId:
-                  sCCheckout.signupPartnerProvider.toString(),
+                  sCCheckout.signupPartnerProvider?.toString(),
               })
 
               if (process.env.NODE_ENV === "production") {
