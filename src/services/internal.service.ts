@@ -66,16 +66,10 @@ class InternalOperationsService {
       if (!patientIds) {
         throw new ApolloError("Patient Ids are required")
       }
-      const reassignedPatients = await UserModel.updateMany({
-        where: {
-          id: {
-            $in: patientIds,
-          },
-        },
-        set: {
-          provider: newProviderId,
-        },
-      })
+      const reassignedPatients = await UserModel.updateMany(
+        { _id: { $in: patientIds } },
+        { provider: newProviderId }
+      )
       return reassignedPatients
     } catch (e) {
       throw new ApolloError(
@@ -83,9 +77,9 @@ class InternalOperationsService {
       )
     }
   }
-
   async internalPatientModify(input: PatientModifyInput) {
     try {
+      console.log("input", input)
       const {
         name,
         dateOfBirth,
@@ -103,9 +97,10 @@ class InternalOperationsService {
           payor,
         },
       } = input
-      const modifiedPatient = await UserModel.updateOne({
-        where: input.patientId,
-        set: {
+
+      const modifiedPatient = await UserModel.findByIdAndUpdate(
+        input.patientId,
+        {
           name,
           dateOfBirth,
           email: email.toLowerCase(),
@@ -126,8 +121,9 @@ class InternalOperationsService {
             rxGroup,
             payor,
           },
-        },
-      })
+        }
+      )
+      console.log(modifiedPatient, "modifiedPatient")
       return modifiedPatient
     } catch (e) {
       throw new ApolloError("An error occurred while modifying the patient")
