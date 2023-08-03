@@ -107,7 +107,7 @@ class WithingsService {
     address: WithingsAddress,
     testmode?: number
   ) {
-    const now = Math.round(Date.now() / 1000) + 30 // Add integer between 21 to 61 to fix: Timestamp too old
+    const now = Math.round(Date.now() / 1000) // [Local Testing] Add between 21 to 61 to fix: Timestamp too old
     const nonce = await this.getNonce(now)
 
     const products = [
