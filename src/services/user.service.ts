@@ -79,6 +79,7 @@ import lookupCPID from "../utils/lookupCPID"
 import extractInsurance from "../utils/extractInsurance"
 import lookupState from "../utils/lookupState"
 import resolveCPIDEntriesToInsurance from "../utils/resolveCPIDEntriesToInsurance"
+import InsuranceService from "./insurance.service"
 
 export const initialUserTasks = [
   TaskType.ID_AND_INSURANCE_UPLOAD,
@@ -107,6 +108,7 @@ class UserService extends EmailService {
   private candidService: CandidService
   private withingsService: WithingsService
   private faxService: FaxService
+  private insuranceService: InsuranceService
   public awsDynamo: AWS.DynamoDB
   private stripeSdk: stripe
 
@@ -122,6 +124,7 @@ class UserService extends EmailService {
     this.candidService = new CandidService()
     this.withingsService = new WithingsService()
     this.faxService = new FaxService()
+    this.insuranceService = new InsuranceService()
 
     this.awsDynamo = new AWS.DynamoDB({
       accessKeyId: process.env.AWS_ACCESS_KEY_ID,
@@ -1404,6 +1407,11 @@ class UserService extends EmailService {
         referrer,
       } = input
 
+      const { covered } = await this.insuranceService.isCovered(
+        insurancePlan,
+        insuranceType
+      )
+
       const checkout = await CheckoutModel.find().findByEmail(email).lean()
       if (checkout) {
         // check if already checked out
@@ -1427,6 +1435,7 @@ class UserService extends EmailService {
         checkout.pastTries = pastTries
         checkout.insurancePlan = insurancePlan
         checkout.insuranceType = insuranceType
+        checkout.covered = covered
         checkout.signupPartner = signupPartnerId
         checkout.signupPartnerProvider = signupPartnerProviderId
         checkout.referrer = referrer
@@ -1475,6 +1484,7 @@ class UserService extends EmailService {
         pastTries,
         insurancePlan,
         insuranceType,
+        covered,
         signupPartner: signupPartnerId,
         signupPartnerProvider: signupPartnerProviderId,
         referrer,

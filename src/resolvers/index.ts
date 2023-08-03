@@ -7,6 +7,7 @@ import ProviderResolver from "./provider.resolver"
 import FileResolver from "./file.resolver"
 import PartnerResolver from "./partner.resolver"
 import InternalResolver from "./internal.resolver"
+import InsuranceResolver from "./insurance.resolver"
 
 export default [
   UserResolver,
@@ -18,4 +19,5 @@ export default [
   FileResolver,
   PartnerResolver,
   InternalResolver,
+  InsuranceResolver,
 ] as const
