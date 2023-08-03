@@ -67,7 +67,7 @@ import ProviderService from "./provider.service"
 import TaskService from "./task.service"
 import SmsService from "./sms.service"
 import CandidService from "./candid.service"
-import WithingsService from "./withings.service"
+import WithingsService, { TEST_MODE } from "./withings.service"
 import FaxService from "./fax.service"
 import axios from "axios"
 import { analyzeS3InsuranceCardImage } from "../utils/textract"
@@ -434,9 +434,14 @@ class UserService extends EmailService {
         state: address.state,
         country: "US",
       }
+
+      const testmode =
+        process.env.NODE_ENV !== "production" ? TEST_MODE.SHIPPED : undefined
+
       const order = await this.withingsService.createOrder(
         user.id,
-        withingsAddress
+        withingsAddress,
+        testmode
       )
       status = `${order.status}(Order id: ${order.order_id})`
       const message = `[WITHINGS][TIME: ${new Date().toString()}] ${name}(${email})`
