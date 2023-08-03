@@ -18,9 +18,7 @@ import {
   SubscribeEmailInput,
   User,
   UserSendbirdChannel,
-  InsuranceEligibilityResponse,
   ScaleReadingInput,
-  Insurance,
 } from "../schema/user.schema"
 import Role from "../schema/enums/Role"
 import AkuteService from "../services/akute.service"
@@ -147,22 +145,6 @@ export default class UserResolver {
   @Query(() => [UserSendbirdChannel])
   userSendbirdChannel(@Arg("userId") userId: string) {
     return this.userService.sendbirdChannels(userId)
-  }
-
-  @Authorized([Role.Admin, Role.Patient])
-  @Query(() => InsuranceEligibilityResponse)
-  async insuranceEligibility(
-    @Arg("userId") userId: string,
-    @Arg("input") input: Insurance
-  ): Promise<InsuranceEligibilityResponse> {
-    const user = await this.userService.getUser(userId)
-
-    const eligible = await this.userService.checkInsuranceEligibilityFromData(
-      input,
-      user._id.toString()
-    )
-
-    return eligible
   }
 
   @Mutation(() => MetriportConnectResponse)
