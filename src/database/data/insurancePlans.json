@@ -1,0 +1,54 @@
+[
+  {
+    "name": "Blue Cross Blue Shield",
+    "type": "BCBS"
+  },
+  {
+    "name": "Anthem BCBS",
+    "type": "ANTHEM_BCBS"
+  },
+  {
+    "name": "Empire BCBS",
+    "type": "EMPIRE_BCBS"
+  },
+  {
+    "name": "Carefirst BCBS",
+    "type": "CAREFIRST_BCBS"
+  },
+  {
+    "name": "Horizon BCBS",
+    "type": "HORIZON_BCBS"
+  },
+  {
+    "name": "Humana",
+    "type": "HUMANA"
+  },
+  {
+    "name": "Partner Direct",
+    "type": "PARTNER_DIRECT"
+  },
+  {
+    "name": "Aetna",
+    "type": "AETNA"
+  },
+  {
+    "name": "United Healthcare",
+    "type": "UNITED_HEALTHCARE"
+  },
+  {
+    "name": "Cigna",
+    "type": "CIGNA"
+  },
+  {
+    "name": "Medicare",
+    "type": "MEDICARE"
+  },
+  {
+    "name": "Medicaid",
+    "type": "MEDICAID"
+  },
+  {
+    "name": "Other",
+    "type": "OTHER"
+  }
+]

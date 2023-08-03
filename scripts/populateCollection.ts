@@ -2,7 +2,10 @@ import runShell, { createProgram } from "./utils/runShell"
 
 import { initializeCollection } from "../src/database/initializeCollection"
 import tasksData from "../src/database/data/tasks.json"
+import insuranceTypesData from "../src/database/data/insuranceTypes.json"
+import insurancePlansData from "../src/database/data/insurancePlans.json"
 import { TaskModel, Task } from "../src/schema/task.schema"
+import { InsuranceType, InsurancePlan, InsuranceTypeModel, InsurancePlanModel } from "../src/schema/insurance.schema"
 
 const collectionsMap = {
   tasks: {
@@ -11,12 +14,27 @@ const collectionsMap = {
     type: Task,
     getKey: (task: Task) => task.type,
   },
+  insuranceTypes: {
+    rawData: insuranceTypesData,
+    model: InsuranceTypeModel,
+    type: InsuranceType,
+    getKey: (type: InsuranceType) => type.type,
+  },
+  insurancePlans: {
+    rawData: insurancePlansData,
+    model: InsurancePlanModel,
+    type: InsurancePlan,
+    getKey: (plan: InsurancePlan) => plan.type,
+  },
 }
+
 type TableNames = (keyof typeof collectionsMap)[]
 
 const program = createProgram()
   .description("Populates entries for static collections in MongoDB.")
   .option("--tasks", "Populates the tasks table.", false)
+  .option("--insurance-plans", "Populates the insurancePlans table.", false)
+  .option("--insurance-types", "Populates the insuranceTypes table.", false)
   .parse()
 
 const options: Record<string, boolean> = program.opts()
