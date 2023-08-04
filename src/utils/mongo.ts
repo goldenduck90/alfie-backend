@@ -9,7 +9,7 @@ export async function connectToMongo() {
     const dbUri = config.get("dbUri") as string
     console.log(dbUri)
     await mongoose.connect(dbUri)
-    console.log("Connected to MongoDB database")
+    console.log(`Connected to ${process.env.NODE_ENV} MongoDB database`)
   } catch (error) {
     console.error(error)
     process.exit(1)

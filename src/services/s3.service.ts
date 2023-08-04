@@ -18,6 +18,25 @@ export default class S3Service {
     })
   }
 
+  async keyExists(objectKey: string) {
+    try {
+      await this.s3
+        .headObject({
+          Bucket: this.bucketName,
+          Key: objectKey,
+        })
+        .promise()
+
+      return true
+    } catch (error) {
+      if (error.code === "NotFound") {
+        return false
+      }
+
+      throw error
+    }
+  }
+
   async requestSignedUrls(
     input: SignedUrlRequest[]
   ): Promise<SignedUrlResponse[]> {

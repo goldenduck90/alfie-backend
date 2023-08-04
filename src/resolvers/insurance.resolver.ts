@@ -25,8 +25,11 @@ export default class InsuranceResolver {
   @Authorized([Role.Admin, Role.Patient])
   @Query(() => InsuranceCoveredResponse)
   async insuranceCovered(
-    @Arg("insurancePlan") insurancePlan: InsurancePlanValue,
-    @Arg("insuranceType") insuranceType: InsuranceTypeValue
+    @Arg("insurancePlan", () => InsurancePlanValue)
+    insurancePlan: InsurancePlanValue,
+
+    @Arg("insuranceType", () => InsuranceTypeValue)
+    insuranceType: InsuranceTypeValue
   ): Promise<InsuranceCoveredResponse> {
     const covered = await this.insuranceService.isCovered(
       insurancePlan,
