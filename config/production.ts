@@ -26,6 +26,7 @@ export default {
   defaultPriceId: "price_1KMv4hDOjl0X0gOqRIWXpGVz",
   s3: {
     patientBucketName: "production-platform-patient-storage",
+    checkoutBucketName: "production-platform-checkout-storage",
   },
   dynamoDb: {
     emailSubscribersTable: "production-platform-email-subscribers",

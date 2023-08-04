@@ -33,6 +33,7 @@ export default {
   },
   s3: {
     patientBucketName: "develop-platform-patient-storage",
+    checkoutBucketName: "develop-platform-checkout-storage",
   },
   ringCentral: {
     clientId: "DiUqEh27Rz-fDuQiez1OdQ",

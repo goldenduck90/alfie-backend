@@ -79,7 +79,6 @@ import lookupCPID from "../utils/lookupCPID"
 import extractInsurance from "../utils/extractInsurance"
 import lookupState from "../utils/lookupState"
 import resolveCPIDEntriesToInsurance from "../utils/resolveCPIDEntriesToInsurance"
-import { InsuranceTextractResponse } from "../schema/upload.schema"
 import InsuranceService from "./insurance.service"
 
 export const initialUserTasks = [
@@ -1955,36 +1954,6 @@ class UserService extends EmailService {
     }
 
     return { user, userTask }
-  }
-
-  async textractInsuranceImage(
-    userId: string,
-    fileS3Key: string
-  ): Promise<InsuranceTextractResponse> {
-    const user = await this.getUser(userId)
-    const file = user.files.find(({ key }) => fileS3Key === key)
-
-    if (!file) {
-      throw new ApolloError("File not uploaded to user.", "ERROR")
-    }
-
-    const result = await analyzeS3InsuranceCardImage(
-      this.s3Service.bucketName,
-      fileS3Key
-    )
-
-    const extracted = extractInsurance(result, {
-      userState: user.address.state,
-    })
-
-    const insuranceMatches = extracted.map(({ insurance }) => insurance)
-    const { words, lines } = result
-
-    return {
-      insuranceMatches,
-      words,
-      lines,
-    }
   }
 }
 
