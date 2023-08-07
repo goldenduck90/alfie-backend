@@ -26,5 +26,3 @@ jobs:
       #   run: npm run format
       # - name: ESLint check
       #   run: npm run lint
-      - name: Jest Tests
-        run: npm run test
