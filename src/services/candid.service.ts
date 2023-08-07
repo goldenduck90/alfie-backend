@@ -39,6 +39,11 @@ export enum CodedEncounterSource {
 
 export class CandidError extends ApolloError {}
 
+export type BasicUserInfo = Pick<
+  User,
+  "name" | "address" | "dateOfBirth" | "gender"
+>
+
 interface CandidAuthResponse {
   /** The access token to use in authorization headers. */
   access_token: string
@@ -188,7 +193,7 @@ export default class CandidService {
 
   /** Check insurance eligibility for the patient with the given insurance card information. */
   public async checkInsuranceEligibility(
-    user: User,
+    user: BasicUserInfo,
     /** Insurance information sets to check. */
     inputs: { insurance: Insurance; cpid: string }[]
   ): Promise<{
@@ -273,7 +278,7 @@ export default class CandidService {
 
   /** Check insurance eligibility for the patient with the given insurance card information and CPID. */
   private async checkCPIDEligibility(
-    user: User,
+    user: BasicUserInfo,
     input: Insurance,
     cpid: string
   ): Promise<{

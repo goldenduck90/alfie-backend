@@ -23,7 +23,6 @@ export default {
     clientId: process.env.WITHINGS_CLIENT_ID,
     clientSecret: process.env.WITHINGS_CLIENT_SECRET,
   },
-  defaultPriceId: "price_1KMv4hDOjl0X0gOqRIWXpGVz",
   s3: {
     patientBucketName: "production-platform-patient-storage",
     checkoutBucketName: "production-platform-checkout-storage",
@@ -43,6 +42,12 @@ export default {
     procedures: akuteProcedures,
   },
   twilioPhone: "+18447244465",
+  stripe: {
+    secretKey: process.env.STRIPE_SECRET_KEY,
+    webhookSecret: process.env.STRIPE_WEBHOOK_SECRET,
+    defaultPriceId: "price_1KMv4hDOjl0X0gOqRIWXpGVz",
+    partnerPriceId: "price_1KMv4hDOjl0X0gOqRIWXpGVz",
+  },
   zapierCreateUserWebhook:
     "https://hooks.zapier.com/hooks/catch/12197313/34bsrhc/",
 }

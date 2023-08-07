@@ -1407,10 +1407,11 @@ class UserService extends EmailService {
         referrer,
       } = input
 
-      const { covered } = await this.insuranceService.isCovered(
-        insurancePlan,
-        insuranceType
-      )
+      const { covered } = await this.insuranceService.isCovered({
+        plan: insurancePlan,
+        type: insuranceType,
+        state,
+      })
 
       const checkout = await CheckoutModel.find().findByEmail(email).lean()
       if (checkout) {
@@ -1796,21 +1797,17 @@ class UserService extends EmailService {
 
       // only save insurance if eligible
       if (eligible && rectifiedInsurance) {
-        try {
-          await this.updateInsurance(user, rectifiedInsurance)
-          await this.akuteService.createInsurance(
-            user.akutePatientId,
-            rectifiedInsurance
-          )
-        } catch (error) {
-          // errors are logged in each method call.
-          // ignore and return eligibility results.
-        }
+        await this.updateInsurance(user, rectifiedInsurance)
+        await this.akuteService.createInsurance(
+          user.akutePatientId,
+          rectifiedInsurance
+        )
       }
     } catch (error) {
       captureException(
         error,
-        "UserService.checkInsuranceEligibility: error checking eligibility"
+        "UserService.checkInsuranceEligibility: error checking eligibility",
+        { inputs }
       )
       eligible = false
       reason = "There was an error during the eligibility check process."

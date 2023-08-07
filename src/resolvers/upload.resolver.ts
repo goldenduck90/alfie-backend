@@ -56,7 +56,7 @@ export default class UploadResolver {
   async insuranceTextract(
     @Arg("s3Key") s3Key: string,
     @Arg("userState", { nullable: true }) userState?: string
-  ) {
+  ): Promise<InsuranceTextractResponse> {
     const result = await this.uploadService.textractInsuranceImage(
       s3Key,
       userState
