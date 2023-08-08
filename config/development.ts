@@ -26,7 +26,6 @@ export default {
     clientId: process.env.WITHINGS_CLIENT_ID,
     clientSecret: process.env.WITHINGS_CLIENT_SECRET,
   },
-  defaultPriceId: "price_1KMviXDOjl0X0gOq9Pk7gRFE",
   dynamoDb: {
     emailSubscribersTable: "develop-platform-email-subscribers",
     waitlistTable: "develop-platform-waitlist",
@@ -47,4 +46,12 @@ export default {
     procedures: akuteProcedures,
   },
   twilioPhone: "+18447440088",
+  stripe: {
+    secretKey: process.env.STRIPE_SECRET_KEY,
+    webhookSecret: process.env.STRIPE_WEBHOOK_SECRET,
+    defaultPriceId:
+      process.env.STRIPE_DEFAULT_PRICE_ID ?? "price_1KMviXDOjl0X0gOq9Pk7gRFE",
+    partnerPriceId:
+      process.env.STRIPE_PARTNER_PRICE_ID ?? "price_1KMviXDOjl0X0gOq9Pk7gRFE",
+  },
 }

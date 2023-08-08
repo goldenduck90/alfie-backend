@@ -1,5 +1,12 @@
-import { getModelForClass, index, prop } from "@typegoose/typegoose"
-import { Field, ObjectType, registerEnumType } from "type-graphql"
+import { Ref, getModelForClass, index, prop } from "@typegoose/typegoose"
+import { Field, InputType, ObjectType, registerEnumType } from "type-graphql"
+import {
+  Address,
+  Gender,
+  Insurance,
+  InsuranceEligibilityResponse,
+} from "./user.schema"
+import { Provider } from "./provider.schema"
 
 export enum InsuranceTypeValue {
   EPO = "EPO",
@@ -63,13 +70,25 @@ export class InsurancePlanCoverage {
   @Field(() => String)
   _id: string
 
-  @Field(() => InsurancePlanValue, { nullable: true })
-  @prop({ enum: InsurancePlanValue, type: String, required: false })
-  plan?: InsurancePlanValue
+  @Field(() => InsurancePlanValue)
+  @prop({ enum: InsurancePlanValue, type: String, required: true })
+  plan: InsurancePlanValue
 
   @Field(() => InsuranceTypeValue, { nullable: true })
-  @prop({ enum: InsuranceTypeValue, type: String, required: false })
+  @prop({
+    enum: Object.values(InsuranceTypeValue).concat([null]),
+    type: String,
+    required: false,
+  })
   type?: InsuranceTypeValue
+
+  @Field(() => Provider, { nullable: true })
+  @prop({ ref: () => Provider, required: false })
+  provider?: Ref<Provider>
+
+  @Field({ nullable: true })
+  @prop()
+  state?: string
 
   @Field(() => Boolean)
   @prop({ required: true })
@@ -117,4 +136,43 @@ export class InsuranceCoveredResponse {
 
   @Field(() => String, { nullable: true })
   reason?: string
+}
+
+@ObjectType()
+export class InsuranceFlowResponse {
+  @Field(() => InsuranceCoveredResponse)
+  covered: InsuranceCoveredResponse
+
+  @Field(() => InsuranceEligibilityResponse)
+  eligible: InsuranceEligibilityResponse
+
+  @Field(() => Insurance, { nullable: true })
+  rectifiedInsurance?: Insurance
+
+  @Field({ nullable: true })
+  stripeSubscriptionId?: string
+}
+
+@InputType()
+export class BasicUserInsuranceInfo {
+  @Field()
+  name: string
+
+  @Field()
+  dateOfBirth: Date
+
+  @Field(() => Gender)
+  gender: Gender
+
+  @Field(() => Address)
+  address: Address
+}
+
+@ObjectType()
+export class InsurancePlansResponse {
+  @Field(() => [InsurancePlan])
+  plans: InsurancePlan[]
+
+  @Field(() => [InsuranceType])
+  types: InsuranceType[]
 }
