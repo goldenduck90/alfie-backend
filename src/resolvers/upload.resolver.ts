@@ -50,7 +50,6 @@ export default class UploadResolver {
     return this.userService.completeUpload(files, context.user._id)
   }
 
-  @Authorized([Role.Admin, Role.Patient])
   @Mutation(() => InsuranceTextractResponse)
   async insuranceTextract(
     @Arg("s3Key") s3Key: string,

@@ -9,7 +9,7 @@ export default class UploadService {
   private checkoutS3Service: S3Service
 
   constructor() {
-    const bucket: string = config.get("s3.checkoutBucketName")
+    const bucket: string = config.get("s3.patientBucketName")
     this.checkoutS3Service = new S3Service(bucket)
   }
 
