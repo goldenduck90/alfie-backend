@@ -93,19 +93,19 @@ export class Insurance {
   @prop({ required: true })
   groupId: string
 
-  @Field(() => String)
+  @Field(() => String, { nullable: true })
   @prop()
   groupName?: string
 
-  @Field(() => String)
+  @Field(() => String, { nullable: true })
   @prop()
   rxBIN?: string
 
-  @Field(() => String)
+  @Field(() => String, { nullable: true })
   @prop()
   rxPCN?: string
 
-  @Field(() => String)
+  @Field(() => String, { nullable: true })
   @prop()
   rxGroup?: string
 }

@@ -126,7 +126,6 @@ export default class InsuranceResolver {
     return eligible
   }
 
-  @Authorized([Role.Admin, Role.Patient])
   @Query(() => InsurancePlansResponse)
   async insurancePlans() {
     const plans = await this.insuranceService.getPlans()
