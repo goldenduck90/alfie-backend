@@ -80,6 +80,7 @@ import extractInsurance from "../utils/extractInsurance"
 import lookupState from "../utils/lookupState"
 import resolveCPIDEntriesToInsurance from "../utils/resolveCPIDEntriesToInsurance"
 import InsuranceService from "./insurance.service"
+import StripeService from "./stripe.service"
 
 export const initialUserTasks = [
   TaskType.ID_AND_INSURANCE_UPLOAD,
@@ -110,7 +111,7 @@ class UserService extends EmailService {
   private faxService: FaxService
   private insuranceService: InsuranceService
   public awsDynamo: AWS.DynamoDB
-  private stripeSdk: stripe
+  private stripeService: StripeService
 
   constructor() {
     super()
@@ -125,14 +126,12 @@ class UserService extends EmailService {
     this.withingsService = new WithingsService()
     this.faxService = new FaxService()
     this.insuranceService = new InsuranceService()
+    this.stripeService = new StripeService(this)
 
     this.awsDynamo = new AWS.DynamoDB({
       accessKeyId: process.env.AWS_ACCESS_KEY_ID,
       secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
       region: process.env.AWS_REGION,
-    })
-    this.stripeSdk = new stripe(process.env.STRIPE_SECRET_KEY, {
-      apiVersion: "2022-08-01",
     })
   }
 
@@ -1302,7 +1301,7 @@ class UserService extends EmailService {
     }
 
     // check for existing customer
-    const existingCustomer = await this.stripeSdk.customers.list({
+    const existingCustomer = await this.stripeService.stripeSdk.customers.list({
       email: checkout.email,
     })
 
@@ -1323,7 +1322,7 @@ class UserService extends EmailService {
       customer = existingCustomer.data[0]
 
       // update with latest checkout info
-      await this.stripeSdk.customers.update(customer.id, {
+      await this.stripeService.stripeSdk.customers.update(customer.id, {
         address: stripeShipping,
         phone: checkout.phone,
         name: checkout.name,
@@ -1332,7 +1331,7 @@ class UserService extends EmailService {
     }
 
     if (checkout.stripeSetupIntentId) {
-      setupIntent = await this.stripeSdk.setupIntents.retrieve(
+      setupIntent = await this.stripeService.stripeSdk.setupIntents.retrieve(
         checkout.stripeSetupIntentId
       )
     }
@@ -1355,11 +1354,14 @@ class UserService extends EmailService {
         setupIntent &&
         !["canceled", "requires_payment_method"].includes(setupIntent.status)
       ) {
-        setupIntent = await this.stripeSdk.setupIntents.update(setupIntent.id, {
-          ...setupIntentDetails,
-        })
+        setupIntent = await this.stripeService.stripeSdk.setupIntents.update(
+          setupIntent.id,
+          {
+            ...setupIntentDetails,
+          }
+        )
       } else {
-        setupIntent = await this.stripeSdk.setupIntents.create({
+        setupIntent = await this.stripeService.stripeSdk.setupIntents.create({
           ...setupIntentDetails,
         })
       }
