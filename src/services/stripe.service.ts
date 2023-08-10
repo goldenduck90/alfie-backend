@@ -6,12 +6,13 @@ import { client } from "../utils/posthog"
 import { Checkout, CheckoutModel } from "../schema/checkout.schema"
 import { Address, UserModel } from "../schema/user.schema"
 import UserService from "./user.service"
+import { SignupPartner } from "../schema/partner.schema"
 
 export default class StripeService {
   public stripeApiVersion = "2022-08-01" as const
   public stripeWebhookPath = "/stripeWebhooks"
 
-  private stripeSdk: Stripe
+  public stripeSdk: Stripe
   private secretKey: string
 
   private userService: UserService
@@ -20,7 +21,7 @@ export default class StripeService {
   public defaultPriceId: string
   public partnerPriceId: string
 
-  constructor() {
+  constructor(userService?: UserService) {
     this.secretKey = config.get("stripe.secretKey")
     this.stripeSdk = new Stripe(this.secretKey, {
       apiVersion: this.stripeApiVersion,
@@ -28,7 +29,7 @@ export default class StripeService {
     this.defaultPriceId = config.get("stripe.defaultPriceId")
     this.partnerPriceId = config.get("stripe.partnerPriceId")
 
-    this.userService = new UserService()
+    this.userService = userService ?? new UserService()
   }
 
   constructWebhookEventFromRequest(request: express.Request): Stripe.Event {
@@ -516,7 +517,9 @@ export default class StripeService {
     const { INSURANCE, IGNORE_CHECKOUT } = setupIntent.metadata ?? {}
     const ignoreCheckout = IGNORE_CHECKOUT === "TRUE"
 
-    const checkout = await CheckoutModel.findOne({ stripeSetupIntentId })
+    const checkout = await CheckoutModel.findOne({
+      stripeSetupIntentId,
+    }).populate<{ signupPartner: SignupPartner }>("signupPartner")
 
     if (!checkout && !ignoreCheckout) {
       return this.sendErrorResponse(
@@ -615,10 +618,13 @@ export default class StripeService {
       }
 
       try {
+        const priceId =
+          checkout.signupPartner?.stripePriceId ?? this.defaultPriceId
+
         const subscription = await this.createSubscription(
           stripeCustomerId,
           paymentMethodId,
-          this.defaultPriceId,
+          priceId,
           { ORIGINAL_CHECKOUT_ID: checkout?._id }
         )
 

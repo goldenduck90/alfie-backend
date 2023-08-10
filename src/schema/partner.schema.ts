@@ -32,6 +32,10 @@ export class SignupPartner {
     required: true,
   })
   flowType: FlowType
+
+  @Field(() => String, { nullable: true })
+  @prop()
+  stripePriceId?: string
 }
 
 export const SignupPartnerModel = getModelForClass<typeof SignupPartner>(
