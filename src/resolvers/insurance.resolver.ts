@@ -1,4 +1,4 @@
-import { Arg, Authorized, Mutation, Query, Resolver } from "type-graphql"
+import { Arg, Authorized, Query, Resolver } from "type-graphql"
 import Role from "../schema/enums/Role"
 import {
   InsurancePlanValue,
@@ -102,7 +102,7 @@ export default class InsuranceResolver {
   }
 
   @Authorized([Role.Admin, Role.Patient])
-  @Mutation(() => InsuranceEligibilityResponse)
+  @Query(() => InsuranceEligibilityResponse)
   async insuranceEligibility(
     @Arg("userData", () => BasicUserInsuranceInfo)
     user: BasicUserInsuranceInfo,
