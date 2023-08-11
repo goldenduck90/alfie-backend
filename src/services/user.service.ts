@@ -1794,7 +1794,7 @@ class UserService extends EmailService {
 
     try {
       const result = await this.candidService.checkInsuranceEligibility(
-        user,
+        { ...user, state: user.address.state },
         inputs
       )
 
