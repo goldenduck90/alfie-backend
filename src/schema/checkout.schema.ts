@@ -156,9 +156,13 @@ export class Checkout {
   @prop({ enum: InsuranceTypeValue, type: String, required: false })
   insuranceType?: InsuranceTypeValue
 
-  @Field(() => Boolean)
+  @Field(() => Insurance, { nullable: true })
+  @prop({ required: false })
+  insurance?: Insurance
+
+  @Field(() => Boolean, { nullable: true })
   @prop({ type: Boolean, required: true })
-  covered: boolean
+  insuranceCovered: boolean
 
   @Field(() => SignupPartner, { nullable: true })
   @prop({ ref: () => SignupPartner, required: false })
@@ -167,10 +171,6 @@ export class Checkout {
   @Field(() => SignupPartnerProvider, { nullable: true })
   @prop({ ref: () => SignupPartnerProvider, required: false })
   signupPartnerProvider?: Ref<SignupPartnerProvider>
-
-  @Field(() => Insurance, { nullable: true })
-  @prop({ required: false })
-  insurance?: Insurance
 
   @Field(() => String, { nullable: true })
   @prop({ type: String, required: false })

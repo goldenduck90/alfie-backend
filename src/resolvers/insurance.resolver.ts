@@ -33,10 +33,6 @@ export default class InsuranceResolver {
   ): Promise<InsuranceCheckResponse> {
     try {
       const checkout = await CheckoutModel.findById(input.checkoutId)
-      checkout.insurancePlan = input.insurancePlan
-      checkout.insuranceType = input.insuranceType
-      checkout.insurance = input.insurance
-      await checkout.save()
 
       const result = await this.insuranceFlow(
         input.insurancePlan,
@@ -49,6 +45,13 @@ export default class InsuranceResolver {
         },
         input.insurance
       )
+
+      checkout.insurancePlan = input.insurancePlan
+      checkout.insuranceType = input.insuranceType
+      checkout.insurance = input.insurance
+      checkout.insuranceCovered =
+        result.covered.covered && result.eligible.eligible
+      await checkout.save()
 
       return result
     } catch (error) {
