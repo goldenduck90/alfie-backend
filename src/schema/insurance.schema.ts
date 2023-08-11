@@ -134,7 +134,7 @@ export class InsuranceCoveredResponse {
 }
 
 @ObjectType()
-export class InsuranceFlowResponse {
+export class InsuranceCheckResponse {
   @Field(() => InsuranceCoveredResponse)
   covered: InsuranceCoveredResponse
 
