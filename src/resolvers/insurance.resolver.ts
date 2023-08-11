@@ -7,6 +7,7 @@ import {
   InsuranceCoveredResponse,
   BasicUserInsuranceInfo,
   InsurancePlansResponse,
+  InsuranceCheckInput,
   InsuranceCheckResponse,
 } from "../schema/insurance.schema"
 import CandidService from "../services/candid.service"
@@ -28,34 +29,25 @@ export default class InsuranceResolver {
 
   @Mutation(() => InsuranceCheckResponse)
   async insuranceCheck(
-    @Arg("checkoutId") checkoutId: string,
-
-    @Arg("insurancePlan", () => InsurancePlanValue)
-    insurancePlan: InsurancePlanValue,
-
-    @Arg("insuranceType", () => InsuranceTypeValue)
-    insuranceType: InsuranceTypeValue,
-
-    @Arg("insurance", () => Insurance)
-    insurance: Insurance
+    @Arg("input") input: InsuranceCheckInput
   ): Promise<InsuranceCheckResponse> {
     try {
-      const checkout = await CheckoutModel.findById(checkoutId)
-      checkout.insurancePlan = insurancePlan
-      checkout.insuranceType = insuranceType
-      checkout.insurance = insurance
+      const checkout = await CheckoutModel.findById(input.checkoutId)
+      checkout.insurancePlan = input.insurancePlan
+      checkout.insuranceType = input.insuranceType
+      checkout.insurance = input.insurance
       await checkout.save()
 
       const result = await this.insuranceFlow(
-        insurancePlan,
-        insuranceType,
+        input.insurancePlan,
+        input.insuranceType,
         {
-          address: checkout.billingAddress,
+          state: checkout.state,
           dateOfBirth: checkout.dateOfBirth,
           gender: checkout.gender,
           name: checkout.name,
         },
-        insurance
+        input.insurance
       )
 
       return result
@@ -110,7 +102,7 @@ export default class InsuranceResolver {
     const covered = await this.insuranceService.isCovered({
       plan: insurancePlan,
       type: insuranceType,
-      state: user.address.state,
+      state: user.state,
     })
 
     return covered
@@ -125,7 +117,7 @@ export default class InsuranceResolver {
     insurance: Insurance,
     @Arg("cpid", { nullable: true }) cpid?: string
   ): Promise<InsuranceEligibilityResponse> {
-    let inputs: ReturnType<typeof resolveCPIDEntriesToInsurance> = []
+    let inputs = []
     if (cpid) {
       inputs = [{ insurance, cpid }]
     } else {

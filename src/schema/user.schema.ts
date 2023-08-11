@@ -82,16 +82,16 @@ export class Insurance {
 
   @Field(() => String)
   @prop({ required: true })
+  groupId: string
+
+  @Field(() => String)
+  @prop({ required: true })
   insuranceCompany: string
 
   /** The payer ID. */
-  @Field(() => String)
-  @prop({ required: true })
-  payor: string
-
-  @Field(() => String)
-  @prop({ required: true })
-  groupId: string
+  @Field(() => String, { nullable: true })
+  @prop()
+  payor?: string
 
   @Field(() => String, { nullable: true })
   @prop()
