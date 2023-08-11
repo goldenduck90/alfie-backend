@@ -1,11 +1,6 @@
 import { Ref, getModelForClass, index, prop } from "@typegoose/typegoose"
 import { Field, InputType, ObjectType, registerEnumType } from "type-graphql"
-import {
-  Address,
-  Gender,
-  Insurance,
-  InsuranceEligibilityResponse,
-} from "./user.schema"
+import { Address, Gender, InsuranceEligibilityResponse } from "./user.schema"
 import { Provider } from "./provider.schema"
 
 export enum InsuranceTypeValue {
@@ -145,12 +140,6 @@ export class InsuranceFlowResponse {
 
   @Field(() => InsuranceEligibilityResponse)
   eligible: InsuranceEligibilityResponse
-
-  @Field(() => Insurance, { nullable: true })
-  rectifiedInsurance?: Insurance
-
-  @Field({ nullable: true })
-  stripeSubscriptionId?: string
 }
 
 @InputType()

@@ -11,7 +11,7 @@ import { AsQueryMethod, Ref } from "@typegoose/typegoose/lib/types"
 import { IsEmail, IsPhoneNumber } from "class-validator"
 import { Field, InputType, ObjectType } from "type-graphql"
 import config from "config"
-import { Address, Gender, User } from "./user.schema"
+import { Address, Gender, Insurance, User } from "./user.schema"
 import { SignupPartner, SignupPartnerProvider } from "./partner.schema"
 import { InsurancePlanValue, InsuranceTypeValue } from "./insurance.schema"
 
@@ -167,6 +167,10 @@ export class Checkout {
   @Field(() => SignupPartnerProvider, { nullable: true })
   @prop({ ref: () => SignupPartnerProvider, required: false })
   signupPartnerProvider?: Ref<SignupPartnerProvider>
+
+  @Field(() => Insurance, { nullable: true })
+  @prop({ required: false })
+  insurance?: Insurance
 
   @Field(() => String, { nullable: true })
   @prop({ type: String, required: false })
