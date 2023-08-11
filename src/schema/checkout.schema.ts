@@ -221,12 +221,6 @@ export class CreateCheckoutInput {
   @Field(() => [String])
   pastTries: string[]
 
-  @Field(() => InsurancePlanValue, { nullable: true })
-  insurancePlan?: InsurancePlanValue
-
-  @Field(() => InsuranceTypeValue, { nullable: true })
-  insuranceType?: InsuranceTypeValue
-
   @Field(() => String, { nullable: true })
   signupPartnerId?: string
 

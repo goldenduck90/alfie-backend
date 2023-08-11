@@ -1402,18 +1402,10 @@ class UserService extends EmailService {
         phone,
         pastTries,
         weightLossMotivatorV2,
-        insurancePlan,
-        insuranceType,
         signupPartnerId,
         signupPartnerProviderId,
         referrer,
       } = input
-
-      const { covered } = await this.insuranceService.isCovered({
-        plan: insurancePlan,
-        type: insuranceType,
-        state,
-      })
 
       const checkout = await CheckoutModel.find().findByEmail(email).lean()
       if (checkout) {
@@ -1436,9 +1428,6 @@ class UserService extends EmailService {
         checkout.textOptIn = textOptIn
         checkout.phone = phone
         checkout.pastTries = pastTries
-        checkout.insurancePlan = insurancePlan
-        checkout.insuranceType = insuranceType
-        checkout.covered = covered
         checkout.signupPartner = signupPartnerId
         checkout.signupPartnerProvider = signupPartnerProviderId
         checkout.referrer = referrer
