@@ -1945,6 +1945,79 @@ class UserService extends EmailService {
 
     return { user, userTask }
   }
+
+  async createUserFromCheckout(checkoutId: string) {
+    // create new user
+    try {
+      const pICheckout = await CheckoutModel.findOne({
+        _id: checkoutId,
+      })
+
+      if (!pICheckout) {
+        throw new Error(
+          `Checkout not found for stripe customer id: ${checkoutId}`
+        )
+      }
+
+      try {
+        const pINewUser = await this.createUser({
+          name: pICheckout.name,
+          textOptIn: pICheckout.textOptIn,
+          email: pICheckout.email,
+          phone: pICheckout.phone,
+          dateOfBirth: pICheckout.dateOfBirth,
+          address: pICheckout.shippingAddress,
+          weightInLbs: pICheckout.weightInLbs,
+          gender: pICheckout.gender,
+          heightInInches: pICheckout.heightInInches,
+          stripeCustomerId: checkoutId,
+          stripePaymentIntentId: null,
+          stripeSubscriptionId: null,
+          insurancePlan: pICheckout.insurancePlan,
+          insuranceType: pICheckout.insuranceType,
+          signupPartnerId: pICheckout.signupPartner?.toString(),
+          signupPartnerProviderId: pICheckout.signupPartnerProvider?.toString(),
+        })
+
+        const newUser = pINewUser.user
+
+        if (process.env.NODE_ENV === "production") {
+          client.capture({
+            distinctId: pICheckout._id,
+            event: "Checkout Complete",
+            properties: {
+              referrer: pICheckout.referrer || "None",
+              checkoutId: pICheckout._id,
+              userId: newUser._id,
+              signupPartner: pICheckout.signupPartner || "None",
+              signupPartnerProvider: pICheckout.signupPartnerProvider || "None",
+              insurancePay: pICheckout.insurancePlan ? true : false,
+              environment: process.env.NODE_ENV,
+            },
+          })
+        }
+
+        await this.stripeSdk.customers.update(pICheckout.stripeCustomerId, {
+          metadata: {
+            USER_ID: newUser._id,
+            UPDATED_VIA_STRIPE_WEBHOOK_ON: new Date().toString(),
+          },
+        })
+
+        pICheckout.user = newUser._id
+        pICheckout.checkedOut = true
+        await pICheckout.save()
+
+        return newUser._id.toString()
+      } catch (err) {
+        // error occured creating new user
+        console.log(err)
+        return `Error creating user for checkout id: ${checkoutId}`
+      }
+    } catch (err) {
+      return `Checkout not found for checkout id: ${checkoutId}`
+    }
+  }
 }
 
 export default UserService
