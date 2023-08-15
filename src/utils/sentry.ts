@@ -95,7 +95,7 @@ export function prepareContextObject(data: Record<string, any>) {
   const defaultDataKey = "Other Values"
 
   const stringifyValue = (v: any) => {
-    if (Array.isArray(v) || typeof v === "object")
+    if (Array.isArray(v) || (v && typeof v === "object"))
       return JSON.stringify(v, null, "  ")
     else return v
   }
@@ -107,7 +107,7 @@ export function prepareContextObject(data: Record<string, any>) {
       value.forEach((v, index) => {
         result[category][`Index: ${index}`] = stringifyValue(v)
       })
-    } else if (typeof value === "object") {
+    } else if (value && typeof value === "object") {
       result[category] = Object.keys(value).reduce(
         (map, key) => ({
           ...map,
