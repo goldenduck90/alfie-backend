@@ -1725,12 +1725,6 @@ class UserService extends EmailService {
       { new: true }
     )
 
-    const insuranceFile = input.find(
-      (file) => file.type === FileType.InsuranceCard
-    )
-    if (insuranceFile) {
-      await this.checkInsuranceEligibilityFromFile(insuranceFile, userId)
-    }
     return update
   }
 
