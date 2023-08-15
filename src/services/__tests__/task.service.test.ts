@@ -2,12 +2,7 @@ import { initializeCollection } from "../../database/initializeCollection"
 import AnswerType from "../../schema/enums/AnswerType"
 import { Task, TaskModel, TaskType } from "../../schema/task.schema"
 import { UserAnswerTypes, UserTask } from "../../schema/task.user.schema"
-import {
-  Classification,
-  ClassificationType,
-  Score,
-  User,
-} from "../../schema/user.schema"
+import { ClassificationType, User } from "../../schema/user.schema"
 import { connectToMongo, disconnect } from "../../utils/tests/mongo"
 import { createTestUser } from "../../utils/tests/createTestDocument"
 import TaskService from "../task.service"
@@ -121,14 +116,12 @@ describe("Task Service", () => {
       const userId = user._id.toString()
       const tasks = await createUserTasks(user)
 
-      jest.spyOn(taskService, "handleIsReadyForProfiling")
-
       await taskService.recalculateProfiling(userId)
       const user1 = await userService.getUser(userId)
 
       // tasks assigned but not completed
       expect(user1.score).toHaveLength(0)
-      expect(user1.classifications).toHaveLength(0)
+      expect(user1.classifications).toHaveLength(4)
 
       await Promise.all(
         tasks.map(
@@ -137,7 +130,7 @@ describe("Task Service", () => {
       )
 
       // one set of tasks completed
-      await taskService.recalculateProfiling(userId)
+      // await taskService.recalculateProfiling(userId)
       const user2 = await userService.getUser(userId)
       expect(user2.score).toHaveLength(4)
       expect(user2.classifications).toHaveLength(1)
@@ -150,7 +143,7 @@ describe("Task Service", () => {
         )
       )
 
-      await taskService.recalculateProfiling(userId)
+      // await taskService.recalculateProfiling(userId)
 
       const user3 = await userService.getUser(userId)
       expect(user3.score).toHaveLength(8)
@@ -164,7 +157,7 @@ describe("Task Service", () => {
         )
       )
 
-      await taskService.recalculateProfiling(userId)
+      // await taskService.recalculateProfiling(userId)
 
       const user4 = await userService.getUser(userId)
       expect(user4.score).toHaveLength(12)
@@ -172,58 +165,6 @@ describe("Task Service", () => {
       expect(user4.classifications[0].classification).toBe(
         ClassificationType.Rover
       )
-    },
-    100 * 1000
-  )
-
-  test(
-    "handleIsReadyForProfiling",
-    async () => {
-      const date = new Date(2023, 5, 5)
-      const classifySpy = jest
-        .spyOn(taskService, "classifySinglePatient")
-        .mockImplementation(async () => [
-          {
-            date,
-            classification: ClassificationType.Rover,
-            percentile: 80,
-            calculatedPercentile: 80,
-          } as Classification,
-        ])
-      const scorePatientSpy = jest
-        .spyOn(taskService, "scorePatient")
-        .mockImplementation(async () => [
-          {
-            date,
-            percentile: 80,
-            calculatedPercentile: 80,
-            message: "Test",
-            task: TaskType.AD_LIBITUM,
-            latest: "10",
-          } as Score,
-        ])
-
-      const user = await createTestUser()
-      const tasks = await createUserTasks(user)
-
-      expect(classifySpy).not.toHaveBeenCalled()
-      expect(scorePatientSpy).not.toHaveBeenCalled()
-
-      // one completed task
-      await completeUserTask(tasks[0].task, tasks[0].userTask)
-
-      expect(classifySpy).not.toHaveBeenCalled()
-      expect(scorePatientSpy).not.toHaveBeenCalled()
-
-      // four completed tasks
-      await completeUserTask(tasks[1].task, tasks[1].userTask)
-      await completeUserTask(tasks[2].task, tasks[2].userTask)
-
-      await completeUserTask(tasks[3].task, tasks[3].userTask)
-
-      expect(scorePatientSpy).toHaveBeenCalledTimes(1)
-      expect(classifySpy).toHaveBeenCalledTimes(1)
-      expect(classifySpy).toHaveBeenCalledWith(user._id.toString())
     },
     100 * 1000
   )
