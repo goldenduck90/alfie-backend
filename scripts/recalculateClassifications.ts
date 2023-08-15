@@ -1,5 +1,7 @@
 import runShell, { createProgram } from "./utils/runShell"
+import TaskService from "../src/services/task.service"
 import UserService from "../src/services/user.service"
+import { pickFields } from "../src/utils/collections"
 import { writeFileSync } from "fs"
 import { resolve } from "path"
 
@@ -28,6 +30,7 @@ const { user: userId, file: fileName } = program.opts<{
  * on the entire user task history.
  */
 async function recalculateClassifications() {
+  const taskService = new TaskService()
   const userService = new UserService()
 
   const users = (
@@ -40,25 +43,16 @@ async function recalculateClassifications() {
   for (const user of users) {
     console.log(`Recalculating scores/classifications for ${user._id}`)
     try {
-      if (user.score.length > 0 && user.classifications.length === 0) {
-        console.log(`Scores but no classifications: ${user._id}`)
-        console.log(
-          JSON.stringify({
-            score: user.score,
-            classifications: user.classifications,
-          })
-        )
-      }
-      // const before = pickFields(user, "score", "classifications")
+      const before = pickFields(user, "score", "classifications")
 
-      // await taskService.recalculateProfiling(user._id)
-      // const updatedUser = await userService.getUser(user._id)
-      // const after = pickFields(updatedUser, "score", "classifications")
-      // results.push({
-      //   userId: user._id.toString(),
-      //   before,
-      //   after,
-      // })
+      await taskService.recalculateProfiling(user._id)
+      const updatedUser = await userService.getUser(user._id)
+      const after = pickFields(updatedUser, "score", "classifications")
+      results.push({
+        userId: user._id.toString(),
+        before,
+        after,
+      })
     } catch (error) {
       results.push({
         userId: user._id.toString(),
