@@ -11,11 +11,13 @@ describe("Sentry capture helpers", () => {
         itemThree: { three: 3 },
         itemFour: [{ one: 1, two: 2, three: 3, four: 4 }],
         itemFive: { one: { two: { three: { four: { five: 5 } } } } },
+        itemNull: null as null,
       }
       const context = prepareContextObject(obj)
 
       expect(context).toEqual({
         "Other Values": {
+          itemNull: null,
           itemOne: "1",
           itemTwo: 2,
         },
