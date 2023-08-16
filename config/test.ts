@@ -1,6 +1,6 @@
-import develop from "./develop"
+import development from "./development"
 
 export default {
-  ...develop,
+  ...development,
   env: "test",
 }
