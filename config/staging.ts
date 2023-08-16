@@ -1,8 +1,8 @@
 import dotenv from "dotenv"
 dotenv.config()
 
-import candidHealth from "./includes/candidHealth.develop"
-import akuteProcedures from "./includes/akuteProcedures.develop"
+import candidHealth from "./includes/candidHealth.development"
+import akuteProcedures from "./includes/akuteProcedures.development"
 
 export default {
   env: "staging",
