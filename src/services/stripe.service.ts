@@ -661,7 +661,7 @@ export default class StripeService {
     const stripePayment = await this.stripeSdk.paymentIntents.create({
       customer: stripeCustomerId,
       payment_method: paymentMethodId,
-      amount: 0,
+      amount: 100,
       currency: "USD",
       off_session: true,
       confirm: true,

@@ -2000,12 +2000,15 @@ class UserService extends EmailService {
           })
         }
 
-        await this.stripeSdk.customers.update(pICheckout.stripeCustomerId, {
-          metadata: {
-            USER_ID: newUser._id,
-            UPDATED_VIA_STRIPE_WEBHOOK_ON: new Date().toString(),
-          },
-        })
+        await this.stripeService.stripeSdk.customers.update(
+          pICheckout.stripeCustomerId,
+          {
+            metadata: {
+              USER_ID: newUser._id,
+              UPDATED_VIA_STRIPE_WEBHOOK_ON: new Date().toString(),
+            },
+          }
+        )
 
         pICheckout.user = newUser._id
         pICheckout.checkedOut = true
