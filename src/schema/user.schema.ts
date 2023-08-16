@@ -541,6 +541,10 @@ export class User {
   @prop({ enum: InsuranceTypeValue, type: String, required: false })
   insuranceType?: InsuranceTypeValue
 
+  @Field(() => Boolean, { defaultValue: false })
+  @prop({ default: false, required: false })
+  insuranceCovered: boolean
+
   @Field(() => SignupPartner, { nullable: true })
   @prop({ ref: () => SignupPartner, required: false })
   signupPartner?: Ref<SignupPartner>
@@ -690,11 +694,17 @@ export class CreateUserInput {
   })
   metriportUserId?: string
 
+  @Field(() => Insurance, { nullable: true })
+  insurance?: Insurance
+
   @Field(() => InsurancePlanValue, { nullable: true })
   insurancePlan?: InsurancePlanValue
 
   @Field(() => InsuranceTypeValue, { nullable: true })
   insuranceType?: InsuranceTypeValue
+
+  @Field(() => Boolean, { nullable: true })
+  insuranceCovered?: boolean
 
   @Field(() => String, { nullable: true })
   signupPartnerId?: string

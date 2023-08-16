@@ -28,7 +28,7 @@ import {
   Checkout,
   CheckoutModel,
   CreateCheckoutInput,
-  CreateStripeCustomerInput,
+  CheckoutAddressInput,
 } from "../schema/checkout.schema"
 import { ProviderModel, Provider } from "../schema/provider.schema"
 import { AllTaskEmail, Task, TaskEmail, TaskType } from "../schema/task.schema"
@@ -228,8 +228,10 @@ class UserService extends EmailService {
       metriportUserId,
       providerId,
       textOptIn,
+      insurance,
       insurancePlan,
       insuranceType,
+      insuranceCovered,
       signupPartnerId,
       signupPartnerProviderId,
     } = input
@@ -330,8 +332,10 @@ class UserService extends EmailService {
       akutePatientId: patientId,
       provider: provider._id,
       textOptIn,
+      insurance,
       insurancePlan,
       insuranceType,
+      insuranceCovered,
       signupPartner: signupPartnerId,
       signupPartnerProvider: signupPartnerProviderId,
     })
@@ -1284,8 +1288,7 @@ class UserService extends EmailService {
     shipping,
     billing,
     sameAsShipping,
-    insurance = false,
-  }: CreateStripeCustomerInput) {
+  }: CheckoutAddressInput) {
     const { checkoutNotFound, alreadyCheckedOut } = config.get(
       "errors.checkout"
     ) as any
@@ -1343,7 +1346,7 @@ class UserService extends EmailService {
       metadata: {
         checkoutId: String(checkout._id),
         email: checkout.email,
-        INSURANCE: `${insurance ? "TRUE" : "FALSE"}`,
+        INSURANCE: `${checkout.insuranceCovered ? "TRUE" : "FALSE"}`,
       },
       ...(customer && { customer: customer.id }),
     }
@@ -1376,6 +1379,52 @@ class UserService extends EmailService {
     checkout.billingAddress = sameAsShipping ? shipping : billing
     if (customer) checkout.stripeCustomerId = customer.id
     await checkout.save()
+
+    return {
+      checkout,
+    }
+  }
+
+  async createInsuredUserFromCheckout({
+    _id,
+    shipping,
+    billing,
+    sameAsShipping,
+  }: CheckoutAddressInput) {
+    const { checkoutNotFound } = config.get("errors.checkout") as any
+
+    const checkout = await CheckoutModel.findById(_id)
+
+    if (!checkout) {
+      throw new ApolloError(checkoutNotFound.message, checkoutNotFound.code)
+    }
+
+    if (!checkout.insuranceCovered) {
+      throw new ApolloError("Insurance not covered!")
+    }
+
+    checkout.shippingAddress = shipping
+    checkout.billingAddress = sameAsShipping ? shipping : billing
+    await checkout.save()
+
+    const userInput = {
+      name: checkout.name,
+      textOptIn: checkout.textOptIn,
+      email: checkout.email,
+      phone: checkout.phone,
+      dateOfBirth: checkout.dateOfBirth,
+      address: checkout.shippingAddress,
+      weightInLbs: checkout.weightInLbs,
+      gender: checkout.gender,
+      heightInInches: checkout.heightInInches,
+      insurance: checkout.insurance,
+      insurancePlan: checkout.insurancePlan,
+      insuranceType: checkout.insuranceType,
+      insuranceCovered: checkout.insuranceCovered,
+      signupPartnerId: checkout.signupPartner?.toString(),
+      signupPartnerProviderId: checkout.signupPartnerProvider?.toString(),
+    }
+    await this.createUser(userInput)
 
     return {
       checkout,

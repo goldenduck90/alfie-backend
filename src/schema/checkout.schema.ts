@@ -238,7 +238,7 @@ export class GetCheckoutInput {
 }
 
 @InputType()
-export class CreateStripeCustomerInput {
+export class CheckoutAddressInput {
   @Field(() => String)
   _id: string
 
@@ -250,9 +250,6 @@ export class CreateStripeCustomerInput {
 
   @Field(() => Boolean)
   sameAsShipping: boolean
-
-  @Field(() => Boolean, { defaultValue: false, nullable: true })
-  insurance?: boolean
 }
 
 @InputType()
