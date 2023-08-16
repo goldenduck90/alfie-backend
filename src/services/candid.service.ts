@@ -25,7 +25,7 @@ import { Provider } from "../schema/provider.schema"
 import { TaskType } from "../schema/task.schema"
 import { UserTask } from "../schema/task.user.schema"
 import TaskService from "../services/task.service"
-import calculateSetting, { SettingsList } from "../utils/calculateSetting"
+import { calculateSetting, SettingsList } from "../utils/calculateSetting"
 import { calculateBMI } from "../utils/calculateBMI"
 import batchAsync from "../utils/batchAsync"
 
@@ -38,6 +38,11 @@ export enum CodedEncounterSource {
 }
 
 export class CandidError extends ApolloError {}
+
+export type BasicUserInfo = Pick<
+  User,
+  "name" | "address" | "dateOfBirth" | "gender"
+>
 
 interface CandidAuthResponse {
   /** The access token to use in authorization headers. */
@@ -122,7 +127,7 @@ export default class CandidService {
     const token: LeanDocument<AuthorizationToken> =
       await AuthorizationTokenModel.findOne({
         provider: authorizationTokenProvider,
-      }).lean()
+      })
 
     return token
   }
@@ -188,7 +193,7 @@ export default class CandidService {
 
   /** Check insurance eligibility for the patient with the given insurance card information. */
   public async checkInsuranceEligibility(
-    user: User,
+    user: BasicUserInfo,
     /** Insurance information sets to check. */
     inputs: { insurance: Insurance; cpid: string }[]
   ): Promise<{
@@ -273,7 +278,7 @@ export default class CandidService {
 
   /** Check insurance eligibility for the patient with the given insurance card information and CPID. */
   private async checkCPIDEligibility(
-    user: User,
+    user: BasicUserInfo,
     input: Insurance,
     cpid: string
   ): Promise<{
@@ -416,7 +421,7 @@ export default class CandidService {
 
     // prevent DuplicateEncounterException in development
     const sandboxExternalId =
-      process.env.NODE_ENV === "development"
+      process.env.NODE_ENV === "develop" || process.env.NODE_ENV === "staging"
         ? `-${Math.floor(Math.random() * 1e5)}`
         : ""
 
@@ -472,7 +477,7 @@ export default class CandidService {
     if (firstMeasurement || currentMonthMeasurements === 16) {
       // prevent DuplicateEncounterException in development
       const sandboxExternalId =
-        process.env.NODE_ENV === "development"
+        process.env.NODE_ENV === "develop" || process.env.NODE_ENV === "staging"
           ? `-${Math.floor(Math.random() * 1e5)}`
           : ""
       const measurementNote = firstMeasurement
@@ -539,7 +544,7 @@ export default class CandidService {
     /**
      * A map of source-specific values to include in diagnosis, cost, and procedure code calculation.
      * The user's bmi, comorbidities, state,
-     * @see candidHealth.development.ts
+     * @see candidHealth.develop.ts
      * @see candidHealth.production.ts
      */
     conditionsValues: Record<string, any>,
@@ -559,7 +564,10 @@ export default class CandidService {
 
     const settings: SettingsList = config.get("candidHealth.settings")
 
-    if (process.env.NODE_ENV === "development") {
+    if (
+      process.env.NODE_ENV === "develop" ||
+      process.env.NODE_ENV === "staging"
+    ) {
       const sandboxValues = getSandboxObjects(user, provider, insurance)
       user = sandboxValues.user
       provider = sandboxValues.provider

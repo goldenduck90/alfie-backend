@@ -8,7 +8,7 @@ export default {
   env: "production",
   dbUri: `mongodb+srv://joinalfie_dev_user:${process.env.DB_PASSWORD}@platform-production-clu.wnd0f.mongodb.net/?retryWrites=true&w=majority`,
   baseUrl: "https://app.joinalfie.com",
-  easyAppointmentsApiUrl: "https://ea.prod.joinalfie.com/index.php/api/v1",
+  easyAppointmentsApiUrl: "https://ea.joinalfie.com/index.php/api/v1",
   sendBirdApiUrl:
     "https://api-56D883B9-B30F-428B-8B7A-31184E513DF4.sendbird.com",
   candidHealth: {
@@ -23,9 +23,9 @@ export default {
     clientId: process.env.WITHINGS_CLIENT_ID,
     clientSecret: process.env.WITHINGS_CLIENT_SECRET,
   },
-  defaultPriceId: "price_1KMv4hDOjl0X0gOqRIWXpGVz",
   s3: {
     patientBucketName: "production-platform-patient-storage",
+    checkoutBucketName: "production-platform-checkout-storage",
   },
   dynamoDb: {
     emailSubscribersTable: "production-platform-email-subscribers",
@@ -42,6 +42,12 @@ export default {
     procedures: akuteProcedures,
   },
   twilioPhone: "+18447244465",
+  stripe: {
+    secretKey: process.env.STRIPE_SECRET_KEY,
+    webhookSecret: process.env.STRIPE_WEBHOOK_SECRET,
+    defaultPriceId: "price_1KMv4hDOjl0X0gOqRIWXpGVz",
+    partnerPriceId: "price_1KMv4hDOjl0X0gOqRIWXpGVz",
+  },
   zapierCreateUserWebhook:
     "https://hooks.zapier.com/hooks/catch/12197313/34bsrhc/",
 }

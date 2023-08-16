@@ -7,21 +7,25 @@ import {
   User,
 } from "../schema/user.schema"
 import Role from "../schema/enums/Role"
+import { AkuteDocument, DocUploadInput } from "../schema/akute.schema"
+import { InsuranceTextractResponse } from "../schema/upload.schema"
 import S3Service from "../services/s3.service"
 import AkuteService from "../services/akute.service"
-import { AkuteDocument, DocUploadInput } from "../schema/akute.schema"
 import UserService from "../services/user.service"
+import UploadService from "../services/upload.service"
 
 @Resolver()
 export default class UploadResolver {
   private akuteService: AkuteService
   private s3Service: S3Service
   private userService: UserService
+  private uploadService: UploadService
 
   constructor() {
     this.s3Service = new S3Service()
     this.akuteService = new AkuteService()
     this.userService = new UserService()
+    this.uploadService = new UploadService()
   }
 
   @Authorized([Role.Patient])
@@ -42,9 +46,21 @@ export default class UploadResolver {
   @Mutation(() => User)
   completeUpload(
     @Ctx() context: Context,
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    @Arg("files", (_) => [File]) files: File[]
+    @Arg("files", () => [File]) files: File[]
   ) {
     return this.userService.completeUpload(files, context.user._id)
+  }
+
+  @Authorized([Role.Admin, Role.Patient])
+  @Mutation(() => InsuranceTextractResponse)
+  async insuranceTextract(
+    @Arg("s3Key") s3Key: string,
+    @Arg("userState", { nullable: true }) userState?: string
+  ): Promise<InsuranceTextractResponse> {
+    const result = await this.uploadService.textractInsuranceImage(
+      s3Key,
+      userState
+    )
+    return result
   }
 }

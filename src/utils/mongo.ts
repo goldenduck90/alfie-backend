@@ -9,9 +9,20 @@ export async function connectToMongo() {
     const dbUri = config.get("dbUri") as string
     console.log(dbUri)
     await mongoose.connect(dbUri)
-    console.log("Connected to MongoDB database")
+    console.log(`Connected to ${process.env.NODE_ENV} MongoDB database`)
   } catch (error) {
     console.error(error)
     process.exit(1)
   }
+
+  const cleanup = async () => {
+    await disconnect()
+    process.exit()
+  }
+  process.on("SIGINT", cleanup)
+  process.on("SIGTERM", cleanup)
+}
+
+export async function disconnect() {
+  await mongoose.connection.close()
 }

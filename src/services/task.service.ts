@@ -34,6 +34,14 @@ import EmailService from "./email.service"
 import { calculateBMI } from "../utils/calculateBMI"
 import Role from "../schema/enums/Role"
 import { captureEvent, captureException } from "../utils/sentry"
+import { groupCollectionByField, sorted } from "../utils/collections"
+
+export const tasksEligibleForProfiling = [
+  TaskType.MP_HUNGER,
+  TaskType.MP_FEELING,
+  TaskType.AD_LIBITUM,
+  TaskType.MP_ACTIVITY,
+]
 
 class TaskService {
   private akuteService: AkuteService
@@ -171,6 +179,59 @@ class TaskService {
     }
   }
 
+  /**
+   * Recalculates the user's scores and classifications, overwriting
+   * previous scores and classifications on the database user document.
+   */
+  async recalculateProfiling(userId: string) {
+    const user = await UserModel.findById(userId)
+    if (!user) {
+      throw new ApolloError("User not found", "NOT_FOUND")
+    }
+
+    const tasks = await TaskModel.find({
+      type: { $in: tasksEligibleForProfiling },
+    })
+    const userTasks = await UserTaskModel.find({
+      user: user._id,
+      task: { $in: tasks.map(({ _id }) => _id) },
+      completed: true,
+    })
+      .populate<{ task: Task }>("task")
+      .sort({ completedAt: 1 })
+
+    const tasksByType = groupCollectionByField(
+      userTasks,
+      (task) => task.task.type
+    )
+
+    const scores: Score[] = []
+
+    while (
+      tasksEligibleForProfiling.some((type) => tasksByType[type]?.length > 0)
+    ) {
+      const typeScores = tasksEligibleForProfiling
+        .map((type) => ({ type, list: tasksByType[type] }))
+        .filter(({ list }) => list)
+        .map(({ list, type }) => ({
+          current: list.pop(), // start from last (most recent)
+          previous: list[list.length - 1] ?? null,
+          type,
+        }))
+        .filter(({ current }) => current)
+        .map(({ current, previous, type }) =>
+          calculateScore(previous, current, type)
+        )
+      scores.push(...typeScores)
+    }
+
+    const classifications = classifyUser(scores)
+
+    user.score = scores
+    user.classifications = classifications
+    await user.save()
+  }
+
   async handleIsReadyForProfiling(
     userId: string,
     userScores: Score[],
@@ -186,13 +247,6 @@ class TaskService {
       ).filter((userTask) => userTask.task)
 
       const user = await UserModel.findById(userId)
-
-      const tasksEligibleForProfiling = [
-        TaskType.MP_HUNGER,
-        TaskType.MP_FEELING,
-        TaskType.AD_LIBITUM,
-        TaskType.MP_ACTIVITY,
-      ]
 
       const completedTasks: UserTask[] = userTasks.filter(
         ({ task, isReadyForProfiling, completed }) =>
@@ -281,25 +335,25 @@ class TaskService {
       }
 
       for (const user of users) {
-        if (user.score.length > 0 && user.score[0] !== null) {
-          const scoresByTask = new Map<string, Score[]>()
-
-          // group scores by task
-          for (const score of user.score) {
-            if (!scoresByTask.has(score.task)) {
-              scoresByTask.set(score.task, [])
-            }
-            scoresByTask.get(score.task).push(score)
-          }
+        const userScores = (user.score ?? []).filter((s) => s)
+        if (userScores.length > 0) {
+          const scoresByTask = groupCollectionByField(userScores, (score) =>
+            String(score.task)
+          )
 
           const scores: Score[] = []
 
           // get most recent score for each task
-          for (const taskScores of scoresByTask.values()) {
-            const mostRecentScore = taskScores.sort(
-              (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+          for (const taskScores of Object.values(scoresByTask)) {
+            const mostRecentScore = sorted(
+              taskScores,
+              (score) => new Date(score.date).getTime(),
+              "descending"
             )[0]
-            scores.push(mostRecentScore)
+
+            if (mostRecentScore) {
+              scores.push(mostRecentScore)
+            }
           }
 
           const classifications = classifyUser(scores)
@@ -324,29 +378,27 @@ class TaskService {
 
   async classifySinglePatient(userId: string) {
     try {
-      console.log("classifySinglePatient", userId)
       const user = await UserModel.findById(userId)
 
       if (user?.score?.filter((score) => score).length > 0) {
-        const scoresByTask = new Map<string, Score[]>()
-
         // group scores by task
-        for (const score of user.score) {
-          if (!scoresByTask.has(score.task)) {
-            scoresByTask.set(score.task, [])
-          }
-          scoresByTask.get(score.task).push(score)
-        }
+        const scoresByTask = groupCollectionByField(
+          (user.score ?? []).filter((s) => s),
+          (score) => String(score.task)
+        )
 
-        const scores = []
+        const scores: Score[] = []
 
         // get most recent score for each task
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        for (const taskScores of scoresByTask.values()) {
-          const mostRecentScore = taskScores.sort(
-            (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
+        for (const taskScores of Object.values(scoresByTask)) {
+          const mostRecentScore = sorted(
+            taskScores,
+            (score) => new Date(score.date).getTime(),
+            "descending"
           )[0]
-          scores.push(mostRecentScore)
+          if (mostRecentScore) {
+            scores.push(mostRecentScore)
+          }
         }
 
         const classifications = classifyUser(scores)
@@ -374,7 +426,6 @@ class TaskService {
       // Get the user task, throw an error if it is not found
       const { notFound } = config.get("errors.tasks") as any
       const { _id, answers } = input
-      console.log(`Complete user task input: ${JSON.stringify(input)}`)
       const userTask = await UserTaskModel.findById(_id)
       if (!userTask) {
         throw new ApolloError(notFound.message, notFound.code)
@@ -390,17 +441,10 @@ class TaskService {
       userTask.answers = []
       if (answers) {
         // correct answers from the questions schema
-        const { correctedAnswers, isChanged } = this.getCorrectedUserAnswers(
+        const { correctedAnswers } = this.getCorrectedUserAnswers(
           answers,
           task.questions
         )
-        if (isChanged) {
-          console.log(
-            `Corrected answers format from ${JSON.stringify(
-              answers
-            )} to ${JSON.stringify(correctedAnswers)}`
-          )
-        }
         userTask.answers = correctedAnswers
       }
       await userTask.save()
@@ -429,12 +473,6 @@ class TaskService {
           await user.save()
         }
       }
-      const tasksEligibleForProfiling = [
-        TaskType.MP_HUNGER,
-        TaskType.MP_FEELING,
-        TaskType.AD_LIBITUM,
-        TaskType.MP_ACTIVITY,
-      ]
       // if the tasktype is eligible for profiling, check if the user is ready for profiling and set the userTask.isReadyForProfiling to true
       if (tasksEligibleForProfiling.includes(task.type)) {
         userTask.isReadyForProfiling = true

@@ -2,6 +2,7 @@ import { calculateScore } from "../PROAnalysis"
 import { Task } from "../schema/task.schema"
 import { UserTaskModel } from "../schema/task.user.schema"
 import { UserModel } from "../schema/user.schema"
+import { groupCollectionByField } from "../utils/collections"
 import { captureException } from "../utils/sentry"
 
 /** Calculate all patient scores based on completed tasks, using the most recent answers. */
@@ -18,12 +19,9 @@ export async function calculatePatientScores(userId: string) {
     const user = await UserModel.findById(userId)
 
     // For each completed tasks group tasks by task
-    const groupedTasks = userTasks.reduce((acc, task) => {
-      const key = String(task.task._id)
-      return {
-        [key]: [...(acc[key] || []), task],
-      }
-    }, {} as Record<string, typeof userTasks[number][]>)
+    const groupedTasks = groupCollectionByField(userTasks, (task) =>
+      String(task.task._id)
+    )
 
     // For each task group, find two most recent tasks to today. The first task should be the currentTask and the second task should be the previousTask
     const tasks = Object.keys(groupedTasks).map((taskId: string) => {

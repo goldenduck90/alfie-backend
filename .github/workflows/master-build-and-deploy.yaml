@@ -1,4 +1,4 @@
-name: (PROD) Build and Deploy
+name: (PRODUCTION) Build and Deploy
 
 env:
   APP_NAME:	alfie-backend

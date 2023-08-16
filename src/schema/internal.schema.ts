@@ -1,4 +1,4 @@
-import { Insurance } from "./user.schema"
+import { Address, Insurance } from "./user.schema"
 import { Field, InputType } from "type-graphql"
 
 // Input Types
@@ -41,18 +41,9 @@ export class PatientModifyInput {
   gender: string
 
   @Field()
-  address: string
-
-  @Field()
-  city: string
-
-  @Field()
-  state: string
-
-  @Field()
-  zip: string
-
-  @Field()
+  address: Address
+  // insurance should not be required
+  @Field(() => Insurance, { nullable: true })
   insurance: Insurance
 }
 

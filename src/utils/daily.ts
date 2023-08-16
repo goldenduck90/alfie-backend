@@ -3,7 +3,7 @@ import axios from "axios"
 import config from "config"
 import { UserModel } from "../schema/user.schema"
 const dailyInstance = axios.create({
-  baseURL: process.env.DAILY_API_URL,
+  baseURL: config.get("dailyApiUrl"),
   headers: {
     Authorization: `Bearer ${process.env.DAILY_API_KEY}`,
   },

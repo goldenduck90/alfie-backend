@@ -1,12 +1,23 @@
+import dotenv from "dotenv"
+dotenv.config()
 import * as Sentry from "@sentry/node"
+import * as express from "express"
 import axios from "axios"
 import config from "config"
-import { UserModel } from "../schema/user.schema"
+import { User, UserModel } from "../schema/user.schema"
 import Role from "../schema/enums/Role"
-import { Channel, Member, Message } from "./sendbirdtypes"
+import {
+  Channel,
+  Member,
+  Message,
+  SendBirdWebhookMessage,
+  Sender,
+} from "./sendbirdtypes"
 import { Provider, ProviderModel } from "../schema/provider.schema"
 import batchAsync from "./batchAsync"
 import { mapCollectionByField } from "./collections"
+import EmailService from "../services/email.service"
+import { captureEvent, captureException } from "./sentry"
 
 const sendbirdBatchSize = 5
 
@@ -22,9 +33,20 @@ if (process.env.SENDBIRD_AUTOINVITE_USERS) {
     "63b85fa8ab80d27bb1af6d43",
     "639ba07cb937527a0c43484e",
     "63bd8d61af58147c29a7c272",
-    "64875fd443f7374fe0e162e7"
+    "64875fd443f7374fe0e162e7",
+    "64c896ea8633a43595050dd8"
   )
 }
+
+captureEvent(
+  "info",
+  `Sendbird autoinvite users: ${sendbirdAutoinviteUsers.join(", ")}`,
+  {
+    sendbirdAutoinviteUsers,
+    SENDBIRD_AUTOINVITE_USERS: process.env.SENDBIRD_AUTOINVITE_USERS,
+    NODE_ENV: process.env.NODE_ENV,
+  }
+)
 
 export const sendBirdInstance = axios.create({
   baseURL: config.get("sendBirdApiUrl"),
@@ -399,6 +421,107 @@ export const triggerEntireSendBirdFlow = async ({
   }
 }
 
+export const initializeSendBirdWebhook = (app: express.Application) => {
+  app.post(
+    "/sendbirdWebhooks",
+    express.json(),
+    async (req: express.Request, res: express.Response) => {
+      const signature = req.get("x-sendbird-signature")
+      captureEvent("info", "Sendbird Webhook called", {
+        Event: req.body,
+        Signature: signature,
+      })
+
+      const emailService = new EmailService()
+
+      const sender = req.body.sender as Sender
+      const message = req.body.payload.message as SendBirdWebhookMessage
+      const members = req.body.members as Member[]
+
+      try {
+        const users = (
+          await Promise.all(
+            members.map(async (member) => {
+              return (
+                (await UserModel.findOne({ _id: member.user_id })) ||
+                (await ProviderModel.findOne({ _id: member.user_id }))
+              )
+            })
+          )
+        ).filter((user) => user)
+
+        const possibleSender = await UserModel.findOne({ _id: sender.user_id })
+        if (possibleSender?.role === Role.Patient) {
+          const recipients = users
+            .filter((user) => String(user._id) !== String(possibleSender._id))
+            .map((user) => user.email)
+
+          await emailService.sendEmail(
+            `Unread Messages in Channel by ${sender.nickname}`,
+            `
+              You have unread messages from ${sender.nickname}
+              <br />
+              <br />
+              Sender: ${sender.nickname}
+              <br />
+              <br />
+              Message: ${message}
+              .          
+            `,
+            recipients
+          )
+
+          return res.sendStatus(200)
+        } else {
+          // this is an admin, health coach or practitioner so we just send the email to the patient
+          const recipients = users
+            .map((user) => user as any as User)
+            .filter(
+              (user) =>
+                user.role &&
+                user.role !== Role.Practitioner &&
+                user.role !== Role.Admin &&
+                user.role !== Role.HealthCoach
+            )
+
+          await emailService.sendEmail(
+            "New Message from your Care Team",
+            `
+              Hi ${recipients[0]?.name},
+
+              You have a new message from your Care Team. To read it, simply click the button below:
+              <br />
+              <br />
+
+              <a href="https://app.joinalfie.com/dashboard/chat">Read Message</a>
+
+              <br />
+              <br />
+
+              If you have any questions, let us know through the messaging portal!
+
+              <br />
+              <br />
+              Your Care Team
+            `,
+            recipients.map(({ email }) => email)
+          )
+        }
+
+        return res.sendStatus(200)
+      } catch (error) {
+        captureException(error, "Sendbird Webhook error", {
+          sender,
+          message,
+          members,
+        })
+
+        return res.sendStatus(500)
+      }
+    }
+  )
+}
+
 /** Recreates the entire sendbird state, including users (patients and providers), and channels. */
 export const findAndTriggerEntireSendBirdFlowForAllUsersAndProvider =
   async (options: {
@@ -413,6 +536,9 @@ export const findAndTriggerEntireSendBirdFlowForAllUsersAndProvider =
   }) => {
     try {
       console.log("Sendbird: Synchronizing sendbird state with the database.")
+      console.log(
+        `Sendbird: Autoinvite users: ${sendbirdAutoinviteUsers.join(", ")}`
+      )
 
       const users = (
         await UserModel.find()

@@ -1,17 +1,24 @@
 import { ApolloError } from "apollo-server"
 import {
+  SignupPartner,
   SignupPartnerModel,
+  SignupPartnerProvider,
   SignupPartnerProviderModel,
 } from "../schema/partner.schema"
 
 class PartnerService {
-  async getSignupPartnerByTitle(title: string) {
+  async getSignupPartnerByTitle(title: string): Promise<{
+    partner: SignupPartner | null
+    partnerProviders: SignupPartnerProvider[] | null
+  }> {
     try {
       const regex = new RegExp(["^", title, "$"].join(""), "i")
       const partner = await SignupPartnerModel.findOne({ title: regex })
-      const partnerProviders = await SignupPartnerProviderModel.find({
-        signupPartner: partner._id,
-      })
+      const partnerProviders = partner
+        ? await SignupPartnerProviderModel.find({
+            signupPartner: partner._id,
+          })
+        : null
       return {
         partner,
         partnerProviders,

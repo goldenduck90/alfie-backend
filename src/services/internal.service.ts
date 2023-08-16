@@ -1,5 +1,5 @@
 import { ApolloError } from "apollo-server-errors"
-import { Insurance, UserModel } from "./../schema/user.schema"
+import { Address, Insurance, UserModel } from "./../schema/user.schema"
 interface PatientReassignInput {
   patientId: string
   newProviderId: string
@@ -17,10 +17,7 @@ interface PatientModifyInput {
   email: string
   phoneNumber: string
   gender: string
-  address: string
-  city: string
-  state: string
-  zip: string
+  address: Address
   insurance: Insurance
 }
 
@@ -69,16 +66,10 @@ class InternalOperationsService {
       if (!patientIds) {
         throw new ApolloError("Patient Ids are required")
       }
-      const reassignedPatients = await UserModel.updateMany({
-        where: {
-          id: {
-            $in: patientIds,
-          },
-        },
-        set: {
-          provider: newProviderId,
-        },
-      })
+      const reassignedPatients = await UserModel.updateMany(
+        { _id: { $in: patientIds } },
+        { provider: newProviderId }
+      )
       return reassignedPatients
     } catch (e) {
       throw new ApolloError(
@@ -88,16 +79,14 @@ class InternalOperationsService {
   }
   async internalPatientModify(input: PatientModifyInput) {
     try {
+      console.log("input", input)
       const {
         name,
         dateOfBirth,
         email,
         phoneNumber,
         gender,
-        address,
-        city,
-        state,
-        zip,
+        address: { line1, city, state, postalCode },
         insurance: {
           memberId,
           insuranceCompany,
@@ -108,18 +97,19 @@ class InternalOperationsService {
           payor,
         },
       } = input
-      const modifiedPatient = await UserModel.updateOne({
-        where: input.patientId,
-        set: {
+
+      const modifiedPatient = await UserModel.findByIdAndUpdate(
+        input.patientId,
+        {
           name,
           dateOfBirth,
           email: email.toLowerCase(),
           phoneNumber,
           gender,
           address: {
-            line1: address,
-            state: state,
-            postalCode: zip,
+            line1,
+            state,
+            postalCode,
             city,
           },
           insurance: {
@@ -131,8 +121,9 @@ class InternalOperationsService {
             rxGroup,
             payor,
           },
-        },
-      })
+        }
+      )
+      console.log(modifiedPatient, "modifiedPatient")
       return modifiedPatient
     } catch (e) {
       throw new ApolloError("An error occurred while modifying the patient")

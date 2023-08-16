@@ -30,6 +30,7 @@ import {
 import { Provider } from "./provider.schema"
 import { SignupPartner, SignupPartnerProvider } from "./partner.schema"
 import Role from "./enums/Role"
+import { InsurancePlanValue, InsuranceTypeValue } from "./insurance.schema"
 
 const {
   email: emailValidation,
@@ -63,40 +64,6 @@ registerEnumType(Gender, {
 registerEnumType(Role, {
   name: "Role",
   description: "The user roles a user can be assigned to",
-})
-
-export enum InsurancePlan {
-  BCBS = "BCBS",
-  ANTHEM_BCBS = "ANTHEM_BCBS",
-  EMPIRE_BCBS = "EMPIRE_BCBS",
-  CAREFIRST_BCBS = "CAREFIRST_BCBS",
-  HORIZON_BCBS = "HORIZON_BCBS",
-  HUMANA = "HUMANA",
-  PARTNER_DIRECT = "PARTNER_DIRECT",
-  AETNA = "AETNA",
-  UNITED_HEALTHCARE = "UNITED_HEALTHCARE",
-  CIGNA = "CIGNA",
-  MEDICARE = "MEDICARE",
-  MEDICAID = "MEDICAID",
-  OTHER = "OTHER",
-}
-
-registerEnumType(InsurancePlan, {
-  name: "InsurancePlan",
-  description: "Insurance plans",
-})
-
-export enum InsuranceType {
-  EPO = "EPO",
-  POS = "POS",
-  PPO = "PPO",
-  HMO = "HMO",
-  GOVERNMENT_MEDICAID_TRICARE_CHIP = "GOVERNMENT_MEDICAID_TRICARE_CHIP",
-}
-
-registerEnumType(InsuranceType, {
-  name: "InsuranceType",
-  description: "Insurance types",
 })
 
 @ObjectType()
@@ -192,13 +159,13 @@ export class Score {
   @prop({ required: false })
   score?: number
 
-  @Field(() => String, { nullable: true })
+  @Field(() => Float, { nullable: true })
   @prop({ required: false })
-  percentile1hour?: string
+  percentile1Hour?: number
 
-  @Field(() => String, { nullable: true })
+  @Field(() => Float, { nullable: true })
   @prop({ required: false })
-  percentile?: string
+  percentile?: number
 
   @Field(() => Float, { nullable: true })
   @prop({ required: false })
@@ -206,23 +173,19 @@ export class Score {
 
   @Field(() => Float, { nullable: true })
   @prop({ required: false })
-  calculated1hourPercent?: number
+  calculatedPercentile1Hour?: number
 
   @Field(() => Float, { nullable: true })
   @prop({ required: false })
-  calculated30minsPercent?: number
+  calculatedPercentile30Minutes?: number
 
-  @Field(() => String, { nullable: true })
+  @Field(() => Float, { nullable: true })
   @prop({ required: false })
-  percentile30mins?: string
+  percentile30Minutes?: number
 
   @Field(() => String, { nullable: true })
   @prop({ required: false })
   latest?: string
-
-  @Field(() => Float, { nullable: true })
-  @prop({ required: false })
-  total?: number
 
   @Field(() => Float, { nullable: true })
   @prop({ required: false })
@@ -248,21 +211,13 @@ export class Score {
   @prop({ default: Date.now(), required: false })
   date: Date
 
-  @Field(() => String, { nullable: true })
+  @Field(() => Boolean, { nullable: true })
   @prop({ required: false })
-  score1hour?: string
-
-  @Field(() => String, { nullable: true })
-  @prop({ required: false })
-  score30mins?: string
+  increased1Hour?: boolean
 
   @Field(() => Boolean, { nullable: true })
   @prop({ required: false })
-  increased1hour?: boolean
-
-  @Field(() => Boolean, { nullable: true })
-  @prop({ required: false })
-  increased30Mins?: boolean
+  increased30Minutes?: boolean
 
   @Field(() => Number, { nullable: true })
   @prop({ required: false })
@@ -274,7 +229,7 @@ export class Score {
 
   @Field(() => Float, { nullable: true })
   @prop({ required: false })
-  percentDifference30Mins?: number
+  percentDifference30Minutes?: number
 
   @Field(() => Float, { nullable: true })
   @prop({ required: false })
@@ -318,38 +273,19 @@ export class Classification {
   @prop({ required: true })
   classification: ClassificationType
 
-  @Field(() => String)
+  @Field(() => Number)
   @prop({ required: true })
-  percentile: string
+  percentile: number
 
   @Field(() => Float, { nullable: true })
   @prop({ required: false })
   calculatedPercentile?: number
 
-  @Field(() => Float, { nullable: true })
-  @prop({ required: false })
-  calculated1hourPercent?: number
-
-  @Field(() => Float, { nullable: true })
-  @prop({ required: false })
-  calculated30minsPercent?: number
-
-  @Field(() => Float, { nullable: true })
-  @prop({ required: false })
-  calculatedPercentile30Mins?: number
-
-  @Field(() => Float, { nullable: true })
-  @prop({ required: false })
-  calculatedPercentile2Hour?: number
-
-  @Field(() => String, { nullable: true })
-  @prop({ required: false })
-  displayPercentile?: string
-
   @Field(() => Date)
   @prop({ required: true })
   date: Date
 }
+
 @ObjectType()
 @InputType("FileMetadataInput")
 export class FileMetadata {
@@ -597,13 +533,13 @@ export class User {
   @prop({ required: false })
   insurance?: Insurance
 
-  @Field(() => InsurancePlan, { nullable: true })
-  @prop({ enum: InsurancePlan, type: String, required: false })
-  insurancePlan?: InsurancePlan
+  @Field(() => InsurancePlanValue, { nullable: true })
+  @prop({ enum: InsurancePlanValue, type: String, required: false })
+  insurancePlan?: InsurancePlanValue
 
-  @Field(() => InsuranceType, { nullable: true })
-  @prop({ enum: InsuranceType, type: String, required: false })
-  insuranceType?: InsuranceType
+  @Field(() => InsuranceTypeValue, { nullable: true })
+  @prop({ enum: InsuranceTypeValue, type: String, required: false })
+  insuranceType?: InsuranceTypeValue
 
   @Field(() => SignupPartner, { nullable: true })
   @prop({ ref: () => SignupPartner, required: false })
@@ -754,11 +690,11 @@ export class CreateUserInput {
   })
   metriportUserId?: string
 
-  @Field(() => InsurancePlan, { nullable: true })
-  insurancePlan?: InsurancePlan
+  @Field(() => InsurancePlanValue, { nullable: true })
+  insurancePlan?: InsurancePlanValue
 
-  @Field(() => InsuranceType, { nullable: true })
-  insuranceType?: InsuranceType
+  @Field(() => InsuranceTypeValue, { nullable: true })
+  insuranceType?: InsuranceTypeValue
 
   @Field(() => String, { nullable: true })
   signupPartnerId?: string
