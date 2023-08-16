@@ -6,11 +6,11 @@ import akuteProcedures from "./includes/akuteProcedures.develop"
 
 export default {
   env: "staging",
-  dbUri: `mongodb+srv://joinalfie_dev_user:${process.env.DB_PASSWORD}@platform-staging-cluste.zn2qm3z.mongodb.net/?retryWrites=true&w=majority`,
+  dbUri: `mongodb+srv://joinalfie_dev_user:${process.env.DB_PASSWORD}@platform-staging-cluste.zn2qm3z.mongodb.net/staging?retryWrites=true&w=majority`,
   baseUrl: "https://staging.joinalfie.com",
   easyAppointmentsApiUrl: "https://staging.ea.joinalfie.com/index.php/api/v1",
   sendBirdApiUrl:
-    "https://api-D804CA81-FB1D-4078-8A98-B31AE451EAF9.sendbird.com",
+    "https://api-A66F3382-20F0-4D65-8D38-0355991A05E3.sendbird.com",
   candidHealth: {
     apiUrl: "https://api-staging.joincandidhealth.com/api",
     clientId: process.env.CANDID_CLIENT_ID,
