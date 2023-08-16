@@ -421,7 +421,8 @@ export default class CandidService {
 
     // prevent DuplicateEncounterException in development
     const sandboxExternalId =
-      process.env.NODE_ENV === "develop" || process.env.NODE_ENV === "staging"
+      process.env.NODE_ENV === "development" ||
+      process.env.NODE_ENV === "staging"
         ? `-${Math.floor(Math.random() * 1e5)}`
         : ""
 
@@ -477,7 +478,8 @@ export default class CandidService {
     if (firstMeasurement || currentMonthMeasurements === 16) {
       // prevent DuplicateEncounterException in development
       const sandboxExternalId =
-        process.env.NODE_ENV === "develop" || process.env.NODE_ENV === "staging"
+        process.env.NODE_ENV === "development" ||
+        process.env.NODE_ENV === "staging"
           ? `-${Math.floor(Math.random() * 1e5)}`
           : ""
       const measurementNote = firstMeasurement
@@ -565,7 +567,7 @@ export default class CandidService {
     const settings: SettingsList = config.get("candidHealth.settings")
 
     if (
-      process.env.NODE_ENV === "develop" ||
+      process.env.NODE_ENV === "development" ||
       process.env.NODE_ENV === "staging"
     ) {
       const sandboxValues = getSandboxObjects(user, provider, insurance)

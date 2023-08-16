@@ -14,6 +14,7 @@ export default class StripeService {
 
   public stripeSdk: Stripe
   private secretKey: string
+  private webhookKey: string
 
   private userService: UserService
 
@@ -23,6 +24,7 @@ export default class StripeService {
 
   constructor(userService?: UserService) {
     this.secretKey = config.get("stripe.secretKey")
+    this.webhookKey = config.get("stripe.webhookSecret")
     this.stripeSdk = new Stripe(this.secretKey, {
       apiVersion: this.stripeApiVersion,
     })
@@ -47,7 +49,7 @@ export default class StripeService {
       const event = this.stripeSdk.webhooks.constructEvent(
         body,
         stripeSignature,
-        this.secretKey
+        this.webhookKey
       )
 
       return event

@@ -44,6 +44,7 @@ async function recalculateClassifications() {
     console.log(`Recalculating scores/classifications for ${user._id}`)
     try {
       const before = pickFields(user, "score", "classifications")
+
       await taskService.recalculateProfiling(user._id)
       const updatedUser = await userService.getUser(user._id)
       const after = pickFields(updatedUser, "score", "classifications")

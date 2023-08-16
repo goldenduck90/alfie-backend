@@ -5,10 +5,10 @@
   "main": "build/src/index.js",
   "scripts": {
     "build": "tsc --project ./tsconfig.json",
-    "dev": "NODE_ENV=develop ts-node-dev --respawn --transpile-only src/index.ts",
+    "dev": "ts-node-dev --respawn --transpile-only src/index.ts",
     "prod": "NODE_ENV=production ts-node-dev --respawn --transpile-only src/index.ts",
-    "test": "NODE_ENV=develop jest --forceExit",
-    "test:snapshots": "NODE_ENV=develop jest --updateSnapshot",
+    "test": "jest --forceExit",
+    "test:snapshots": "jest --updateSnapshot",
     "provider:fix-count": "NODE_ENV=production ts-node-dev --respawn --transpile-only src/fixProviderPatientCount.ts",
     "provider:fix-assignment": "NODE_ENV=production ts-node-dev --respawn --transpile-only src/fixProviderPatientAssignment.ts",
     "format": "prettier --check . --config ./.prettierrc",
