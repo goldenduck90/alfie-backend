@@ -1667,7 +1667,7 @@ class UserService extends EmailService {
         })
         .join(", ")
 
-      const prompt = `This Patient has the following classifications and percentiles: ${subTypesText}. ${weightInfo} and are currently on this or these doses of medication: ${medications}`
+      const prompt = `This Patient has the following classifications and percentiles: ${subTypesText}. ${weightInfo} and are currently on this or these doses of medication: ${medications} `
       console.log(prompt, "prompt")
       const params = {
         model: "gpt-4",
@@ -1675,8 +1675,19 @@ class UserService extends EmailService {
         messages: [
           {
             role: ChatCompletionRequestMessageRoleEnum.System,
-            content:
-              "Act as a medical assistant for an obesity clinic. This is a novel protocol using data from patients to recommend certain drugs and titrations. Your job is to recommend the medication and dose dictated by this protocol, as well as any recommended changes to current medications if they are weight gain causes.Do not include any extraneous information in your response.Ignore duplicate medications.",
+            content:`
+            Your task is to create a recommendation for the patient. You will receive the current metabolic profile percentiles for the patient as well as current prescriptions the patient is taking outside of our program, and through our program. Your recommendation should follow the following format: 
+            Medication recommendation: 
+            <Include the recommendation for the patient around medications based on their profile here>            
+            Non-AOM recommendation: 
+            <Include the recommendation for medication switches by PCP or other based on the patients current medications and if they are weight-gain causing or weight-loss causing>            
+            Diet Recommendations
+            <Include the recommendation for the patient around diet based on their profile here>            
+            Exercise Recommendations
+            <Include some exercise suggestions here>             
+            Sleep Recommendations
+            <Include some sleep suggestions here>
+            `,
           },
           {
             role: ChatCompletionRequestMessageRoleEnum.User,
