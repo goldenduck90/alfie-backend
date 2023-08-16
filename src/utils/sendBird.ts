@@ -1,3 +1,5 @@
+import dotenv from "dotenv"
+dotenv.config()
 import * as Sentry from "@sentry/node"
 import * as express from "express"
 import axios from "axios"
@@ -25,18 +27,26 @@ if (process.env.SENDBIRD_AUTOINVITE_USERS) {
   sendbirdAutoinviteUsers.push(
     ...addUsers.split(",").map((user_id) => user_id.trim())
   )
-  console.log(
-    `Sendbird autoinvite users: ${sendbirdAutoinviteUsers.join(", ")}`
-  )
 } else if (process.env.NODE_ENV === "production") {
   // Gabrielle H is the first ID then Alex then rohit then Rachel
   sendbirdAutoinviteUsers.push(
     "63b85fa8ab80d27bb1af6d43",
     "639ba07cb937527a0c43484e",
     "63bd8d61af58147c29a7c272",
-    "64875fd443f7374fe0e162e7"
+    "64875fd443f7374fe0e162e7",
+    "64c896ea8633a43595050dd8"
   )
 }
+
+captureEvent(
+  "info",
+  `Sendbird autoinvite users: ${sendbirdAutoinviteUsers.join(", ")}`,
+  {
+    sendbirdAutoinviteUsers,
+    SENDBIRD_AUTOINVITE_USERS: process.env.SENDBIRD_AUTOINVITE_USERS,
+    NODE_ENV: process.env.NODE_ENV,
+  }
+)
 
 export const sendBirdInstance = axios.create({
   baseURL: config.get("sendBirdApiUrl"),
