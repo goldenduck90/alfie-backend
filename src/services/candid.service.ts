@@ -127,7 +127,7 @@ export default class CandidService {
     const token: LeanDocument<AuthorizationToken> =
       await AuthorizationTokenModel.findOne({
         provider: authorizationTokenProvider,
-      }).lean()
+      })
 
     return token
   }
@@ -421,7 +421,7 @@ export default class CandidService {
 
     // prevent DuplicateEncounterException in development
     const sandboxExternalId =
-      process.env.NODE_ENV === "development"
+      process.env.NODE_ENV === "develop" || process.env.NODE_ENV === "staging"
         ? `-${Math.floor(Math.random() * 1e5)}`
         : ""
 
@@ -477,7 +477,7 @@ export default class CandidService {
     if (firstMeasurement || currentMonthMeasurements === 16) {
       // prevent DuplicateEncounterException in development
       const sandboxExternalId =
-        process.env.NODE_ENV === "development"
+        process.env.NODE_ENV === "develop" || process.env.NODE_ENV === "staging"
           ? `-${Math.floor(Math.random() * 1e5)}`
           : ""
       const measurementNote = firstMeasurement
@@ -544,7 +544,7 @@ export default class CandidService {
     /**
      * A map of source-specific values to include in diagnosis, cost, and procedure code calculation.
      * The user's bmi, comorbidities, state,
-     * @see candidHealth.development.ts
+     * @see candidHealth.develop.ts
      * @see candidHealth.production.ts
      */
     conditionsValues: Record<string, any>,
@@ -564,7 +564,10 @@ export default class CandidService {
 
     const settings: SettingsList = config.get("candidHealth.settings")
 
-    if (process.env.NODE_ENV === "development") {
+    if (
+      process.env.NODE_ENV === "develop" ||
+      process.env.NODE_ENV === "staging"
+    ) {
       const sandboxValues = getSandboxObjects(user, provider, insurance)
       user = sandboxValues.user
       provider = sandboxValues.provider

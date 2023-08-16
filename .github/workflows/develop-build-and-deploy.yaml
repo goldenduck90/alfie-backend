@@ -1,4 +1,4 @@
-name: (DEV) Build and Deploy
+name: (DEVELOP) Build and Deploy
 
 env:
   APP_NAME:	alfie-backend

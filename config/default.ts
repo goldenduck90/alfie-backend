@@ -200,4 +200,5 @@ export default {
   },
   twilioAccountSid: "ACbb4313087a5ddfe068560647a79f55aa",
   twilioMessagingServiceSid: "MGc9274f6baa27f492eaf008c8e77fd947",
+  dailyApiUrl: "https://api.daily.co/v1",
 }

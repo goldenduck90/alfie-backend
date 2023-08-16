@@ -1,4 +1,4 @@
-name: (PRODUCTION) Build and Deploy
+name: (STAGING) Build and Deploy
 
 env:
   APP_NAME:	alfie-backend
@@ -10,7 +10,7 @@ env:
 on:
   push:
     branches:
-      - master
+      - staging
 
 jobs:
   prepare:
@@ -27,10 +27,12 @@ jobs:
         run: npm install
       - name: Typescript
         run: npm run tsc
-      # - name: Prettier check
-      #   run: npm run format
-      # - name: ESLint check
-      #   run: npm run lint
+      - name: Prettier check
+        run: npm run format
+      - name: ESLint check
+        run: npm run lint
+      # - name: Jest Tests
+      #   run: npm run test
   build:
     needs: prepare
     runs-on: ubuntu-latest
@@ -49,6 +51,6 @@ jobs:
         aws_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         region: ${{ env.AWS_REGION }}
         application_name: alfie-backend
-        environment_name: production-v2-be
-        version_label: "production_${{ steps.timestamp.outputs.date }}"
+        environment_name: staging
+        version_label: "staging_${{ steps.timestamp.outputs.date }}"
         deployment_package: package.zip

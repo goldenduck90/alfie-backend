@@ -1,17 +1,14 @@
 import dotenv from "dotenv"
 dotenv.config()
 
-import candidHealth from "./includes/candidHealth.development"
-import akuteProcedures from "./includes/akuteProcedures.development"
+import candidHealth from "./includes/candidHealth.develop"
+import akuteProcedures from "./includes/akuteProcedures.develop"
 
 export default {
-  env: "development",
+  env: "staging",
   dbUri: `mongodb+srv://joinalfie_dev_user:${process.env.DB_PASSWORD}@platform-staging-cluste.zn2qm3z.mongodb.net/?retryWrites=true&w=majority`,
-  baseUrl: "https://www.staging.joinalfie.com",
-  calApiUrl: "https://api.staging.cal.joinalfie.com",
-  easyAppointmentsApiUrl:
-    process.env.EASY_APPOINTMENTS_API_URL ||
-    "http://develop-ea.us-east-1.elasticbeanstalk.com/index.php/api/v1",
+  baseUrl: "https://staging.joinalfie.com",
+  easyAppointmentsApiUrl: "https://staging.ea.joinalfie.com/index.php/api/v1",
   sendBirdApiUrl:
     "https://api-D804CA81-FB1D-4078-8A98-B31AE451EAF9.sendbird.com",
   candidHealth: {
@@ -27,12 +24,12 @@ export default {
     clientSecret: process.env.WITHINGS_CLIENT_SECRET,
   },
   dynamoDb: {
-    emailSubscribersTable: "develop-platform-email-subscribers",
-    waitlistTable: "develop-platform-waitlist",
+    emailSubscribersTable: "staging-platform-email-subscribers",
+    waitlistTable: "staging-platform-waitlist",
   },
   s3: {
-    patientBucketName: "develop-platform-patient-storage",
-    checkoutBucketName: "develop-platform-checkout-storage",
+    patientBucketName: "staging-platform-patient-storage",
+    checkoutBucketName: "staging-platform-checkout-storage",
   },
   ringCentral: {
     clientId: "DiUqEh27Rz-fDuQiez1OdQ",
