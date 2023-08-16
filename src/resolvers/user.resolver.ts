@@ -152,6 +152,11 @@ export default class UserResolver {
     return this.metriportService.createConnectToken(userId)
   }
 
+  @Mutation(() => String)
+  createUserFromCheckout(@Arg("checkoutId") checkoutId: string) {
+    return this.userService.createUserFromCheckout(checkoutId)
+  }
+
   @Mutation(() => User)
   async recordScaleReading(@Arg("input") input: ScaleReadingInput) {
     const { user } = await this.userService.processWithingsScaleReading(
