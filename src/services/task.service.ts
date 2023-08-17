@@ -1,8 +1,9 @@
+import * as Sentry from "@sentry/node"
 import { ApolloError } from "apollo-server"
 import config from "config"
 import dayjs from "dayjs"
 import { addDays, isPast } from "date-fns"
-import { calculateScore, getAnswerByKey } from "../PROAnalysis"
+import { calculateScore } from "../PROAnalysis"
 import { Provider } from "../schema/provider.schema"
 import {
   CreateTaskInput,
@@ -19,16 +20,12 @@ import {
   UpdateUserTaskInput,
   UserAnswer,
   UserAnswerTypes,
+  UserNumberAnswer,
+  UserStringAnswer,
   UserTask,
   UserTaskModel,
 } from "../schema/task.user.schema"
-import {
-  User,
-  Score,
-  UserModel,
-  Classification,
-  ClassificationType,
-} from "../schema/user.schema"
+import { User, Score, UserModel } from "../schema/user.schema"
 import { AnswerType } from "../schema/enums/AnswerType"
 import AkuteService from "./akute.service"
 import { classifyUser } from "../PROAnalysis/classification"
@@ -38,7 +35,6 @@ import { calculateBMI } from "../utils/calculateBMI"
 import Role from "../schema/enums/Role"
 import { captureEvent, captureException } from "../utils/sentry"
 import { groupCollectionByField, sorted } from "../utils/collections"
-import { Document } from "mongoose"
 
 export const tasksEligibleForProfiling = [
   TaskType.MP_HUNGER,
@@ -73,9 +69,7 @@ class TaskService {
 
   async getUserTask(id: string, user?: User) {
     const { notFound, notPermitted } = config.get("errors.tasks") as any
-    const userTask = await UserTaskModel.findById(id).populate<{ task: Task }>(
-      "task"
-    )
+    const userTask = await UserTaskModel.findById(id).populate("task")
     if (!userTask) {
       throw new ApolloError(notFound.message, notFound.code)
     }
@@ -231,24 +225,99 @@ class TaskService {
       scores.push(...typeScores)
     }
 
-    let classifications = classifyUser(scores)
-
-    if (classifications.length === 0) {
-      const date = new Date()
-      const emptyClassifications: Classification[] = Object.values(
-        ClassificationType
-      ).map((type: ClassificationType) => ({
-        date,
-        percentile: 0,
-        calculatedPercentile: 0,
-        classification: type,
-      }))
-      classifications = emptyClassifications
-    }
+    const classifications = classifyUser(scores)
 
     user.score = scores
     user.classifications = classifications
     await user.save()
+  }
+
+  async handleIsReadyForProfiling(
+    userId: string,
+    userScores: Score[],
+    currentTask: Task,
+    currentUserTask: UserTask,
+    originalTaskProfilingStatus: boolean
+  ) {
+    try {
+      const userTasks = (
+        await UserTaskModel.find({ user: userId }).populate<{ task: Task }>(
+          "task"
+        )
+      ).filter((userTask) => userTask.task)
+
+      const user = await UserModel.findById(userId)
+
+      const completedTasks: UserTask[] = userTasks.filter(
+        ({ task, isReadyForProfiling, completed }) =>
+          (tasksEligibleForProfiling.includes(task.type) ||
+            task._id.toString() === currentTask._id.toString()) &&
+          isReadyForProfiling &&
+          completed
+      )
+
+      captureEvent("info", "TaskService.handleIsReadyForProfiling", {
+        taskType: currentTask.type,
+        userTask: currentUserTask._id.toString(),
+        completedTasks: completedTasks.map((task) => ({
+          readyForProfiling: task.isReadyForProfiling,
+          completed: task.completed,
+          _id: task._id,
+        })),
+      })
+
+      // If the currentTask has not been considered in the completedTasks, add it manually.
+      if (
+        currentTask &&
+        originalTaskProfilingStatus &&
+        !completedTasks.some(
+          (userTask) =>
+            userTask._id.toString() === currentUserTask._id.toString()
+        )
+      ) {
+        completedTasks.push(currentUserTask)
+      }
+
+      if (completedTasks.length >= tasksEligibleForProfiling.length) {
+        if (userScores.length === 0) {
+          const newScores = await this.scorePatient(userId)
+          user.score = newScores
+          await UserModel.findByIdAndUpdate(user._id, {
+            $set: { score: newScores },
+          })
+        }
+
+        await this.classifySinglePatient(userId)
+        // set those tasks to not ready for profiling
+        for (const task of completedTasks) {
+          const userTask = await UserTaskModel.findById(task._id)
+          if (userTask) {
+            userTask.isReadyForProfiling = false
+            await userTask.save()
+          }
+        }
+      } else {
+        captureEvent(
+          "info",
+          "TaskService.handleIsReadyForProfiling - not ready for profiling.",
+          {
+            currentTask: {
+              type: currentTask.type,
+              userTaskId: currentUserTask._id.toString(),
+            },
+            completedTasks: completedTasks.length,
+            tasksRequired: tasksEligibleForProfiling.length,
+          }
+        )
+      }
+    } catch (error) {
+      captureException(error, "TaskService.handleIsReadyForProfiling", {
+        currentTask: {
+          type: currentTask.type,
+          userTaskId: currentUserTask._id.toString(),
+        },
+      })
+    }
   }
 
   async scorePatient(userId: string): Promise<Score[]> {
@@ -307,12 +376,56 @@ class TaskService {
     }
   }
 
+  async classifySinglePatient(userId: string) {
+    try {
+      const user = await UserModel.findById(userId)
+
+      if (user?.score?.filter((score) => score).length > 0) {
+        // group scores by task
+        const scoresByTask = groupCollectionByField(
+          (user.score ?? []).filter((s) => s),
+          (score) => String(score.task)
+        )
+
+        const scores: Score[] = []
+
+        // get most recent score for each task
+        for (const taskScores of Object.values(scoresByTask)) {
+          const mostRecentScore = sorted(
+            taskScores,
+            (score) => new Date(score.date).getTime(),
+            "descending"
+          )[0]
+          if (mostRecentScore) {
+            scores.push(mostRecentScore)
+          }
+        }
+
+        const classifications = classifyUser(scores)
+
+        for (const c of classifications) {
+          const classificationExists = user.classifications.some(
+            (el) => el.date.getTime() === c.date.getTime()
+          )
+
+          if (!classificationExists) {
+            user.classifications.push(c)
+          }
+        }
+
+        await user.save()
+        return classifications
+      }
+    } catch (error) {
+      captureException(error, "TaskService.classifySinglePatient")
+    }
+  }
+
   async completeUserTask(input: CompleteUserTaskInput): Promise<UserTask> {
     try {
       // Get the user task, throw an error if it is not found
       const { notFound } = config.get("errors.tasks") as any
-      const { _id } = input
-      let { answers } = input
+      const { _id, answers } = input
       const userTask = await UserTaskModel.findById(_id)
       if (!userTask) {
         throw new ApolloError(notFound.message, notFound.code)
@@ -333,92 +446,118 @@ class TaskService {
           task.questions
         )
         userTask.answers = correctedAnswers
-        answers = correctedAnswers
       }
-
       await userTask.save()
+
+      const lastTask = await UserTaskModel.findOne({
+        user: userTask.user,
+        task: userTask.task,
+        completed: true,
+      })
+        .sort({ createdAt: -1 })
+        .skip(1)
 
       // Check the user's eligibility for an appointment
       await this.checkEligibilityForAppointment(userTask.user.toString())
 
+      // Calculate the score for the user based on their previous and current tasks
+
+      const scores = user?.score
+      if (lastTask && task.type !== TaskType.NEW_PATIENT_INTAKE_FORM) {
+        const score = calculateScore(lastTask, userTask, task.type)
+
+        // push score to user score array
+        if (score !== null) {
+          scores.push(score)
+          user.score.push(score)
+          await user.save()
+        }
+      }
       // if the tasktype is eligible for profiling, check if the user is ready for profiling and set the userTask.isReadyForProfiling to true
       if (tasksEligibleForProfiling.includes(task.type)) {
-        await this.recalculateProfiling(userTask.user.toString())
+        userTask.isReadyForProfiling = true
+        await userTask.save()
+        await this.handleIsReadyForProfiling(
+          userTask.user.toString(),
+          scores,
+          task,
+          userTask,
+          userTask.isReadyForProfiling
+        )
       }
 
-      await this.handleAfterUserTaskComplete(userTask, task, user)
+      // Handle different task types
+      switch (task.type) {
+        case TaskType.MP_BLUE_CAPSULE: {
+          // Assign the next task to the user
+          const newTaskInput: CreateUserTaskInput = {
+            taskType: TaskType.MP_BLUE_CAPSULE_2,
+            userId: userTask.user.toString(),
+          }
+          await this.assignTaskToUser(newTaskInput)
+          break
+        }
+        case TaskType.DAILY_METRICS_LOG: {
+          const weight = {
+            date: new Date(),
+            value: (
+              answers.find((a) => a.key === "weightInLbs") as UserNumberAnswer
+            ).value,
+          }
+          user.weights.push(weight)
+          await user.save()
+          break
+        }
+        case TaskType.NEW_PATIENT_INTAKE_FORM: {
+          const pharmacyAnswer = answers.find(
+            (a) => a.key === "pharmacyLocation"
+          ) as UserStringAnswer
+          const pharmacyId = pharmacyAnswer.value
+          const patientId = user?.akutePatientId
+          if (pharmacyId && pharmacyId !== "null") {
+            await this.akuteService.createPharmacyListForPatient(
+              pharmacyId,
+              patientId,
+              true
+            )
+            user.pharmacyLocation = pharmacyId
+          }
 
+          await user.save()
+          break
+        }
+        case TaskType.WEIGHT_LOG: {
+          const weightAnswer =
+            (answers.find((a) => a.key === "weight") as UserNumberAnswer) ??
+            null
+          const scaleAnswer =
+            (answers.find(
+              (a) => a.key === "scaleWeight"
+            ) as UserNumberAnswer) ?? null
+          const weight = {
+            date: new Date(),
+            value: scaleAnswer?.value ?? weightAnswer?.value ?? null,
+            scale: scaleAnswer !== null,
+          }
+          const bmi = calculateBMI(weight.value, user.heightInInches)
+          user.weights.push(weight)
+          user.bmi = bmi
+          await user.save()
+          break
+        }
+        default: {
+          // Do nothing
+          break
+        }
+      }
       return userTask
     } catch (error) {
-      captureException(error, "TaskService.completeUserTask", { input })
+      console.log(error, "error")
+      console.error(error)
+      Sentry.captureException(error)
       throw error
     }
   }
-
-  async handleAfterUserTaskComplete(
-    userTask: UserTask,
-    task: Task,
-    user: Document & User
-  ) {
-    const { answers } = userTask
-
-    // Handle different task types
-    switch (task.type) {
-      case TaskType.MP_BLUE_CAPSULE: {
-        // Assign the next task to the user
-        const newTaskInput: CreateUserTaskInput = {
-          taskType: TaskType.MP_BLUE_CAPSULE_2,
-          userId: userTask.user.toString(),
-        }
-        await this.assignTaskToUser(newTaskInput)
-        break
-      }
-      case TaskType.DAILY_METRICS_LOG: {
-        const weight = {
-          date: new Date(),
-          value: getAnswerByKey(userTask.answers, "weightInLbs", Number, null),
-        }
-        user.weights.push(weight)
-        await user.save()
-        break
-      }
-      case TaskType.NEW_PATIENT_INTAKE_FORM: {
-        const pharmacyId = getAnswerByKey(answers, "pharmacyLocation", String)
-        const patientId = user?.akutePatientId
-        if (pharmacyId && pharmacyId !== "null") {
-          await this.akuteService.createPharmacyListForPatient(
-            pharmacyId,
-            patientId,
-            true
-          )
-          user.pharmacyLocation = pharmacyId
-        }
-
-        await user.save()
-        break
-      }
-      case TaskType.WEIGHT_LOG: {
-        const weightAnswer = getAnswerByKey(answers, "weight", Number, null)
-        const scaleAnswer = getAnswerByKey(answers, "scaleWeight", Number, null)
-        const weight = {
-          date: new Date(),
-          value: scaleAnswer ?? weightAnswer ?? null,
-          scale: scaleAnswer !== null,
-        }
-        const bmi = calculateBMI(weight.value, user.heightInInches)
-        user.weights.push(weight)
-        user.bmi = bmi
-        await user.save()
-        break
-      }
-      default: {
-        // Do nothing
-        break
-      }
-    }
-    return userTask
-  }
-
   async bulkAssignTasksToUser(input: CreateUserTasksInput) {
     try {
       const { alreadyAssigned, notFound, userNotFound } = config.get(
@@ -437,14 +576,16 @@ class TaskService {
         (type) => !tasks.some((task) => task.type === type)
       )
       if (missingTasks.length > 0) {
-        captureEvent(
-          "error",
-          "TaskService.bulkAssignTasksToUser: missing tasks",
-          { missingTasks }
-        )
+        const log = `TaskService.bulkAssignTasksToUser: missing tasks: ${missingTasks.join(
+          ", "
+        )}`
+        Sentry.captureEvent({
+          message: log,
+          level: "error",
+        })
+        console.log(log)
         throw new ApolloError(notFound.message, notFound.code)
       }
-
       const taskIds = tasks.map((task) => task._id)
 
       const userTasks = await UserTaskModel.find({
@@ -489,7 +630,8 @@ class TaskService {
         ...(userTask.dueAt && { pastDue: false }),
       }))
     } catch (error) {
-      captureException(error, "TaskService.bulkAssignTasksToUser")
+      console.log(error, "error in bulkAssignTasksToUser")
+      Sentry.captureException(error)
     }
   }
 
@@ -550,21 +692,19 @@ class TaskService {
       const tasks = await TaskModel.find()
       return tasks
     } catch (error) {
-      captureException(error, "TaskService.getAllTasks")
+      Sentry.captureException(error)
       throw new ApolloError(error.message, error.code)
     }
   }
-
   async getAllUserTasks() {
     try {
       const userTasks = await UserTaskModel.find()
       return userTasks
     } catch (error) {
-      captureException(error, "TaskService.getAllUserTasks")
+      Sentry.captureException(error)
       throw new ApolloError(error.message, error.code)
     }
   }
-
   async getAllUserTasksByUserId(userId: string) {
     try {
       const userTasks = await UserTaskModel.find({ user: userId })
@@ -580,29 +720,36 @@ class TaskService {
       })
       return arrayOfUserTasksWithProviderEmail
     } catch (error) {
-      captureException(error, "TaskService.getAllUserTasksByUserId")
+      Sentry.captureException(error)
       throw new ApolloError(error.message, "ERROR")
     }
   }
   async archiveTask(taskId: string) {
     try {
-      const task = await this.getUserTask(taskId)
+      const task = await UserTaskModel.findById(taskId)
+      if (!task) {
+        throw new ApolloError("Task not found", "404")
+      }
       task.archived = true
       await task.save()
       return task
     } catch (error) {
-      captureException(error, "TaskService.archiveTask")
+      Sentry.captureException(error)
       throw new ApolloError(error.message, error.code)
     }
   }
   async updateTask(taskId: string, input: UpdateUserTaskInput) {
     try {
-      const task = await this.getUserTask(taskId)
-      task.lastNotifiedUserAt = input.lastNotifiedUserAt
+      const task = await UserTaskModel.findById(taskId)
+      if (!task) {
+        throw new ApolloError("Task not found", "404")
+      }
+      const { lastNotifiedUserAt } = input
+      task.lastNotifiedUserAt = lastNotifiedUserAt
       await task.save()
       return task
     } catch (error) {
-      captureException(error, "TaskService.updateTask")
+      Sentry.captureException(error)
       throw new ApolloError(error.message, error.code)
     }
   }
