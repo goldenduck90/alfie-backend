@@ -1675,7 +1675,7 @@ class UserService extends EmailService {
         messages: [
           {
             role: ChatCompletionRequestMessageRoleEnum.System,
-            content:`
+            content: `
             Your task is to create a recommendation for the patient. You will receive the current metabolic profile percentiles for the patient as well as current prescriptions the patient is taking outside of our program, and through our program. Your recommendation should follow the following format: 
             Medication recommendation: 
             <Include the recommendation for the patient around medications based on their profile here>            

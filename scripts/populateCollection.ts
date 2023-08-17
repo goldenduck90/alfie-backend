@@ -39,7 +39,7 @@ const collectionsMap = {
     model: InsurancePlanCoverageModel,
     type: InsurancePlanCoverage,
     getKey: (coverage: InsurancePlanCoverage) =>
-      `${coverage.plan}-${coverage.type}-${coverage.state}-${coverage.provider}`,
+      `${coverage.plan}-${coverage.type}`,
   },
 }
 
