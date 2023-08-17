@@ -1032,9 +1032,16 @@ class AppointmentService extends EmailService {
       eaCustomerId: appointment.eaCustomer.id,
     })
 
-    console.log(
-      `Processing ended appointment [${appointment.eaAppointmentId}]: ${appointment.eaCustomer?.name} [${appointment.eaCustomer?.id} - ${user._id} - ${user.email}], provider ${appointment.eaProvider?.name} [${appointment.eaProvider?.id}], ${appointment.start} to ${appointment.end} ${appointment.timezone}.`
-    )
+    const getAppointment = async () => {
+      try {
+        return await this.getAppointment({
+          eaAppointmentId: appointment.eaAppointmentId,
+          timezone: appointment.timezone,
+        })
+      } catch (error) {
+        return error.message
+      }
+    }
 
     // Reasons to process an appointment:
     const patientNoShow =
@@ -1047,16 +1054,22 @@ class AppointmentService extends EmailService {
       appointment.providerAttended
 
     if (!patientNoShow && !providerNoShow && !claimNotSubmitted) {
-      console.log("- No action taken.")
+      console.log(
+        `AppointmentService.handleAppointmentEnded - No action taken ${appointment.eaAppointmentId}.`
+      )
       return
     }
 
+    captureEvent("info", "AppointmentService.handleAppointmentEnded", {
+      patientNoShow,
+      providerNoShow,
+      claimNotSubmitted,
+      appointment,
+    })
+
     // patient no show.
     if (patientNoShow) {
-      const logMessage = `- Sending patient appointment (id: ${appointment.eaAppointmentId}) no-show email: ${appointment.eaCustomer?.firstName} ${appointment.eaCustomer?.lastName}`
-      console.log(logMessage)
-      Sentry.captureMessage(logMessage)
-      await this.sendAppointmentPatientSkippedEmail({
+      const params = {
         eaAppointmentId: `${appointment.eaAppointmentId}`,
         name: appointment.eaCustomer?.firstName ?? "",
         email: appointment.eaCustomer?.email ?? null,
@@ -1067,19 +1080,23 @@ class AppointmentService extends EmailService {
         time: dayjs
           .tz(appointment.start, appointment.timezone)
           .format("h:mm A (z)"),
-      })
+      }
+
+      const emailResult = await this.sendAppointmentPatientSkippedEmail(params)
       await this.updateAppointmentAttended(null, appointment.eaAppointmentId, [
         "attendance_email_sent",
       ])
+
+      captureEvent(
+        "info",
+        "AppointmentService.handleAppointmentEnded no-show email",
+        { params, emailResult, updatedAppointment: getAppointment() }
+      )
     }
 
     // provider no show.
     if (providerNoShow) {
-      const logMessage = `- Sending provider appointment (id: ${appointment.eaAppointmentId}) no-show email: ${appointment.eaProvider.firstName} ${appointment.eaProvider.lastName}`
-      console.log(logMessage)
-      Sentry.captureMessage(logMessage)
-
-      await this.sendAppointmentProviderSkippedEmail({
+      const params = {
         eaAppointmentId: `${appointment.eaAppointmentId}`,
         name: appointment.eaProvider.firstName ?? "",
         email: appointment.eaProvider.email ?? null,
@@ -1090,40 +1107,60 @@ class AppointmentService extends EmailService {
         time: dayjs
           .tz(appointment.start, appointment.timezone)
           .format("h:mm A (z)"),
-      })
+      }
+      const emailResult = await this.sendAppointmentProviderSkippedEmail(params)
       await this.updateAppointmentAttended(null, appointment.eaAppointmentId, [
         "attendance_email_sent",
       ])
+
+      captureEvent(
+        "info",
+        "AppointmentService.handleAppointmentEnded provider no-show email attendance_email_sent",
+        { params, emailResult, updatedAppointment: getAppointment() }
+      )
     }
 
     // appointment ended, but no claim submitted
     if (claimNotSubmitted) {
-      console.log("- Submitting insurance claim for attended appointment")
       try {
         if (user.insurance) {
           const initialAppointment = await this.getInitialAppointment(
             appointment.eaCustomer.id
           )
 
-          await this.candidService.createCodedEncounterForAppointment(
-            appointment,
-            initialAppointment
+          const claimResult =
+            await this.candidService.createCodedEncounterForAppointment(
+              appointment,
+              initialAppointment
+            )
+
+          await this.updateAppointmentAttended(
+            null,
+            appointment.eaAppointmentId,
+            ["claim_submitted"]
+          )
+
+          captureEvent(
+            "info",
+            "AppointmentService.handleAppointmentEnded - claim submitted",
+            {
+              claimResult,
+              initialAppointment,
+              appointment,
+              updatedAppointment: getAppointment(),
+            }
           )
         } else {
-          const noBillingMessage = `Did not bill user ${user._id}, no insurance data.`
-          Sentry.captureMessage(noBillingMessage)
-          console.log(noBillingMessage)
+          captureEvent(
+            "info",
+            "AppointmentService.handleAppointmentEnded - did not bill user, no insurance data.",
+            { appointment, updatedAppointment: getAppointment() }
+          )
         }
-        await this.updateAppointmentAttended(
-          null,
-          appointment.eaAppointmentId,
-          ["claim_submitted"]
-        )
       } catch (error) {
-        Sentry.captureException(error)
-        console.log(
-          `Error creating a coded encounter for appointment ${appointment.eaAppointmentId}.`,
-          error
+        captureException(
+          error,
+          "AppointmentService.handleAppointmentEnded error submitting claim"
         )
       }
     }
