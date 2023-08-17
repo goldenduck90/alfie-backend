@@ -848,12 +848,14 @@ class UserService extends EmailService {
       const provider = await ProviderModel.findById(providerId)
 
       if (!provider) {
+        const user = await UserModel.findById(providerId)
+        const message = user
+          ? `called getAllUsersByAProvider with a user ${user._id} instead of a provider`
+          : `providerId ${providerId} not found`
         captureEvent(
           "warning",
-          "UserService.getAllUsersByAProvider providerId not found",
-          {
-            providerId,
-          }
+          `UserService.getAllUsersByAProvider ${message}`,
+          { providerId }
         )
         return []
       } else if (provider.type === Role.Doctor) {
