@@ -4,6 +4,7 @@ import UserService from "../src/services/user.service"
 import { pickFields } from "../src/utils/collections"
 import { writeFileSync } from "fs"
 import { resolve } from "path"
+import batchAsync from "../src/utils/batchAsync"
 
 const program = createProgram()
   .description(
@@ -39,26 +40,29 @@ async function recalculateClassifications() {
       : await userService.getAllPatients()
   ).filter((user) => user)
 
-  const results = []
-  for (const user of users) {
-    console.log(`Recalculating scores/classifications for ${user._id}`)
-    try {
+  const results = await batchAsync(
+    users.map((user) => async () => {
+      console.log(`Recalculating scores/classifications for ${user._id}`)
       const before = pickFields(user, "score", "classifications")
-      await taskService.recalculateProfiling(user._id)
-      const updatedUser = await userService.getUser(user._id)
-      const after = pickFields(updatedUser, "score", "classifications")
-      results.push({
-        userId: user._id.toString(),
-        before,
-        after,
-      })
-    } catch (error) {
-      results.push({
-        userId: user._id.toString(),
-        error: error.message,
-      })
-    }
-  }
+      try {
+        await taskService.recalculateProfiling(user._id)
+        const updatedUser = await userService.getUser(user._id)
+        const after = pickFields(updatedUser, "score", "classifications")
+        return {
+          userId: user._id.toString(),
+          before,
+          after,
+        }
+      } catch (error) {
+        return {
+          userId: user._id.toString(),
+          before,
+          error: error.message,
+        }
+      }
+    }),
+    { batchSize: 10 }
+  )
 
   if (fileName) {
     const str = JSON.stringify(results, null, "  ")
