@@ -81,6 +81,7 @@ import lookupState from "../utils/lookupState"
 import resolveCPIDEntriesToInsurance from "../utils/resolveCPIDEntriesToInsurance"
 import InsuranceService from "./insurance.service"
 import StripeService from "./stripe.service"
+import { SignupPartnerModel } from "../schema/partner.schema"
 
 export const initialUserTasks = [
   TaskType.ID_AND_INSURANCE_UPLOAD,
@@ -399,6 +400,20 @@ class UserService extends EmailService {
 
     if (!sent) {
       throw new ApolloError(emailSendError.message, emailSendError.code)
+    }
+
+    if (signupPartnerId && signupPartnerProviderId) {
+      const signupPartner = await SignupPartnerModel.findById(signupPartnerId)
+      const signupPartnerProvider = await SignupPartnerProviderModel.findById(
+        signupPartnerId
+      )
+      await this.sendReferralEmail({
+        email,
+        name,
+        phone,
+        source: signupPartner.title,
+        provider: signupPartnerProvider.title,
+      })
     }
 
     // send lab order
