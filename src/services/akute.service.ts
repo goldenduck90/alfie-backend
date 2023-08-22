@@ -31,7 +31,7 @@ export interface AkuteCreateInsuranceRequest {
   rx_bin: string
   rx_pcn?: string
   rx_group?: string
-  payor: string
+  payor?: string
   status: string
   order: number
   relationship_to_subscriber: string

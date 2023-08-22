@@ -1,6 +1,11 @@
 import { Ref, getModelForClass, index, prop } from "@typegoose/typegoose"
 import { Field, InputType, ObjectType, registerEnumType } from "type-graphql"
-import { Address, Gender, InsuranceEligibilityResponse } from "./user.schema"
+import {
+  Address,
+  Gender,
+  Insurance,
+  InsuranceEligibilityResponse,
+} from "./user.schema"
 import { Provider } from "./provider.schema"
 
 export enum InsuranceTypeValue {
@@ -133,8 +138,23 @@ export class InsuranceCoveredResponse {
   reason?: string
 }
 
+@InputType()
+export class InsuranceCheckInput {
+  @Field(() => String)
+  checkoutId: string
+
+  @Field(() => InsurancePlanValue)
+  insurancePlan: InsurancePlanValue
+
+  @Field(() => InsuranceTypeValue)
+  insuranceType: InsuranceTypeValue
+
+  @Field(() => Insurance)
+  insurance: Insurance
+}
+
 @ObjectType()
-export class InsuranceFlowResponse {
+export class InsuranceCheckResponse {
   @Field(() => InsuranceCoveredResponse)
   covered: InsuranceCoveredResponse
 
@@ -153,8 +173,8 @@ export class BasicUserInsuranceInfo {
   @Field(() => Gender)
   gender: Gender
 
-  @Field(() => Address)
-  address: Address
+  @Field(() => String)
+  state: string
 }
 
 @ObjectType()

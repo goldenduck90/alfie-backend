@@ -82,30 +82,30 @@ export class Insurance {
 
   @Field(() => String)
   @prop({ required: true })
-  insuranceCompany: string
-
-  /** The payer ID. */
-  @Field(() => String)
-  @prop({ required: true })
-  payor: string
-
-  @Field(() => String)
-  @prop({ required: true })
   groupId: string
 
   @Field(() => String)
+  @prop({ required: true })
+  insuranceCompany: string
+
+  /** The payer ID. */
+  @Field(() => String, { nullable: true })
+  @prop()
+  payor?: string
+
+  @Field(() => String, { nullable: true })
   @prop()
   groupName?: string
 
-  @Field(() => String)
+  @Field(() => String, { nullable: true })
   @prop()
   rxBIN?: string
 
-  @Field(() => String)
+  @Field(() => String, { nullable: true })
   @prop()
   rxPCN?: string
 
-  @Field(() => String)
+  @Field(() => String, { nullable: true })
   @prop()
   rxGroup?: string
 }
@@ -541,6 +541,10 @@ export class User {
   @prop({ enum: InsuranceTypeValue, type: String, required: false })
   insuranceType?: InsuranceTypeValue
 
+  @Field(() => Boolean, { defaultValue: false })
+  @prop({ default: false, required: false })
+  insuranceCovered: boolean
+
   @Field(() => SignupPartner, { nullable: true })
   @prop({ ref: () => SignupPartner, required: false })
   signupPartner?: Ref<SignupPartner>
@@ -690,11 +694,17 @@ export class CreateUserInput {
   })
   metriportUserId?: string
 
+  @Field(() => Insurance, { nullable: true })
+  insurance?: Insurance
+
   @Field(() => InsurancePlanValue, { nullable: true })
   insurancePlan?: InsurancePlanValue
 
   @Field(() => InsuranceTypeValue, { nullable: true })
   insuranceType?: InsuranceTypeValue
+
+  @Field(() => Boolean, { nullable: true })
+  insuranceCovered?: boolean
 
   @Field(() => String, { nullable: true })
   signupPartnerId?: string
