@@ -156,9 +156,13 @@ export class Checkout {
   @prop({ enum: InsuranceTypeValue, type: String, required: false })
   insuranceType?: InsuranceTypeValue
 
-  @Field(() => Boolean)
-  @prop({ type: Boolean, required: true })
-  covered: boolean
+  @Field(() => Insurance, { nullable: true })
+  @prop({ required: false })
+  insurance?: Insurance
+
+  @Field(() => Boolean, { nullable: true })
+  @prop({ required: false })
+  insuranceCovered?: boolean
 
   @Field(() => SignupPartner, { nullable: true })
   @prop({ ref: () => SignupPartner, required: false })
@@ -167,10 +171,6 @@ export class Checkout {
   @Field(() => SignupPartnerProvider, { nullable: true })
   @prop({ ref: () => SignupPartnerProvider, required: false })
   signupPartnerProvider?: Ref<SignupPartnerProvider>
-
-  @Field(() => Insurance, { nullable: true })
-  @prop({ required: false })
-  insurance?: Insurance
 
   @Field(() => String, { nullable: true })
   @prop({ type: String, required: false })
@@ -221,12 +221,6 @@ export class CreateCheckoutInput {
   @Field(() => [String])
   pastTries: string[]
 
-  @Field(() => InsurancePlanValue, { nullable: true })
-  insurancePlan?: InsurancePlanValue
-
-  @Field(() => InsuranceTypeValue, { nullable: true })
-  insuranceType?: InsuranceTypeValue
-
   @Field(() => String, { nullable: true })
   signupPartnerId?: string
 
@@ -244,7 +238,7 @@ export class GetCheckoutInput {
 }
 
 @InputType()
-export class CreateStripeCustomerInput {
+export class CheckoutAddressInput {
   @Field(() => String)
   _id: string
 
@@ -256,9 +250,6 @@ export class CreateStripeCustomerInput {
 
   @Field(() => Boolean)
   sameAsShipping: boolean
-
-  @Field(() => Boolean, { defaultValue: false, nullable: true })
-  insurance?: boolean
 }
 
 @InputType()

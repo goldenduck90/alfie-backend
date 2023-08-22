@@ -4,7 +4,7 @@ import { MetriportConnectResponse } from "../schema/metriport.schema"
 import {
   CheckoutResponse,
   CreateCheckoutInput,
-  CreateStripeCustomerInput,
+  CheckoutAddressInput,
 } from "../schema/checkout.schema"
 import { UserTask } from "../schema/task.user.schema"
 import {
@@ -97,7 +97,7 @@ export default class UserResolver {
     return this.userService.getAllUsers()
   }
 
-  @Authorized([Role.Practitioner, Role.Doctor, Role.Admin, Role.HealthCoach])
+  @Authorized([Role.Practitioner, Role.Doctor, Role.HealthCoach])
   // Query returns an array of User and a custom field called tasks
   @Query(() => [User])
   getAllPatientsByProvider(@Ctx() context: Context) {
@@ -122,8 +122,13 @@ export default class UserResolver {
   }
 
   @Mutation(() => CheckoutResponse)
-  createOrUpdateStripeSession(@Arg("input") input: CreateStripeCustomerInput) {
+  createOrUpdateStripeSession(@Arg("input") input: CheckoutAddressInput) {
     return this.userService.createStripeCheckoutSession(input)
+  }
+
+  @Mutation(() => CheckoutResponse)
+  createInsuredUserFromCheckout(@Arg("input") input: CheckoutAddressInput) {
+    return this.userService.createInsuredUserFromCheckout(input)
   }
 
   @Query(() => CheckoutResponse)
