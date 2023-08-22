@@ -161,7 +161,7 @@ export class Checkout {
   insurance?: Insurance
 
   @Field(() => Boolean, { nullable: true })
-  @prop({required: false })
+  @prop({ required: false })
   insuranceCovered?: boolean
 
   @Field(() => SignupPartner, { nullable: true })
