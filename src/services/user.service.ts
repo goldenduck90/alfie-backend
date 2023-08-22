@@ -28,7 +28,7 @@ import {
   Checkout,
   CheckoutModel,
   CreateCheckoutInput,
-  CreateStripeCustomerInput,
+  CheckoutAddressInput,
 } from "../schema/checkout.schema"
 import { ProviderModel, Provider } from "../schema/provider.schema"
 import { AllTaskEmail, Task, TaskEmail, TaskType } from "../schema/task.schema"
@@ -228,8 +228,10 @@ class UserService extends EmailService {
       metriportUserId,
       providerId,
       textOptIn,
+      insurance,
       insurancePlan,
       insuranceType,
+      insuranceCovered,
       signupPartnerId,
       signupPartnerProviderId,
     } = input
@@ -330,8 +332,10 @@ class UserService extends EmailService {
       akutePatientId: patientId,
       provider: provider._id,
       textOptIn,
+      insurance,
       insurancePlan,
       insuranceType,
+      insuranceCovered,
       signupPartner: signupPartnerId,
       signupPartnerProvider: signupPartnerProviderId,
     })
@@ -1286,8 +1290,7 @@ class UserService extends EmailService {
     shipping,
     billing,
     sameAsShipping,
-    insurance = false,
-  }: CreateStripeCustomerInput) {
+  }: CheckoutAddressInput) {
     const { checkoutNotFound, alreadyCheckedOut } = config.get(
       "errors.checkout"
     ) as any
@@ -1345,7 +1348,7 @@ class UserService extends EmailService {
       metadata: {
         checkoutId: String(checkout._id),
         email: checkout.email,
-        INSURANCE: `${insurance ? "TRUE" : "FALSE"}`,
+        INSURANCE: `${checkout.insuranceCovered ? "TRUE" : "FALSE"}`,
       },
       ...(customer && { customer: customer.id }),
     }
@@ -1384,6 +1387,52 @@ class UserService extends EmailService {
     }
   }
 
+  async createInsuredUserFromCheckout({
+    _id,
+    shipping,
+    billing,
+    sameAsShipping,
+  }: CheckoutAddressInput) {
+    const { checkoutNotFound } = config.get("errors.checkout") as any
+
+    const checkout = await CheckoutModel.findById(_id)
+
+    if (!checkout) {
+      throw new ApolloError(checkoutNotFound.message, checkoutNotFound.code)
+    }
+
+    if (!checkout.insuranceCovered) {
+      throw new ApolloError("Insurance not covered!")
+    }
+
+    checkout.shippingAddress = shipping
+    checkout.billingAddress = sameAsShipping ? shipping : billing
+    await checkout.save()
+
+    const userInput = {
+      name: checkout.name,
+      textOptIn: checkout.textOptIn,
+      email: checkout.email,
+      phone: checkout.phone,
+      dateOfBirth: checkout.dateOfBirth,
+      address: checkout.shippingAddress,
+      weightInLbs: checkout.weightInLbs,
+      gender: checkout.gender,
+      heightInInches: checkout.heightInInches,
+      insurance: checkout.insurance,
+      insurancePlan: checkout.insurancePlan,
+      insuranceType: checkout.insuranceType,
+      insuranceCovered: checkout.insuranceCovered,
+      signupPartnerId: checkout.signupPartner?.toString(),
+      signupPartnerProviderId: checkout.signupPartnerProvider?.toString(),
+    }
+    await this.createUser(userInput)
+
+    return {
+      checkout,
+    }
+  }
+
   async createOrFindCheckout(input: CreateCheckoutInput) {
     input.email = input.email.toLowerCase()
 
@@ -1404,18 +1453,10 @@ class UserService extends EmailService {
         phone,
         pastTries,
         weightLossMotivatorV2,
-        insurancePlan,
-        insuranceType,
         signupPartnerId,
         signupPartnerProviderId,
         referrer,
       } = input
-
-      const { covered } = await this.insuranceService.isCovered({
-        plan: insurancePlan,
-        type: insuranceType,
-        state,
-      })
 
       const checkout = await CheckoutModel.find().findByEmail(email).lean()
       if (checkout) {
@@ -1438,9 +1479,6 @@ class UserService extends EmailService {
         checkout.textOptIn = textOptIn
         checkout.phone = phone
         checkout.pastTries = pastTries
-        checkout.insurancePlan = insurancePlan
-        checkout.insuranceType = insuranceType
-        checkout.covered = covered
         checkout.signupPartner = signupPartnerId
         checkout.signupPartnerProvider = signupPartnerProviderId
         checkout.referrer = referrer
@@ -1487,9 +1525,6 @@ class UserService extends EmailService {
         textOptIn,
         phone,
         pastTries,
-        insurancePlan,
-        insuranceType,
-        covered,
         signupPartner: signupPartnerId,
         signupPartnerProvider: signupPartnerProviderId,
         referrer,
@@ -1796,7 +1831,7 @@ class UserService extends EmailService {
 
     try {
       const result = await this.candidService.checkInsuranceEligibility(
-        user,
+        { ...user, state: user.address.state },
         inputs
       )
 

@@ -39,10 +39,9 @@ export enum CodedEncounterSource {
 
 export class CandidError extends ApolloError {}
 
-export type BasicUserInfo = Pick<
-  User,
-  "name" | "address" | "dateOfBirth" | "gender"
->
+export type BasicUserInfo = Pick<User, "name" | "dateOfBirth" | "gender"> & {
+  state: string
+}
 
 interface CandidAuthResponse {
   /** The access token to use in authorization headers. */
@@ -301,7 +300,7 @@ export default class CandidService {
       }: { billingProvider?: CandidRequestBillingProvider } = calculateSetting(
         settings,
         ["billingProvider"],
-        { state: user.address.state.toUpperCase() }
+        { state: user.state.toUpperCase() }
       )
 
       request = {

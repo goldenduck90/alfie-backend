@@ -1,4 +1,5 @@
-import { Arg, Authorized, Query, Resolver } from "type-graphql"
+import { Arg, Authorized, Mutation, Query, Resolver } from "type-graphql"
+import { ApolloError } from "apollo-server"
 import Role from "../schema/enums/Role"
 import {
   InsurancePlanValue,
@@ -6,51 +7,60 @@ import {
   InsuranceCoveredResponse,
   BasicUserInsuranceInfo,
   InsurancePlansResponse,
-  InsuranceFlowResponse,
+  InsuranceCheckInput,
+  InsuranceCheckResponse,
 } from "../schema/insurance.schema"
 import CandidService from "../services/candid.service"
 import InsuranceService from "../services/insurance.service"
 import { Insurance, InsuranceEligibilityResponse } from "../schema/user.schema"
 import lookupCPID from "../utils/lookupCPID"
 import resolveCPIDEntriesToInsurance from "../utils/resolveCPIDEntriesToInsurance"
-import UserService from "../services/user.service"
+import { CheckoutModel } from "../schema/checkout.schema"
 
 @Resolver()
 export default class InsuranceResolver {
   private candidService: CandidService
   private insuranceService: InsuranceService
-  private userService: UserService
 
   constructor() {
     this.candidService = new CandidService()
     this.insuranceService = new InsuranceService()
-    this.userService = new UserService()
+  }
+
+  @Mutation(() => InsuranceCheckResponse)
+  async insuranceCheck(
+    @Arg("input") input: InsuranceCheckInput
+  ): Promise<InsuranceCheckResponse> {
+    try {
+      const checkout = await CheckoutModel.findById(input.checkoutId)
+
+      const result = await this.insuranceFlow(
+        input.insurancePlan,
+        input.insuranceType,
+        {
+          state: checkout.state,
+          dateOfBirth: checkout.dateOfBirth,
+          gender: checkout.gender,
+          name: checkout.name,
+        },
+        input.insurance
+      )
+
+      checkout.insurancePlan = input.insurancePlan
+      checkout.insuranceType = input.insuranceType
+      checkout.insurance = input.insurance
+      checkout.insuranceCovered =
+        result.covered.covered && result.eligible.eligible
+      await checkout.save()
+
+      return result
+    } catch (error) {
+      throw new ApolloError(error.message, "ERROR")
+    }
   }
 
   @Authorized([Role.Admin, Role.Patient])
-  @Query(() => InsuranceFlowResponse)
-  async insuranceFlowCheckout(
-    @Arg("checkoutId") checkoutId: string
-  ): Promise<InsuranceFlowResponse> {
-    const { checkout } = await this.userService.getCheckout(checkoutId)
-
-    const result = await this.insuranceFlow(
-      checkout.insurancePlan,
-      checkout.insuranceType,
-      {
-        address: checkout.billingAddress,
-        dateOfBirth: checkout.dateOfBirth,
-        gender: checkout.gender,
-        name: checkout.name,
-      },
-      checkout.insurance
-    )
-
-    return result
-  }
-
-  @Authorized([Role.Admin, Role.Patient])
-  @Query(() => InsuranceFlowResponse)
+  @Query(() => InsuranceCheckResponse)
   async insuranceFlow(
     @Arg("insurancePlan", () => InsurancePlanValue)
     insurancePlan: InsurancePlanValue,
@@ -66,7 +76,7 @@ export default class InsuranceResolver {
 
     @Arg("cpid", { nullable: true })
     cpid?: string
-  ): Promise<InsuranceFlowResponse> {
+  ): Promise<InsuranceCheckResponse> {
     const covered = await this.insuranceCovered(
       insurancePlan,
       insuranceType,
@@ -95,7 +105,7 @@ export default class InsuranceResolver {
     const covered = await this.insuranceService.isCovered({
       plan: insurancePlan,
       type: insuranceType,
-      state: user.address.state,
+      state: user.state,
     })
 
     return covered
@@ -110,7 +120,7 @@ export default class InsuranceResolver {
     insurance: Insurance,
     @Arg("cpid", { nullable: true }) cpid?: string
   ): Promise<InsuranceEligibilityResponse> {
-    let inputs: ReturnType<typeof resolveCPIDEntriesToInsurance> = []
+    let inputs = []
     if (cpid) {
       inputs = [{ insurance, cpid }]
     } else {
@@ -126,7 +136,6 @@ export default class InsuranceResolver {
     return eligible
   }
 
-  @Authorized([Role.Admin, Role.Patient])
   @Query(() => InsurancePlansResponse)
   async insurancePlans() {
     const plans = await this.insuranceService.getPlans()

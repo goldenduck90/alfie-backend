@@ -269,8 +269,10 @@ export default class StripeService {
         stripeCustomerId: customerId,
         stripeSubscriptionId: subscriptionId,
         subscriptionExpiresAt: new Date(),
+        insurance: checkout.insurance,
         insurancePlan: checkout.insurancePlan,
         insuranceType: checkout.insuranceType,
+        insuranceCovered: checkout.insuranceCovered,
         signupPartnerId: checkout.signupPartner?.toString(),
         signupPartnerProviderId: checkout.signupPartnerProvider?.toString(),
       })
@@ -449,8 +451,10 @@ export default class StripeService {
         stripeCustomerId: customerId,
         stripePaymentIntentId: paymentIntentId,
         stripeSubscriptionId: null,
+        insurance: checkout.insurance,
         insurancePlan: checkout.insurancePlan,
         insuranceType: checkout.insuranceType,
+        insuranceCovered: checkout.insuranceCovered,
         signupPartnerId: checkout.signupPartner?.toString(),
         signupPartnerProviderId: checkout.signupPartnerProvider?.toString(),
       })
