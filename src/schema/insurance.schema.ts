@@ -1,11 +1,6 @@
 import { Ref, getModelForClass, index, prop } from "@typegoose/typegoose"
 import { Field, InputType, ObjectType, registerEnumType } from "type-graphql"
-import {
-  Address,
-  Gender,
-  Insurance,
-  InsuranceEligibilityResponse,
-} from "./user.schema"
+import { Gender, Insurance, InsuranceEligibilityResponse } from "./user.schema"
 import { Provider } from "./provider.schema"
 
 export enum InsuranceTypeValue {
