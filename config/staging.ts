@@ -6,7 +6,7 @@ import akuteProcedures from "./includes/akuteProcedures.development"
 
 export default {
   env: "staging",
-  dbUri: `mongodb+srv://joinalfie_dev_user:${process.env.DB_PASSWORD}@platform-staging-cluste.zn2qm3z.mongodb.net/staging?retryWrites=true&w=majority`,
+  dbUri: `mongodb+srv://dev_staging:${process.env.DB_PASSWORD}@platform-staging-cluste.zn2qm3z.mongodb.net/staging?retryWrites=true&w=majority`,
   baseUrl: "https://staging.joinalfie.com",
   easyAppointmentsApiUrl: "https://staging.ea.joinalfie.com/index.php/api/v1",
   sendBirdApiUrl:

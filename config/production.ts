@@ -6,7 +6,7 @@ import akuteProcedures from "./includes/akuteProcedures.production"
 
 export default {
   env: "production",
-  dbUri: `mongodb+srv://joinalfie_dev_user:${process.env.DB_PASSWORD}@platform-production-clu.wnd0f.mongodb.net/?retryWrites=true&w=majority`,
+  dbUri: `mongodb+srv://production:${process.env.DB_PASSWORD}@platform-production-clu.wnd0f.mongodb.net/?retryWrites=true&w=majority`,
   baseUrl: "https://app.joinalfie.com",
   easyAppointmentsApiUrl: "https://ea.joinalfie.com/index.php/api/v1",
   sendBirdApiUrl:
