@@ -432,6 +432,9 @@ export const initializeSendBirdWebhook = (app: express.Application) => {
         Signature: signature,
       })
 
+      if (req.body.category !== "group_channel:message_send")
+        return res.sendStatus(200)
+
       const emailService = new EmailService()
 
       const sender = req.body.sender as Sender
