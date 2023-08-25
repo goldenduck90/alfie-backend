@@ -1931,37 +1931,21 @@ class UserService extends EmailService {
     }
 
     const weightLogTask = await TaskModel.findOne({ type: TaskType.WEIGHT_LOG })
-    const incompleteUserTask = await UserTaskModel.findOne({
-      user: user._id,
-      task: weightLogTask._id,
-      completed: false,
-    })
 
     const userAnswer: UserNumberAnswer = {
       key: "scaleWeight",
       value: weightLbs,
       type: AnswerType.NUMBER,
     }
-
-    let userTask: UserTask
-    if (incompleteUserTask) {
-      userTask = await this.taskService.completeUserTask({
-        _id: incompleteUserTask._id.toString(),
-        answers: [userAnswer],
-      })
-    } else {
-      const errorMessage = `No uncompleted weight log task for user: ${
-        user._id
-      } - Could not record scale reading: ${JSON.stringify(userAnswer)}`
-      const message = `[METRIPORT][TIME: ${new Date().toString()}] ${errorMessage}`
-      console.log(message)
-      Sentry.captureEvent({
-        message,
-        level: "warning",
-      })
-      return
-    }
-
+    
+    // Directly create and complete the user task
+    const userTask = await UserTaskModel.create({
+      user: user._id,
+      task: weightLogTask._id,
+      answers: [userAnswer],
+      completed: true,
+    })
+              
     const message = `[METRIPORT][TIME: ${new Date().toString()}] Successfully updated weight for user: ${
       user._id
     } - ${weightLbs}lbs`
