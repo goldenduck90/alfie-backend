@@ -230,7 +230,7 @@ export default class CandidService {
 
         return {
           rectifiedInsurance: eligibleResult.input.insurance,
-          eligible: eligibleResult.eligible,
+          eligible: true, // TODO: fix eligibility // eligibleResult.eligible,
         }
       } else {
         const errorSummary = results
@@ -257,7 +257,7 @@ export default class CandidService {
         })
 
         return {
-          eligible: false,
+          eligible: true, // TODO: fix eligibility
           reason: results.some(({ insured }) => insured)
             ? "Not covered."
             : "Not insured or insurance payer not supported.",
@@ -268,10 +268,14 @@ export default class CandidService {
         error,
         "CandidService.checkInsuranceEligibility server error"
       )
-      throw new ApolloError(
-        "Error processing insurance eligibility check",
-        "INTERNAL_ERROR"
-      )
+      return {
+        eligible: true, // TODO: fix eligibility
+        reason: "Manual.", // TODO: fix eligibility
+      }
+      // throw new ApolloError(
+      //   "Error processing insurance eligibility check",
+      //   "INTERNAL_ERROR"
+      // )
     }
   }
 
@@ -327,12 +331,12 @@ export default class CandidService {
       const errors = (data as any as { errors?: CandidResponseError[] }).errors
       if (errors?.length > 0) {
         return {
-          eligible: false,
+          eligible: true, // TODO: fix eligibility
           reason: "Insurance Error",
           request,
           response: data,
           errors,
-          insured: false,
+          insured: true, // TODO: fix eligibility
         }
       }
 
@@ -348,11 +352,11 @@ export default class CandidService {
       }
     } catch (error) {
       return {
-        eligible: false,
+        eligible: true, // TODO: fix eligibility
         reason: "Internal error",
         request,
         errors: [error],
-        insured: false,
+        insured: true, // TODO: fix eligibility
       }
     }
   }
