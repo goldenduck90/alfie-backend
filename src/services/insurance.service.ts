@@ -17,8 +17,9 @@ export default class InsuranceService {
   }): Promise<InsuranceCoveredResponse> {
     const plan = await this.getPlanCoverage(params)
     return {
-      covered: plan !== null,
-      reason: !plan ? "Not covered" : null,
+      covered: plan !== null && plan.covered,
+      comingSoon: plan !== null && plan.comingSoon,
+      reason: !plan ? "Not covered or coming soon" : null,
     }
   }
 
@@ -31,7 +32,7 @@ export default class InsuranceService {
       provider: Provider
     }>("provider")
 
-    const plan = plans.find(({ plan: planValue, type, state, covered }) => {
+    const coveredPlan = plans.find(({ plan: planValue, type, state, covered }) => {
       return (
         covered &&
         params.plan === planValue &&
@@ -40,7 +41,16 @@ export default class InsuranceService {
       )
     })
 
-    return plan ?? null
+    const comingSoonPlan = plans.find(({ plan: planValue, type, state, comingSoon }) => {
+      return (
+        comingSoon &&
+        params.plan === planValue &&
+        (type === null || params.type === type) &&
+        (state === null || state === params.state)
+      )
+    })
+
+    return coveredPlan ?? comingSoonPlan ?? null
   }
 
   async getPlans() {
