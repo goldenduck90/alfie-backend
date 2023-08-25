@@ -119,7 +119,7 @@ class AppointmentService extends EmailService {
       baseURL: this.eaUrl,
       headers: {
         "Content-Type": "application/json",
-        "Authorization": "Bearer letmein1",
+        "Authorization": `Bearer ${process.env.EASY_APPOINTMENTS_API_KEY}`,
       },
     })
   }
