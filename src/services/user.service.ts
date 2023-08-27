@@ -1945,7 +1945,12 @@ class UserService extends EmailService {
       answers: [userAnswer],
       completed: true,
     })
-              
+    // Save to user weights array as well so push onto array
+    user.weights.push({
+      value: weightLbs,
+      date: new Date(),
+    })
+    await user.save()
     const message = `[METRIPORT][TIME: ${new Date().toString()}] Successfully updated weight for user: ${
       user._id
     } - ${weightLbs}lbs`
