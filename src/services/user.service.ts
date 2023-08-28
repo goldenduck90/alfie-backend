@@ -73,7 +73,10 @@ import axios from "axios"
 import { analyzeS3InsuranceCardImage } from "../utils/textract"
 import AnswerType from "../schema/enums/AnswerType"
 import { client } from "../utils/posthog"
-import { SignupPartner, SignupPartnerProviderModel } from "../schema/partner.schema"
+import {
+  SignupPartner,
+  SignupPartnerProviderModel,
+} from "../schema/partner.schema"
 import { captureException, captureEvent } from "../utils/sentry"
 import lookupCPID from "../utils/lookupCPID"
 import extractInsurance from "../utils/extractInsurance"
@@ -820,11 +823,13 @@ class UserService extends EmailService {
   async getUser(userId: string) {
     try {
       const { notFound } = config.get("errors.user") as any
-      const user = await UserModel.findById(userId).populate<{
-        provider: Provider
-      }>("provider").populate<{
-        signupPartner: SignupPartner
-      }>("signupPartner")
+      const user = await UserModel.findById(userId)
+        .populate<{
+          provider: Provider
+        }>("provider")
+        .populate<{
+          signupPartner: SignupPartner
+        }>("signupPartner")
       if (!user) {
         throw new ApolloError(notFound.message, notFound.code)
       }
@@ -838,11 +843,13 @@ class UserService extends EmailService {
   async getAllUsers() {
     try {
       // Find all users and populate the "provider" field
-      const users = await UserModel.find({ role: Role.Patient }).populate<{
-        provider: Provider
-      }>("provider").populate<{
-        signupPartner: SignupPartner
-      }>("signupPartner")
+      const users = await UserModel.find({ role: Role.Patient })
+        .populate<{
+          provider: Provider
+        }>("provider")
+        .populate<{
+          signupPartner: SignupPartner
+        }>("signupPartner")
 
       return users
     } catch (error) {
