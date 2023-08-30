@@ -1948,7 +1948,7 @@ class UserService extends EmailService {
       value: weightLbs,
       type: AnswerType.NUMBER,
     }
-    
+
     // Directly create and complete the user task
     const userTask = await UserTaskModel.create({
       user: user._id,
