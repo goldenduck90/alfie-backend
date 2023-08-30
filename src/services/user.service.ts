@@ -926,12 +926,12 @@ class UserService extends EmailService {
       const users = await this.getAllPatients()
       const tasks = await TaskModel.find({ interval: { $exists: true } })
       const allUserTasks = await UserTaskModel.find({
-        task: { $in: tasks.map(task => task._id) },
-        user: { $in: users.map(user => user._id) },
+        task: { $in: tasks.map((task) => task._id) },
+        user: { $in: users.map((user) => user._id) },
       })
 
       const userTasksMap = new Map()
-      allUserTasks.forEach(uTask => {
+      allUserTasks.forEach((uTask) => {
         const userId = uTask.user.toString()
         if (!userTasksMap.has(userId)) {
           userTasksMap.set(userId, [])
@@ -947,16 +947,49 @@ class UserService extends EmailService {
       for (const user of users) {
         const userTasks = userTasksMap.get(user._id.toString()) || []
 
-        const { newTasks, dueTodayTasks, pastDueTasks } = await this.processUserTasks(user, tasks, userTasks)
+        const { newTasks, dueTodayTasks, pastDueTasks } =
+          await this.processUserTasks(user, tasks, userTasks)
 
-        allNewTasks.push(...newTasks.map(task => ({ ...task, userId: user._id, userName: user.name, userEmail: user.email })))
-        allDueTodayTasks.push(...dueTodayTasks.map(task => ({ ...task, userId: user._id, userName: user.name, userEmail: user.email })))
-        allPastDueTasks.push(...pastDueTasks.map(task => ({ ...task, userId: user._id, userName: user.name, userEmail: user.email })))
+        allNewTasks.push(
+          ...newTasks.map((task) => ({
+            ...task,
+            userId: user._id,
+            userName: user.name,
+            userEmail: user.email,
+          }))
+        )
+        allDueTodayTasks.push(
+          ...dueTodayTasks.map((task) => ({
+            ...task,
+            userId: user._id,
+            userName: user.name,
+            userEmail: user.email,
+          }))
+        )
+        allPastDueTasks.push(
+          ...pastDueTasks.map((task) => ({
+            ...task,
+            userId: user._id,
+            userName: user.name,
+            userEmail: user.email,
+          }))
+        )
 
-        await this.sendNotifications(user, newTasks, dueTodayTasks, pastDueTasks, errors)
+        await this.sendNotifications(
+          user,
+          newTasks,
+          dueTodayTasks,
+          pastDueTasks,
+          errors
+        )
       }
 
-      await this.sendReport(allNewTasks, allPastDueTasks, allDueTodayTasks, errors)
+      await this.sendReport(
+        allNewTasks,
+        allPastDueTasks,
+        allDueTodayTasks,
+        errors
+      )
     } catch (error) {
       console.error("Error in taskJob:", error)
     }
@@ -966,65 +999,75 @@ class UserService extends EmailService {
     const newTasks: TaskEmail[] = []
     const dueTodayTasks: TaskEmail[] = []
     const pastDueTasks: TaskEmail[] = []
-    
-    for (const task of tasks) {
-      const uTask = userTasks.find(userTask => userTask.task.toString() === task._id.toString())
-        if (uTask) {
-            if (uTask.completed) {
-                const completedAt = new Date(uTask.completedAt).setHours(0, 0)
-                const completedDate = addDays(completedAt, Number(task.interval))
 
-                if (isPast(completedDate) || isToday(completedDate)) {
-                    const dueAt = addDays(new Date().setHours(0, 0), task.daysTillDue || 0)
-                    const dueAtFormatted = this.formatDueAt(dueAt)
-                    newTasks.push({
-                        taskName: task.name,
-                        dueAt: dueAtFormatted,
-                        taskId: uTask._id,
-                    })
-                }
-            } else {
-              const dueAt = new Date(uTask.dueAt).setHours(0, 0)
-              if (isToday(dueAt)) {
-                  dueTodayTasks.push({
-                      taskName: task.name,
-                      dueAt: this.formatDueAt(dueAt),
-                      taskId: uTask._id,
-                  })
-              } else if (isPast(dueAt)) {
-                  pastDueTasks.push({
-                      taskName: task.name,
-                      dueAt: this.formatDueAt(dueAt),
-                      taskId: uTask._id,
-                  })
-              }
-              
-            }
-        } else if (
-            task.type !== TaskType.SCHEDULE_APPOINTMENT ||
-            task.type !== TaskType.SCHEDULE_HEALTH_COACH_APPOINTMENT
-        ) {
-            const dueAt = addDays(new Date().setHours(0, 0), task.daysTillDue || 0)
+    for (const task of tasks) {
+      const uTask = userTasks.find(
+        (userTask) => userTask.task.toString() === task._id.toString()
+      )
+      if (uTask) {
+        if (uTask.completed) {
+          const completedAt = new Date(uTask.completedAt).setHours(0, 0)
+          const completedDate = addDays(completedAt, Number(task.interval))
+
+          if (isPast(completedDate) || isToday(completedDate)) {
+            const dueAt = addDays(
+              new Date().setHours(0, 0),
+              task.daysTillDue || 0
+            )
             const dueAtFormatted = this.formatDueAt(dueAt)
             newTasks.push({
-                taskName: task.name,
-                dueAt: dueAtFormatted,
-                taskId: uTask._id,
+              taskName: task.name,
+              dueAt: dueAtFormatted,
+              taskId: uTask._id,
             })
+          }
+        } else {
+          const dueAt = new Date(uTask.dueAt).setHours(0, 0)
+          if (isToday(dueAt)) {
+            dueTodayTasks.push({
+              taskName: task.name,
+              dueAt: this.formatDueAt(dueAt),
+              taskId: uTask._id,
+            })
+          } else if (isPast(dueAt)) {
+            pastDueTasks.push({
+              taskName: task.name,
+              dueAt: this.formatDueAt(dueAt),
+              taskId: uTask._id,
+            })
+          }
         }
+      } else if (
+        task.type !== TaskType.SCHEDULE_APPOINTMENT ||
+        task.type !== TaskType.SCHEDULE_HEALTH_COACH_APPOINTMENT
+      ) {
+        const dueAt = addDays(new Date().setHours(0, 0), task.daysTillDue || 0)
+        const dueAtFormatted = this.formatDueAt(dueAt)
+        newTasks.push({
+          taskName: task.name,
+          dueAt: dueAtFormatted,
+          taskId: uTask._id,
+        })
+      }
     }
 
     return { newTasks, dueTodayTasks, pastDueTasks }
-}
-
-  formatDueAt(dueAt: number | Date) {
-      if (isToday(dueAt)) return "Today"
-      if (isTomorrow(dueAt)) return "Tomorrow"
-      if (isThisWeek(dueAt)) return format(dueAt, "EEE")
-      return format(dueAt, "EEE, LLL do")
   }
 
-  async sendNotifications(user: any, newTasks: any, dueTodayTasks: any, pastDueTasks: any, errors: any) {
+  formatDueAt(dueAt: number | Date) {
+    if (isToday(dueAt)) return "Today"
+    if (isTomorrow(dueAt)) return "Tomorrow"
+    if (isThisWeek(dueAt)) return format(dueAt, "EEE")
+    return format(dueAt, "EEE, LLL do")
+  }
+
+  async sendNotifications(
+    user: any,
+    newTasks: any,
+    dueTodayTasks: any,
+    pastDueTasks: any,
+    errors: any
+  ) {
     if (
       newTasks.length > 0 ||
       pastDueTasks.length > 0 ||
@@ -1040,7 +1083,9 @@ class UserService extends EmailService {
       })
 
       if (!emailSent) {
-        errors.push(`Error sending task email to user (${user._id}): ${user.email}`)
+        errors.push(
+          `Error sending task email to user (${user._id}): ${user.email}`
+        )
       }
 
       const smsSent = await this.smsService.sendTaskSms({
@@ -1053,11 +1098,18 @@ class UserService extends EmailService {
       })
 
       if (!smsSent.sid) {
-        errors.push(`Error sending task SMS to user (${user._id}): ${user.email}, ${user.phone}`)
+        errors.push(
+          `Error sending task SMS to user (${user._id}): ${user.email}, ${user.phone}`
+        )
       }
     }
   }
-  async sendReport(allNewTasks: any, allPastDueTasks: any, allDueTodayTasks: any, errors: any) {
+  async sendReport(
+    allNewTasks: any,
+    allPastDueTasks: any,
+    allDueTodayTasks: any,
+    errors: any
+  ) {
     if (
       allNewTasks.length > 0 ||
       allPastDueTasks.length > 0 ||
