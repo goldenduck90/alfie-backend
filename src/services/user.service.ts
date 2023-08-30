@@ -73,7 +73,10 @@ import axios from "axios"
 import { analyzeS3InsuranceCardImage } from "../utils/textract"
 import AnswerType from "../schema/enums/AnswerType"
 import { client } from "../utils/posthog"
-import { SignupPartnerProviderModel } from "../schema/partner.schema"
+import {
+  SignupPartner,
+  SignupPartnerProviderModel,
+} from "../schema/partner.schema"
 import { captureException, captureEvent } from "../utils/sentry"
 import lookupCPID from "../utils/lookupCPID"
 import extractInsurance from "../utils/extractInsurance"
@@ -820,9 +823,13 @@ class UserService extends EmailService {
   async getUser(userId: string) {
     try {
       const { notFound } = config.get("errors.user") as any
-      const user = await UserModel.findById(userId).populate<{
-        provider: Provider
-      }>("provider")
+      const user = await UserModel.findById(userId)
+        .populate<{
+          provider: Provider
+        }>("provider")
+        .populate<{
+          signupPartner: SignupPartner
+        }>("signupPartner")
       if (!user) {
         throw new ApolloError(notFound.message, notFound.code)
       }
@@ -836,9 +843,13 @@ class UserService extends EmailService {
   async getAllUsers() {
     try {
       // Find all users and populate the "provider" field
-      const users = await UserModel.find({ role: Role.Patient }).populate<{
-        provider: Provider
-      }>("provider")
+      const users = await UserModel.find({ role: Role.Patient })
+        .populate<{
+          provider: Provider
+        }>("provider")
+        .populate<{
+          signupPartner: SignupPartner
+        }>("signupPartner")
 
       return users
     } catch (error) {
@@ -1931,11 +1942,6 @@ class UserService extends EmailService {
     }
 
     const weightLogTask = await TaskModel.findOne({ type: TaskType.WEIGHT_LOG })
-    const incompleteUserTask = await UserTaskModel.findOne({
-      user: user._id,
-      task: weightLogTask._id,
-      completed: false,
-    })
 
     const userAnswer: UserNumberAnswer = {
       key: "scaleWeight",
@@ -1943,25 +1949,19 @@ class UserService extends EmailService {
       type: AnswerType.NUMBER,
     }
 
-    let userTask: UserTask
-    if (incompleteUserTask) {
-      userTask = await this.taskService.completeUserTask({
-        _id: incompleteUserTask._id.toString(),
-        answers: [userAnswer],
-      })
-    } else {
-      const errorMessage = `No uncompleted weight log task for user: ${
-        user._id
-      } - Could not record scale reading: ${JSON.stringify(userAnswer)}`
-      const message = `[METRIPORT][TIME: ${new Date().toString()}] ${errorMessage}`
-      console.log(message)
-      Sentry.captureEvent({
-        message,
-        level: "warning",
-      })
-      return
-    }
-
+    // Directly create and complete the user task
+    const userTask = await UserTaskModel.create({
+      user: user._id,
+      task: weightLogTask._id,
+      answers: [userAnswer],
+      completed: true,
+    })
+    // Save to user weights array as well so push onto array
+    user.weights.push({
+      value: weightLbs,
+      date: new Date(),
+    })
+    await user.save()
     const message = `[METRIPORT][TIME: ${new Date().toString()}] Successfully updated weight for user: ${
       user._id
     } - ${weightLbs}lbs`
