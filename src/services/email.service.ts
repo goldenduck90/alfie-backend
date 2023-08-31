@@ -227,6 +227,41 @@ export default class EmailService {
     return result.MessageId
   }
 
+  async sendReferralEmail({
+    name,
+    email,
+    phone,
+    source,
+    provider,
+  }: {
+    name: string
+    email: string
+    phone: string
+    source: string
+    provider: string
+  }) {
+    try {
+      const subject = "A new patient has been referred to Alfie Health"
+      const emailBody = `
+      A new patient has been referred to Alfie Health
+      <br/><br/>
+      Name: ${name} <br/>
+      Source: ${source} <br/>
+      Email: ${email} <br/>
+      Provider Name: ${provider} <br/>
+      Phone: ${phone} <br/>
+      `
+      const result = await this.sendEmail(subject, emailBody, [
+        "patients@joinalfie.com",
+      ])
+
+      return result.MessageId
+    } catch (error) {
+      Sentry.captureException(error)
+      console.log(error)
+    }
+  }
+
   async sendAppointmentCreatedEmail({
     name,
     email,
