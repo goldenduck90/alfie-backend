@@ -18,6 +18,9 @@ export default {
     serviceTypeCodes: ["90", "3", "30", "BZ"],
     settings: candidHealth,
   },
+  google: {
+    apiKey: process.env.GOOGLE_API_KEY,
+  },
   withings: {
     apiUrl: "https://wbsapi.withings.net",
     clientId: process.env.WITHINGS_CLIENT_ID,

@@ -111,6 +111,69 @@ export class Insurance {
 }
 
 @ObjectType()
+@InputType("AddressQuery")
+@ModelOptions({ schemaOptions: { _id: false } })
+export class AddressQuery {
+  @Field(() => String)
+  @prop({ required: true })
+  input: string
+
+  @Field(() => String, { nullable: true })
+  @prop()
+  radius?: number
+
+  @Field(() => String, { nullable: true })
+  @prop()
+  location?: string // 37.76999%2C-122.44696
+
+  @Field(() => String, { nullable: true })
+  @prop()
+  types?: string
+}
+
+@ObjectType()
+@InputType("AddressSuggestion")
+@ModelOptions({ schemaOptions: { _id: false } })
+export class AddressSuggestion {
+  @Field(() => String, { nullable: true })
+  @prop({ required: true })
+  placeId: string
+
+  @Field(() => String, { nullable: true })
+  @prop({ required: true })
+  address: string
+}
+
+@ObjectType()
+@InputType("PlaceDetails")
+@ModelOptions({ schemaOptions: { _id: false } })
+export class PlaceDetails {
+  @Field(() => String, { nullable: true })
+  @prop()
+  line1: string
+
+  @Field(() => String, { nullable: true })
+  @prop()
+  line2?: string
+
+  @Field(() => String, { nullable: true })
+  @prop()
+  city: string
+
+  @Field(() => String, { nullable: true })
+  @prop()
+  state: string
+
+  @Field(() => String, { nullable: true })
+  @prop()
+  postalCode: string
+
+  @Field(() => String, { nullable: true })
+  @prop({ default: "US" })
+  country?: string
+}
+
+@ObjectType()
 @InputType("AddressInput")
 @ModelOptions({ schemaOptions: { _id: false } })
 export class Address {
