@@ -32,23 +32,27 @@ export default class InsuranceService {
       provider: Provider
     }>("provider")
 
-    const coveredPlan = plans.find(({ plan: planValue, type, state, covered }) => {
-      return (
-        covered &&
-        params.plan === planValue &&
-        (type === null || params.type === type) &&
-        (state === null || state === params.state)
-      )
-    })
+    const coveredPlan = plans.find(
+      ({ plan: planValue, type, state, covered }) => {
+        return (
+          covered &&
+          params.plan === planValue &&
+          (type === null || params.type === type) &&
+          (state === null || state === params.state)
+        )
+      }
+    )
 
-    const comingSoonPlan = plans.find(({ plan: planValue, type, state, comingSoon }) => {
-      return (
-        comingSoon &&
-        params.plan === planValue &&
-        (type === null || params.type === type) &&
-        (state === null || state === params.state)
-      )
-    })
+    const comingSoonPlan = plans.find(
+      ({ plan: planValue, type, state, comingSoon }) => {
+        return (
+          comingSoon &&
+          params.plan === planValue &&
+          (type === null || params.type === type) &&
+          (state === null || state === params.state)
+        )
+      }
+    )
 
     return coveredPlan ?? comingSoonPlan ?? null
   }
