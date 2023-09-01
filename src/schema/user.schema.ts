@@ -465,8 +465,8 @@ export class User {
   @prop()
   calId?: string
 
-  @Field(() => String)
-  @prop()
+  @Field(() => String, { nullable: true })
+  @prop({ required: false, default: null })
   stripeCustomerId?: string
 
   @Field(() => String, { nullable: true })
