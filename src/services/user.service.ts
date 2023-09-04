@@ -8,14 +8,11 @@ import {
   addDays,
   addMinutes,
   addMonths,
-  differenceInDays,
   isPast,
   isToday,
   format,
   isTomorrow,
   isThisWeek,
-  subDays,
-  isYesterday,
 } from "date-fns"
 import {
   ChatCompletionRequestMessageRoleEnum,
@@ -72,7 +69,7 @@ import FaxService from "./fax.service"
 import axios from "axios"
 import { analyzeS3InsuranceCardImage } from "../utils/textract"
 import AnswerType from "../schema/enums/AnswerType"
-import { client } from "../utils/posthog"
+import postHogClient from "../utils/posthog"
 import {
   SignupPartner,
   SignupPartnerProviderModel,
@@ -1223,7 +1220,7 @@ class UserService extends EmailService {
     await checkout.save()
 
     if (process.env.NODE_ENV === "production") {
-      client.capture({
+      postHogClient.capture({
         distinctId: checkout._id,
         event: "Checkout Complete",
         properties: {
@@ -1406,7 +1403,23 @@ class UserService extends EmailService {
       signupPartnerId: checkout.signupPartner?.toString(),
       signupPartnerProviderId: checkout.signupPartnerProvider?.toString(),
     }
-    await this.createUser(userInput)
+    const { user } = await this.createUser(userInput)
+
+    if (process.env.NODE_ENV === "production") {
+      postHogClient.capture({
+        distinctId: checkout._id,
+        event: "Checkout Complete",
+        properties: {
+          referrer: checkout.referrer || "None",
+          checkoutId: checkout._id,
+          userId: user._id,
+          signupPartner: checkout.signupPartner || "None",
+          signupPartnerProvider: checkout.signupPartnerProvider || "None",
+          insurancePay: checkout.insurancePlan ? true : false,
+          environment: process.env.NODE_ENV,
+        },
+      })
+    }
 
     return {
       checkout,
@@ -1511,7 +1524,7 @@ class UserService extends EmailService {
       })
 
       if (process.env.NODE_ENV === "production") {
-        client.capture({
+        postHogClient.capture({
           distinctId: newCheckout._id,
           event: "Checkout Started",
           properties: {
@@ -2002,7 +2015,7 @@ class UserService extends EmailService {
         const newUser = pINewUser.user
 
         if (process.env.NODE_ENV === "production") {
-          client.capture({
+          postHogClient.capture({
             distinctId: pICheckout._id,
             event: "Checkout Complete",
             properties: {
