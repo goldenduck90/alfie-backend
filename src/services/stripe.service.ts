@@ -2,7 +2,7 @@ import Stripe from "stripe"
 import * as express from "express"
 import config from "config"
 import { captureEvent, captureException } from "../utils/sentry"
-import { client } from "../utils/posthog"
+import postHogClient from "../utils/posthog"
 import { Checkout, CheckoutModel } from "../schema/checkout.schema"
 import { Address, UserModel } from "../schema/user.schema"
 import UserService from "./user.service"
@@ -278,7 +278,7 @@ export default class StripeService {
       })
 
       if (process.env.NODE_ENV === "production") {
-        client.capture({
+        postHogClient.capture({
           distinctId: checkout._id,
           event: "Checkout Complete",
           properties: {
@@ -460,7 +460,7 @@ export default class StripeService {
       })
 
       if (process.env.NODE_ENV === "production") {
-        client.capture({
+        postHogClient.capture({
           distinctId: checkout._id,
           event: "Checkout Complete",
           properties: {
