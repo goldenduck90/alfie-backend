@@ -1,3 +1,4 @@
+import AddressAutocompleteResolver from "./address.resolver"
 import UserResolver from "./user.resolver"
 import TaskResolver from "./task.resolver"
 import UploadResolver from "./upload.resolver"
@@ -10,6 +11,7 @@ import InternalResolver from "./internal.resolver"
 import InsuranceResolver from "./insurance.resolver"
 
 export default [
+  AddressAutocompleteResolver,
   UserResolver,
   TaskResolver,
   UploadResolver,

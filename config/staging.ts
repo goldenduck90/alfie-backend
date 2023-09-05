@@ -23,6 +23,9 @@ export default {
     clientId: process.env.WITHINGS_CLIENT_ID,
     clientSecret: process.env.WITHINGS_CLIENT_SECRET,
   },
+  google: {
+    apiKey: process.env.GOOGLE_API_KEY,
+  },
   dynamoDb: {
     emailSubscribersTable: "staging-platform-email-subscribers",
     waitlistTable: "staging-platform-waitlist",
