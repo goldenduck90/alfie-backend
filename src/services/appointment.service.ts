@@ -252,39 +252,20 @@ class AppointmentService extends EmailService {
       ) as any
 
       let eaProviderId
-      if (!bypassNotice) {
-        const _user = await UserModel.findById(user._id)
-        if (!_user) {
-          throw new ApolloError(notFound.message, notFound.code)
-        }
 
-        if (!_user.eaCustomerId) {
-          throw new ApolloError(noEaCustomerId.message, noEaCustomerId.code)
-        }
+      const _user = await UserModel.findById(userId ? userId : user._id)
+      if (!_user) {
+        throw new ApolloError(notFound.message, notFound.code)
+      }
 
-        if (!healthCoach) {
-          const provider = await ProviderModel.findById(_user.provider)
-          if (!provider) {
-            throw new ApolloError(
-              providerNotFound.message,
-              providerNotFound.code
-            )
-          }
+      if (!_user.eaCustomerId) {
+        throw new ApolloError(noEaCustomerId.message, noEaCustomerId.code)
+      }
 
-          if (!provider.eaProviderId) {
-            throw new ApolloError(noEaCustomerId.message, noEaCustomerId.code)
-          }
-
-          eaProviderId = provider.eaProviderId
-        } else {
-          eaProviderId = 118
-        }
-      } else if (!healthCoach) {
-        const _user = await UserModel.findById(user._id)
-        if (!_user) {
-          throw new ApolloError(notFound.message, notFound.code)
-        }
-        const provider = await ProviderModel.findById(user.provider)
+      if (healthCoach) {
+        eaProviderId = 118
+      } else {
+        const provider = await ProviderModel.findById(_user.provider)
         if (!provider) {
           throw new ApolloError(providerNotFound.message, providerNotFound.code)
         }
@@ -294,31 +275,12 @@ class AppointmentService extends EmailService {
         }
 
         eaProviderId = provider.eaProviderId
-      } else {
-        eaProviderId = 118
       }
 
-      let eaCustomer = {
-        id: "",
-        name: "",
-        email: "",
-      }
-
-      if (userId) {
-        const _user = await UserModel.findById(userId)
-        if (!_user) {
-          throw new ApolloError(notFound.message, notFound.code)
-        }
-
-        if (!_user.eaCustomerId) {
-          throw new ApolloError(noEaCustomerId.message, noEaCustomerId.code)
-        }
-
-        eaCustomer = {
-          id: _user.eaCustomerId,
-          name: _user.name,
-          email: _user.email,
-        }
+      const eaCustomer = {
+        id: _user.eaCustomerId,
+        name: _user.name,
+        email: _user.email,
       }
 
       const { data: response } = await this.axios.get("/availabilities", {
@@ -373,7 +335,9 @@ class AppointmentService extends EmailService {
 
     const eaCustomerId = _user.eaCustomerId
     let eaProviderId
-    if (!healthCoach) {
+    if (healthCoach) {
+      eaProviderId = 118
+    } else {
       const provider = await ProviderModel.findById(_user.provider)
       if (!provider) {
         throw new ApolloError(notFound.message, notFound.code)
@@ -384,8 +348,6 @@ class AppointmentService extends EmailService {
       }
 
       eaProviderId = provider.eaProviderId
-    } else {
-      eaProviderId = 118
     }
 
     const meetingData = await createMeetingAndToken(_user.id)
