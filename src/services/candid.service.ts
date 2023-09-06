@@ -328,6 +328,10 @@ export default class CandidService {
           request
         )
 
+      console.log("ENDPOINT URL: ", `${this.baseUrl}/v0/eligibility`)
+      console.log("REQUEST FOR CANDID: ", request)
+      console.log("DATA FROM CANDID: ", data)
+
       const errors = (data as any as { errors?: CandidResponseError[] }).errors
       if (errors?.length > 0) {
         return {
