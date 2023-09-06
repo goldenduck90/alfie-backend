@@ -882,6 +882,7 @@ class UserService extends EmailService {
           provider: providerId,
           role: Role.Patient,
         }).populate<{ provider: Provider }>("provider")
+        console.log(results)
         return results
           .filter((u) => u._id !== null && u._id !== undefined)
           .map((u) => ({ ...u, score: [] }))
