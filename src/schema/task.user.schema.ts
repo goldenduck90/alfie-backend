@@ -35,7 +35,7 @@ export class UserAnswer {
 
   @Field(() => GraphQLAnyScalar, { nullable: true })
   @prop({ required: false, allowMixed: Severity.ALLOW })
-  value?: boolean | string | number | Object | null
+  value?: boolean | string | number | object | null
 }
 
 @ObjectType()
@@ -112,7 +112,7 @@ export class UserObjectAnswer extends UserAnswer {
 
   @Field(() => Object)
   @prop({ required: false })
-  value: Object
+  value: object
 }
 
 export type UserAnswerTypes =
