@@ -119,6 +119,8 @@ async function bootstrap() {
             await Promise.all(
               users.map(async (metriportUser: MetriportUser) => {
                 const { userId, body } = metriportUser
+                console.log(body)
+                console.log(body?.[0])
                 if (body?.[0]?.weight_kg) {
                   console.log("WEIGHT IN KG: ", body[0].weight_kg)
                   console.log(
