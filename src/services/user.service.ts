@@ -1942,6 +1942,7 @@ class UserService extends EmailService {
     if (weightLogUserTask) {
       weightLogUserTask.answers = [userAnswer]
       weightLogUserTask.completed = true
+      weightLogUserTask.completedAt = new Date()
       await weightLogUserTask.save()
       const message = `[METRIPORT][TIME: ${new Date().toString()}] Successfully updated weight task for user: ${
         user._id
@@ -1954,6 +1955,7 @@ class UserService extends EmailService {
         task: weightLogTask._id,
         answers: [userAnswer],
         completed: true,
+        completedAt: new Date(),
       })
       const message = `[METRIPORT][TIME: ${new Date().toString()}] Successfully created weight task for user: ${
         user._id
