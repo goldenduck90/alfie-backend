@@ -24,7 +24,7 @@ interface AddressComponent {
 interface GooglePlaceDetailResponse {
   result: {
     address_components: AddressComponent[]
-    formatted_address: String
+    formatted_address: string
   }
 }
 
@@ -80,7 +80,7 @@ class AddressAutocompleteResolver {
   }
 
   @Query(() => PlaceDetails)
-  async addressDetail(@Arg("placeId") placeId: String): Promise<PlaceDetails> {
+  async addressDetail(@Arg("placeId") placeId: string): Promise<PlaceDetails> {
     try {
       const response = await axios.get<GooglePlaceDetailResponse>(
         `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&key=${process.env.GOOGLE_API_KEY}`
