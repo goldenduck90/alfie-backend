@@ -119,8 +119,8 @@ async function bootstrap() {
             await Promise.all(
               users.map(async (metriportUser: MetriportUser) => {
                 const { userId, body } = metriportUser
-                if (body?.[0]?.weight_kg) {
-                  const weightLbs = Math.floor(body[0].weight_kg * 2.2)
+                if (body?.[0]?.weight_samples_kg) {
+                  const weightLbs = Math.floor(body[0].weight_samples_kg * 2.2)
                   await userService.processWithingsScaleReading(
                     userId,
                     weightLbs

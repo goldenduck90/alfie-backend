@@ -81,6 +81,7 @@ import lookupState from "../utils/lookupState"
 import resolveCPIDEntriesToInsurance from "../utils/resolveCPIDEntriesToInsurance"
 import InsuranceService from "./insurance.service"
 import StripeService from "./stripe.service"
+import { calculateBMI } from "../utils/calculateBMI"
 
 export const initialUserTasks = [
   TaskType.ID_AND_INSURANCE_UPLOAD,
@@ -720,9 +721,7 @@ class UserService extends EmailService {
     const { rememberExp, normalExp } = config.get("jwtExpiration") as any
 
     // Get our user by email
-    const user: LeanDocument<User> = await UserModel.find()
-      .findByEmail(email)
-      .lean()
+    const user: LeanDocument<User> = await UserModel.find().findByEmail(email)
     if (!user) {
       const provider = await ProviderModel.find().findByEmail(email).lean()
       if (!provider) {
@@ -874,17 +873,13 @@ class UserService extends EmailService {
         const results = await UserModel.find({
           state: { $in: provider.licensedStates },
           role: Role.Patient,
-        })
-          .populate<{ provider: Provider }>("provider")
-          .lean()
+        }).populate<{ provider: Provider }>("provider")
         return results.map((u) => ({ ...u, score: [] }))
       } else {
         const results = await UserModel.find({
           provider: providerId,
           role: Role.Patient,
-        })
-          .populate<{ provider: Provider }>("provider")
-          .lean()
+        }).populate<{ provider: Provider }>("provider")
         return results.map((u) => ({ ...u, score: [] }))
       }
     } catch (error) {
@@ -1233,7 +1228,7 @@ class UserService extends EmailService {
 
     const checkout: LeanDocument<Checkout> = await CheckoutModel.findById(
       checkoutId
-    ).lean()
+    )
     if (!checkout) {
       throw new ApolloError(checkoutNotFound.message, checkoutNotFound.code)
     }
@@ -1436,7 +1431,7 @@ class UserService extends EmailService {
         referrer,
       } = input
 
-      const checkout = await CheckoutModel.find().findByEmail(email).lean()
+      const checkout = await CheckoutModel.find().findByEmail(email)
       if (checkout) {
         // check if already checked out
         if (checkout.checkedOut) {
@@ -1909,6 +1904,11 @@ class UserService extends EmailService {
     }
 
     const weightLogTask = await TaskModel.findOne({ type: TaskType.WEIGHT_LOG })
+    const weightLogUserTask = await UserTaskModel.findOne({
+      task: weightLogTask._id,
+      user: user._id,
+      completed: false,
+    })
 
     const userAnswer: UserNumberAnswer = {
       key: "scaleWeight",
@@ -1917,17 +1917,40 @@ class UserService extends EmailService {
     }
 
     // Directly create and complete the user task
-    const userTask = await UserTaskModel.create({
-      user: user._id,
-      task: weightLogTask._id,
-      answers: [userAnswer],
-      completed: true,
-    })
+    let userTask
+    if (weightLogUserTask) {
+      weightLogUserTask.answers = [userAnswer]
+      weightLogUserTask.completed = true
+      weightLogUserTask.completedAt = new Date()
+      await weightLogUserTask.save()
+      const message = `[METRIPORT][TIME: ${new Date().toString()}] Successfully updated weight task for user: ${
+        user._id
+      } - ${weightLbs}lbs - ${weightLogUserTask._id}`
+      console.log(message)
+      Sentry.captureMessage(message)
+    } else {
+      userTask = await UserTaskModel.create({
+        user: user._id,
+        task: weightLogTask._id,
+        answers: [userAnswer],
+        completed: true,
+        completedAt: new Date(),
+      })
+      const message = `[METRIPORT][TIME: ${new Date().toString()}] Successfully created weight task for user: ${
+        user._id
+      } - ${weightLbs}lbs - ${userTask._id}`
+      console.log(message)
+      Sentry.captureMessage(message)
+    }
     // Save to user weights array as well so push onto array
     user.weights.push({
       value: weightLbs,
       date: new Date(),
+      scale: true,
     })
+    // recalculate bmi
+    const bmi = calculateBMI(weightLbs, user.heightInInches)
+    user.bmi = bmi
     await user.save()
     const message = `[METRIPORT][TIME: ${new Date().toString()}] Successfully updated weight for user: ${
       user._id

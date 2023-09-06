@@ -7,7 +7,7 @@ export interface MetriportUser {
   userId: string
   providers?: string[]
   body?: {
-    weight_kg?: number
+    weight_samples_kg?: number
   }[]
 }
 class MetriportService {
