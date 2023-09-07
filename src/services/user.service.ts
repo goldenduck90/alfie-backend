@@ -81,6 +81,7 @@ import lookupState from "../utils/lookupState"
 import resolveCPIDEntriesToInsurance from "../utils/resolveCPIDEntriesToInsurance"
 import InsuranceService from "./insurance.service"
 import StripeService from "./stripe.service"
+import { calculateBMI } from "../utils/calculateBMI"
 
 export const initialUserTasks = [
   TaskType.ID_AND_INSURANCE_UPLOAD,
@@ -1909,6 +1910,11 @@ class UserService extends EmailService {
     }
 
     const weightLogTask = await TaskModel.findOne({ type: TaskType.WEIGHT_LOG })
+    const weightLogUserTask = await UserTaskModel.findOne({
+      task: weightLogTask._id,
+      user: user._id,
+      completed: false,
+    })
 
     const userAnswer: UserNumberAnswer = {
       key: "scaleWeight",
@@ -1917,17 +1923,40 @@ class UserService extends EmailService {
     }
 
     // Directly create and complete the user task
-    const userTask = await UserTaskModel.create({
-      user: user._id,
-      task: weightLogTask._id,
-      answers: [userAnswer],
-      completed: true,
-    })
+    let userTask
+    if (weightLogUserTask) {
+      weightLogUserTask.answers = [userAnswer]
+      weightLogUserTask.completed = true
+      weightLogUserTask.completedAt = new Date()
+      await weightLogUserTask.save()
+      const message = `[METRIPORT][TIME: ${new Date().toString()}] Successfully updated weight task for user: ${
+        user._id
+      } - ${weightLbs}lbs - ${weightLogUserTask._id}`
+      console.log(message)
+      Sentry.captureMessage(message)
+    } else {
+      userTask = await UserTaskModel.create({
+        user: user._id,
+        task: weightLogTask._id,
+        answers: [userAnswer],
+        completed: true,
+        completedAt: new Date(),
+      })
+      const message = `[METRIPORT][TIME: ${new Date().toString()}] Successfully created weight task for user: ${
+        user._id
+      } - ${weightLbs}lbs - ${userTask._id}`
+      console.log(message)
+      Sentry.captureMessage(message)
+    }
     // Save to user weights array as well so push onto array
     user.weights.push({
       value: weightLbs,
       date: new Date(),
+      scale: true,
     })
+    // recalculate bmi
+    const bmi = calculateBMI(weightLbs, user.heightInInches)
+    user.bmi = bmi
     await user.save()
     const message = `[METRIPORT][TIME: ${new Date().toString()}] Successfully updated weight for user: ${
       user._id
