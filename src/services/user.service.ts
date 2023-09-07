@@ -890,6 +890,8 @@ class UserService extends EmailService {
           score: [],
           classifications: [],
           weights: [],
+          files: [],
+          medications: [],
         }))
       }
     } catch (error) {
