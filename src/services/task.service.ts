@@ -2,8 +2,7 @@ import * as Sentry from "@sentry/node"
 import { ApolloError } from "apollo-server"
 import config from "config"
 import dayjs from "dayjs"
-import moment from "moment"
-import { addDays, isPast } from "date-fns"
+import { addDays, subDays, isPast, isBefore, differenceInDays } from "date-fns"
 import { calculateScore } from "../PROAnalysis"
 import { Provider } from "../schema/provider.schema"
 import {
@@ -161,12 +160,12 @@ class TaskService {
     const hasCompletedRequiredTasks =
       userTasks.length === tasksEligibleForProfiling.length &&
       userTasks.every(({ task, completed, completedAt }) => {
-        let timeLimitInDays = task.interval
         let hasCompletedInTimeLimit = false
         if (completedAt) {
-          const limitDate = moment().subtract(timeLimitInDays, "days")
-          const completeDate = moment(completedAt)
-          hasCompletedInTimeLimit = completeDate.isAfter(limitDate)
+          hasCompletedInTimeLimit = isBefore(
+            subDays(new Date(), task.interval),
+            completedAt
+          )
         }
 
         return completed && hasCompletedInTimeLimit
@@ -204,9 +203,10 @@ class TaskService {
 
         // Calculate the remaining days with in schedule appointment task interval
         if (completed && completedAt) {
-          const limitDate = moment().subtract(appointmentTask.interval, "days")
-          const completeDate = moment(completedAt)
-          eligibility.daysLeft = completeDate.diff(limitDate, "days")
+          eligibility.daysLeft = differenceInDays(
+            new Date(completedAt),
+            subDays(new Date(), appointmentTask.interval)
+          )
         }
       }
     }
@@ -250,7 +250,7 @@ class TaskService {
           // Re-assign SCHEDULE_APPOINTMENT task
           scheduledAppointmentTask.completed = false
           scheduledAppointmentTask.completedAt = null
-          scheduledAppointmentTask.dueAt = moment().add("1", "day").toDate()
+          scheduledAppointmentTask.dueAt = addDays(new Date(), 1)
 
           await scheduledAppointmentTask.save()
         }
