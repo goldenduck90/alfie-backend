@@ -9,6 +9,7 @@ import {
   CreateUserTasksInput,
   GetUserTasksInput,
   UpdateUserTaskInput,
+  UserAppointmentEligibility,
   UserTask,
   UserTaskList,
 } from "../schema/task.user.schema"
@@ -63,6 +64,14 @@ export default class TaskResolver {
   @Query(() => [UserTask], { nullable: true })
   allUserTasksByUserId(@Arg("userId") userId: string) {
     return this.taskService.getAllUserTasksByUserId(userId)
+  }
+
+  @Authorized([Role.Patient])
+  @Query(() => UserAppointmentEligibility)
+  userScheduleAppointmentTask(@Ctx() context: Context) {
+    return this.taskService.getUserScheduleAppointmentEligibility(
+      context.user._id
+    )
   }
 
   @Authorized([Role.Patient])
