@@ -361,6 +361,9 @@ export class EAAppointment {
 
   @Field(() => Boolean)
   providerAttended: boolean
+
+  @Field(() => String, { nullable: true })
+  userId?: string
 }
 
 @ObjectType()
