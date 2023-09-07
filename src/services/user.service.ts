@@ -874,18 +874,23 @@ class UserService extends EmailService {
           state: { $in: provider.licensedStates },
           role: Role.Patient,
         }).populate<{ provider: Provider }>("provider")
-        return results
-          .filter((u) => u._id !== null && u._id !== undefined)
-          .map((u) => ({ ...u, score: [] }))
+        return results.map((u) => ({
+          ...u,
+          score: [],
+          classifications: [],
+          weights: [],
+        }))
       } else {
         const results = await UserModel.find({
           provider: providerId,
           role: Role.Patient,
         }).populate<{ provider: Provider }>("provider")
-        console.log(results)
-        return results
-          .filter((u) => u._id !== null && u._id !== undefined)
-          .map((u) => ({ ...u, score: [] }))
+        return results.map((u) => ({
+          ...u,
+          score: [],
+          classifications: [],
+          weights: [],
+        }))
       }
     } catch (error) {
       captureException(error, "UserService.getAllUsersByAProvider")
