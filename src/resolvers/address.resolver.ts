@@ -70,8 +70,9 @@ class AddressAutocompleteResolver {
     @Arg("query") query: AddressQuery
   ): Promise<AddressSuggestion[]> {
     try {
+      const queryStr = `${query.input}, USA` // Limit in US only
       const response = await axios.get<GooglePlaceAutocompleteResponse>(
-        `${BASE_URL}?key=${process.env.GOOGLE_API_KEY}&input=${query.input}&radius=${query.radius}&types=address`
+        `${BASE_URL}?key=${process.env.GOOGLE_API_KEY}&input=${queryStr}&radius=${query.radius}&types=address`
       )
       const predictions = response.data.predictions
 
