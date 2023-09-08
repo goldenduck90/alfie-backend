@@ -328,6 +328,11 @@ export default class CandidService {
           request
         )
 
+      console.log("REQUEST:")
+      console.log(request)
+      console.log("RESPONSE:")
+      console.log(data)
+
       const errors = (data as any as { errors?: CandidResponseError[] }).errors
       if (errors?.length > 0) {
         return {
