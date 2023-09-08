@@ -1,8 +1,8 @@
 import axios from "axios"
 import {
-  PlaceDetails,
   AddressQuery,
   AddressSuggestion,
+  Address,
 } from "./../schema/user.schema"
 import { Resolver, Query, Arg } from "type-graphql"
 
@@ -32,8 +32,13 @@ const BASE_URL = "https://maps.googleapis.com/maps/api/place/autocomplete/json"
 
 function fillAddressFromGooglePlaceDetail(
   data: GooglePlaceDetailResponse
-): PlaceDetails {
-  const address = new PlaceDetails()
+): Address {
+  const address: Address = {
+    line1: "",
+    city: "",
+    state: "",
+    postalCode: "",
+  }
 
   data.result.address_components.forEach((component) => {
     const types = component.types
@@ -79,11 +84,11 @@ class AddressAutocompleteResolver {
     }
   }
 
-  @Query(() => PlaceDetails)
-  async addressDetail(@Arg("placeId") placeId: string): Promise<PlaceDetails> {
+  @Query(() => Address)
+  async addressDetail(@Arg("placeId") placeId: string): Promise<Address> {
     try {
       const response = await axios.get<GooglePlaceDetailResponse>(
-        `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&key=${process.env.GOOGLE_API_KEY}`
+        `https://maps.googleapis.com/maps/api/place/details/json?place_id=${placeId}&key=${process.env.GOOGLE_API_KEY}&types=regions`
       )
       return fillAddressFromGooglePlaceDetail(response.data)
     } catch (error) {
