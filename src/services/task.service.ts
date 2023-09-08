@@ -163,9 +163,7 @@ class TaskService {
         completedTaskTypes.includes(taskType)
       )
       const hasScheduledAppointmentTask = userTasks.some(
-        (userTask) =>
-          userTask.task.type === TaskType.SCHEDULE_APPOINTMENT &&
-          !userTask.completed
+        (userTask) => userTask.task.type === TaskType.SCHEDULE_APPOINTMENT
       )
       if (hasCompletedRequiredTasks && !hasScheduledAppointmentTask) {
         const newTaskInput = {
