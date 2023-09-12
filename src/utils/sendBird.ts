@@ -274,6 +274,8 @@ export const inviteUserToChannel = async (
       userId && !channel.members?.some((member) => member.user_id === userId)
   )
 
+  console.log(`USERS NOT IN CHANNEL ${channel_url}: ${user_ids.join(", ")}`)
+
   if (user_ids.length > 0) {
     // POST the invite (returns the modified channel object).
     const data = await createSendBirdEntity<Channel>(
