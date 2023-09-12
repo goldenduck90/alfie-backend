@@ -520,7 +520,7 @@ export default class StripeService {
     setupIntent: Stripe.SetupIntent
   ) {
     const stripeSetupIntentId = setupIntent.id
-    const { INSURANCE, IGNORE_CHECKOUT } = setupIntent.metadata ?? {}
+    const { IGNORE_CHECKOUT } = setupIntent.metadata ?? {}
     const ignoreCheckout = IGNORE_CHECKOUT === "TRUE"
 
     const checkout = await CheckoutModel.findOne({
@@ -588,7 +588,7 @@ export default class StripeService {
       }
     }
 
-    if (INSURANCE) {
+    if (checkout.insuranceCovered) {
       try {
         const stripePaymentIntent = await this.createPaymentIntent(
           stripeCustomerId,
