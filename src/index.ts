@@ -162,11 +162,4 @@ cron.schedule("0 0 * * *", async () => {
   console.log(`[TASK JOB][${new Date().toString()}] COMPLETED`)
 })
 
-// run appointment attendance job
-cron.schedule("*/30 * * * *", async () => {
-  console.log(`[APPOINTMENT ATTENDED JOB][${new Date().toString()}] RUNNING...`)
-  await appointmentService.postAppointmentJob()
-  console.log(`[APPOINTMENT ATTENDED JOB][${new Date().toString()}] COMPLETED`)
-})
-
 bootstrap()
