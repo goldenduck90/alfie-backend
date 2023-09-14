@@ -35,8 +35,7 @@ if (process.env.SENDBIRD_AUTOINVITE_USERS) {
     "639ba07cb937527a0c43484e",
     "63bd8d61af58147c29a7c272",
     "64875fd443f7374fe0e162e7",
-    "64c896ea8633a43595050dd8",
-    "64ffbf00fd337d4c811dcf8c"
+    "64c896ea8633a43595050dd8"
   )
 }
 
