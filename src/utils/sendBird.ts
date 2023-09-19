@@ -174,12 +174,17 @@ export const deleteSendBirdUser = async (user_id: string) =>
  * @returns {string} The user id.
  * @see https://sendbird.com/docs/chat/v3/platform-api/user/creating-users/create-a-user#2-responses
  */
-export const createSendBirdUser = async (
-  user_id: string,
-  nickname: string,
-  profile_url: string,
+export const createSendBirdUser = async ({
+  user_id,
+  nickname,
+  profile_url,
+  profile_file,
+}: {
+  user_id: string
+  nickname: string
+  profile_url: string
   profile_file: string
-): Promise<string | null> => {
+}): Promise<string | null> => {
   // check if user exists
   const existingData = await findSendBirdUser(user_id)
   if (existingData && existingData.user_id) {
@@ -213,10 +218,13 @@ export const createSendBirdUser = async (
  * @returns The channel URL. A channel object and the full response object can be found here
  * @see https://sendbird.com/docs/chat/v3/platform-api/channel/creating-a-channel/create-a-group-channel#2-responses
  */
-export const createSendBirdChannelForNewUser = async (
-  user_id: string,
+export const createSendBirdChannelForNewUser = async ({
+  user_id,
+  nickname,
+}: {
+  user_id: string
   nickname: string
-): Promise<Channel | null> => {
+}): Promise<Channel | null> => {
   // check if there is a channel with the user as a member
   const channels = await getSendBirdUserChannels(user_id)
 
@@ -260,16 +268,20 @@ export const deleteSendBirdChannel = async (channel_url: string) =>
  * @returns A channel object.
  * @see https://sendbird.com/docs/chat/v3/platform-api/channel/inviting-a-user/invite-as-members-channel#2-response
  */
-export const inviteUserToChannel = async (
-  channel_url: string,
-  user_id: string,
+export const inviteUserToChannel = async ({
+  channel_url,
+  user_id,
+  provider_id,
+}: {
+  channel_url: string
+  user_id: string
   /** The user's provider. */
-  provider: string
-): Promise<Channel | null> => {
+  provider_id: string
+}): Promise<Channel | null> => {
   const channel = await getSendBirdChannel(channel_url)
 
   // only invite members not already in the channel
-  const user_ids = [user_id, provider, ...sendbirdAutoinviteUsers].filter(
+  const user_ids = [user_id, provider_id, ...sendbirdAutoinviteUsers].filter(
     (userId) =>
       userId && !channel.members?.some((member) => member.user_id === userId)
   )
@@ -284,7 +296,7 @@ export const inviteUserToChannel = async (
     )
     if (data) {
       console.log(
-        `Sendbird: Invited user ${user_id} to channel ${data.channel_url}`
+        `Sendbird: Invited user ${user_id} and provider ${provider_id} to channel ${data.channel_url}`
       )
       return data
     } else {
@@ -293,7 +305,7 @@ export const inviteUserToChannel = async (
     }
   } else {
     console.log(
-      `Sendbird: All users already added to channel ${channel_url} (including ${user_id}, ${provider} and preset user IDs).`
+      `Sendbird: All users already added to channel ${channel_url} (including ${user_id}, ${provider_id} and preset user IDs).`
     )
   }
 }
@@ -382,24 +394,28 @@ export const triggerEntireSendBirdFlow = async ({
   nickname,
   profile_file,
   profile_url,
-  provider,
+  provider_id,
   user_id,
 }: {
   user_id: string
   nickname: string
   profile_url: string
   profile_file: string
-  provider: string
+  provider_id: string
 }): Promise<boolean> => {
   try {
     // create the sendbird user
-    await createSendBirdUser(user_id, nickname, profile_url, profile_file)
+    await createSendBirdUser({ user_id, nickname, profile_url, profile_file })
 
     // create a channel for the user, or return the existing channel
-    const channel = await createSendBirdChannelForNewUser(user_id, nickname)
+    const channel = await createSendBirdChannelForNewUser({ user_id, nickname })
 
-    // ensure that the provider and autoinvite users have been added to the channel
-    await inviteUserToChannel(channel.channel_url, user_id, provider)
+    // ensure that the provider and auto-invite users have been added to the channel
+    await inviteUserToChannel({
+      channel_url: channel.channel_url,
+      user_id,
+      provider_id,
+    })
 
     // send a welcome message to the channel in production
     if (process.env.NODE_ENV === "production") {
@@ -700,12 +716,12 @@ export const findAndTriggerEntireSendBirdFlowForAllUsersAndProvider =
         )
         await batchAsync(
           providersToCreate.map((provider) => async () => {
-            await createSendBirdUser(
-              provider._id.toString(),
-              `${provider.firstName} ${provider.lastName}`,
-              "",
-              ""
-            )
+            await createSendBirdUser({
+              user_id: provider._id.toString(),
+              nickname: `${provider.firstName} ${provider.lastName}`,
+              profile_url: "",
+              profile_file: "",
+            })
             await new Promise((resolve) => setTimeout(resolve, 2000))
           }),
           { batchSize: sendbirdBatchSize }
@@ -726,12 +742,17 @@ export const findAndTriggerEntireSendBirdFlowForAllUsersAndProvider =
               nickname: user.name,
               profile_file: "",
               profile_url: "",
-              provider: user.provider._id.toString(),
+              provider_id: user.provider._id.toString(),
               user_id: userId,
             })
           } else {
             // just create the user for other types of users
-            await createSendBirdUser(userId, user.name, "", "")
+            await createSendBirdUser({
+              user_id: userId,
+              nickname: user.name,
+              profile_url: "",
+              profile_file: "",
+            })
           }
           // 10 second delay between batches
           await new Promise((resolve) => setTimeout(resolve, 10000))
