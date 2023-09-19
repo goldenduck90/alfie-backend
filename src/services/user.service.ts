@@ -388,7 +388,7 @@ class UserService extends EmailService {
       nickname: user.name,
       profile_file: "",
       profile_url: "",
-      provider: provider._id,
+      provider_id: provider._id,
     })
 
     // assign initial tasks to user
