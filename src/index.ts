@@ -16,13 +16,11 @@ import Context from "./types/context"
 import { connectToMongo } from "./utils/mongo"
 import * as cron from "node-cron"
 import UserService from "./services/user.service"
-import AppointmentService from "./services/appointment.service"
 import { MetriportUser } from "./services/metriport.service"
 import StripeService from "./services/stripe.service"
 import { initializeSendBirdWebhook } from "./utils/sendBird"
 
 const userService = new UserService()
-const appointmentService = new AppointmentService()
 
 async function bootstrap() {
   const path = "/graphql"
@@ -155,18 +153,10 @@ async function bootstrap() {
   connectToMongo()
 }
 
-// run task job
 cron.schedule("0 0 * * *", async () => {
   console.log(`[TASK JOB][${new Date().toString()}] RUNNING...`)
   await userService.taskJob()
   console.log(`[TASK JOB][${new Date().toString()}] COMPLETED`)
-})
-
-// run appointment attendance job
-cron.schedule("*/30 * * * *", async () => {
-  console.log(`[APPOINTMENT ATTENDED JOB][${new Date().toString()}] RUNNING...`)
-  await appointmentService.postAppointmentJob()
-  console.log(`[APPOINTMENT ATTENDED JOB][${new Date().toString()}] COMPLETED`)
 })
 
 bootstrap()

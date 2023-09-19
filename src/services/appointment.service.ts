@@ -50,6 +50,7 @@ function eaResponseToEAAppointment(
       lastName: response.provider.lastName,
       type: response.provider.type,
     },
+    userId: response.userId,
     eaService: {
       id: String(response.service.id),
       name: response.service.name,
@@ -614,7 +615,17 @@ class AppointmentService extends EmailService {
       )
       const response = data
 
-      return eaResponseToEAAppointment(response)
+      const customer = await UserModel.findOne({
+        eaCustomerId: String(response.customer.id),
+      })
+      if (!customer) {
+        throw new ApolloError("USER NOT FOUND", "ERROR")
+      }
+
+      return eaResponseToEAAppointment({
+        ...response,
+        userId: customer._id,
+      })
     } catch (error) {
       Sentry.captureException(error)
       throw new ApolloError("Could not find appointment.", "NOT_FOUND")

@@ -119,6 +119,7 @@ export interface IEAAppointment {
   providerAttended: boolean
   claimSubmitted: boolean
   attendanceEmailSent: boolean
+  userId?: string
 }
 
 /** Appointment type for EA `/appointments` endpoints results. */
@@ -138,4 +139,5 @@ export interface IEAAppointmentResponse {
   claimSubmitted?: boolean
   notifiedCustomer: boolean
   notifiedProvider: boolean
+  userId?: string
 }

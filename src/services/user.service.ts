@@ -72,6 +72,7 @@ import AnswerType from "../schema/enums/AnswerType"
 import postHogClient from "../utils/posthog"
 import {
   SignupPartner,
+  SignupPartnerModel,
   SignupPartnerProviderModel,
 } from "../schema/partner.schema"
 import { captureException, captureEvent } from "../utils/sentry"
@@ -81,7 +82,6 @@ import lookupState from "../utils/lookupState"
 import resolveCPIDEntriesToInsurance from "../utils/resolveCPIDEntriesToInsurance"
 import InsuranceService from "./insurance.service"
 import StripeService from "./stripe.service"
-import { SignupPartnerModel } from "../schema/partner.schema"
 import { calculateBMI } from "../utils/calculateBMI"
 
 export const initialUserTasks = [
@@ -934,14 +934,33 @@ class UserService extends EmailService {
     }
   }
 
+  async getLatestUserTaskPerUser(users: User[], tasks: Task[]) {
+    const filteredUserTasks = []
+
+    for (const user of users) {
+      for (const task of tasks) {
+        console.log(
+          `[TASK JOB][USER: ${user._id}] Checking for usertasks for task: ${task._id}`
+        )
+        const userTask = await UserTaskModel.findOne({
+          task: task._id,
+          user: user._id,
+        }).sort({ createdAt: -1 })
+
+        if (userTask) {
+          filteredUserTasks.push(userTask)
+        }
+      }
+    }
+
+    return filteredUserTasks
+  }
+
   async taskJob() {
     try {
       const users = await this.getAllPatients()
       const tasks = await TaskModel.find({ interval: { $exists: true } })
-      const allUserTasks = await UserTaskModel.find({
-        task: { $in: tasks.map((task) => task._id) },
-        user: { $in: users.map((user) => user._id) },
-      })
+      const allUserTasks = await this.getLatestUserTaskPerUser(users, tasks)
 
       const userTasksMap = new Map()
       allUserTasks.forEach((uTask) => {
@@ -961,7 +980,7 @@ class UserService extends EmailService {
         const userTasks = userTasksMap.get(user._id.toString()) || []
 
         const { newTasks, dueTodayTasks, pastDueTasks } =
-          await this.processUserTasks(user, tasks, userTasks)
+          await this.processUserTasks(tasks, userTasks)
 
         allNewTasks.push(
           ...newTasks.map((task) => ({
@@ -1008,7 +1027,7 @@ class UserService extends EmailService {
     }
   }
 
-  async processUserTasks(user: User, tasks: any, userTasks: any[]) {
+  async processUserTasks(tasks: any, userTasks: any[]) {
     const newTasks: TaskEmail[] = []
     const dueTodayTasks: TaskEmail[] = []
     const pastDueTasks: TaskEmail[] = []
@@ -1017,6 +1036,7 @@ class UserService extends EmailService {
       const uTask = userTasks.find(
         (userTask) => userTask.task.toString() === task._id.toString()
       )
+
       if (uTask) {
         if (uTask.completed) {
           const completedAt = new Date(uTask.completedAt).setHours(0, 0)
@@ -1030,24 +1050,40 @@ class UserService extends EmailService {
             const dueAtFormatted = this.formatDueAt(dueAt)
             newTasks.push({
               taskName: task.name,
-              dueAt: dueAtFormatted,
-              taskId: uTask._id,
+              dueAt,
+              dueAtFormatted,
+              taskId: task._id,
+              userTaskId: uTask._id,
             })
           }
         } else {
           const dueAt = new Date(uTask.dueAt).setHours(0, 0)
-          if (isToday(dueAt)) {
+          const shouldNotifyUserAt = addDays(
+            new Date(uTask.lastNotifiedUserAt),
+            3
+          )
+          if (isToday(dueAt) && isPast(shouldNotifyUserAt)) {
             dueTodayTasks.push({
               taskName: task.name,
-              dueAt: this.formatDueAt(dueAt),
-              taskId: uTask._id,
+              dueAt: uTask.dueAt,
+              dueAtFormatted: this.formatDueAt(dueAt),
+              taskId: task._id,
+              userTaskId: uTask._id,
             })
           } else if (isPast(dueAt)) {
-            pastDueTasks.push({
-              taskName: task.name,
-              dueAt: this.formatDueAt(dueAt),
-              taskId: uTask._id,
-            })
+            const shouldNotifyPastDueUserAt = addDays(
+              new Date(uTask.lastNotifiedUserPastDueAt),
+              3
+            )
+            if (isPast(shouldNotifyPastDueUserAt)) {
+              pastDueTasks.push({
+                taskName: task.name,
+                dueAt: uTask.dueAt,
+                dueAtFormatted: this.formatDueAt(dueAt),
+                taskId: task._id,
+                userTaskId: uTask.id,
+              })
+            }
           }
         }
       } else if (
@@ -1058,8 +1094,9 @@ class UserService extends EmailService {
         const dueAtFormatted = this.formatDueAt(dueAt)
         newTasks.push({
           taskName: task.name,
-          dueAt: dueAtFormatted,
-          taskId: uTask._id,
+          dueAt,
+          dueAtFormatted,
+          taskId: task._id,
         })
       }
     }
@@ -1075,10 +1112,10 @@ class UserService extends EmailService {
   }
 
   async sendNotifications(
-    user: any,
-    newTasks: any,
-    dueTodayTasks: any,
-    pastDueTasks: any,
+    user: User,
+    newTasks: TaskEmail[],
+    dueTodayTasks: TaskEmail[],
+    pastDueTasks: TaskEmail[],
     errors: any
   ) {
     if (
@@ -1086,7 +1123,53 @@ class UserService extends EmailService {
       pastDueTasks.length > 0 ||
       dueTodayTasks.length > 0
     ) {
-      console.log("Sending notifications...")
+      console.log(`[TASK JOB][USER: ${user._id}]Sending notifications...`)
+
+      // first assign tasks
+
+      if (newTasks.length > 0) {
+        const newUserTasks = await UserTaskModel.insertMany(
+          newTasks.map((t: TaskEmail) => ({
+            task: t.taskId,
+            user: user._id,
+            completed: false,
+            dueAt: t.dueAt,
+            lastNotifiedUserAt: new Date(),
+          }))
+        )
+        console.log(
+          `[TASK JOB][USER: ${user._id}] ${newUserTasks.length} New Tasks Assigned!`
+        )
+      }
+
+      if (dueTodayTasks.length > 0) {
+        const time = addDays(new Date().setHours(0, 0), 0)
+        const updatedDueTodayTasks = await UserTaskModel.updateMany(
+          { _id: { $in: dueTodayTasks.map((t: any) => t.taskId) } },
+          {
+            lastNotifiedUserAt: time,
+            updatedAt: time,
+          }
+        )
+        console.log(
+          `[TASK JOB][USER: ${user._id}] ${updatedDueTodayTasks.modifiedCount} Due Today Tasks Updated!`
+        )
+      }
+
+      if (pastDueTasks.length > 0) {
+        const time = addDays(new Date().setHours(0, 0), 0)
+        const updatedPastDueTasks = await UserTaskModel.updateMany(
+          { _id: { $in: pastDueTasks.map((t: any) => t.taskId) } },
+          {
+            lastNotifiedUserPastDueAt: time,
+            updatedAt: time,
+          }
+        )
+        console.log(
+          `[TASK JOB][USER: ${user._id}] ${updatedPastDueTasks.modifiedCount} Past Due Tasks Updated!`
+        )
+      }
+
       const emailSent = await this.sendTaskEmail({
         name: user.name,
         email: user.email,

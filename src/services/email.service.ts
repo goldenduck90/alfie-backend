@@ -443,7 +443,7 @@ export default class EmailService {
         (n: AllTaskEmail) => `
         <tr>
           <td><a href="">${n.taskName}</a></td>
-          <td>${n.dueAt}</td>
+          <td>${n.dueAtFormatted}</td>
           <td>${n.userId}</td>
           <td>${n.userEmail}</td>
         </tr>
@@ -473,7 +473,7 @@ export default class EmailService {
         (n: AllTaskEmail) => `
         <tr>
           <td>${n.taskName}</td>
-          <td>${n.dueAt}</td>
+          <td>${n.dueAtFormatted}</td>
           <td>${n.userId}</td>
           <td>${n.userEmail}</td>
         </tr>
@@ -503,7 +503,7 @@ export default class EmailService {
         (n: AllTaskEmail) => `
         <tr>
           <td>${n.taskName}</td>
-          <td>${n.dueAt}</td>
+          <td>${n.dueAtFormatted}</td>
           <td>${n.userId}</td>
           <td>${n.userEmail}</td>
         </tr>
@@ -539,6 +539,7 @@ export default class EmailService {
       "robert@joinalfie.com",
       "alexander@joinalfie.com",
       "rohit@joinalfie.com",
+      "patients@joinalfie.com",
     ])
 
     return result.MessageId
@@ -580,7 +581,7 @@ export default class EmailService {
         (n: TaskEmail) => `
         <tr>
           <td>${n.taskName}</td>
-          <td>${n.dueAt}</td>
+          <td>${n.dueAtFormatted}</td>
         </tr>
       `
       )}
@@ -606,7 +607,7 @@ export default class EmailService {
         (n: TaskEmail) => `
         <tr>
           <td>${n.taskName}</td>
-          <td>${n.dueAt}</td>
+          <td>${n.dueAtFormatted}</td>
         </tr>
       `
       )}
@@ -632,7 +633,7 @@ export default class EmailService {
         (n: TaskEmail) => `
         <tr>
           <td>${n.taskName}</td>
-          <td>${n.dueAt}</td>
+          <td>${n.dueAtFormatted}</td>
         </tr>
       `
       )}

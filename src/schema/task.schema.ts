@@ -13,14 +13,18 @@ import { AnswerType } from "./enums/AnswerType"
 
 export interface TaskEmail {
   taskName: string
-  dueAt: string
+  dueAt: Date
+  dueAtFormatted: string
   taskId: string
+  userTaskId?: string
 }
 
 export interface AllTaskEmail {
   taskName: string
-  dueAt: string
+  dueAt: Date
+  dueAtFormatted: string
   taskId: string
+  userTaskId?: string
   userId: string
   userName: string
   userEmail: string
