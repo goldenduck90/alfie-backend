@@ -90,7 +90,7 @@ export const initialUserTasks = [
   TaskType.MP_HUNGER,
   TaskType.MP_FEELING,
   TaskType.BP_LOG,
-  TaskType.WEIGHT_LOG,
+  // TaskType.WEIGHT_LOG,
   TaskType.WAIST_LOG,
   // TaskType.MP_BLUE_CAPSULE,
   TaskType.MP_ACTIVITY,
