@@ -72,6 +72,7 @@ import AnswerType from "../schema/enums/AnswerType"
 import postHogClient from "../utils/posthog"
 import {
   SignupPartner,
+  SignupPartnerModel,
   SignupPartnerProviderModel,
 } from "../schema/partner.schema"
 import { captureException, captureEvent } from "../utils/sentry"
@@ -404,6 +405,20 @@ class UserService extends EmailService {
 
     if (!sent) {
       throw new ApolloError(emailSendError.message, emailSendError.code)
+    }
+
+    if (signupPartnerId && signupPartnerProviderId) {
+      const signupPartner = await SignupPartnerModel.findById(signupPartnerId)
+      const signupPartnerProvider = await SignupPartnerProviderModel.findById(
+        signupPartnerId
+      )
+      await this.sendReferralEmail({
+        email,
+        name,
+        phone,
+        source: signupPartner.title,
+        provider: signupPartnerProvider.title,
+      })
     }
 
     // send lab order

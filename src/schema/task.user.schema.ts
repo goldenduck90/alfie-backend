@@ -35,7 +35,7 @@ export class UserAnswer {
 
   @Field(() => GraphQLAnyScalar, { nullable: true })
   @prop({ required: false, allowMixed: Severity.ALLOW })
-  value?: boolean | string | number | null
+  value?: boolean | string | number | object | null
 }
 
 @ObjectType()
@@ -104,6 +104,17 @@ export class UserDateAnswer extends UserAnswer {
   value: string
 }
 
+@ObjectType()
+export class UserObjectAnswer extends UserAnswer {
+  @Field(() => AnswerType)
+  @prop({ required: true })
+  type: AnswerType.OBJECT
+
+  @Field(() => Object)
+  @prop({ required: false })
+  value: object
+}
+
 export type UserAnswerTypes =
   | UserStringAnswer
   | UserNumberAnswer
@@ -111,6 +122,7 @@ export type UserAnswerTypes =
   | UserBooleanAnswer
   | UserDateAnswer
   | UserFileAnswer
+  | UserObjectAnswer
 
 function findByTaskId(
   this: ReturnModelType<typeof UserTask, QueryHelpers>,
@@ -175,6 +187,7 @@ export class UserTask {
       { type: UserDateAnswer, value: AnswerType.DATE },
       { type: UserArrayAnswer, value: AnswerType.ARRAY },
       { type: UserFileAnswer, value: AnswerType.FILE },
+      { type: UserObjectAnswer, value: AnswerType.OBJECT },
     ],
   })
   answers?: UserAnswerTypes[]

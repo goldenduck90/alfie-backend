@@ -50,7 +50,8 @@ export default class InsuranceResolver {
       checkout.insuranceType = input.insuranceType
       checkout.insurance = input.insurance
       checkout.insuranceCovered =
-        result.covered.covered && result.eligible.eligible
+        (result.covered.covered || result.covered.comingSoon) &&
+        result.eligible.eligible
       await checkout.save()
 
       return result

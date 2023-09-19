@@ -88,6 +88,10 @@ export class InsurancePlanCoverage {
   @Field(() => Boolean)
   @prop({ required: true })
   covered: boolean
+
+  @Field(() => Boolean, { nullable: true })
+  @prop({ required: false })
+  comingSoon?: boolean
 }
 
 export const InsurancePlanCoverageModel = getModelForClass<
@@ -128,6 +132,9 @@ export const InsurancePlanModel = getModelForClass<typeof InsurancePlan>(
 export class InsuranceCoveredResponse {
   @Field(() => Boolean)
   covered: boolean
+
+  @Field(() => Boolean)
+  comingSoon: boolean
 
   @Field(() => String, { nullable: true })
   reason?: string
