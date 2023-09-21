@@ -444,7 +444,11 @@ export const initializeSendBirdWebhook = (app: express.Application) => {
       const members = req.body.members as Member[]
 
       try {
-        const users = (
+        const possibleSender =
+          (await UserModel.findOne({ _id: sender.user_id })) ||
+          (await ProviderModel.findOne({ _id: sender.user_id }))
+
+        const recipients = (
           await Promise.all(
             members.map(async (member) => {
               return (
@@ -453,14 +457,12 @@ export const initializeSendBirdWebhook = (app: express.Application) => {
               )
             })
           )
-        ).filter((user) => user)
+        ).filter(
+          (user) => user && String(user._id) !== String(possibleSender._id)
+        )
 
-        const possibleSender = await UserModel.findOne({ _id: sender.user_id })
         if (possibleSender?.role === Role.Patient) {
-          const recipients = users
-            .filter((user) => String(user._id) !== String(possibleSender._id))
-            .map((user) => user.email)
-
+          // Send the message from patient to health coach or practitioner via  email
           await emailService.sendEmail(
             `Unread Messages in Channel by ${sender.nickname}`,
             `
@@ -473,26 +475,20 @@ export const initializeSendBirdWebhook = (app: express.Application) => {
               Message: ${message}
               .          
             `,
-            recipients
+            recipients.map((recipient) => recipient.email)
           )
 
           return res.sendStatus(200)
         } else {
-          // this is an admin, health coach or practitioner so we just send the email to the patient
-          const recipients = users
-            .map((user) => user as any as User)
-            .filter(
-              (user) =>
-                user.role &&
-                user.role !== Role.Practitioner &&
-                user.role !== Role.Admin &&
-                user.role !== Role.HealthCoach
-            )
+          // Send the message to patient via email
+          const patient = recipients
+            .map((recipient) => recipient as any as User)
+            .find((user) => user.role && user.role !== Role.Patient)
 
           await emailService.sendEmail(
             "New Message from your Care Team",
             `
-              Hi ${recipients[0]?.name},
+              Hi ${patient.name},
 
               You have a new message from your Care Team. To read it, simply click the button below:
               <br />
@@ -509,7 +505,7 @@ export const initializeSendBirdWebhook = (app: express.Application) => {
               <br />
               Your Care Team
             `,
-            recipients.map(({ email }) => email)
+            [patient.email]
           )
         }
 
