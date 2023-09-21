@@ -98,6 +98,27 @@ export const createSendBirdEntity = async <T>(
 }
 
 /**
+ * Updates a sendbird entity with the given url and parameters, returning the object.
+ */
+export const updateSendBirdEntity = async <T>(
+  url: string,
+  params: Record<string, any> = {},
+  errorMessage?: string
+): Promise<T> => {
+  try {
+    const { data } = await sendBirdInstance.put(url, params)
+    return data
+  } catch (error) {
+    console.error(
+      errorMessage ?? "Error in updateSendBirdEntity: ",
+      error?.message ?? error
+    )
+    Sentry.captureException(error)
+    return null
+  }
+}
+
+/**
  * Deletes a sendbird entity with the given url and parameters.
  */
 export const deleteSendBirdEntity = async (url: string) => {
@@ -263,6 +284,73 @@ export const deleteSendBirdChannel = async (channel_url: string) =>
   await deleteSendBirdEntity(`/v3/group_channels/${channel_url}`)
 
 /**
+ * Remove the given user from the chanel
+ *
+ * @returns A chnnel object.
+ * @see https://sendbird.com/docs/chat/platform-api/v3/channel/managing-a-channel/leave-a-channel
+ */
+export const leaveUserFromChannel = async (
+  channel_url: string,
+  users: string[]
+) => {
+  const channel = await getSendBirdChannel(channel_url)
+  // Trigger only remove members already in the channel
+  const user_ids = users.filter(
+    (userId) =>
+      userId && channel.members?.some((member) => member.user_id === userId)
+  )
+
+  // Leave users (returns the modified channel object).
+  if (user_ids.length > 0) {
+    const data = await updateSendBirdEntity<Channel>(
+      `/v3/group_channels/${channel_url}/leave`,
+      { user_ids }
+    )
+    if (data) {
+      console.log(
+        `Sendbird: Remove users ${user_ids} from channel ${channel_url}`
+      )
+    } else {
+      console.log("Sendbird: error in leaveUserFromChannel")
+    }
+  } else {
+    console.log(
+      `Sendbird: All users not exist in channel ${channel_url} (including ${users} and preset user IDs).`
+    )
+  }
+}
+
+/**
+ * Join the given user to a public channel
+ *
+ * @returns A chnnel object.
+ * @see https://sendbird.com/docs/chat/platform-api/v3/channel/managing-a-channel/leave-a-channel
+ */
+export const joinUserToChannel = async (
+  channel_url: string,
+  user_id: string
+) => {
+  const channel = await getSendBirdChannel(channel_url)
+
+  if (!channel.members.map((m) => m.user_id).includes(user_id)) {
+    // Join User.
+    const data = await updateSendBirdEntity<Channel>(
+      `/v3/group_channels/${channel_url}/join`,
+      { user_id }
+    )
+    if (data) {
+      console.log(`Sendbird: Join user ${user_id} to channel ${channel_url}`)
+    } else {
+      console.log("Sendbird: error in joinUserToChannel")
+    }
+  } else {
+    console.log(
+      `Sendbird: User ${user_id} already exist in channel ${channel_url}.`
+    )
+  }
+}
+
+/**
  * Invites the given user to the given channel.
  *
  * @returns A channel object.
@@ -272,16 +360,21 @@ export const inviteUserToChannel = async ({
   channel_url,
   user_id,
   provider_id,
+  autoInvite = true,
 }: {
   channel_url: string
   user_id: string
   /** The user's provider. */
   provider_id: string
+  autoInvite?: boolean
 }): Promise<Channel | null> => {
   const channel = await getSendBirdChannel(channel_url)
 
   // only invite members not already in the channel
-  const user_ids = [user_id, provider_id, ...sendbirdAutoinviteUsers].filter(
+  const invite_users = autoInvite
+    ? [user_id, provider_id, ...sendbirdAutoinviteUsers]
+    : [user_id, provider_id]
+  const user_ids = invite_users.filter(
     (userId) =>
       userId && !channel.members?.some((member) => member.user_id === userId)
   )
