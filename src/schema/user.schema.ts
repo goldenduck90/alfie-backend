@@ -471,10 +471,6 @@ export class User {
   @prop()
   address: Address
 
-  @Field(() => Number, { nullable: true })
-  @prop()
-  weightGoal: number
-
   @Field(() => [Weight])
   @prop({ default: [], required: true })
   weights: Weight[]
