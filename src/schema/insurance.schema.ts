@@ -153,13 +153,13 @@ export class InsuranceCheckInput {
 
   @Field(() => Insurance)
   insurance: Insurance
+
+  @Field(() => Boolean)
+  covered: boolean
 }
 
 @ObjectType()
 export class InsuranceCheckResponse {
-  @Field(() => InsuranceCoveredResponse)
-  covered: InsuranceCoveredResponse
-
   @Field(() => InsuranceEligibilityResponse)
   eligible: InsuranceEligibilityResponse
 }

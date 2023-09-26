@@ -5,7 +5,9 @@ import {
   InsurancePlanModel,
   InsuranceTypeModel,
   InsuranceTypeValue,
+  BasicUserInsuranceInfo,
 } from "../schema/insurance.schema"
+import { CheckoutModel } from "../schema/checkout.schema"
 import { Provider } from "../schema/provider.schema"
 
 export default class InsuranceService {
@@ -55,6 +57,18 @@ export default class InsuranceService {
     )
 
     return coveredPlan ?? comingSoonPlan ?? null
+  }
+
+  async getCheckoutUserBasicInfo(
+    checkoutId: string
+  ): Promise<BasicUserInsuranceInfo> {
+    const checkout = await CheckoutModel.findById(checkoutId)
+    return {
+      state: checkout.state,
+      dateOfBirth: checkout.dateOfBirth,
+      gender: checkout.gender,
+      name: checkout.name,
+    }
   }
 
   async getPlans() {
