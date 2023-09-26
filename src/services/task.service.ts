@@ -28,6 +28,7 @@ import {
 import { User, Score, UserModel } from "../schema/user.schema"
 import { AnswerType } from "../schema/enums/AnswerType"
 import AkuteService from "./akute.service"
+import AlertService from "./altert.service"
 import { classifyUser } from "../PROAnalysis/classification"
 import { calculatePatientScores } from "../scripts/calculatePatientScores"
 import EmailService from "./email.service"
@@ -46,10 +47,12 @@ export const tasksEligibleForProfiling = [
 class TaskService {
   private akuteService: AkuteService
   private emailService: EmailService
+  private alertService: AlertService
 
   constructor() {
     this.akuteService = new AkuteService()
     this.emailService = new EmailService()
+    this.alertService = new AlertService()
   }
 
   async createTask(input: CreateTaskInput) {
@@ -550,6 +553,9 @@ class TaskService {
           break
         }
       }
+
+      await this.alertService.checkUserTaskCompletion(user, task, userTask)
+
       return userTask
     } catch (error) {
       console.log(error, "error")
