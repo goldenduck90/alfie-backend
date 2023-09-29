@@ -101,6 +101,45 @@ export const InsurancePlanCoverageModel = getModelForClass<
   options: { customName: "insurancePlanCoverage" },
 })
 
+/** Insurance CPIDs. */
+@index({ cpid: 1 }, { unique: true })
+@ObjectType()
+export class InsuranceCPID {
+  @Field(() => String)
+  _id: string
+
+  @Field(() => String, { nullable: true })
+  @prop({ required: true })
+  name: string
+
+  @Field(() => InsurancePlanValue)
+  @prop({ enum: InsurancePlanValue, type: String, required: true })
+  plan: InsurancePlanValue
+
+  @Field(() => [String], { nullable: true })
+  @prop({ type: String, required: true, default: [] })
+  states: string[]
+
+  @Field(() => [String], { nullable: true })
+  @prop({ type: String, required: true, default: [] })
+  npis: string[]
+
+  @Field(() => String, { nullable: true })
+  @prop({ required: true })
+  cpid: string
+
+  @Field(() => [InsuranceTypeValue])
+  @prop({ enum: InsuranceTypeValue, type: String, required: true, default: [] })
+  planTypes: InsuranceTypeValue[]
+}
+
+export const InsuranceCPIDModel = getModelForClass<typeof InsuranceCPID>(
+  InsuranceCPID,
+  {
+    options: { customName: "insuranceCPIDs" },
+  }
+)
+
 /** Insurance plans. */
 @index({ name: 1 }, { unique: true })
 @index({ type: 1 }, { unique: true })

@@ -5,8 +5,11 @@ import {
   InsurancePlanModel,
   InsuranceTypeModel,
   InsuranceTypeValue,
+  InsuranceCPIDModel,
   BasicUserInsuranceInfo,
 } from "../schema/insurance.schema"
+import lookupCPID from "../utils/lookupCPID"
+import resolveCPIDEntriesToInsurance from "../utils/resolveCPIDEntriesToInsurance"
 import { CheckoutModel } from "../schema/checkout.schema"
 import { Provider } from "../schema/provider.schema"
 
@@ -23,6 +26,21 @@ export default class InsuranceService {
       comingSoon: plan !== null && plan.comingSoon,
       reason: !plan ? "Not covered or coming soon" : null,
     }
+  }
+
+  async getCPIDs(params: {
+    plan: InsurancePlanValue
+    planType: InsuranceTypeValue
+    state: string
+    npi?: string
+  }) {
+    const cpids = await InsuranceCPIDModel.find({
+      states: params.state,
+      planTypes: params.planType,
+      plan: params.plan,
+    })
+
+    return cpids
   }
 
   async getPlanCoverage(params: {

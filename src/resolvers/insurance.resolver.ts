@@ -12,7 +12,6 @@ import {
 import CandidService from "../services/candid.service"
 import InsuranceService from "../services/insurance.service"
 import { Insurance, InsuranceEligibilityResponse } from "../schema/user.schema"
-import lookupCPID from "../utils/lookupCPID"
 import resolveCPIDEntriesToInsurance from "../utils/resolveCPIDEntriesToInsurance"
 import { CheckoutModel } from "../schema/checkout.schema"
 
@@ -35,6 +34,8 @@ export default class InsuranceResolver {
 
       const eligible = await this.insuranceEligibility(
         input.checkoutId,
+        input.insurancePlan,
+        input.insuranceType,
         input.insurance
       )
 
@@ -81,21 +82,32 @@ export default class InsuranceResolver {
   async insuranceEligibility(
     @Arg("checkoutId", () => String)
     checkoutId: string,
+    @Arg("insurancePlan", () => InsurancePlanValue)
+    insurancePlan: InsurancePlanValue,
+    @Arg("insuranceType", () => InsuranceTypeValue)
+    insuranceType: InsuranceTypeValue,
     @Arg("insurance", () => Insurance)
     insurance: Insurance,
     @Arg("cpid", { nullable: true }) cpid?: string
   ): Promise<InsuranceEligibilityResponse> {
-    let inputs = []
-    if (cpid) {
-      inputs = [{ insurance, cpid }]
-    } else {
-      const cpids = lookupCPID(insurance.payor, insurance.insuranceCompany, 10)
-      inputs = resolveCPIDEntriesToInsurance(cpids, insurance)
-    }
-
     const user = await this.insuranceService.getCheckoutUserBasicInfo(
       checkoutId
     )
+
+    let inputs: { insurance: Insurance; cpid: string }[] = []
+    if (cpid) {
+      inputs = [{ insurance, cpid }]
+    } else {
+      const cpids = await this.insuranceService.getCPIDs({
+        plan: insurancePlan,
+        planType: insuranceType,
+        state: user.state,
+      })
+      inputs = cpids.map((cpidEntry) => ({
+        insurance,
+        cpid: cpidEntry.cpid,
+      }))
+    }
     const eligible = await this.candidService.checkInsuranceEligibility(
       user,
       inputs
