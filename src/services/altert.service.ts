@@ -160,9 +160,7 @@ export default class AlertService {
       }
     }
 
-
     // NO_MP: Patient has no MP for previous month
     // TODO: TBD
-
-  } 
+  }
 }
