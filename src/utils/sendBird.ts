@@ -583,11 +583,11 @@ export const validateAutoInvitesWithInUserSendbirdChannel = async (options: {
                 (au) => au.id === missedUserId
               )
               if (autoInviteUser) {
-                const invitedChannel = await inviteUserToChannel(
-                  channel.channel_url,
-                  autoInviteUser._id,
-                  autoInviteUser.provider._id
-                )
+                const invitedChannel = await inviteUserToChannel({
+                  channel_url: channel.channel_url,
+                  user_id: autoInviteUser._id,
+                  provider_id: autoInviteUser.provider._id,
+                })
                 invitations.push({
                   user: autoInviteUser.name,
                   channelUser: user.name,
