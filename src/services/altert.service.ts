@@ -6,6 +6,7 @@ import { UserModel } from "../schema/user.schema"
 import Role from "../schema/enums/Role"
 import { UserTaskModel } from "../schema/task.user.schema"
 import { TaskModel } from "../schema/task.schema"
+import { Provider } from "../schema/provider.schema"
 
 export default class AlertService {
   async checkUserTaskCompletion(user: User, task: Task, userTask: UserTask) {
@@ -28,6 +29,7 @@ export default class AlertService {
             description: "The patients blood pressure requires attention",
             task: task,
             user: user,
+            provider: user.provider,
             severity: SeverityType.HIGH,
             medical: true,
           })
@@ -72,6 +74,7 @@ export default class AlertService {
                 "The patient has had a large shift in their MP and may need new medications",
               task: task,
               user: user,
+              provider: user.provider,
               severity: SeverityType.LOW,
               medical: true,
             })
@@ -112,6 +115,7 @@ export default class AlertService {
               description: "The patient has lost too much weight too quickly",
               task: task,
               user: user,
+              provider: user.provider,
               severity: SeverityType.HIGH,
               medical: true,
             })
@@ -162,5 +166,14 @@ export default class AlertService {
 
     // NO_MP: Patient has no MP for previous month
     // TODO: TBD
+  }
+
+  async getAlertByProvider(provider: Provider) {
+    const alerts = await AlertModel.find({
+      provider: provider._id,
+    })
+      .populate("user")
+      .sort({ createdAt: -1 })
+    return alerts
   }
 }

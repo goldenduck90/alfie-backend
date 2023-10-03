@@ -2,6 +2,7 @@ import { Ref, getModelForClass, prop } from "@typegoose/typegoose"
 import { Field, ObjectType, registerEnumType } from "type-graphql"
 import { Task } from "./task.schema"
 import { User } from "./user.schema"
+import { Provider } from "./provider.schema"
 
 export enum SeverityType {
   LOW = "LOW",
@@ -35,6 +36,10 @@ export class Alert {
   @Field(() => User)
   @prop({ ref: () => User, required: true })
   user: Ref<User>
+
+  @Field(() => Provider)
+  @prop({ ref: () => Provider, required: true })
+  provider: Ref<Provider>
 
   @Field(() => SeverityType)
   @prop({ enum: SeverityType, required: true })

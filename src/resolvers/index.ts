@@ -9,6 +9,7 @@ import FileResolver from "./file.resolver"
 import PartnerResolver from "./partner.resolver"
 import InternalResolver from "./internal.resolver"
 import InsuranceResolver from "./insurance.resolver"
+import AlertResolver from "./alert.resolver"
 
 export default [
   AddressAutocompleteResolver,
@@ -22,4 +23,5 @@ export default [
   PartnerResolver,
   InternalResolver,
   InsuranceResolver,
+  AlertResolver,
 ] as const
