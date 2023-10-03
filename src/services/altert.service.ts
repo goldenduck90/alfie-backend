@@ -168,9 +168,9 @@ export default class AlertService {
     // TODO: TBD
   }
 
-  async getAlertByProvider(provider: Provider) {
+  async getAlertByProvider(user: User) {
     const alerts = await AlertModel.find({
-      provider: provider._id,
+      provider: user._id,
     })
       .populate("user")
       .sort({ createdAt: -1 })
