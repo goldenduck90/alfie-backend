@@ -444,6 +444,10 @@ export class User {
   @prop()
   phone?: string
 
+  @Field(() => Boolean, { nullable: true })
+  @prop()
+  inactive?: boolean
+
   @Field(() => String)
   @prop()
   password?: string
