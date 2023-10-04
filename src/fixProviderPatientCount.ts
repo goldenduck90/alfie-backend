@@ -16,6 +16,8 @@ async function fixProviderPatientCount() {
       provider.numberOfPatients = patientCount
       await provider.save()
     }
+
+    console.log("DONE!")
   } catch (error) {
     console.log(error)
   }
