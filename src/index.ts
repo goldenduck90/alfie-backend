@@ -81,7 +81,6 @@ async function bootstrap() {
     "/metriportWebhooks",
     express.json(),
     async (req: Request, res: Response) => {
-      console.log(req.body)
       try {
         const key = req.get("x-webhook-key")
         if (key !== process.env.METRIPORT_WEBHOOK_KEY) {
