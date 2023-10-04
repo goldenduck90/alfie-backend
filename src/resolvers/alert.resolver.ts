@@ -1,4 +1,4 @@
-import { Arg, Authorized, Ctx, Query, Resolver } from "type-graphql"
+import { Authorized, Ctx, Query, Resolver } from "type-graphql"
 
 import Role from "../schema/enums/Role"
 import Context from "../types/context"

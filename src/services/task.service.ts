@@ -187,7 +187,7 @@ class TaskService {
     const hasCompletedRequiredTasks = await this.didUserCompletedRequiredTasks(
       userId
     )
-    let eligibility: UserAppointmentEligibility = {
+    const eligibility: UserAppointmentEligibility = {
       task: null,
       daysLeft: null,
       completedRequiredTasks: hasCompletedRequiredTasks,

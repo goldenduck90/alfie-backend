@@ -2181,7 +2181,7 @@ class UserService extends EmailService {
     })
 
     if (providers?.length !== 2) {
-      throw new Error(`Error: Not existing providers.`)
+      throw new Error("Error: Not existing providers.")
     }
 
     const oldProvider = providers.find(
@@ -2197,7 +2197,7 @@ class UserService extends EmailService {
         newProvider.licensedStates.includes(state)
       )
     ) {
-      throw new Error(`Error: Providers must licensed in same state.`)
+      throw new Error("Error: Providers must licensed in same state.")
     }
 
     // Pull old provider patients
@@ -2207,7 +2207,7 @@ class UserService extends EmailService {
     })
 
     // Validate Sendbird User existence for the providers
-    for (let provider of providers) {
+    for (const provider of providers) {
       const sendbirdUser = await findSendBirdUser(provider._id.toString())
       if (!sendbirdUser) {
         const user_id = await createSendBirdUser({
@@ -2233,7 +2233,7 @@ class UserService extends EmailService {
         continue
       }
 
-      for (let channel of channels) {
+      for (const channel of channels) {
         await leaveUserFromChannel(channel.channel_url, [
           oldProvider._id.toString(),
         ])

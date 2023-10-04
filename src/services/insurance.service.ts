@@ -8,8 +8,8 @@ import {
   InsuranceCPIDModel,
   BasicUserInsuranceInfo,
 } from "../schema/insurance.schema"
-import lookupCPID from "../utils/lookupCPID"
-import resolveCPIDEntriesToInsurance from "../utils/resolveCPIDEntriesToInsurance"
+// import lookupCPID from "../utils/lookupCPID"
+// import resolveCPIDEntriesToInsurance from "../utils/resolveCPIDEntriesToInsurance"
 import { CheckoutModel } from "../schema/checkout.schema"
 import { Provider } from "../schema/provider.schema"
 

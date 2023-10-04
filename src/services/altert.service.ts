@@ -6,7 +6,7 @@ import { UserModel } from "../schema/user.schema"
 import Role from "../schema/enums/Role"
 import { UserTaskModel } from "../schema/task.user.schema"
 import { TaskModel } from "../schema/task.schema"
-import { Provider } from "../schema/provider.schema"
+// import { Provider } from "../schema/provider.schema"
 
 export default class AlertService {
   async checkUserTaskCompletion(user: User, task: Task, userTask: UserTask) {

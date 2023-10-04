@@ -637,6 +637,7 @@ export const initializeSendBirdWebhook = (app: express.Application) => {
 export const validateAutoInvitesWithInUserSendbirdChannel = async (options: {
   userId?: string // Specific user email or ID to validate
 }) => {
+  console.log(options)
   try {
     console.log(
       "Sendbird: Synchronizing auto invitations state with the database."
@@ -657,7 +658,7 @@ export const validateAutoInvitesWithInUserSendbirdChannel = async (options: {
       // Collect data to export a report
       const invitations = []
 
-      for (let user of users) {
+      for (const user of users) {
         // Pull channel users
         const userChannels = await getSendBirdUserChannels(user._id.toString())
         for (let i = 0; i < userChannels.length; i++) {
@@ -692,7 +693,7 @@ export const validateAutoInvitesWithInUserSendbirdChannel = async (options: {
               }
             }
           } else {
-            console.log(`All of Sendbird auto invite user already invited.`)
+            console.log("All of Sendbird auto invite user already invited.")
           }
         }
       }

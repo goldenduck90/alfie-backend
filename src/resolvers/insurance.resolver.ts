@@ -12,7 +12,7 @@ import {
 import CandidService from "../services/candid.service"
 import InsuranceService from "../services/insurance.service"
 import { Insurance, InsuranceEligibilityResponse } from "../schema/user.schema"
-import resolveCPIDEntriesToInsurance from "../utils/resolveCPIDEntriesToInsurance"
+// import resolveCPIDEntriesToInsurance from "../utils/resolveCPIDEntriesToInsurance"
 import { CheckoutModel } from "../schema/checkout.schema"
 
 @Resolver()
