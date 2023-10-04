@@ -1,7 +1,6 @@
 import UserService from "../src/services/user.service"
 import runShell, { createProgram } from "./utils/runShell"
 
-
 const program = createProgram()
   .description("Transform patients under a provider to another.")
   .option("--oldProvider <ID>", "Specifies the old provider ID")
@@ -17,13 +16,13 @@ async function transferProviderPatients() {
 
   // Validate script inputs
   if (!oldProviderID) {
-    throw new Error('The old provider user id is required.')
+    throw new Error("The old provider user id is required.")
   } else if (!newProviderID) {
-    throw new Error('The new provider user id is required.')
+    throw new Error("The new provider user id is required.")
   }
 
   try {
-    const userService = new UserService();
+    const userService = new UserService()
     await userService.transferPatients(oldProviderID, newProviderID)
   } catch (error) {
     console.log("Error during transferProviderPatients script: ", error)
