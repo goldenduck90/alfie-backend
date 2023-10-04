@@ -18,7 +18,8 @@
     "lint:fix": "npm run lint -- --fix",
     "tsc": "tsc --noEmit --project ./tsconfig.json",
     "prepare": "husky install && npx husky add .husky/pre-commit \"node_modules/.bin/lint-staged\"",
-    "sendbird:sync": "cross-env NODE_ENV=production ts-node ./scripts/synchronizeSendbird.ts"
+    "sendbird:sync": "cross-env NODE_ENV=production ts-node ./scripts/synchronizeSendbird.ts",
+    "sendbird:sync_members": "cross-env NODE_ENV=production ts-node ./scripts/fixSendbirdCannelDiscrepancy.ts"
   },
   "author": "",
   "license": "ISC",

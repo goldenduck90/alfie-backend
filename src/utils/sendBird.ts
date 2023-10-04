@@ -2,6 +2,7 @@ import dotenv from "dotenv"
 dotenv.config()
 import * as Sentry from "@sentry/node"
 import * as express from "express"
+import { createObjectCsvWriter } from "csv-writer"
 import axios from "axios"
 import config from "config"
 import { User, UserModel } from "../schema/user.schema"
@@ -630,6 +631,94 @@ export const initializeSendBirdWebhook = (app: express.Application) => {
       }
     }
   )
+}
+
+/** Check auto invite users list from Sendbird Channel given user */
+export const validateAutoInvitesWithInUserSendbirdChannel = async (options: {
+  userId?: string // Specific user email or ID to validate
+}) => {
+  try {
+    console.log(
+      "Sendbird: Synchronizing auto invitations state with the database."
+    )
+    console.log(
+      `Sendbird: Autoinvite users: ${sendbirdAutoinviteUsers.join(", ")}`
+    )
+
+    // Pull the all users if there is any specific user query
+    const users = await UserModel.find({
+      sendbirdChannelUrl: { $ne: null },
+    })
+    const autoInviteUsers = await UserModel.find({
+      _id: { $in: sendbirdAutoinviteUsers },
+    }).populate<{ provider: Provider }>("provider")
+
+    if (users.length && autoInviteUsers.length) {
+      // Collect data to export a report
+      const invitations = []
+
+      for (let user of users) {
+        // Pull channel users
+        const userChannels = await getSendBirdUserChannels(user._id.toString())
+        for (let i = 0; i < userChannels.length; i++) {
+          const channel = userChannels[i]
+          const channelMembers = channel.members.map((m) => m.user_id)
+          const missingAutoInviteUsers = sendbirdAutoinviteUsers.filter(
+            (au) => !channelMembers.includes(au)
+          )
+          // Detected missing sendbird auto invite users
+          if (missingAutoInviteUsers.length > 0) {
+            // ensure that the provider and autoinvite users have been added to the channel
+            for (let j = 0; j < missingAutoInviteUsers.length; j++) {
+              const missedUserId = missingAutoInviteUsers[j]
+              // Validate is auto invite user exists in database
+              const autoInviteUser = autoInviteUsers.find(
+                (au) => au.id === missedUserId
+              )
+              if (autoInviteUser) {
+                const invitedChannel = await inviteUserToChannel({
+                  channel_url: channel.channel_url,
+                  user_id: autoInviteUser._id,
+                  provider_id: autoInviteUser.provider._id,
+                })
+                invitations.push({
+                  user: autoInviteUser.name,
+                  channelUser: user.name,
+                  channel: invitedChannel.channel_url,
+                  invitedAt: new Date().toISOString(),
+                })
+              } else {
+                console.warn(`Auto invite user doesn't exist: ${missedUserId}`)
+              }
+            }
+          } else {
+            console.log(`All of Sendbird auto invite user already invited.`)
+          }
+        }
+      }
+
+      if (invitations.length > 0) {
+        const csvWriter = createObjectCsvWriter({
+          path: `${Date.now()}-sendbird-invite-fixer-report.csv`,
+          header: [
+            { id: "user", title: "Invited User" },
+            { id: "channelUser", title: "Channel Owner" },
+            { id: "channel", title: "Channel" },
+            { id: "invitedAt", title: "Invite Date" },
+          ],
+        })
+
+        await csvWriter.writeRecords(invitations)
+
+        console.log("Auto Invitations Report is Ready!")
+      }
+    }
+  } catch (e) {
+    console.log(
+      e,
+      "Sendbird: Error in validateAutoInvitesWithInUserSendbirdChannel"
+    )
+  }
 }
 
 /** Recreates the entire sendbird state, including users (patients and providers), and channels. */
