@@ -593,29 +593,49 @@ export const initializeSendBirdWebhook = (app: express.Application) => {
           // Send the message to patient via email
           const patient = recipients
             .map((recipient) => recipient as any as User)
-            .find((user) => user.role && user.role !== Role.Patient)
+            .find((user) => user.role && user.role === Role.Patient)
 
           await emailService.sendEmail(
             "New Message from your Care Team",
             `
-              Hi ${patient.name},
-
-              You have a new message from your Care Team. To read it, simply click the button below:
-              <br />
-              <br />
-
-              <a href="https://app.joinalfie.com/dashboard/chat">Read Message</a>
-
-              <br />
-              <br />
-
-              If you have any questions, let us know through the messaging portal!
-
-              <br />
-              <br />
-              Your Care Team
-            `,
+                Hi ${patient.name},
+  
+                You have a new message from your Care Team. To read it, simply click the button below:
+                <br />
+                <br />
+  
+                <a href="https://app.joinalfie.com/dashboard/chat">Read Message</a>
+  
+                <br />
+                <br />
+  
+                If you have any questions, let us know through the messaging portal!
+  
+                <br />
+                <br />
+                Your Care Team
+              `,
             [patient.email]
+          )
+
+          // Send the message to rest of members in the channel via email
+          const nonPatients = recipients
+            .map((recipient) => recipient as any as User)
+            .filter((user) => user.role && user.role !== Role.Patient)
+
+          await emailService.sendEmail(
+            `Unread Messages in Channel by ${sender.nickname}`,
+            `
+              You have unread messages from ${sender.nickname}
+              <br />
+              <br />
+              Sender: ${sender.nickname}
+              <br />
+              <br />
+              Message: ${message}
+              .          
+            `,
+            nonPatients.map((recipient) => recipient.email)
           )
         }
 
