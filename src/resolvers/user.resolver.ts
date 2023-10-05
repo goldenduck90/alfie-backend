@@ -189,7 +189,8 @@ export default class UserResolver {
   async recordScaleReading(@Arg("input") input: ScaleReadingInput) {
     const { user } = await this.userService.processWithingsScaleReading(
       input.metriportUserId,
-      input.weightLbs
+      input.weightLbs,
+      input.time
     )
     return user
   }

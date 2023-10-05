@@ -1064,4 +1064,7 @@ export class ScaleReadingInput {
 
   @Field(() => Number)
   weightLbs: number
+
+  @Field(() => Date, { nullable: true })
+  time?: Date
 }

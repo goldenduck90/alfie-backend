@@ -119,10 +119,14 @@ async function bootstrap() {
               users.map(async (metriportUser: MetriportUser) => {
                 const { userId, body } = metriportUser
                 if (body?.[0]?.weight_samples_kg) {
-                  const weightLbs = Math.floor(body[0].weight_samples_kg * 2.2)
+                  const weightLbs = Math.floor(
+                    body[0].weight_samples_kg[0].value * 2.2
+                  )
+                  const timeCompleted = body[0].weight_samples_kg[0].time
                   await userService.processWithingsScaleReading(
                     userId,
-                    weightLbs
+                    weightLbs,
+                    timeCompleted
                   )
                 }
               })

@@ -2001,7 +2001,8 @@ class UserService extends EmailService {
    */
   async processWithingsScaleReading(
     metriportUserId: string,
-    weightLbs: number
+    weightLbs: number,
+    time?: Date
   ): Promise<{ user: User; userTask: UserTask }> {
     let user = await UserModel.findOne({ metriportUserId }).populate<{
       provider: Provider
@@ -2035,7 +2036,11 @@ class UserService extends EmailService {
     if (weightLogUserTask) {
       weightLogUserTask.answers = [userAnswer]
       weightLogUserTask.completed = true
-      weightLogUserTask.completedAt = new Date()
+      if (time) {
+        weightLogUserTask.completedAt = new Date()
+      } else {
+        weightLogUserTask.completedAt = new Date()
+      }
       await weightLogUserTask.save()
       const message = `[METRIPORT][TIME: ${new Date().toString()}] Successfully updated weight task for user: ${
         user._id
@@ -2059,7 +2064,7 @@ class UserService extends EmailService {
     // Save to user weights array as well so push onto array
     user.weights.push({
       value: weightLbs,
-      date: new Date(),
+      date: time ? new Date(time) : new Date(),
       scale: true,
     })
     // recalculate bmi
