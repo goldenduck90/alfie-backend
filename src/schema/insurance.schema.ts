@@ -169,10 +169,10 @@ export const InsurancePlanModel = getModelForClass<typeof InsurancePlan>(
 
 @ObjectType()
 export class InsuranceCoveredResponse {
-  @Field(() => Boolean)
+  @Field(() => Boolean, { defaultValue: false })
   covered: boolean
 
-  @Field(() => Boolean)
+  @Field(() => Boolean, { defaultValue: false })
   comingSoon: boolean
 
   @Field(() => String, { nullable: true })
