@@ -101,6 +101,8 @@ async function bootstrap() {
           })
         }
 
+        console.log(JSON.stringify(req.body))
+
         switch (meta.type) {
           case "devices.provider-connected":
             await Promise.all(
