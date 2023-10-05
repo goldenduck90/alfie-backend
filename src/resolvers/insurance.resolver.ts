@@ -1,6 +1,5 @@
-import { Arg, Authorized, Mutation, Query, Resolver } from "type-graphql"
+import { Arg, Mutation, Query, Resolver } from "type-graphql"
 import { ApolloError } from "apollo-server"
-import Role from "../schema/enums/Role"
 import {
   InsurancePlanValue,
   InsuranceTypeValue,
@@ -53,7 +52,6 @@ export default class InsuranceResolver {
     }
   }
 
-  @Authorized([Role.Admin, Role.Patient])
   @Query(() => InsuranceCoveredResponse)
   async insuranceCovered(
     @Arg("insurancePlan", () => InsurancePlanValue)
@@ -77,7 +75,6 @@ export default class InsuranceResolver {
     return covered
   }
 
-  @Authorized([Role.Admin, Role.Patient])
   @Query(() => InsuranceEligibilityResponse)
   async insuranceEligibility(
     @Arg("checkoutId", () => String)
