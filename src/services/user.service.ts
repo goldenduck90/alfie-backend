@@ -415,8 +415,9 @@ class UserService extends EmailService {
     if (signupPartnerId && signupPartnerProviderId) {
       const signupPartner = await SignupPartnerModel.findById(signupPartnerId)
       const signupPartnerProvider = await SignupPartnerProviderModel.findById(
-        signupPartnerId
+        signupPartnerProviderId
       )
+
       await this.sendReferralEmail({
         email,
         name,
@@ -427,7 +428,11 @@ class UserService extends EmailService {
     }
 
     // send lab order
-    await this.akuteService.createLabOrder(user._id)
+    try {
+      await this.akuteService.createLabOrder(user._id)
+    } catch (err) {
+      console.log(err)
+    }
 
     if (process.env.NODE_ENV === "production") {
       const zapierCreateUserWebhook = config.get(
