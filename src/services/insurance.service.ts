@@ -22,8 +22,8 @@ export default class InsuranceService {
   }): Promise<InsuranceCoveredResponse> {
     const plan = await this.getPlanCoverage(params)
     return {
-      covered: plan !== null && plan.covered,
-      comingSoon: plan !== null && plan.comingSoon,
+      covered: !!plan?.covered,
+      comingSoon: !!plan?.comingSoon,
       reason: !plan ? "Not covered or coming soon" : null,
     }
   }
@@ -48,33 +48,27 @@ export default class InsuranceService {
     type: InsuranceTypeValue
     state: string
   }) {
-    const plans = await InsurancePlanCoverageModel.find({}).populate<{
+    const plan = await InsurancePlanCoverageModel.findOne({
+      plan: params.plan,
+      state: {
+        $in: [null, params.state],
+      },
+      type: {
+        $in: [null, params.type],
+      },
+      $or: [
+        {
+          comingSoon: true,
+        },
+        {
+          covered: true,
+        },
+      ],
+    }).populate<{
       provider: Provider
     }>("provider")
 
-    const coveredPlan = plans.find(
-      ({ plan: planValue, type, state, covered }) => {
-        return (
-          covered &&
-          params.plan === planValue &&
-          (type === null || params.type === type) &&
-          (state === null || state === params.state)
-        )
-      }
-    )
-
-    const comingSoonPlan = plans.find(
-      ({ plan: planValue, type, state, comingSoon }) => {
-        return (
-          comingSoon &&
-          params.plan === planValue &&
-          (type === null || params.type === type) &&
-          (state === null || state === params.state)
-        )
-      }
-    )
-
-    return coveredPlan ?? comingSoonPlan ?? null
+    return plan
   }
 
   async getCheckoutUserBasicInfo(
