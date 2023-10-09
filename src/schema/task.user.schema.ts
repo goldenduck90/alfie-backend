@@ -308,3 +308,18 @@ export class UserTaskList {
   @Field(() => Number)
   offset: number
 }
+
+@ObjectType()
+export class UserAppointmentEligibility {
+  @Field(() => UserTask, { nullable: true })
+  @prop()
+  task?: UserTask
+
+  @Field(() => Number, { defaultValue: -1 })
+  @prop({ required: true })
+  daysLeft: number
+
+  @Field(() => Boolean, { defaultValue: false })
+  @prop({ required: true })
+  completedRequiredTasks: boolean
+}

@@ -145,35 +145,6 @@ export class AddressSuggestion {
 }
 
 @ObjectType()
-@InputType("PlaceDetails")
-@ModelOptions({ schemaOptions: { _id: false } })
-export class PlaceDetails {
-  @Field(() => String, { nullable: true })
-  @prop()
-  line1: string
-
-  @Field(() => String, { nullable: true })
-  @prop()
-  line2?: string
-
-  @Field(() => String, { nullable: true })
-  @prop()
-  city: string
-
-  @Field(() => String, { nullable: true })
-  @prop()
-  state: string
-
-  @Field(() => String, { nullable: true })
-  @prop()
-  postalCode: string
-
-  @Field(() => String, { nullable: true })
-  @prop({ default: "US" })
-  country?: string
-}
-
-@ObjectType()
 @InputType("AddressInput")
 @ModelOptions({ schemaOptions: { _id: false } })
 export class Address {
@@ -499,10 +470,6 @@ export class User {
   @Field(() => Address)
   @prop()
   address: Address
-
-  @Field(() => Number, { nullable: true })
-  @prop()
-  weightGoal: number
 
   @Field(() => [Weight])
   @prop({ default: [], required: true })
@@ -1097,4 +1064,7 @@ export class ScaleReadingInput {
 
   @Field(() => Number)
   weightLbs: number
+
+  @Field(() => Date, { nullable: true })
+  time?: Date
 }

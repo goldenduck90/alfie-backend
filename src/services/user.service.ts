@@ -1,6 +1,7 @@
 import * as Sentry from "@sentry/node"
 import { ApolloError } from "apollo-server-errors"
 import { LeanDocument } from "mongoose"
+import { createObjectCsvWriter } from "csv-writer"
 import * as AWS from "aws-sdk"
 import bcrypt from "bcrypt"
 import config from "config"
@@ -51,7 +52,11 @@ import {
 import Role from "../schema/enums/Role"
 import { signJwt } from "../utils/jwt"
 import {
+  createSendBirdUser,
+  findSendBirdUser,
   getSendBirdUserChannels,
+  inviteUserToChannel,
+  leaveUserFromChannel,
   triggerEntireSendBirdFlow,
 } from "../utils/sendBird"
 import { TaskModel } from "./../schema/task.schema"
@@ -90,7 +95,7 @@ export const initialUserTasks = [
   TaskType.MP_HUNGER,
   TaskType.MP_FEELING,
   TaskType.BP_LOG,
-  TaskType.WEIGHT_LOG,
+  // TaskType.WEIGHT_LOG,
   TaskType.WAIST_LOG,
   // TaskType.MP_BLUE_CAPSULE,
   TaskType.MP_ACTIVITY,
@@ -388,7 +393,7 @@ class UserService extends EmailService {
       nickname: user.name,
       profile_file: "",
       profile_url: "",
-      provider: provider._id,
+      provider_id: provider._id,
     })
 
     // assign initial tasks to user
@@ -410,8 +415,9 @@ class UserService extends EmailService {
     if (signupPartnerId && signupPartnerProviderId) {
       const signupPartner = await SignupPartnerModel.findById(signupPartnerId)
       const signupPartnerProvider = await SignupPartnerProviderModel.findById(
-        signupPartnerId
+        signupPartnerProviderId
       )
+
       await this.sendReferralEmail({
         email,
         name,
@@ -422,7 +428,11 @@ class UserService extends EmailService {
     }
 
     // send lab order
-    await this.akuteService.createLabOrder(user._id)
+    try {
+      await this.akuteService.createLabOrder(user._id)
+    } catch (err) {
+      console.log(err)
+    }
 
     if (process.env.NODE_ENV === "production") {
       const zapierCreateUserWebhook = config.get(
@@ -1991,7 +2001,8 @@ class UserService extends EmailService {
    */
   async processWithingsScaleReading(
     metriportUserId: string,
-    weightLbs: number
+    weightLbs: number,
+    time?: Date
   ): Promise<{ user: User; userTask: UserTask }> {
     let user = await UserModel.findOne({ metriportUserId }).populate<{
       provider: Provider
@@ -2025,7 +2036,11 @@ class UserService extends EmailService {
     if (weightLogUserTask) {
       weightLogUserTask.answers = [userAnswer]
       weightLogUserTask.completed = true
-      weightLogUserTask.completedAt = new Date()
+      if (time) {
+        weightLogUserTask.completedAt = new Date()
+      } else {
+        weightLogUserTask.completedAt = new Date()
+      }
       await weightLogUserTask.save()
       const message = `[METRIPORT][TIME: ${new Date().toString()}] Successfully updated weight task for user: ${
         user._id
@@ -2049,7 +2064,7 @@ class UserService extends EmailService {
     // Save to user weights array as well so push onto array
     user.weights.push({
       value: weightLbs,
-      date: new Date(),
+      date: time ? new Date(time) : new Date(),
       scale: true,
     })
     // recalculate bmi
@@ -2164,6 +2179,109 @@ class UserService extends EmailService {
       }
     } catch (err) {
       return `Checkout not found for checkout id: ${checkoutId}`
+    }
+  }
+
+  async transferPatients(oldProviderId: string, newProviderId: string) {
+    // Find providers
+    const providers: Provider[] = await ProviderModel.find({
+      _id: {
+        $in: [oldProviderId, newProviderId],
+      },
+    })
+
+    if (providers?.length !== 2) {
+      throw new Error("Error: Not existing providers.")
+    }
+
+    const oldProvider = providers.find(
+      (p) => p._id.toString() === oldProviderId
+    )
+    const newProvider = providers.find(
+      (p) => p._id.toString() === newProviderId
+    )
+
+    // Validate the licensed state of two providers
+    if (
+      !oldProvider.licensedStates.every((state) =>
+        newProvider.licensedStates.includes(state)
+      )
+    ) {
+      throw new Error("Error: Providers must licensed in same state.")
+    }
+
+    // Pull old provider patients
+    const patients = await UserModel.find({
+      provider: oldProviderId,
+      role: Role.Patient,
+    })
+
+    // Validate Sendbird User existence for the providers
+    for (const provider of providers) {
+      const sendbirdUser = await findSendBirdUser(provider._id.toString())
+      if (!sendbirdUser) {
+        const user_id = await createSendBirdUser({
+          user_id: provider._id.toString(),
+          nickname: `${provider.firstName} ${provider.lastName}`,
+          profile_url: "",
+          profile_file: "",
+        })
+
+        console.log(`Sendbird user has created for provider ${user_id}`)
+      }
+    }
+
+    const records = []
+    // Remove provider from the patient sendbird channel
+    for (const patient of patients) {
+      const channels = await getSendBirdUserChannels(patient._id.toString())
+      if (!channels.length) {
+        console.log(
+          "Skipping patient - No Sendbird channel:",
+          patient._id.toString()
+        )
+        continue
+      }
+
+      for (const channel of channels) {
+        await leaveUserFromChannel(channel.channel_url, [
+          oldProvider._id.toString(),
+        ])
+        await inviteUserToChannel({
+          channel_url: channel.channel_url,
+          user_id: null,
+          provider_id: newProvider._id.toString(),
+          autoInvite: false,
+        })
+
+        // Reassign the patient to new provider
+        patient.provider = newProviderId.toString()
+        await patient.save()
+
+        records.push({
+          oldProvider: oldProviderId,
+          newProvider: newProviderId,
+          channel: channel.channel_url,
+          patient: patient.name,
+        })
+      }
+    }
+
+    // Export a report
+    if (records.length > 0) {
+      const csvWriter = createObjectCsvWriter({
+        path: `${Date.now()}-sendbird-invite-fixer-report.csv`,
+        header: [
+          { id: "oldProvider", title: "Old Provider" },
+          { id: "newProvider", title: "New Provider" },
+          { id: "patient", title: "Patient" },
+          { id: "channel", title: "Sendbird Channel" },
+        ],
+      })
+
+      await csvWriter.writeRecords(records)
+
+      console.log("Transfer report is ready!")
     }
   }
 }

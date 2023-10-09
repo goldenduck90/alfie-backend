@@ -2,6 +2,7 @@ import dotenv from "dotenv"
 dotenv.config()
 import * as Sentry from "@sentry/node"
 import * as express from "express"
+import { createObjectCsvWriter } from "csv-writer"
 import axios from "axios"
 import config from "config"
 import { User, UserModel } from "../schema/user.schema"
@@ -98,6 +99,27 @@ export const createSendBirdEntity = async <T>(
 }
 
 /**
+ * Updates a sendbird entity with the given url and parameters, returning the object.
+ */
+export const updateSendBirdEntity = async <T>(
+  url: string,
+  params: Record<string, any> = {},
+  errorMessage?: string
+): Promise<T> => {
+  try {
+    const { data } = await sendBirdInstance.put(url, params)
+    return data
+  } catch (error) {
+    console.error(
+      errorMessage ?? "Error in updateSendBirdEntity: ",
+      error?.message ?? error
+    )
+    Sentry.captureException(error)
+    return null
+  }
+}
+
+/**
  * Deletes a sendbird entity with the given url and parameters.
  */
 export const deleteSendBirdEntity = async (url: string) => {
@@ -174,12 +196,17 @@ export const deleteSendBirdUser = async (user_id: string) =>
  * @returns {string} The user id.
  * @see https://sendbird.com/docs/chat/v3/platform-api/user/creating-users/create-a-user#2-responses
  */
-export const createSendBirdUser = async (
-  user_id: string,
-  nickname: string,
-  profile_url: string,
+export const createSendBirdUser = async ({
+  user_id,
+  nickname,
+  profile_url,
+  profile_file,
+}: {
+  user_id: string
+  nickname: string
+  profile_url: string
   profile_file: string
-): Promise<string | null> => {
+}): Promise<string | null> => {
   // check if user exists
   const existingData = await findSendBirdUser(user_id)
   if (existingData && existingData.user_id) {
@@ -213,10 +240,13 @@ export const createSendBirdUser = async (
  * @returns The channel URL. A channel object and the full response object can be found here
  * @see https://sendbird.com/docs/chat/v3/platform-api/channel/creating-a-channel/create-a-group-channel#2-responses
  */
-export const createSendBirdChannelForNewUser = async (
-  user_id: string,
+export const createSendBirdChannelForNewUser = async ({
+  user_id,
+  nickname,
+}: {
+  user_id: string
   nickname: string
-): Promise<Channel | null> => {
+}): Promise<Channel | null> => {
   // check if there is a channel with the user as a member
   const channels = await getSendBirdUserChannels(user_id)
 
@@ -255,21 +285,97 @@ export const deleteSendBirdChannel = async (channel_url: string) =>
   await deleteSendBirdEntity(`/v3/group_channels/${channel_url}`)
 
 /**
+ * Remove the given user from the chanel
+ *
+ * @returns A chnnel object.
+ * @see https://sendbird.com/docs/chat/platform-api/v3/channel/managing-a-channel/leave-a-channel
+ */
+export const leaveUserFromChannel = async (
+  channel_url: string,
+  users: string[]
+) => {
+  const channel = await getSendBirdChannel(channel_url)
+  // Trigger only remove members already in the channel
+  const user_ids = users.filter(
+    (userId) =>
+      userId && channel.members?.some((member) => member.user_id === userId)
+  )
+
+  // Leave users (returns the modified channel object).
+  if (user_ids.length > 0) {
+    const data = await updateSendBirdEntity<Channel>(
+      `/v3/group_channels/${channel_url}/leave`,
+      { user_ids }
+    )
+    if (data) {
+      console.log(
+        `Sendbird: Remove users ${user_ids} from channel ${channel_url}`
+      )
+    } else {
+      console.log("Sendbird: error in leaveUserFromChannel")
+    }
+  } else {
+    console.log(
+      `Sendbird: All users not exist in channel ${channel_url} (including ${users} and preset user IDs).`
+    )
+  }
+}
+
+/**
+ * Join the given user to a public channel
+ *
+ * @returns A chnnel object.
+ * @see https://sendbird.com/docs/chat/platform-api/v3/channel/managing-a-channel/leave-a-channel
+ */
+export const joinUserToChannel = async (
+  channel_url: string,
+  user_id: string
+) => {
+  const channel = await getSendBirdChannel(channel_url)
+
+  if (!channel.members.map((m) => m.user_id).includes(user_id)) {
+    // Join User.
+    const data = await updateSendBirdEntity<Channel>(
+      `/v3/group_channels/${channel_url}/join`,
+      { user_id }
+    )
+    if (data) {
+      console.log(`Sendbird: Join user ${user_id} to channel ${channel_url}`)
+    } else {
+      console.log("Sendbird: error in joinUserToChannel")
+    }
+  } else {
+    console.log(
+      `Sendbird: User ${user_id} already exist in channel ${channel_url}.`
+    )
+  }
+}
+
+/**
  * Invites the given user to the given channel.
  *
  * @returns A channel object.
  * @see https://sendbird.com/docs/chat/v3/platform-api/channel/inviting-a-user/invite-as-members-channel#2-response
  */
-export const inviteUserToChannel = async (
-  channel_url: string,
-  user_id: string,
+export const inviteUserToChannel = async ({
+  channel_url,
+  user_id,
+  provider_id,
+  autoInvite = true,
+}: {
+  channel_url: string
+  user_id: string
   /** The user's provider. */
-  provider: string
-): Promise<Channel | null> => {
+  provider_id: string
+  autoInvite?: boolean
+}): Promise<Channel | null> => {
   const channel = await getSendBirdChannel(channel_url)
 
   // only invite members not already in the channel
-  const user_ids = [user_id, provider, ...sendbirdAutoinviteUsers].filter(
+  const invite_users = autoInvite
+    ? [user_id, provider_id, ...sendbirdAutoinviteUsers]
+    : [user_id, provider_id]
+  const user_ids = invite_users.filter(
     (userId) =>
       userId && !channel.members?.some((member) => member.user_id === userId)
   )
@@ -284,7 +390,7 @@ export const inviteUserToChannel = async (
     )
     if (data) {
       console.log(
-        `Sendbird: Invited user ${user_id} to channel ${data.channel_url}`
+        `Sendbird: Invited user ${user_id} and provider ${provider_id} to channel ${data.channel_url}`
       )
       return data
     } else {
@@ -293,7 +399,7 @@ export const inviteUserToChannel = async (
     }
   } else {
     console.log(
-      `Sendbird: All users already added to channel ${channel_url} (including ${user_id}, ${provider} and preset user IDs).`
+      `Sendbird: All users already added to channel ${channel_url} (including ${user_id}, ${provider_id} and preset user IDs).`
     )
   }
 }
@@ -382,24 +488,28 @@ export const triggerEntireSendBirdFlow = async ({
   nickname,
   profile_file,
   profile_url,
-  provider,
+  provider_id,
   user_id,
 }: {
   user_id: string
   nickname: string
   profile_url: string
   profile_file: string
-  provider: string
+  provider_id: string
 }): Promise<boolean> => {
   try {
     // create the sendbird user
-    await createSendBirdUser(user_id, nickname, profile_url, profile_file)
+    await createSendBirdUser({ user_id, nickname, profile_url, profile_file })
 
     // create a channel for the user, or return the existing channel
-    const channel = await createSendBirdChannelForNewUser(user_id, nickname)
+    const channel = await createSendBirdChannelForNewUser({ user_id, nickname })
 
-    // ensure that the provider and autoinvite users have been added to the channel
-    await inviteUserToChannel(channel.channel_url, user_id, provider)
+    // ensure that the provider and auto-invite users have been added to the channel
+    await inviteUserToChannel({
+      channel_url: channel.channel_url,
+      user_id,
+      provider_id,
+    })
 
     // send a welcome message to the channel in production
     if (process.env.NODE_ENV === "production") {
@@ -444,7 +554,11 @@ export const initializeSendBirdWebhook = (app: express.Application) => {
       const members = req.body.members as Member[]
 
       try {
-        const users = (
+        const possibleSender =
+          (await UserModel.findOne({ _id: sender.user_id })) ||
+          (await ProviderModel.findOne({ _id: sender.user_id }))
+
+        const recipients = (
           await Promise.all(
             members.map(async (member) => {
               return (
@@ -453,13 +567,61 @@ export const initializeSendBirdWebhook = (app: express.Application) => {
               )
             })
           )
-        ).filter((user) => user)
+        ).filter(
+          (user) => user && String(user._id) !== String(possibleSender._id)
+        )
 
-        const possibleSender = await UserModel.findOne({ _id: sender.user_id })
         if (possibleSender?.role === Role.Patient) {
-          const recipients = users
-            .filter((user) => String(user._id) !== String(possibleSender._id))
-            .map((user) => user.email)
+          // Send the message from patient to health coach or practitioner via  email
+          await emailService.sendEmail(
+            `Unread Messages in Channel by ${sender.nickname}`,
+            `
+              You have unread messages from ${sender.nickname}
+              <br />
+              <br />
+              Sender: ${sender.nickname}
+              <br />
+              <br />
+              Message: ${message}
+              .          
+            `,
+            recipients.map((recipient) => recipient.email)
+          )
+
+          return res.sendStatus(200)
+        } else {
+          // Send the message to patient via email
+          const patient = recipients
+            .map((recipient) => recipient as any as User)
+            .find((user) => user.role && user.role === Role.Patient)
+
+          await emailService.sendEmail(
+            "New Message from your Care Team",
+            `
+                Hi ${patient.name},
+  
+                You have a new message from your Care Team. To read it, simply click the button below:
+                <br />
+                <br />
+  
+                <a href="https://app.joinalfie.com/dashboard/chat">Read Message</a>
+  
+                <br />
+                <br />
+  
+                If you have any questions, let us know through the messaging portal!
+  
+                <br />
+                <br />
+                Your Care Team
+              `,
+            [patient.email]
+          )
+
+          // Send the message to rest of members in the channel via email
+          const nonPatients = recipients
+            .map((recipient) => recipient as any as User)
+            .filter((user) => user.role && user.role !== Role.Patient)
 
           await emailService.sendEmail(
             `Unread Messages in Channel by ${sender.nickname}`,
@@ -473,43 +635,7 @@ export const initializeSendBirdWebhook = (app: express.Application) => {
               Message: ${message}
               .          
             `,
-            recipients
-          )
-
-          return res.sendStatus(200)
-        } else {
-          // this is an admin, health coach or practitioner so we just send the email to the patient
-          const recipients = users
-            .map((user) => user as any as User)
-            .filter(
-              (user) =>
-                user.role &&
-                user.role !== Role.Practitioner &&
-                user.role !== Role.Admin &&
-                user.role !== Role.HealthCoach
-            )
-
-          await emailService.sendEmail(
-            "New Message from your Care Team",
-            `
-              Hi ${recipients[0]?.name},
-
-              You have a new message from your Care Team. To read it, simply click the button below:
-              <br />
-              <br />
-
-              <a href="https://app.joinalfie.com/dashboard/chat">Read Message</a>
-
-              <br />
-              <br />
-
-              If you have any questions, let us know through the messaging portal!
-
-              <br />
-              <br />
-              Your Care Team
-            `,
-            recipients.map(({ email }) => email)
+            nonPatients.map((recipient) => recipient.email)
           )
         }
 
@@ -525,6 +651,95 @@ export const initializeSendBirdWebhook = (app: express.Application) => {
       }
     }
   )
+}
+
+/** Check auto invite users list from Sendbird Channel given user */
+export const validateAutoInvitesWithInUserSendbirdChannel = async (options: {
+  userId?: string // Specific user email or ID to validate
+}) => {
+  console.log(options)
+  try {
+    console.log(
+      "Sendbird: Synchronizing auto invitations state with the database."
+    )
+    console.log(
+      `Sendbird: Autoinvite users: ${sendbirdAutoinviteUsers.join(", ")}`
+    )
+
+    // Pull the all users if there is any specific user query
+    const users = await UserModel.find({
+      sendbirdChannelUrl: { $ne: null },
+    })
+    const autoInviteUsers = await UserModel.find({
+      _id: { $in: sendbirdAutoinviteUsers },
+    }).populate<{ provider: Provider }>("provider")
+
+    if (users.length && autoInviteUsers.length) {
+      // Collect data to export a report
+      const invitations = []
+
+      for (const user of users) {
+        // Pull channel users
+        const userChannels = await getSendBirdUserChannels(user._id.toString())
+        for (let i = 0; i < userChannels.length; i++) {
+          const channel = userChannels[i]
+          const channelMembers = channel.members.map((m) => m.user_id)
+          const missingAutoInviteUsers = sendbirdAutoinviteUsers.filter(
+            (au) => !channelMembers.includes(au)
+          )
+          // Detected missing sendbird auto invite users
+          if (missingAutoInviteUsers.length > 0) {
+            // ensure that the provider and autoinvite users have been added to the channel
+            for (let j = 0; j < missingAutoInviteUsers.length; j++) {
+              const missedUserId = missingAutoInviteUsers[j]
+              // Validate is auto invite user exists in database
+              const autoInviteUser = autoInviteUsers.find(
+                (au) => au.id === missedUserId
+              )
+              if (autoInviteUser) {
+                const invitedChannel = await inviteUserToChannel({
+                  channel_url: channel.channel_url,
+                  user_id: autoInviteUser._id,
+                  provider_id: autoInviteUser.provider._id,
+                })
+                invitations.push({
+                  user: autoInviteUser.name,
+                  channelUser: user.name,
+                  channel: invitedChannel.channel_url,
+                  invitedAt: new Date().toISOString(),
+                })
+              } else {
+                console.warn(`Auto invite user doesn't exist: ${missedUserId}`)
+              }
+            }
+          } else {
+            console.log("All of Sendbird auto invite user already invited.")
+          }
+        }
+      }
+
+      if (invitations.length > 0) {
+        const csvWriter = createObjectCsvWriter({
+          path: `${Date.now()}-sendbird-invite-fixer-report.csv`,
+          header: [
+            { id: "user", title: "Invited User" },
+            { id: "channelUser", title: "Channel Owner" },
+            { id: "channel", title: "Channel" },
+            { id: "invitedAt", title: "Invite Date" },
+          ],
+        })
+
+        await csvWriter.writeRecords(invitations)
+
+        console.log("Auto Invitations Report is Ready!")
+      }
+    }
+  } catch (e) {
+    console.log(
+      e,
+      "Sendbird: Error in validateAutoInvitesWithInUserSendbirdChannel"
+    )
+  }
 }
 
 /** Recreates the entire sendbird state, including users (patients and providers), and channels. */
@@ -704,12 +919,12 @@ export const findAndTriggerEntireSendBirdFlowForAllUsersAndProvider =
         )
         await batchAsync(
           providersToCreate.map((provider) => async () => {
-            await createSendBirdUser(
-              provider._id.toString(),
-              `${provider.firstName} ${provider.lastName}`,
-              "",
-              ""
-            )
+            await createSendBirdUser({
+              user_id: provider._id.toString(),
+              nickname: `${provider.firstName} ${provider.lastName}`,
+              profile_url: "",
+              profile_file: "",
+            })
             await new Promise((resolve) => setTimeout(resolve, 2000))
           }),
           { batchSize: sendbirdBatchSize }
@@ -730,12 +945,17 @@ export const findAndTriggerEntireSendBirdFlowForAllUsersAndProvider =
               nickname: user.name,
               profile_file: "",
               profile_url: "",
-              provider: user.provider._id.toString(),
+              provider_id: user.provider._id.toString(),
               user_id: userId,
             })
           } else {
             // just create the user for other types of users
-            await createSendBirdUser(userId, user.name, "", "")
+            await createSendBirdUser({
+              user_id: userId,
+              nickname: user.name,
+              profile_url: "",
+              profile_file: "",
+            })
           }
           // 10 second delay between batches
           await new Promise((resolve) => setTimeout(resolve, 10000))

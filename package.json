@@ -11,13 +11,15 @@
     "test:snapshots": "cross-env NODE_ENV=development jest --updateSnapshot",
     "provider:fix-count": "cross-env NODE_ENV=production ts-node-dev --respawn --transpile-only src/fixProviderPatientCount.ts",
     "provider:fix-assignment": "cross-env NODE_ENV=production ts-node-dev --respawn --transpile-only src/fixProviderPatientAssignment.ts",
+    "provider:replace": "cross-env NODE_ENV=production ts-node ./scripts/transferProviderPatients.ts",
     "format": "prettier --check . --config ./.prettierrc",
     "format:fix": "prettier --write . --config ./.prettierrc",
     "lint": "eslint . --ext .js,.ts",
     "lint:fix": "npm run lint -- --fix",
     "tsc": "tsc --noEmit --project ./tsconfig.json",
     "prepare": "husky install && npx husky add .husky/pre-commit \"node_modules/.bin/lint-staged\"",
-    "sendbird:sync": "cross-env NODE_ENV=production ts-node ./scripts/synchronizeSendbird.ts"
+    "sendbird:sync": "cross-env NODE_ENV=production ts-node ./scripts/synchronizeSendbird.ts",
+    "sendbird:sync_members": "cross-env NODE_ENV=production ts-node ./scripts/fixSendbirdCannelDiscrepancy.ts"
   },
   "author": "",
   "license": "ISC",

@@ -78,12 +78,12 @@ class ProviderService {
 
     for (const provider of providersCreated) {
       // create sendbird user
-      const sendBirdId = await createSendBirdUser(
-        provider._id,
-        `${provider.firstName} ${provider.lastName}`,
-        "",
-        ""
-      )
+      const sendBirdId = await createSendBirdUser({
+        user_id: provider._id,
+        nickname: `${provider.firstName} ${provider.lastName}`,
+        profile_url: "",
+        profile_file: "",
+      })
       if (!sendBirdId) {
         console.log(
           `Error occurred creating sendbird ID for provider: ${provider._id}`

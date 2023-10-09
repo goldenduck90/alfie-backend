@@ -81,7 +81,6 @@ async function bootstrap() {
     "/metriportWebhooks",
     express.json(),
     async (req: Request, res: Response) => {
-      console.log(req.body)
       try {
         const key = req.get("x-webhook-key")
         if (key !== process.env.METRIPORT_WEBHOOK_KEY) {
@@ -102,6 +101,8 @@ async function bootstrap() {
           })
         }
 
+        console.log(JSON.stringify(req.body))
+
         switch (meta.type) {
           case "devices.provider-connected":
             await Promise.all(
@@ -118,10 +119,14 @@ async function bootstrap() {
               users.map(async (metriportUser: MetriportUser) => {
                 const { userId, body } = metriportUser
                 if (body?.[0]?.weight_samples_kg) {
-                  const weightLbs = Math.floor(body[0].weight_samples_kg * 2.2)
+                  const weightLbs = Math.floor(
+                    body[0].weight_samples_kg[0].value * 2.2
+                  )
+                  const timeCompleted = body[0].weight_samples_kg[0].time
                   await userService.processWithingsScaleReading(
                     userId,
-                    weightLbs
+                    weightLbs,
+                    timeCompleted
                   )
                 }
               })

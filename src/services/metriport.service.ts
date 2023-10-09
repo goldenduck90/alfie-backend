@@ -7,7 +7,16 @@ export interface MetriportUser {
   userId: string
   providers?: string[]
   body?: {
-    weight_samples_kg?: number
+    weight_samples_kg?: {
+      time: Date
+      value: number
+      date_source: {
+        id?: string | null
+        name?: string | null
+        type?: string | null
+        source_type?: string | null
+      }
+    }[]
   }[]
 }
 class MetriportService {

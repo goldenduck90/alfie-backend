@@ -75,7 +75,13 @@ export default class UserResolver {
     return { role: context.user.role }
   }
 
-  @Authorized([Role.Doctor, Role.Admin, Role.Practitioner, Role.HealthCoach])
+  @Authorized([
+    Role.Doctor,
+    Role.Admin,
+    Role.Practitioner,
+    Role.HealthCoach,
+    Role.CareCoordinator,
+  ])
   @Query(() => User)
   generateSummary(@Arg("userId") userId: string) {
     return this.userService.generateProtocolSummary(userId)
@@ -91,26 +97,43 @@ export default class UserResolver {
     return this.userService.getUser(userId)
   }
 
-  @Authorized([Role.Admin, Role.HealthCoach])
+  @Authorized([Role.Admin, Role.HealthCoach, Role.CareCoordinator])
   @Query(() => [User])
   users() {
     return this.userService.getAllUsers()
   }
 
-  @Authorized([Role.Practitioner, Role.Doctor, Role.HealthCoach])
+  @Authorized([
+    Role.Practitioner,
+    Role.Doctor,
+    Role.HealthCoach,
+    Role.CareCoordinator,
+  ])
   // Query returns an array of User and a custom field called tasks
   @Query(() => [User])
   getAllPatientsByProvider(@Ctx() context: Context) {
     return this.userService.getAllUsersByAProvider(context.user._id)
   }
 
-  @Authorized([Role.Practitioner, Role.Doctor, Role.Admin, Role.HealthCoach])
+  @Authorized([
+    Role.Practitioner,
+    Role.Doctor,
+    Role.Admin,
+    Role.HealthCoach,
+    Role.CareCoordinator,
+  ])
   // Query returns an array of User and a custom field called tasks
   @Query(() => [User])
   getAllPatientsByHealthCoach() {
     return this.userService.getAllUsersByAHealthCoach()
   }
-  @Authorized([Role.Doctor, Role.Admin, Role.Practitioner, Role.HealthCoach])
+  @Authorized([
+    Role.Doctor,
+    Role.Admin,
+    Role.Practitioner,
+    Role.HealthCoach,
+    Role.CareCoordinator,
+  ])
   @Query(() => [UserTask])
   getAllUserTasksByUser(@Arg("userId") userId: string) {
     return this.userService.getAllUserTasksByUser(userId)
@@ -166,7 +189,8 @@ export default class UserResolver {
   async recordScaleReading(@Arg("input") input: ScaleReadingInput) {
     const { user } = await this.userService.processWithingsScaleReading(
       input.metriportUserId,
-      input.weightLbs
+      input.weightLbs,
+      input.time
     )
     return user
   }
