@@ -1294,7 +1294,14 @@ class UserService extends EmailService {
         subscriptionExpiresAt: expiresAt,
         stripeSubscriptionId,
         textOptIn: checkout.textOptIn,
-        insurance: checkout.insurance,
+        insurance:
+          checkout.insurance &&
+          checkout.insurance?.status !== InsuranceStatus.NOT_ACTIVE
+            ? {
+                ...checkout.insurance,
+                insurance: checkout.insurance.insurance.toString(),
+              }
+            : undefined,
         signupPartnerId: checkout.signupPartner.toString(),
         signupPartnerProviderId: checkout.signupPartnerProvider.toString(),
       })
@@ -1494,7 +1501,14 @@ class UserService extends EmailService {
       weightInLbs: checkout.weightInLbs,
       gender: checkout.gender,
       heightInInches: checkout.heightInInches,
-      insurance: checkout.insurance,
+      insurance:
+        checkout.insurance &&
+        checkout.insurance?.status !== InsuranceStatus.NOT_ACTIVE
+          ? {
+              ...checkout.insurance,
+              insurance: checkout.insurance.insurance.toString(),
+            }
+          : undefined,
       signupPartnerId: checkout.signupPartner?.toString(),
       signupPartnerProviderId: checkout.signupPartnerProvider?.toString(),
     }
@@ -2062,7 +2076,14 @@ class UserService extends EmailService {
           stripeCustomerId: checkoutId,
           stripePaymentIntentId: null,
           stripeSubscriptionId: null,
-          insurance: pICheckout.insurance,
+          insurance:
+            pICheckout.insurance &&
+            pICheckout.insurance?.status !== InsuranceStatus.NOT_ACTIVE
+              ? {
+                  ...pICheckout.insurance,
+                  insurance: pICheckout.insurance.insurance.toString(),
+                }
+              : undefined,
           signupPartnerId: pICheckout.signupPartner?.toString(),
           signupPartnerProviderId: pICheckout.signupPartnerProvider?.toString(),
         })

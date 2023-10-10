@@ -1,4 +1,4 @@
-import { InsuranceDetails } from "./insurance.schema"
+import { InsuranceDetailsInput } from "./insurance.schema"
 import { Address } from "./user.schema"
 import { Field, InputType } from "type-graphql"
 
@@ -44,8 +44,8 @@ export class PatientModifyInput {
   @Field()
   address: Address
   // insurance should not be required
-  @Field(() => InsuranceDetails, { nullable: true })
-  insurance?: InsuranceDetails
+  @Field(() => InsuranceDetailsInput, { nullable: true })
+  insurance?: InsuranceDetailsInput
 }
 
 @InputType()

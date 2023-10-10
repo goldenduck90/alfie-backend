@@ -1,51 +1,311 @@
 [
   {
-    "plan": "AETNA",
-    "type": null,
-    "state": "VA",
-    "provider": "634f85f8ed227ada5a4c1414",
-    "covered": true
+    "name": "Aetna",
+    "states": [
+      {
+        "state": "VA",
+        "status": "ACTIVE",
+        "types": ["EPO", "POS", "PPO"],
+        "npi": "1104538826",
+        "cpid": "60054",
+        "providers": ["634f85f8ed227ada5a4c1414"]
+      },
+      {
+        "state": "MD",
+        "status": "ACTIVE",
+        "types": ["EPO", "POS", "PPO"],
+        "npi": "1104538826",
+        "cpid": "60054",
+        "providers": ["634f85f8ed227ada5a4c1414"]
+      },
+      {
+        "state": "TX",
+        "status": "ACTIVE",
+        "types": ["EPO", "POS", "PPO"],
+        "npi": "1104538826",
+        "cpid": "60054",
+        "providers": ["634f85f8ed227ada5a4c1414"]
+      },
+      {
+        "state": "FL",
+        "status": "ACTIVE",
+        "types": ["EPO", "POS", "PPO"],
+        "npi": "1497469175",
+        "cpid": "60054",
+        "providers": ["634f85f8ed227ada5a4c1414"]
+      },
+      {
+        "state": "MS",
+        "status": "ACTIVE",
+        "types": ["EPO", "POS", "PPO"],
+        "npi": "1497469175",
+        "cpid": "60054",
+        "providers": ["634f85f8ed227ada5a4c1414"]
+      },
+      {
+        "state": "NY",
+        "status": "ACTIVE",
+        "types": ["EPO", "POS", "PPO"],
+        "npi": "1871207555",
+        "cpid": "60054",
+        "providers": ["634f85f8ed227ada5a4c1414"]
+      },
+      {
+        "state": "NJ",
+        "status": "ACTIVE",
+        "types": ["EPO", "POS", "PPO"],
+        "npi": "1871207555",
+        "cpid": "60054",
+        "providers": ["634f85f8ed227ada5a4c1414"]
+      }
+    ]
   },
   {
-    "plan": "UNITED_HEALTHCARE",
-    "type": null,
-    "state": "NJ",
-    "provider": "635853c1ed227ada5a02770a",
-    "covered": true
+    "name": "United Healthcare",
+    "states": [
+      {
+        "state": "VA",
+        "status": "ACTIVE",
+        "types": ["EPO", "POS", "PPO"],
+        "npi": "1104538826",
+        "cpid": "87726",
+        "providers": ["634f85f8ed227ada5a4c1414"]
+      },
+      {
+        "state": "MD",
+        "status": "ACTIVE",
+        "types": ["EPO", "POS", "PPO"],
+        "npi": "1104538826",
+        "cpid": "87726",
+        "providers": ["634f85f8ed227ada5a4c1414"]
+      },
+      {
+        "state": "TX",
+        "status": "ACTIVE",
+        "types": ["EPO", "POS", "PPO"],
+        "npi": "1104538826",
+        "cpid": "87726",
+        "providers": ["634f85f8ed227ada5a4c1414"]
+      },
+      {
+        "state": "FL",
+        "status": "ACTIVE",
+        "types": ["EPO", "POS", "PPO"],
+        "npi": "1497469175",
+        "cpid": "87726",
+        "providers": ["634f85f8ed227ada5a4c1414"]
+      },
+      {
+        "state": "MS",
+        "status": "ACTIVE",
+        "types": ["EPO", "POS", "PPO"],
+        "npi": "1497469175",
+        "cpid": "87726",
+        "providers": ["634f85f8ed227ada5a4c1414"]
+      },
+      {
+        "state": "NY",
+        "status": "ACTIVE",
+        "types": ["EPO", "POS", "PPO"],
+        "npi": "1871207555",
+        "cpid": "87726",
+        "providers": ["634f85f8ed227ada5a4c1414"]
+      },
+      {
+        "state": "NJ",
+        "status": "ACTIVE",
+        "types": ["EPO", "POS", "PPO"],
+        "npi": "1871207555",
+        "cpid": "87726",
+        "providers": ["634f85f8ed227ada5a4c1414"]
+      }
+    ]
   },
   {
-    "plan": "UNITED_HEALTHCARE",
-    "type": null,
-    "state": "NJ",
-    "provider": "63b38309c3f369a649ff40ef",
-    "covered": true
+    "name": "Cigna",
+    "states": [
+      {
+        "state": "VA",
+        "status": "ACTIVE",
+        "types": ["EPO", "POS", "PPO"],
+        "npi": "1104538826",
+        "cpid": "62308",
+        "providers": ["634f85f8ed227ada5a4c1414"]
+      },
+      {
+        "state": "MD",
+        "status": "ACTIVE",
+        "types": ["EPO", "POS", "PPO"],
+        "npi": "1104538826",
+        "cpid": "62308",
+        "providers": ["634f85f8ed227ada5a4c1414"]
+      },
+      {
+        "state": "TX",
+        "status": "ACTIVE",
+        "types": ["EPO", "POS", "PPO"],
+        "npi": "1104538826",
+        "cpid": "62308",
+        "providers": ["634f85f8ed227ada5a4c1414"]
+      },
+      {
+        "state": "FL",
+        "status": "ACTIVE",
+        "types": ["EPO", "POS", "PPO"],
+        "npi": "1497469175",
+        "cpid": "62308",
+        "providers": ["634f85f8ed227ada5a4c1414"]
+      },
+      {
+        "state": "MS",
+        "status": "ACTIVE",
+        "types": ["EPO", "POS", "PPO"],
+        "npi": "1497469175",
+        "cpid": "62308",
+        "providers": ["634f85f8ed227ada5a4c1414"]
+      },
+      {
+        "state": "NY",
+        "status": "ACTIVE",
+        "types": ["EPO", "POS", "PPO"],
+        "npi": "1871207555",
+        "cpid": "62308",
+        "providers": ["634f85f8ed227ada5a4c1414"]
+      },
+      {
+        "state": "NJ",
+        "status": "ACTIVE",
+        "types": ["EPO", "POS", "PPO"],
+        "npi": "1871207555",
+        "cpid": "62308",
+        "providers": ["634f85f8ed227ada5a4c1414"]
+      }
+    ]
   },
   {
-    "plan": "AETNA",
-    "type": null,
-    "state": "MD",
-    "provider": "63b38309c3f369a649ff40ef",
-    "covered": true
+    "name": "Blue Cross Blue Shield",
+    "states": [
+      {
+        "state": "FL",
+        "status": "ACTIVE",
+        "types": ["EPO", "POS", "PPO"],
+        "npi": "1104538826",
+        "cpid": "02426",
+        "providers": ["634f85f8ed227ada5a4c1414"]
+      }
+    ]
   },
   {
-    "plan": "CAREFIRST_BCBS",
-    "type": null,
-    "state": "MD",
-    "provider": "63b38309c3f369a649ff40ef",
-    "covered": true
+    "name": "Carefirst BCBS",
+    "states": [
+      {
+        "state": "MD",
+        "status": "ACTIVE",
+        "types": ["EPO", "POS", "PPO"],
+        "npi": "1104538826",
+        "cpid": "00690",
+        "providers": ["634f85f8ed227ada5a4c1414"]
+      }
+    ]
   },
   {
-    "plan": "UNITED_HEALTHCARE",
-    "type": null,
-    "state": "MD",
-    "provider": "63b38309c3f369a649ff40ef",
-    "covered": true
+    "name": "Anthem Blue Cross",
+    "states": [
+      {
+        "state": "VA",
+        "status": "ACTIVE",
+        "types": ["EPO", "POS", "PPO"],
+        "npi": "1104538826",
+        "cpid": "47198",
+        "providers": ["634f85f8ed227ada5a4c1414"]
+      }
+    ]
   },
   {
-    "plan": "UNITED_HEALTHCARE",
-    "type": null,
-    "state": "MD",
-    "provider": "634f85f8ed227ada5a4c140b",
-    "covered": true
+    "name": "Horizon BCBS",
+    "states": [
+      {
+        "state": "NJ",
+        "status": "ACTIVE",
+        "types": ["EPO", "POS", "PPO"],
+        "npi": "1871207555",
+        "cpid": "22099",
+        "providers": ["634f85f8ed227ada5a4c1414"]
+      }
+    ]
+  },
+  {
+    "name": "Empire BCBS",
+    "states": [
+      {
+        "state": "NY",
+        "status": "ACTIVE",
+        "types": ["EPO", "POS", "PPO"],
+        "npi": "1871207555",
+        "cpid": "00803",
+        "providers": ["634f85f8ed227ada5a4c1414"]
+      }
+    ]
+  },
+  {
+    "name": "Medicare",
+    "states": [
+      {
+        "state": "NY",
+        "status": "ACTIVE",
+        "types": ["MEDICARE"],
+        "npi": "1871207555",
+        "cpid": "13292",
+        "providers": ["634f85f8ed227ada5a4c1414"]
+      },
+      {
+        "state": "FL",
+        "status": "ACTIVE",
+        "types": ["MEDICARE"],
+        "npi": "1497469175",
+        "cpid": "09102",
+        "providers": ["634f85f8ed227ada5a4c1414"]
+      },
+      {
+        "state": "NJ",
+        "status": "ACTIVE",
+        "types": ["MEDICARE"],
+        "npi": "1871207555",
+        "cpid": "12402",
+        "providers": ["634f85f8ed227ada5a4c1414"]
+      },
+      {
+        "state": "VA",
+        "status": "ACTIVE",
+        "types": ["MEDICARE"],
+        "npi": "1104538826",
+        "cpid": "11302",
+        "providers": ["634f85f8ed227ada5a4c1414"]
+      },
+      {
+        "state": "MD",
+        "status": "ACTIVE",
+        "types": ["MEDICARE"],
+        "npi": "1104538826",
+        "cpid": "12302",
+        "providers": ["634f85f8ed227ada5a4c1414"]
+      },
+      {
+        "state": "TX",
+        "status": "ACTIVE",
+        "types": ["MEDICARE"],
+        "npi": "1104538826",
+        "cpid": "04412",
+        "providers": ["634f85f8ed227ada5a4c1414"]
+      },
+      {
+        "state": "MS",
+        "status": "ACTIVE",
+        "types": ["MEDICARE"],
+        "npi": "1497469175",
+        "cpid": "07302",
+        "providers": ["634f85f8ed227ada5a4c1414"]
+      }
+    ]
   }
 ]

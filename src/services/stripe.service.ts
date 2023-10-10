@@ -270,7 +270,14 @@ export default class StripeService {
         stripeCustomerId: customerId,
         stripeSubscriptionId: subscriptionId,
         subscriptionExpiresAt: new Date(),
-        insurance: checkout.insurance,
+        insurance:
+          checkout.insurance &&
+          checkout.insurance?.status !== InsuranceStatus.NOT_ACTIVE
+            ? {
+                ...checkout.insurance,
+                insurance: checkout.insurance.insurance.toString(),
+              }
+            : undefined,
         signupPartnerId: checkout.signupPartner?.toString(),
         signupPartnerProviderId: checkout.signupPartnerProvider?.toString(),
       })
@@ -453,7 +460,14 @@ export default class StripeService {
         stripeCustomerId: customerId,
         stripePaymentIntentId: paymentIntentId,
         stripeSubscriptionId: null,
-        insurance: checkout.insurance,
+        insurance:
+          checkout.insurance &&
+          checkout.insurance?.status !== InsuranceStatus.NOT_ACTIVE
+            ? {
+                ...checkout.insurance,
+                insurance: checkout.insurance.insurance.toString(),
+              }
+            : undefined,
         signupPartnerId: checkout.signupPartner?.toString(),
         signupPartnerProviderId: checkout.signupPartnerProvider?.toString(),
       })

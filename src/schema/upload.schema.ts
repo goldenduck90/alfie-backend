@@ -1,6 +1,7 @@
 import { Field, ObjectType } from "type-graphql"
 import { InsuranceType } from "./insurance.schema"
 
+@ObjectType()
 export class InsuranceTextractDetails {
   @Field(() => String, { nullable: true })
   company: string

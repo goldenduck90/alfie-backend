@@ -14,7 +14,7 @@ export enum InsuranceType {
   POS = "POS",
   PPO = "PPO",
   HMO = "HMO",
-  Government = "GOVERNMENT_MEDICAID_TRICARE_CHIP",
+  MEDICARE = "MEDICARE",
 }
 
 registerEnumType(InsuranceType, {
@@ -84,7 +84,6 @@ export const InsuranceModel = getModelForClass<typeof Insurance>(Insurance, {
 })
 
 @ObjectType()
-@InputType("InsuranceDetailsInput")
 @ModelOptions({ schemaOptions: { _id: false } })
 export class InsuranceDetails {
   @Field(() => String)
@@ -95,8 +94,8 @@ export class InsuranceDetails {
   @prop({ required: true })
   groupId: string
 
-  @Field(() => Insurance, { nullable: true })
-  @prop({ ref: () => Insurance, type: String, required: true })
+  @Field(() => Insurance)
+  @prop({ ref: () => Insurance, required: true })
   insurance: Ref<Insurance>
 
   @Field(() => InsuranceStatus, { nullable: true })
@@ -158,6 +157,43 @@ export class InsuranceCheckResponse {
 }
 
 @InputType()
+export class InsuranceDetailsInput {
+  @Field(() => String)
+  memberId: string
+
+  @Field(() => String)
+  groupId: string
+
+  @Field(() => String)
+  insurance: string
+
+  @Field(() => InsuranceStatus, { nullable: true })
+  status?: InsuranceStatus
+
+  @Field(() => InsuranceType)
+  type: InsuranceType
+
+  /** The payer ID. */
+  @Field(() => String, { nullable: true })
+  payorId?: string
+
+  @Field(() => String, { nullable: true })
+  payorName?: string
+
+  @Field(() => String, { nullable: true })
+  groupName?: string
+
+  @Field(() => String, { nullable: true })
+  rxBIN?: string
+
+  @Field(() => String, { nullable: true })
+  rxPCN?: string
+
+  @Field(() => String, { nullable: true })
+  rxGroup?: string
+}
+
+@InputType()
 export class InsuranceCheckInput {
   @Field(() => String)
   checkoutId: string
@@ -165,6 +201,6 @@ export class InsuranceCheckInput {
   @Field(() => String)
   insuranceId: string
 
-  @Field(() => InsuranceDetails)
-  insurance: InsuranceDetails
+  @Field(() => InsuranceDetailsInput)
+  insurance: InsuranceDetailsInput
 }

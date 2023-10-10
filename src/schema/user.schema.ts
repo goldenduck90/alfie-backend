@@ -30,7 +30,7 @@ import {
 import { Provider } from "./provider.schema"
 import { SignupPartner, SignupPartnerProvider } from "./partner.schema"
 import Role from "./enums/Role"
-import { InsuranceDetails } from "./insurance.schema"
+import { InsuranceDetails, InsuranceDetailsInput } from "./insurance.schema"
 
 const {
   email: emailValidation,
@@ -674,8 +674,8 @@ export class CreateUserInput {
   })
   metriportUserId?: string
 
-  @Field(() => InsuranceDetails, { nullable: true })
-  insurance?: InsuranceDetails
+  @Field(() => InsuranceDetailsInput, { nullable: true })
+  insurance?: InsuranceDetailsInput
 
   @Field(() => String, { nullable: true })
   signupPartnerId?: string
