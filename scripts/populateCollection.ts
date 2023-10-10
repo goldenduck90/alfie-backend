@@ -17,7 +17,7 @@ const collectionsMap = {
     rawData: insuranceData,
     model: InsuranceModel,
     type: Insurance,
-    getKey: (insurance: Insurance) => insurance._id,
+    getKey: (insurance: Insurance) => insurance.name,
   },
 }
 
