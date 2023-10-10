@@ -1,5 +1,6 @@
 import { ApolloError } from "apollo-server-errors"
-import { Address, Insurance, UserModel } from "./../schema/user.schema"
+import { Address, UserModel } from "./../schema/user.schema"
+import { InsuranceDetails } from "../schema/insurance.schema"
 interface PatientReassignInput {
   patientId: string
   newProviderId: string
@@ -18,7 +19,7 @@ interface PatientModifyInput {
   phoneNumber: string
   gender: string
   address: Address
-  insurance: Insurance
+  insurance?: InsuranceDetails
 }
 
 interface ProviderModifyInput {
@@ -77,9 +78,9 @@ class InternalOperationsService {
       )
     }
   }
+
   async internalPatientModify(input: PatientModifyInput) {
     try {
-      console.log("input", input)
       const {
         name,
         dateOfBirth,
@@ -89,12 +90,14 @@ class InternalOperationsService {
         address: { line1, city, state, postalCode },
         insurance: {
           memberId,
-          insuranceCompany,
           groupId,
           groupName,
           rxBIN,
           rxGroup,
-          payor,
+          payorId,
+          payorName,
+          insurance,
+          status,
         },
       } = input
 
@@ -114,16 +117,18 @@ class InternalOperationsService {
           },
           insurance: {
             memberId,
-            insuranceCompany,
+            insurance,
             groupId,
             groupName,
             rxBIN,
             rxGroup,
-            payor,
+            payorId,
+            payorName,
+            status,
           },
         }
       )
-      console.log(modifiedPatient, "modifiedPatient")
+
       return modifiedPatient
     } catch (e) {
       throw new ApolloError("An error occurred while modifying the patient")

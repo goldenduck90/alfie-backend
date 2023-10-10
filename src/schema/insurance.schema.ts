@@ -1,9 +1,15 @@
-import { Ref, getModelForClass, index, prop } from "@typegoose/typegoose"
+import {
+  ModelOptions,
+  Ref,
+  getModelForClass,
+  index,
+  mongoose,
+  prop,
+} from "@typegoose/typegoose"
 import { Field, InputType, ObjectType, registerEnumType } from "type-graphql"
-import { Gender, Insurance, InsuranceEligibilityResponse } from "./user.schema"
 import { Provider } from "./provider.schema"
 
-export enum InsuranceTypeValue {
+export enum InsuranceType {
   EPO = "EPO",
   POS = "POS",
   PPO = "PPO",
@@ -11,172 +17,144 @@ export enum InsuranceTypeValue {
   Government = "GOVERNMENT_MEDICAID_TRICARE_CHIP",
 }
 
-registerEnumType(InsuranceTypeValue, {
-  name: "InsuranceTypeValue",
-  description: "An insurance type enum value.",
+registerEnumType(InsuranceType, {
+  name: "InsuranceType",
+  description: "Types of insurance plans supported.",
 })
 
-/** General insurance types. */
-@index({ name: 1 }, { unique: true })
-@index({ type: 1 }, { unique: true })
-@ObjectType()
-export class InsuranceType {
-  @Field(() => String)
-  _id: string
-
-  @Field(() => String, { nullable: true })
-  @prop({ required: true })
-  name: string
-
-  @Field(() => InsuranceTypeValue)
-  @prop({ enum: InsuranceTypeValue, type: String, required: true })
-  type: InsuranceTypeValue
+export enum InsuranceStatus {
+  ACTIVE = "ACTIVE",
+  NOT_ACTIVE = "NOT_ACTIVE",
+  COMING_SOON = "COMING_SOON",
 }
 
-export const InsuranceTypeModel = getModelForClass<typeof InsuranceType>(
-  InsuranceType,
-  { schemaOptions: { timestamps: true } }
-)
-
-export enum InsurancePlanValue {
-  BCBS = "BCBS",
-  AnthemBCBS = "ANTHEM_BCBS",
-  EmpireBCBS = "EMPIRE_BCBS",
-  CarefirstBCBS = "CAREFIRST_BCBS",
-  HorizonBCBS = "HORIZON_BCBS",
-  Humana = "HUMANA",
-  PartnerDirect = "PARTNER_DIRECT",
-  Aetna = "AETNA",
-  UnitedHealthcare = "UNITED_HEALTHCARE",
-  Cigna = "CIGNA",
-  Medicare = "MEDICARE",
-  Medicaid = "MEDICAID",
-  Other = "OTHER",
-}
-
-registerEnumType(InsurancePlanValue, {
-  name: "InsurancePlanValue",
-  description: "An insurance plan enum value.",
+registerEnumType(InsuranceStatus, {
+  name: "InsuranceStatus",
+  description:
+    "Status of insurance, whether it's active, not active, or coming soon.",
 })
 
-/** Information on coverage of insurance plan/type combinations. */
+/** Insurance State */
 @ObjectType()
-export class InsurancePlanCoverage {
+@ModelOptions({ schemaOptions: { _id: false } })
+export class InsuranceState {
   @Field(() => String)
-  _id: string
-
-  @Field(() => InsurancePlanValue)
-  @prop({ enum: InsurancePlanValue, type: String, required: true })
-  plan: InsurancePlanValue
-
-  @Field(() => InsuranceTypeValue, { nullable: true })
-  @prop({
-    enum: Object.values(InsuranceTypeValue).concat([null]),
-    type: String,
-    required: false,
-  })
-  type?: InsuranceTypeValue
-
-  @Field(() => Provider, { nullable: true })
-  @prop({ ref: () => Provider, required: false })
-  provider?: Ref<Provider>
-
-  @Field({ nullable: true })
-  @prop()
-  state?: string
-
-  @Field(() => Boolean)
   @prop({ required: true })
-  covered: boolean
+  state: string
 
-  @Field(() => Boolean, { nullable: true })
-  @prop({ required: false })
-  comingSoon?: boolean
-}
+  @Field(() => InsuranceStatus)
+  @prop({ enum: InsuranceStatus, type: String, required: true })
+  status: InsuranceStatus
 
-export const InsurancePlanCoverageModel = getModelForClass<
-  typeof InsurancePlanCoverage
->(InsurancePlanCoverage, {
-  schemaOptions: { timestamps: true },
-  options: { customName: "insurancePlanCoverage" },
-})
+  @Field(() => [InsuranceType])
+  @prop({ enum: InsuranceType, type: [String], required: true, default: [] })
+  types: InsuranceType[]
 
-/** Insurance CPIDs. */
-@index({ cpid: 1 }, { unique: true })
-@ObjectType()
-export class InsuranceCPID {
   @Field(() => String)
-  _id: string
-
-  @Field(() => String, { nullable: true })
   @prop({ required: true })
-  name: string
+  npi: string
 
-  @Field(() => InsurancePlanValue)
-  @prop({ enum: InsurancePlanValue, type: String, required: true })
-  plan: InsurancePlanValue
-
-  @Field(() => [String], { nullable: true })
-  @prop({ type: String, required: true, default: [] })
-  states: string[]
-
-  @Field(() => [String], { nullable: true })
-  @prop({ type: String, required: true, default: [] })
-  npis: string[]
-
-  @Field(() => String, { nullable: true })
+  @Field(() => String)
   @prop({ required: true })
   cpid: string
 
-  @Field(() => [InsuranceTypeValue])
-  @prop({ enum: InsuranceTypeValue, type: String, required: true, default: [] })
-  planTypes: InsuranceTypeValue[]
+  @Field(() => [Provider], { nullable: true })
+  @prop({ ref: () => Provider, type: [String], required: true, default: [] })
+  providers: Ref<Provider>[]
 }
-
-export const InsuranceCPIDModel = getModelForClass<typeof InsuranceCPID>(
-  InsuranceCPID,
-  {
-    options: { customName: "insuranceCPIDs" },
-  }
-)
 
 /** Insurance plans. */
 @index({ name: 1 }, { unique: true })
-@index({ type: 1 }, { unique: true })
 @ObjectType()
-export class InsurancePlan {
+export class Insurance {
   @Field(() => String)
   _id: string
 
-  @Field(() => String, { nullable: true })
+  @Field(() => String)
   @prop({ required: true })
   name: string
 
-  @Field(() => InsurancePlanValue)
-  @prop({ enum: InsurancePlanValue, type: String, required: true })
-  value: InsurancePlanValue
-
-  /** If set, limits the types associated with this plan. */
-  @Field(() => [InsuranceTypeValue])
-  @prop({ enum: InsuranceTypeValue, type: String, required: false })
-  types?: InsuranceTypeValue[]
+  @Field(() => [InsuranceState], { defaultValue: [] })
+  @prop({ default: [], required: true })
+  states: mongoose.Types.Array<InsuranceState>
 }
 
-export const InsurancePlanModel = getModelForClass<typeof InsurancePlan>(
-  InsurancePlan,
-  { schemaOptions: { timestamps: true } }
-)
+export const InsuranceModel = getModelForClass<typeof Insurance>(Insurance, {
+  schemaOptions: { timestamps: true },
+})
 
 @ObjectType()
-export class InsuranceCoveredResponse {
-  @Field(() => Boolean, { defaultValue: false })
-  covered: boolean
+@InputType("InsuranceDetailsInput")
+@ModelOptions({ schemaOptions: { _id: false } })
+export class InsuranceDetails {
+  @Field(() => String)
+  @prop({ required: true })
+  memberId: string
 
-  @Field(() => Boolean, { defaultValue: false })
-  comingSoon: boolean
+  @Field(() => String)
+  @prop({ required: true })
+  groupId: string
+
+  @Field(() => Insurance, { nullable: true })
+  @prop({ ref: () => Insurance, type: String, required: true })
+  insurance: Ref<Insurance>
+
+  @Field(() => InsuranceStatus, { nullable: true })
+  @prop({ enum: InsuranceStatus, type: String, required: false })
+  status?: InsuranceStatus
+
+  @Field(() => InsuranceType)
+  @prop({ enum: InsuranceType, type: String, required: true })
+  type: InsuranceType
+
+  /** The payer ID. */
+  @Field(() => String, { nullable: true })
+  @prop()
+  payorId?: string
 
   @Field(() => String, { nullable: true })
-  reason?: string
+  @prop()
+  payorName?: string
+
+  @Field(() => String, { nullable: true })
+  @prop()
+  groupName?: string
+
+  @Field(() => String, { nullable: true })
+  @prop()
+  rxBIN?: string
+
+  @Field(() => String, { nullable: true })
+  @prop()
+  rxPCN?: string
+
+  @Field(() => String, { nullable: true })
+  @prop()
+  rxGroup?: string
+}
+
+@ObjectType()
+export class InsurancePayor {
+  @Field(() => String)
+  payorId: string
+
+  @Field(() => String)
+  payorName: string
+}
+
+@ObjectType()
+export class InsuranceCheckResponse {
+  @Field(() => InsuranceStatus)
+  status: InsuranceStatus
+
+  @Field(() => Boolean)
+  eligible: boolean
+
+  @Field(() => InsurancePayor, { nullable: true })
+  payor?: InsurancePayor
+
+  @Field(() => [String], { defaultValue: [] })
+  errors: string[]
 }
 
 @InputType()
@@ -184,45 +162,9 @@ export class InsuranceCheckInput {
   @Field(() => String)
   checkoutId: string
 
-  @Field(() => InsurancePlanValue)
-  insurancePlan: InsurancePlanValue
-
-  @Field(() => InsuranceTypeValue)
-  insuranceType: InsuranceTypeValue
-
-  @Field(() => Insurance)
-  insurance: Insurance
-
-  @Field(() => Boolean)
-  covered: boolean
-}
-
-@ObjectType()
-export class InsuranceCheckResponse {
-  @Field(() => InsuranceEligibilityResponse)
-  eligible: InsuranceEligibilityResponse
-}
-
-@InputType()
-export class BasicUserInsuranceInfo {
-  @Field()
-  name: string
-
-  @Field()
-  dateOfBirth: Date
-
-  @Field(() => Gender)
-  gender: Gender
-
   @Field(() => String)
-  state: string
-}
+  insuranceId: string
 
-@ObjectType()
-export class InsurancePlansResponse {
-  @Field(() => [InsurancePlan])
-  plans: InsurancePlan[]
-
-  @Field(() => [InsuranceType])
-  types: InsuranceType[]
+  @Field(() => InsuranceDetails)
+  insurance: InsuranceDetails
 }

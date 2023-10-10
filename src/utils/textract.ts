@@ -1,21 +1,15 @@
 import { ApolloError } from "apollo-server-errors"
 import Textract from "aws-sdk/clients/textract"
 import { captureException } from "./sentry"
+import { InsuranceModel, InsuranceType } from "../schema/insurance.schema"
 
 export interface AnalyzeS3InsuranceCardImageResult {
   insurance: {
+    insurance_company: string
+    insurance_type: InsuranceType
     group_number: string
     group_name: string
-    plan_name: string
-    plan_type: string
-    insurance_type: string
     member_id: string
-    payer_id: string
-    payer_name: string
-    rx_bin: string
-    rx_pcn: string
-    rx_group: string
-    state: string
   }
   words: string[]
   lines: string[]
@@ -28,20 +22,24 @@ export const analyzeS3InsuranceCardImage = async (
   bucket: string,
   objectName: string
 ): Promise<AnalyzeS3InsuranceCardImageResult> => {
+  const insurances = await InsuranceModel.find()
+
   const result = await textractS3Object(bucket, objectName, [
     { question: "What is the Group Number?", key: "group_number" },
     { question: "What is the Group Name?", key: "group_name" },
-    { question: "What is the State?", key: "state" },
-    { question: "What is the Plan Type?", key: "plan_type" },
-    { question: "What is the Member ID?", key: "member_id" },
-    { question: "What is the Payer ID?", key: "payer_id" },
     {
-      question: "What is the Insurance Company Name?",
-      key: "payer_name",
+      question: `Select the Insurance Company from the following options: ${insurances
+        .map((i) => i.name)
+        .join(", ")}`,
+      key: "insurance_name",
     },
-    { question: "What is the Rx BIN?", key: "rx_bin" },
-    { question: "What is the Rx PCN?", key: "rx_pcn" },
-    { question: "What is the Rx Group?", key: "rx_group" },
+    {
+      question: `Select the Insurance Type from the following options: ${Object.values(
+        InsuranceType
+      ).join(", ")}`,
+      key: "insurance_type",
+    },
+    { question: "What is the Member ID?", key: "member_id" },
   ])
 
   return {

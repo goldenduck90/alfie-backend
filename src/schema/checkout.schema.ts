@@ -11,9 +11,9 @@ import { AsQueryMethod, Ref } from "@typegoose/typegoose/lib/types"
 import { IsEmail, IsPhoneNumber } from "class-validator"
 import { Field, InputType, ObjectType } from "type-graphql"
 import config from "config"
-import { Address, Gender, Insurance, User } from "./user.schema"
+import { Address, Gender, User } from "./user.schema"
 import { SignupPartner, SignupPartnerProvider } from "./partner.schema"
-import { InsurancePlanValue, InsuranceTypeValue } from "./insurance.schema"
+import { InsuranceDetails } from "./insurance.schema"
 
 const { email: emailValidation, phone: phoneValidation } = config.get(
   "validations"
@@ -148,21 +148,9 @@ export class Checkout {
   @prop({ required: true, allowMixed: Severity.ALLOW })
   pastTries: string[]
 
-  @Field(() => InsurancePlanValue, { nullable: true })
-  @prop({ enum: InsurancePlanValue, type: String, required: false })
-  insurancePlan?: InsurancePlanValue
-
-  @Field(() => InsuranceTypeValue, { nullable: true })
-  @prop({ enum: InsuranceTypeValue, type: String, required: false })
-  insuranceType?: InsuranceTypeValue
-
-  @Field(() => Insurance, { nullable: true })
+  @Field(() => InsuranceDetails, { nullable: true })
   @prop({ required: false })
-  insurance?: Insurance
-
-  @Field(() => Boolean, { nullable: true })
-  @prop({ required: false })
-  insuranceCovered?: boolean
+  insurance?: InsuranceDetails
 
   @Field(() => SignupPartner, { nullable: true })
   @prop({ ref: () => SignupPartner, required: false })
