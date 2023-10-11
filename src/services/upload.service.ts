@@ -14,8 +14,7 @@ export default class UploadService {
   }
 
   async textractInsuranceImage(
-    fileS3Key: string,
-    userState?: string
+    fileS3Key: string
   ): Promise<InsuranceTextractResponse> {
     const exists = await this.checkoutS3Service.keyExists(fileS3Key)
     if (!exists) {
@@ -27,13 +26,11 @@ export default class UploadService {
       fileS3Key
     )
 
-    const extracted = extractInsurance(result, { userState })
-
-    const insuranceMatches = extracted.map(({ insurance }) => insurance)
+    const extracted = extractInsurance(result)
     const { words, lines } = result
 
     return {
-      insuranceMatches,
+      insurance: extracted,
       words,
       lines,
     }

@@ -7,6 +7,7 @@ import { Checkout, CheckoutModel } from "../schema/checkout.schema"
 import { Address, UserModel } from "../schema/user.schema"
 import UserService from "./user.service"
 import { SignupPartner } from "../schema/partner.schema"
+import { InsuranceStatus } from "../schema/insurance.schema"
 
 export default class StripeService {
   public stripeApiVersion = "2022-08-01" as const
@@ -269,10 +270,14 @@ export default class StripeService {
         stripeCustomerId: customerId,
         stripeSubscriptionId: subscriptionId,
         subscriptionExpiresAt: new Date(),
-        insurance: checkout.insurance,
-        insurancePlan: checkout.insurancePlan,
-        insuranceType: checkout.insuranceType,
-        insuranceCovered: checkout.insuranceCovered,
+        insurance:
+          checkout.insurance &&
+          checkout.insurance?.status !== InsuranceStatus.NOT_ACTIVE
+            ? {
+                ...checkout.insurance,
+                insurance: checkout.insurance.insurance.toString(),
+              }
+            : undefined,
         signupPartnerId: checkout.signupPartner?.toString(),
         signupPartnerProviderId: checkout.signupPartnerProvider?.toString(),
       })
@@ -287,7 +292,11 @@ export default class StripeService {
             userId: newUser.user._id,
             signupPartner: checkout.signupPartner || "None",
             signupPartnerProvider: checkout.signupPartnerProvider || "None",
-            insurancePay: checkout.insurancePlan ? true : false,
+            insurancePay:
+              checkout.insurance &&
+              checkout.insurance.status !== InsuranceStatus.NOT_ACTIVE
+                ? true
+                : false,
             environment: process.env.NODE_ENV,
           },
         })
@@ -451,10 +460,14 @@ export default class StripeService {
         stripeCustomerId: customerId,
         stripePaymentIntentId: paymentIntentId,
         stripeSubscriptionId: null,
-        insurance: checkout.insurance,
-        insurancePlan: checkout.insurancePlan,
-        insuranceType: checkout.insuranceType,
-        insuranceCovered: checkout.insuranceCovered,
+        insurance:
+          checkout.insurance &&
+          checkout.insurance?.status !== InsuranceStatus.NOT_ACTIVE
+            ? {
+                ...checkout.insurance,
+                insurance: checkout.insurance.insurance.toString(),
+              }
+            : undefined,
         signupPartnerId: checkout.signupPartner?.toString(),
         signupPartnerProviderId: checkout.signupPartnerProvider?.toString(),
       })
@@ -469,7 +482,11 @@ export default class StripeService {
             userId: newUser._id,
             signupPartner: checkout.signupPartner || "None",
             signupPartnerProvider: checkout.signupPartnerProvider || "None",
-            insurancePay: checkout.insurancePlan ? true : false,
+            insurancePay:
+              checkout.insurance &&
+              checkout.insurance.status !== InsuranceStatus.NOT_ACTIVE
+                ? true
+                : false,
             environment: process.env.NODE_ENV,
           },
         })
@@ -588,7 +605,10 @@ export default class StripeService {
       }
     }
 
-    if (checkout.insuranceCovered) {
+    if (
+      checkout.insurance &&
+      checkout.insurance?.status !== InsuranceStatus.NOT_ACTIVE
+    ) {
       try {
         const stripePaymentIntent = await this.createPaymentIntent(
           stripeCustomerId,

@@ -30,7 +30,7 @@ import {
 import { Provider } from "./provider.schema"
 import { SignupPartner, SignupPartnerProvider } from "./partner.schema"
 import Role from "./enums/Role"
-import { InsurancePlanValue, InsuranceTypeValue } from "./insurance.schema"
+import { InsuranceDetails, InsuranceDetailsInput } from "./insurance.schema"
 
 const {
   email: emailValidation,
@@ -70,44 +70,6 @@ registerEnumType(Role, {
 export class RoleResponse {
   @Field(() => Role)
   role: Role
-}
-
-@ObjectType()
-@InputType("InsuranceInput")
-@ModelOptions({ schemaOptions: { _id: false } })
-export class Insurance {
-  @Field(() => String)
-  @prop({ required: true })
-  memberId: string
-
-  @Field(() => String)
-  @prop({ required: true })
-  groupId: string
-
-  @Field(() => String)
-  @prop({ required: true })
-  insuranceCompany: string
-
-  /** The payer ID. */
-  @Field(() => String, { nullable: true })
-  @prop()
-  payor?: string
-
-  @Field(() => String, { nullable: true })
-  @prop()
-  groupName?: string
-
-  @Field(() => String, { nullable: true })
-  @prop()
-  rxBIN?: string
-
-  @Field(() => String, { nullable: true })
-  @prop()
-  rxPCN?: string
-
-  @Field(() => String, { nullable: true })
-  @prop()
-  rxGroup?: string
 }
 
 @ObjectType()
@@ -559,21 +521,9 @@ export class User {
   @prop()
   hasScale?: boolean
 
-  @Field(() => Insurance, { nullable: true })
+  @Field(() => InsuranceDetails, { nullable: true })
   @prop({ required: false })
-  insurance?: Insurance
-
-  @Field(() => InsurancePlanValue, { nullable: true })
-  @prop({ enum: InsurancePlanValue, type: String, required: false })
-  insurancePlan?: InsurancePlanValue
-
-  @Field(() => InsuranceTypeValue, { nullable: true })
-  @prop({ enum: InsuranceTypeValue, type: String, required: false })
-  insuranceType?: InsuranceTypeValue
-
-  @Field(() => Boolean, { defaultValue: false })
-  @prop({ default: false, required: false })
-  insuranceCovered: boolean
+  insurance?: InsuranceDetails
 
   @Field(() => SignupPartner, { nullable: true })
   @prop({ ref: () => SignupPartner, required: false })
@@ -724,17 +674,8 @@ export class CreateUserInput {
   })
   metriportUserId?: string
 
-  @Field(() => Insurance, { nullable: true })
-  insurance?: Insurance
-
-  @Field(() => InsurancePlanValue, { nullable: true })
-  insurancePlan?: InsurancePlanValue
-
-  @Field(() => InsuranceTypeValue, { nullable: true })
-  insuranceType?: InsuranceTypeValue
-
-  @Field(() => Boolean, { nullable: true })
-  insuranceCovered?: boolean
+  @Field(() => InsuranceDetailsInput, { nullable: true })
+  insurance?: InsuranceDetailsInput
 
   @Field(() => String, { nullable: true })
   signupPartnerId?: string
@@ -1043,18 +984,6 @@ export class UserSendbirdChannel {
 
   @Field(() => Number, { nullable: true })
   joined_ts?: number
-}
-
-@ObjectType()
-export class InsuranceEligibilityResponse {
-  @Field(() => Boolean)
-  eligible: boolean
-
-  @Field(() => String, { nullable: true })
-  reason?: string
-
-  @Field(() => Insurance, { nullable: true })
-  rectifiedInsurance?: Insurance
 }
 
 @InputType()

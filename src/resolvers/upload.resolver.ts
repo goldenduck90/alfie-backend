@@ -52,13 +52,9 @@ export default class UploadResolver {
 
   @Mutation(() => InsuranceTextractResponse)
   async insuranceTextract(
-    @Arg("s3Key") s3Key: string,
-    @Arg("userState", { nullable: true }) userState?: string
+    @Arg("s3Key") s3Key: string
   ): Promise<InsuranceTextractResponse> {
-    const result = await this.uploadService.textractInsuranceImage(
-      s3Key,
-      userState
-    )
+    const result = await this.uploadService.textractInsuranceImage(s3Key)
     return result
   }
 }

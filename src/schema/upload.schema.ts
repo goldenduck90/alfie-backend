@@ -1,10 +1,25 @@
 import { Field, ObjectType } from "type-graphql"
-import { Insurance } from "./user.schema"
+import { InsuranceType } from "./insurance.schema"
+
+@ObjectType()
+export class InsuranceTextractDetails {
+  @Field(() => String, { nullable: true })
+  company: string
+
+  @Field(() => InsuranceType, { nullable: true })
+  type?: InsuranceType
+
+  @Field(() => String, { nullable: true })
+  memberId?: string
+
+  @Field(() => String, { nullable: true })
+  groupId?: string
+}
 
 @ObjectType()
 export class InsuranceTextractResponse {
-  @Field(() => [Insurance])
-  insuranceMatches: Insurance[]
+  @Field(() => InsuranceTextractDetails, { nullable: true })
+  insurance?: InsuranceTextractDetails
 
   @Field(() => [String])
   words: string[]
