@@ -168,11 +168,21 @@ export default class AlertService {
     // TODO: TBD
   }
 
-  async getAlertByProvider(user: User) {
-    const alerts = await AlertModel.find({
-      provider: user._id,
-    })
+  async getAlertsByPatient(provider: User, patientId?: string) {
+    let query
+    if (patientId) {
+      query = {
+        provider: provider._id,
+        user: patientId,
+      }
+    } else {
+      query = {
+        provider: provider._id,
+      }
+    }
+    const alerts = await AlertModel.find({ ...query })
       .populate("user")
+      .populate("task")
       .sort({ createdAt: -1 })
     return alerts
   }

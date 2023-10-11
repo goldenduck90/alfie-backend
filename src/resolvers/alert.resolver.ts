@@ -1,4 +1,4 @@
-import { Authorized, Ctx, Query, Resolver } from "type-graphql"
+import { Authorized, Arg, Ctx, Query, Resolver } from "type-graphql"
 
 import Role from "../schema/enums/Role"
 import Context from "../types/context"
@@ -16,6 +16,15 @@ export default class AlertResolver {
   @Authorized([Role.Practitioner])
   @Query(() => [Alert])
   getAlerts(@Ctx() context: Context) {
-    return this.alertService.getAlertByProvider(context.user)
+    return this.alertService.getAlertsByPatient(context.user)
+  }
+
+  @Authorized([Role.Practitioner])
+  @Query(() => [Alert])
+  getAlertsByPatient(
+    @Ctx() context: Context,
+    @Arg("patientId") patientId: string
+  ) {
+    return this.alertService.getAlertsByPatient(context.user, patientId)
   }
 }
