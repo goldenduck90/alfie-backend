@@ -56,6 +56,12 @@ export class Alert {
   @Field(() => Date, { nullable: true })
   @prop({ required: false })
   notifiedAt?: Date
+
+  @Field(() => Date, { nullable: true })
+  createdAt?: Date
+
+  @Field(() => Date, { nullable: true })
+  updatedAt?: Date
 }
 
 export const AlertModel = getModelForClass<typeof Alert>(Alert, {
