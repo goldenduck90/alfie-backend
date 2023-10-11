@@ -54,7 +54,7 @@ export default class InsuranceResolver {
   }
 
   @Query(() => [Insurance])
-  async insurancePlans() {
+  async insurances() {
     const insurances = await this.insuranceService.getInsurances()
     return insurances
   }

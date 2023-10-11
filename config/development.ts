@@ -1,7 +1,7 @@
 import dotenv from "dotenv"
 dotenv.config()
 
-import candidHealth from "./includes/candidHealth.development"
+import candidHealth from "./includes/candidHealth.production"
 import akuteProcedures from "./includes/akuteProcedures.development"
 
 export default {
@@ -12,7 +12,7 @@ export default {
   sendBirdApiUrl:
     "https://api-D804CA81-FB1D-4078-8A98-B31AE451EAF9.sendbird.com",
   candidHealth: {
-    apiUrl: "https://api-staging.joincandidhealth.com/api",
+    apiUrl: "https://api.joincandidhealth.com/api",
     clientId: process.env.CANDID_CLIENT_ID,
     clientSecret: process.env.CANDID_CLIENT_SECRET,
     serviceTypeCodes: ["90", "3", "30", "BZ"],

@@ -198,9 +198,6 @@ export class InsuranceCheckInput {
   @Field(() => String)
   checkoutId: string
 
-  @Field(() => String)
-  insuranceId: string
-
   @Field(() => InsuranceDetailsInput)
   insurance: InsuranceDetailsInput
 }
