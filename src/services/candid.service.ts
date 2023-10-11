@@ -232,7 +232,10 @@ export default class CandidService {
       return {
         eligible,
         payor,
-        errors: errors.map((e) => `${e.code}: ${e.description}`),
+        errors:
+          errors && errors.length > 0
+            ? errors.map((e) => `${e.code}: ${e.description}`)
+            : [],
       }
     } catch (error) {
       captureException(error, "[CANDID] ELIGIBILITY CHECK: ERROR")
