@@ -336,9 +336,8 @@ export default class CandidService {
     payorId: string
     eligible: boolean
   } {
-    const hasInsurance = data.subscriber.insuredIndicator === "Y"
-    const benefits = data.benefitsInformation
-    const eligible = hasInsurance && benefits.some((item) => item.code === "1")
+    const status = data.planStatus
+    const eligible = status.some((item) => item.statusCode == "1")
     const payorName = data.payer.name
     const payorId = data.payer.payorIdentification
 
