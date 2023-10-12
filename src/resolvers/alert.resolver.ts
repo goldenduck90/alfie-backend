@@ -27,4 +27,10 @@ export default class AlertResolver {
   ) {
     return this.alertService.getAlertsByPatient(context.user, patientId)
   }
+
+  @Authorized([Role.Practitioner])
+  @Query(() => [Alert])
+  acknowledgeAlert(@Arg("alertId") alertId: string) {
+    return this.alertService.acknowledgeAlert(alertId)
+  }
 }

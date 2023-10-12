@@ -1,14 +1,36 @@
 import { User } from "../schema/user.schema"
 import { Task, TaskType } from "../schema/task.schema"
 import { UserTask } from "../schema/task.user.schema"
-import { AlertModel, SeverityType } from "../schema/alert.schema"
+import { AlertModel, SeverityType, Alert } from "../schema/alert.schema"
 import { UserModel } from "../schema/user.schema"
 import Role from "../schema/enums/Role"
 import { UserTaskModel } from "../schema/task.user.schema"
 import { TaskModel } from "../schema/task.schema"
+import EmailService from "./email.service"
 // import { Provider } from "../schema/provider.schema"
 
 export default class AlertService {
+  private emailService: EmailService
+
+  constructor() {
+    this.emailService = new EmailService()
+  }
+
+  async createAlert(alert: Partial<Alert>) {
+    if (
+      [SeverityType.EXTREME, SeverityType.HIGH].includes(alert.severity) &&
+      alert.medical
+    ) {
+      // Send alert email
+      // const subject = "Medical Alert"
+      // const body = "Medical Alert"
+      // const toEmails = ["patients@joinalfie.com"]
+      // this.emailService.sendEmail(subject, body, toEmails)
+    }
+
+    await AlertModel.create(alert)
+  }
+
   async checkUserTaskCompletion(user: User, task: Task, userTask: UserTask) {
     switch (task.type) {
       case TaskType.BP_LOG: {
@@ -24,7 +46,7 @@ export default class AlertService {
           (systolicBp.value as number) >= 140 ||
           (diastolicBp.value as number) >= 90
         ) {
-          await AlertModel.create({
+          await this.createAlert({
             title: "Hypertension Alert",
             description: "The patients blood pressure requires attention",
             task: task,
@@ -68,7 +90,7 @@ export default class AlertService {
           const maxScoreChange =
             (Math.abs(lastScore - maxScore) / lastScore) * 100
           if (minScoreChange >= 20 || maxScoreChange >= 20) {
-            await AlertModel.create({
+            await this.createAlert({
               title: "Large Metabolic Profile Shift",
               description:
                 "The patient has had a large shift in their MP and may need new medications",
@@ -110,7 +132,7 @@ export default class AlertService {
           const maxWeightChange =
             (Math.abs(lastWeight - maxWeight) / lastWeight) * 100
           if (minWeightChange >= 10 || maxWeightChange >= 10) {
-            await AlertModel.create({
+            await this.createAlert({
               title: "Abnormal Weight Loss",
               description: "The patient has lost too much weight too quickly",
               task: task,
@@ -152,7 +174,7 @@ export default class AlertService {
 
       if (completedTasksWithinAWeek.length === 0) {
         // Add alert
-        await AlertModel.create({
+        await this.createAlert({
           title: "Patient has not been weighing themselves on scale",
           description:
             "Patient has not weighed themselves this week, and prevents RPM. May need to message patient on inform care coordination",
@@ -185,5 +207,11 @@ export default class AlertService {
       .populate("task")
       .sort({ createdAt: -1 })
     return alerts
+  }
+
+  async acknowledgeAlert(alertId: string) {
+    const alert = await AlertModel.findById(alertId)
+    alert.acknowledgedAt = new Date()
+    alert.save()
   }
 }
