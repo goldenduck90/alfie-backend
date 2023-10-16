@@ -250,6 +250,8 @@ export default class CandidService {
           errors && errors.length > 0
             ? errors.map((e) => `${e.code}: ${e.description}`)
             : [],
+        primary,
+        dependents,
       }
     } catch (error) {
       captureException(error, "[CANDID] ELIGIBILITY CHECK: ERROR")
