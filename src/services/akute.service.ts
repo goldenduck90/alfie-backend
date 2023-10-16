@@ -22,7 +22,7 @@ export interface AkuteCreateInsuranceRequest {
   patient_id: string
   member_id: string
   group_id: string
-  group_name: string
+  group_name?: string
   type: string
   rx_bin: string
   rx_pcn?: string
@@ -589,7 +589,6 @@ class AkuteService {
         patient_id: akuteId,
         member_id: input.memberId,
         group_id: input.groupId,
-        group_name: input.groupName,
         rx_bin: input.rxBIN,
         rx_pcn: input.rxPCN,
         rx_group: input.rxGroup,
