@@ -212,6 +212,8 @@ export default class AlertService {
   async acknowledgeAlert(alertId: string) {
     const alert = await AlertModel.findById(alertId)
     alert.acknowledgedAt = new Date()
-    alert.save()
+    await alert.save()
+
+    return alert
   }
 }

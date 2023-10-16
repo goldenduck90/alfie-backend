@@ -895,17 +895,18 @@ class UserService extends EmailService {
         )
         return []
       } else if (provider.type === Role.Doctor) {
-        const results = await UserModel.find({
+        const results: LeanDocument<User[]> = await UserModel.find({
           state: { $in: provider.licensedStates },
           role: Role.Patient,
         }).populate<{ provider: Provider }>("provider")
-        return results.map((u) => ({ ...u, score: [] }))
+        return results
       } else {
-        const results = await UserModel.find({
+        const results: LeanDocument<User[]> = await UserModel.find({
           provider: providerId,
           role: Role.Patient,
         }).populate<{ provider: Provider }>("provider")
-        return results.map((u) => ({ ...u, score: [] }))
+
+        return results
       }
     } catch (error) {
       captureException(error, "UserService.getAllUsersByAProvider")

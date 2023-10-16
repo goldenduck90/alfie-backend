@@ -1,9 +1,9 @@
-import { Authorized, Arg, Ctx, Query, Resolver } from "type-graphql"
+import { Authorized, Arg, Ctx, Query, Resolver, Mutation } from "type-graphql"
 
 import Role from "../schema/enums/Role"
 import Context from "../types/context"
 import AlertService from "../services/altert.service"
-import { Alert } from "../schema/alert.schema"
+import { Alert, AcknowledgeAlertInput } from "../schema/alert.schema"
 
 @Resolver()
 export default class AlertResolver {
@@ -29,8 +29,8 @@ export default class AlertResolver {
   }
 
   @Authorized([Role.Practitioner])
-  @Query(() => [Alert])
-  acknowledgeAlert(@Arg("alertId") alertId: string) {
-    return this.alertService.acknowledgeAlert(alertId)
+  @Mutation(() => Alert)
+  acknowledgeAlert(@Arg("input") input: AcknowledgeAlertInput) {
+    return this.alertService.acknowledgeAlert(input.id)
   }
 }
