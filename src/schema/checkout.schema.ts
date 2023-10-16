@@ -14,6 +14,7 @@ import config from "config"
 import { Address, Gender, User } from "./user.schema"
 import { SignupPartner, SignupPartnerProvider } from "./partner.schema"
 import { InsuranceDetails } from "./insurance.schema"
+import { Provider } from "./provider.schema"
 
 const { email: emailValidation, phone: phoneValidation } = config.get(
   "validations"
@@ -151,6 +152,10 @@ export class Checkout {
   @Field(() => InsuranceDetails, { nullable: true })
   @prop({ required: false })
   insurance?: InsuranceDetails
+
+  @Field(() => Provider, { nullable: true })
+  @prop({ ref: () => Provider, required: false })
+  provider?: Ref<Provider>
 
   @Field(() => SignupPartner, { nullable: true })
   @prop({ ref: () => SignupPartner, required: false })

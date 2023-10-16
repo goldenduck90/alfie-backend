@@ -1,6 +1,6 @@
 import { ApolloError } from "apollo-server-errors"
 import { Address, UserModel } from "./../schema/user.schema"
-import { InsuranceDetails } from "../schema/insurance.schema"
+import { InsuranceDetailsInput } from "../schema/insurance.schema"
 interface PatientReassignInput {
   patientId: string
   newProviderId: string
@@ -19,7 +19,7 @@ interface PatientModifyInput {
   phoneNumber: string
   gender: string
   address: Address
-  insurance?: InsuranceDetails
+  insurance?: InsuranceDetailsInput
 }
 
 interface ProviderModifyInput {
@@ -79,6 +79,7 @@ class InternalOperationsService {
     }
   }
 
+  // TODO: add insurance eligibility check upon changes and validation for insurance
   async internalPatientModify(input: PatientModifyInput) {
     try {
       const {
@@ -88,17 +89,7 @@ class InternalOperationsService {
         phoneNumber,
         gender,
         address: { line1, city, state, postalCode },
-        insurance: {
-          memberId,
-          groupId,
-          groupName,
-          rxBIN,
-          rxGroup,
-          payorId,
-          payorName,
-          insurance,
-          status,
-        },
+        insurance,
       } = input
 
       const modifiedPatient = await UserModel.findByIdAndUpdate(
@@ -115,17 +106,7 @@ class InternalOperationsService {
             postalCode,
             city,
           },
-          insurance: {
-            memberId,
-            insurance,
-            groupId,
-            groupName,
-            rxBIN,
-            rxGroup,
-            payorId,
-            payorName,
-            status,
-          },
+          insurance,
         }
       )
 
