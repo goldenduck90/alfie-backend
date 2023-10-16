@@ -264,8 +264,8 @@ export class InsuranceDetailsInput {
   @Field(() => String, { nullable: true })
   rxGroup?: string
 
-  @Field(() => InsurancePerson)
-  primary: InsurancePerson
+  @Field(() => InsurancePerson, { nullable: true })
+  primary?: InsurancePerson
 
   @Field(() => [InsurancePerson], { nullable: true })
   dependents?: InsurancePerson[]
