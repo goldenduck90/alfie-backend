@@ -2,18 +2,9 @@ import runShell, { createProgram } from "./utils/runShell"
 
 import { initializeCollection } from "../src/database/initializeCollection"
 import tasksData from "../src/database/data/tasks.json"
-import insuranceTypesData from "../src/database/data/insuranceTypes.json"
-import insurancePlansData from "../src/database/data/insurancePlans.json"
-import insurancePlanCoverageData from "../src/database/data/insurancePlanCoverage.json"
+import insuranceData from "../src/database/data/insurances.json"
 import { TaskModel, Task } from "../src/schema/task.schema"
-import {
-  InsuranceType,
-  InsurancePlan,
-  InsuranceTypeModel,
-  InsurancePlanModel,
-  InsurancePlanCoverageModel,
-  InsurancePlanCoverage,
-} from "../src/schema/insurance.schema"
+import { Insurance, InsuranceModel } from "../src/schema/insurance.schema"
 
 const collectionsMap = {
   tasks: {
@@ -22,24 +13,11 @@ const collectionsMap = {
     type: Task,
     getKey: (task: Task) => task.type,
   },
-  insuranceTypes: {
-    rawData: insuranceTypesData,
-    model: InsuranceTypeModel,
-    type: InsuranceType,
-    getKey: (type: InsuranceType) => type.type,
-  },
-  insurancePlans: {
-    rawData: insurancePlansData,
-    model: InsurancePlanModel,
-    type: InsurancePlan,
-    getKey: (plan: InsurancePlan) => plan.value,
-  },
-  insurancePlanCoverage: {
-    rawData: insurancePlanCoverageData,
-    model: InsurancePlanCoverageModel,
-    type: InsurancePlanCoverage,
-    getKey: (coverage: InsurancePlanCoverage) =>
-      `${coverage.plan}-${coverage.type}`,
+  insurance: {
+    rawData: insuranceData,
+    model: InsuranceModel,
+    type: Insurance,
+    getKey: (insurance: Insurance) => insurance.name,
   },
 }
 
@@ -48,21 +26,7 @@ type TableNames = (keyof typeof collectionsMap)[]
 const program = createProgram()
   .description("Populates entries for static collections in MongoDB.")
   .option("--tasks", "Populates the tasks collection.", false)
-  .option(
-    "--insurance-plans",
-    "Populates the insurancePlans collection.",
-    false
-  )
-  .option(
-    "--insurance-types",
-    "Populates the insuranceTypes collection.",
-    false
-  )
-  .option(
-    "--insurance-plan-coverage",
-    "Populates the insurancePlanCoverage collection.",
-    false
-  )
+  .option("--insurance", "Populates the insurances collection.", false)
   .parse()
 
 const options: Record<string, boolean> = program.opts()

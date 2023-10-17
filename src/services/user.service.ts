@@ -45,9 +45,6 @@ import {
   Weight,
   File,
   User,
-  FileType,
-  InsuranceEligibilityResponse,
-  Insurance,
 } from "../schema/user.schema"
 import Role from "../schema/enums/Role"
 import { signJwt } from "../utils/jwt"
@@ -72,7 +69,6 @@ import CandidService from "./candid.service"
 import WithingsService, { TEST_MODE } from "./withings.service"
 import FaxService from "./fax.service"
 import axios from "axios"
-import { analyzeS3InsuranceCardImage } from "../utils/textract"
 import AnswerType from "../schema/enums/AnswerType"
 import postHogClient from "../utils/posthog"
 import {
@@ -81,13 +77,9 @@ import {
   SignupPartnerProviderModel,
 } from "../schema/partner.schema"
 import { captureException, captureEvent } from "../utils/sentry"
-import lookupCPID from "../utils/lookupCPID"
-import extractInsurance from "../utils/extractInsurance"
-import lookupState from "../utils/lookupState"
-import resolveCPIDEntriesToInsurance from "../utils/resolveCPIDEntriesToInsurance"
-import InsuranceService from "./insurance.service"
 import StripeService from "./stripe.service"
 import { calculateBMI } from "../utils/calculateBMI"
+import { InsuranceDetails, InsuranceStatus } from "../schema/insurance.schema"
 
 export const initialUserTasks = [
   TaskType.ID_AND_INSURANCE_UPLOAD,
@@ -116,7 +108,6 @@ class UserService extends EmailService {
   private candidService: CandidService
   private withingsService: WithingsService
   private faxService: FaxService
-  private insuranceService: InsuranceService
   public awsDynamo: AWS.DynamoDB
   private stripeService: StripeService
 
@@ -132,7 +123,6 @@ class UserService extends EmailService {
     this.candidService = new CandidService()
     this.withingsService = new WithingsService()
     this.faxService = new FaxService()
-    this.insuranceService = new InsuranceService()
     this.stripeService = new StripeService(this)
 
     this.awsDynamo = new AWS.DynamoDB({
@@ -236,9 +226,6 @@ class UserService extends EmailService {
       providerId,
       textOptIn,
       insurance,
-      insurancePlan,
-      insuranceType,
-      insuranceCovered,
       signupPartnerId,
       signupPartnerProviderId,
     } = input
@@ -340,9 +327,6 @@ class UserService extends EmailService {
       provider: provider._id,
       textOptIn,
       insurance,
-      insurancePlan,
-      insuranceType,
-      insuranceCovered,
       signupPartner: signupPartnerId,
       signupPartnerProvider: signupPartnerProviderId,
     })
@@ -434,21 +418,42 @@ class UserService extends EmailService {
       console.log(err)
     }
 
-    if (process.env.NODE_ENV === "production") {
-      const zapierCreateUserWebhook = config.get(
-        "zapierCreateUserWebhook"
-      ) as string
+    // create insurance in akute
+    // NOTE: Currently, this is not supported as we dont store rx details
+    // on insurance which is required by akute
+    // if (user.insurance) {
+    //   try {
+    //     await this.akuteService.createInsurance(
+    //       user.akutePatientId,
+    //       user.insurance
+    //     )
+    //   } catch (err) {
+    //     console.log(err)
+    //   }
+    // }
 
-      // zapier webhook send
-      await axios.post(zapierCreateUserWebhook, {
-        user: {
-          _id: user._id,
-          email: user.email,
-          phone: user.phone,
-          address: user.address,
-          name: user.name,
-        },
-      })
+    if (process.env.NODE_ENV === "production") {
+      try {
+        const zapierCreateUserWebhook = config.get(
+          "zapierCreateUserWebhook"
+        ) as string
+
+        // zapier webhook send
+        await axios.post(zapierCreateUserWebhook, {
+          user: {
+            _id: user._id,
+            email: user.email,
+            phone: user.phone,
+            address: user.address,
+            name: user.name,
+          },
+        })
+      } catch (err) {
+        console.log(
+          "An error occured hitting zappier create user webhook",
+          err.message
+        )
+      }
     }
 
     // Create withings dropshipping order and send email to patients@joinalfie.com
@@ -746,9 +751,7 @@ class UserService extends EmailService {
     const { rememberExp, normalExp } = config.get("jwtExpiration") as any
 
     // Get our user by email
-    const user: LeanDocument<User> = await UserModel.find()
-      .findByEmail(email)
-      .lean()
+    const user: LeanDocument<User> = await UserModel.find().findByEmail(email)
     if (!user) {
       const provider = await ProviderModel.find().findByEmail(email).lean()
       if (!provider) {
@@ -900,17 +903,13 @@ class UserService extends EmailService {
         const results = await UserModel.find({
           state: { $in: provider.licensedStates },
           role: Role.Patient,
-        })
-          .populate<{ provider: Provider }>("provider")
-          .lean()
+        }).populate<{ provider: Provider }>("provider")
         return results.map((u) => ({ ...u, score: [] }))
       } else {
         const results = await UserModel.find({
           provider: providerId,
           role: Role.Patient,
-        })
-          .populate<{ provider: Provider }>("provider")
-          .lean()
+        }).populate<{ provider: Provider }>("provider")
         return results.map((u) => ({ ...u, score: [] }))
       }
     } catch (error) {
@@ -1301,8 +1300,6 @@ class UserService extends EmailService {
         subscriptionExpiresAt: expiresAt,
         stripeSubscriptionId,
         textOptIn: checkout.textOptIn,
-        insurancePlan: checkout.insurancePlan,
-        insuranceType: checkout.insuranceType,
         signupPartnerId: checkout.signupPartner.toString(),
         signupPartnerProviderId: checkout.signupPartnerProvider.toString(),
       })
@@ -1323,7 +1320,7 @@ class UserService extends EmailService {
           userId: user._id,
           signupPartner: checkout.signupPartner || "None",
           signupPartnerProvider: checkout.signupPartnerProvider || "None",
-          insurancePay: checkout.insurancePlan ? true : false,
+          insurancePay: false,
           environment: process.env.NODE_ENV,
         },
       })
@@ -1342,7 +1339,7 @@ class UserService extends EmailService {
 
     const checkout: LeanDocument<Checkout> = await CheckoutModel.findById(
       checkoutId
-    ).lean()
+    )
     if (!checkout) {
       throw new ApolloError(checkoutNotFound.message, checkoutNotFound.code)
     }
@@ -1419,7 +1416,12 @@ class UserService extends EmailService {
       metadata: {
         checkoutId: String(checkout._id),
         email: checkout.email,
-        INSURANCE: `${checkout.insuranceCovered ? "TRUE" : "FALSE"}`,
+        INSURANCE: `${
+          checkout.insurance &&
+          checkout.insurance.status !== InsuranceStatus.NOT_ACTIVE
+            ? "TRUE"
+            : "FALSE"
+        }`,
       },
       ...(customer && { customer: customer.id }),
     }
@@ -1472,13 +1474,28 @@ class UserService extends EmailService {
       throw new ApolloError(checkoutNotFound.message, checkoutNotFound.code)
     }
 
-    if (!checkout.insuranceCovered) {
+    if (
+      checkout.insurance &&
+      checkout.insurance.status === InsuranceStatus.NOT_ACTIVE
+    ) {
       throw new ApolloError("Insurance not covered!")
     }
 
     checkout.shippingAddress = shipping
     checkout.billingAddress = sameAsShipping ? shipping : billing
     await checkout.save()
+
+    let insurance
+    if (
+      checkout.insurance &&
+      checkout.insurance?.status !== InsuranceStatus.NOT_ACTIVE
+    ) {
+      insurance = {
+        ...checkout.insurance,
+        insuranceId: checkout.insurance.insurance.toString(),
+      }
+      delete insurance.insurance
+    }
 
     const userInput = {
       name: checkout.name,
@@ -1490,10 +1507,8 @@ class UserService extends EmailService {
       weightInLbs: checkout.weightInLbs,
       gender: checkout.gender,
       heightInInches: checkout.heightInInches,
-      insurance: checkout.insurance,
-      insurancePlan: checkout.insurancePlan,
-      insuranceType: checkout.insuranceType,
-      insuranceCovered: checkout.insuranceCovered,
+      ...(checkout.provider && { providerId: checkout.provider.toString() }),
+      ...(insurance && { insurance }),
       signupPartnerId: checkout.signupPartner?.toString(),
       signupPartnerProviderId: checkout.signupPartnerProvider?.toString(),
     }
@@ -1509,7 +1524,11 @@ class UserService extends EmailService {
           userId: user._id,
           signupPartner: checkout.signupPartner || "None",
           signupPartnerProvider: checkout.signupPartnerProvider || "None",
-          insurancePay: checkout.insurancePlan ? true : false,
+          insurancePay:
+            checkout.insurance &&
+            checkout.insurance.status !== InsuranceStatus.NOT_ACTIVE
+              ? true
+              : false,
           environment: process.env.NODE_ENV,
         },
       })
@@ -1545,7 +1564,7 @@ class UserService extends EmailService {
         referrer,
       } = input
 
-      const checkout = await CheckoutModel.find().findByEmail(email).lean()
+      const checkout = await CheckoutModel.find().findByEmail(email)
       if (checkout) {
         // check if already checked out
         if (checkout.checkedOut) {
@@ -1626,7 +1645,11 @@ class UserService extends EmailService {
             checkoutId: newCheckout._id,
             signupPartner: newCheckout.signupPartner || "None",
             signupPartnerProvider: newCheckout.signupPartnerProvider || "None",
-            insurancePay: newCheckout.insurancePlan ? true : false,
+            insurancePay:
+              newCheckout.insurance &&
+              newCheckout.insurance.status !== InsuranceStatus.NOT_ACTIVE
+                ? true
+                : false,
             environment: process.env.NODE_ENV,
           },
         })
@@ -1864,98 +1887,18 @@ class UserService extends EmailService {
   }
 
   /** Updates insurance information for a given user. */
-  async updateInsurance(user: User, input: Insurance): Promise<void> {
+  async updateInsurance(user: User, input: InsuranceDetails): Promise<void> {
     try {
       user.insurance = input
+      await this.akuteService.createInsurance(
+        user.akutePatientId,
+        user.insurance
+      )
       await UserModel.findByIdAndUpdate(user._id, user)
     } catch (error) {
       captureException(error, "UserService.updateInsurance", {
         insurance: input,
       })
-    }
-  }
-
-  /** Checks eligibility from an insurance card S3 file. */
-  async checkInsuranceEligibilityFromFile(file: File, userId: string) {
-    if (file.type !== FileType.InsuranceCard) {
-      throw new ApolloError("Eligibility check file must be an insurance card.")
-    }
-    const user = await this.getUser(userId)
-
-    const bucket: string = config.get("s3.patientBucketName")
-    const insuranceData = await analyzeS3InsuranceCardImage(bucket, file.key)
-    const inputs = extractInsurance(insuranceData, {
-      userState: lookupState(user.address.state),
-    })
-
-    return await this.checkInsuranceEligibility(user, inputs)
-  }
-
-  /** Checks eligibility from an Insurance object, e.g. `user.insurance` */
-  async checkInsuranceEligibilityFromData(
-    insurance: Insurance,
-    userId: string
-  ) {
-    const user = await this.getUser(userId)
-
-    const cpids = lookupCPID(insurance.payor, insurance.insuranceCompany, 10)
-    const inputs = resolveCPIDEntriesToInsurance(cpids, insurance)
-
-    return await this.checkInsuranceEligibility(user, inputs)
-  }
-
-  /**
-   * Check eligibility from an array of pre-computed
-   * `<insurance object, CPID>` tuples.
-   */
-  async checkInsuranceEligibility(
-    user: User,
-    inputs: { insurance: Insurance; cpid: string }[]
-  ): Promise<InsuranceEligibilityResponse> {
-    let eligible: boolean
-    let reason: string | undefined
-    let rectifiedInsurance: Insurance | undefined
-
-    try {
-      const result = await this.candidService.checkInsuranceEligibility(
-        { ...user, state: user.address.state },
-        inputs
-      )
-
-      eligible = result.eligible
-      reason = result.reason
-      rectifiedInsurance = result.rectifiedInsurance
-
-      // only save insurance if eligible
-      if (eligible && rectifiedInsurance) {
-        await this.updateInsurance(user, rectifiedInsurance)
-        await this.akuteService.createInsurance(
-          user.akutePatientId,
-          rectifiedInsurance
-        )
-      }
-    } catch (error) {
-      captureException(
-        error,
-        "UserService.checkInsuranceEligibility: error checking eligibility",
-        { inputs }
-      )
-      eligible = false
-      reason = "There was an error during the eligibility check process."
-    }
-
-    try {
-      await this.emailService.sendEligibilityCheckResultEmail({
-        patientName: user.name,
-        patientEmail: user.email,
-        patientPhone: user.phone,
-        eligible,
-        reason,
-      })
-
-      return { eligible, reason, rectifiedInsurance }
-    } catch (e) {
-      throw new ApolloError(e.message, "ERROR")
     }
   }
 
@@ -2120,6 +2063,20 @@ class UserService extends EmailService {
       }
 
       try {
+        let insurance
+        let providerId
+        if (
+          pICheckout.insurance &&
+          pICheckout.insurance?.status !== InsuranceStatus.NOT_ACTIVE
+        ) {
+          insurance = {
+            ...pICheckout.insurance,
+            insuranceId: pICheckout.insurance.insurance.toString(),
+          }
+          providerId = pICheckout.provider.toString()
+          delete insurance.insurance
+        }
+
         const pINewUser = await this.createUser({
           name: pICheckout.name,
           textOptIn: pICheckout.textOptIn,
@@ -2133,8 +2090,8 @@ class UserService extends EmailService {
           stripeCustomerId: checkoutId,
           stripePaymentIntentId: null,
           stripeSubscriptionId: null,
-          insurancePlan: pICheckout.insurancePlan,
-          insuranceType: pICheckout.insuranceType,
+          ...(providerId && { providerId }),
+          ...(insurance && { insurance }),
           signupPartnerId: pICheckout.signupPartner?.toString(),
           signupPartnerProviderId: pICheckout.signupPartnerProvider?.toString(),
         })
@@ -2151,7 +2108,11 @@ class UserService extends EmailService {
               userId: newUser._id,
               signupPartner: pICheckout.signupPartner || "None",
               signupPartnerProvider: pICheckout.signupPartnerProvider || "None",
-              insurancePay: pICheckout.insurancePlan ? true : false,
+              insurancePay:
+                pICheckout.insurance &&
+                pICheckout.insurance.status !== InsuranceStatus.NOT_ACTIVE
+                  ? true
+                  : false,
               environment: process.env.NODE_ENV,
             },
           })

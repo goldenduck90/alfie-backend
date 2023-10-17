@@ -20,14 +20,17 @@ import type {
   CandidResponseError,
 } from "../@types/candidTypes"
 import dayjs from "../utils/dayjs"
-import { Insurance, User, UserModel, Weight } from "../schema/user.schema"
+import { User, UserModel, Weight } from "../schema/user.schema"
 import { Provider } from "../schema/provider.schema"
 import { TaskType } from "../schema/task.schema"
 import { UserTask } from "../schema/task.user.schema"
 import TaskService from "../services/task.service"
 import { calculateSetting, SettingsList } from "../utils/calculateSetting"
 import { calculateBMI } from "../utils/calculateBMI"
-import batchAsync from "../utils/batchAsync"
+import {
+  InsuranceDetails,
+  InsuranceDetailsInput,
+} from "../schema/insurance.schema"
 
 export const authorizationTokenProvider = "candidhealth"
 
@@ -191,123 +194,110 @@ export default class CandidService {
   }
 
   /** Check insurance eligibility for the patient with the given insurance card information. */
-  public async checkInsuranceEligibility(
-    user: BasicUserInfo,
-    /** Insurance information sets to check. */
-    inputs: { insurance: Insurance; cpid: string }[]
-  ): Promise<{
+  public async checkInsuranceEligibility({
+    user,
+    insurance,
+    cpid,
+  }: {
+    user: BasicUserInfo
+    insurance: InsuranceDetailsInput
+    cpid: string
+  }): Promise<{
     eligible: boolean
-    reason?: string
-    errors?: CandidResponseError[]
-    /** If the insurance was rectified (e.g. in the case of a null payor ID) */
-    rectifiedInsurance?: Insurance
+    payor?: {
+      payorId: string
+      payorName: string
+    }
+    errors: string[]
+    dependents?: CandidEligibilityCheckResponse["dependents"]
+    primary?: CandidEligibilityCheckResponse["subscriber"]
   }> {
     await this.authenticate()
 
     try {
       // check each insurance/cpid until an eligible result
-      const results = await batchAsync(
-        inputs.map((input, index) => async () => ({
-          ...(await this.checkCPIDEligibility(
-            user,
-            input.insurance,
-            input.cpid
-          )),
-          input,
-          index,
-        })),
+      const {
+        eligible,
+        payor,
+        errors,
+        request,
+        response,
+        dependents,
+        primary,
+      } = await this.checkCPIDEligibility({
+        user,
+        insurance,
+        cpid,
+      })
+
+      captureEvent(
+        "info",
+        `[CANDID] ELIGIBILITY CHECK: ${eligible ? "ELIGIBLE" : "NOT ELIGIBLE"}`,
         {
-          batchSize: 4,
-          until: (batch) => batch.some((result) => result.eligible),
+          eligible,
+          payor,
+          errors,
+          request,
+          response,
+          dependents,
+          primary,
         }
-      )
-
-      const eligibleResult = results.find(({ eligible }) => eligible)
-      if (eligibleResult) {
-        captureEvent("info", "CandidService.checkInsuranceEligibility", {
-          "Eligible Result": eligibleResult,
-        })
-
-        return {
-          rectifiedInsurance: eligibleResult.input.insurance,
-          eligible: true, // TODO: fix eligibility // eligibleResult.eligible,
-        }
-      } else {
-        const errorSummary = results
-          // compile errors into strings
-          .map((result) => ({
-            ...result,
-            error: result.errors?.map(
-              (error) =>
-                `${error.code}: ${error.description}. ${
-                  error.possibleResolutions ?? ""
-                }`
-            ),
-          }))
-          // compile all errors into one string
-          .map(
-            (result) =>
-              `* Error: ${result.reason}. Insured: ${result.insured}. CPID/Payer: ${result.input.cpid}/ ${result.input.insurance.insuranceCompany}. Details: ${result.error}`
-          )
-          .join("\n")
-
-        captureEvent("error", "CandidService.checkInsuranceEligibility", {
-          "Insurance Attempted": inputs,
-          "Error Summary": { message: errorSummary },
-        })
-
-        return {
-          eligible: true, // TODO: fix eligibility
-          reason: results.some(({ insured }) => insured)
-            ? "Not covered."
-            : "Not insured or insurance payer not supported.",
-        }
-      }
-    } catch (error) {
-      captureException(
-        error,
-        "CandidService.checkInsuranceEligibility server error"
       )
       return {
-        eligible: true, // TODO: fix eligibility
-        reason: "Manual.", // TODO: fix eligibility
+        eligible,
+        payor,
+        errors:
+          errors && errors.length > 0
+            ? errors.map((e) => `${e.code}: ${e.description}`)
+            : [],
+        primary,
+        dependents,
       }
-      // throw new ApolloError(
-      //   "Error processing insurance eligibility check",
-      //   "INTERNAL_ERROR"
-      // )
+    } catch (error) {
+      captureException(error, "[CANDID] ELIGIBILITY CHECK: ERROR")
+      return {
+        eligible: false, // TODO: fix eligibility
+        errors: [error?.message || "UNKNOWN_ERROR"],
+      }
     }
   }
 
   /** Check insurance eligibility for the patient with the given insurance card information and CPID. */
-  private async checkCPIDEligibility(
-    user: BasicUserInfo,
-    input: Insurance,
+  private async checkCPIDEligibility({
+    user,
+    insurance,
+    cpid,
+  }: {
+    user: BasicUserInfo
+    insurance: InsuranceDetailsInput
     cpid: string
-  ): Promise<{
-    errors?: CandidResponseError[]
+  }): Promise<{
+    errors: CandidResponseError[]
     response?: CandidEligibilityCheckResponse
-    request: CandidEligibilityCheckRequest
+    request?: CandidEligibilityCheckRequest
     eligible: boolean
-    reason?: string
-    insured: boolean
+    payor?: {
+      payorName: string
+      payorId: string
+    }
+    primary?: CandidEligibilityCheckResponse["subscriber"]
+    dependents?: CandidEligibilityCheckResponse["dependents"]
   }> {
-    let request: CandidEligibilityCheckRequest
-
     try {
-      const [userFirstName, userLastName] = user.name.split(" ")
-
+      const [userFirstName, userLastName] = user.name
+        .split(" ")
+        .map((name) => name.trim())
       const settings: SettingsList = config.get("candidHealth.settings")
 
-      const {
-        billingProvider,
-      }: { billingProvider?: CandidRequestBillingProvider } = calculateSetting(
+      const { billingProvider } = calculateSetting(
         settings,
         ["billingProvider"],
-        { state: user.state.toUpperCase() }
+        {
+          state: user.state.toUpperCase(),
+        }
       )
 
-      request = {
+      const request: CandidEligibilityCheckRequest = {
         tradingPartnerServiceId: cpid,
         provider: {
           npi: billingProvider.npi,
@@ -315,10 +305,10 @@ export default class CandidService {
         },
         subscriber: {
           dateOfBirth: dayjs.utc(user.dateOfBirth).format("YYYYMMDD"),
-          firstName: userFirstName?.trim() || "",
-          lastName: userLastName?.trim() || "",
+          firstName: userFirstName || "",
+          lastName: userLastName || "",
           gender: user.gender.toLowerCase().startsWith("m") ? "M" : "F",
-          memberId: input.memberId,
+          memberId: insurance.memberId,
         },
       }
 
@@ -328,68 +318,59 @@ export default class CandidService {
           request
         )
 
-      console.log("REQUEST:")
-      console.log(request)
-      console.log("RESPONSE:")
-      console.log(data)
-
       const errors = (data as any as { errors?: CandidResponseError[] }).errors
       if (errors?.length > 0) {
         return {
-          eligible: true, // TODO: fix eligibility
-          reason: "Insurance Error",
+          eligible: false,
           request,
           response: data,
           errors,
-          insured: true, // TODO: fix eligibility
         }
       }
 
-      const { eligible, reason, insured } =
+      const { eligible, payorId, payorName, dependents, primary } =
         this.getEligibilityFromResponse(data)
-
       return {
         eligible,
-        reason,
-        response: data,
+        payor: {
+          payorId,
+          payorName,
+        },
         request,
-        insured,
+        primary,
+        dependents,
+        response: data,
+        errors,
       }
     } catch (error) {
       return {
-        eligible: true, // TODO: fix eligibility
-        reason: "Internal error",
-        request,
-        errors: [error],
-        insured: true, // TODO: fix eligibility
+        eligible: false,
+        errors: [],
       }
     }
   }
 
   /** Calculates eligibility information from a non-error eligibility check response. */
   private getEligibilityFromResponse(data: CandidEligibilityCheckResponse): {
+    payorName: string
+    payorId: string
     eligible: boolean
-    reason?: string
-    insured: boolean
+    primary: CandidEligibilityCheckResponse["subscriber"]
+    dependents?: CandidEligibilityCheckResponse["dependents"]
   } {
-    const eligibleServiceTypeCodes: string[] = config.get(
-      "candidHealth.serviceTypeCodes"
-    )
-
-    const hasInsurance = data.subscriber.insuredIndicator === "Y"
-    const benefits = data.benefitsInformation.filter((item) =>
-      item.serviceTypeCodes?.some((code) =>
-        eligibleServiceTypeCodes.includes(code)
-      )
-    )
-    const activeBenefits = benefits.filter((item) => item.code === "1")
-
-    const eligible = hasInsurance && activeBenefits.length > 0
+    const status = data.planStatus
+    const eligible = status.some((item) => item.statusCode == "1")
+    const payorName = data.payer.name
+    const payorId = data.payer.payorIdentification
+    const primary = data.subscriber
+    const dependents = data.dependents || []
 
     return {
-      eligible: true, // TO DO: fix eligibility
-      reason: eligible ? null : !hasInsurance ? "Not Insured" : "Not Covered",
-      insured: hasInsurance,
+      payorName,
+      payorId,
+      eligible,
+      primary,
+      dependents,
     }
   }
 
@@ -539,7 +520,7 @@ export default class CandidService {
     /** The provider. */
     provider: Provider,
     /** Insurance information. */
-    insurance: Insurance,
+    insurance: InsuranceDetails,
     /**
      * The source or reason for billing, sent to candidSettings during cost and
      * procedure code calculation.
@@ -725,8 +706,8 @@ export default class CandidService {
         address: patientAddress,
         insurance_card: {
           member_id: insurance.memberId,
-          payer_id: insurance.payor,
-          payer_name: insurance.insuranceCompany,
+          payer_id: insurance.payorId,
+          payer_name: insurance.payorName,
           group_number: insurance.groupId,
           rx_bin: insurance.rxBIN,
           rx_pcn: insurance.rxPCN,
@@ -813,7 +794,11 @@ export default class CandidService {
         )
 
       // log results
-      captureEvent("info", "Create coded encounter result", data)
+      captureEvent(
+        "info",
+        "[CANDID] SUCCESSFULLY CREATED CODED ENCOUNTER",
+        data
+      )
       return data
     } catch (error) {
       const errorData = error.response?.data
@@ -862,11 +847,11 @@ export default class CandidService {
 function getSandboxObjects(
   fromUser: User,
   fromProvider: Provider,
-  fromInsurance: Insurance
+  fromInsurance: InsuranceDetails
 ): {
   user: User
   provider: Provider
-  insurance: Insurance
+  insurance: InsuranceDetails
   cpid: string
 } {
   const copyFields = (from: any, to: any) => {
@@ -877,7 +862,7 @@ function getSandboxObjects(
   copyFields(fromUser, user)
   const provider = new Provider()
   copyFields(fromProvider, provider)
-  const insurance = new Insurance()
+  const insurance = new InsuranceDetails()
   copyFields(fromInsurance, insurance)
 
   // use sandbox data for request
@@ -897,7 +882,6 @@ function getSandboxObjects(
 
   if (fromInsurance) {
     insurance.groupId = "0000000000"
-    insurance.groupName = "group name"
     insurance.memberId = "0000000000"
     insurance.rxBIN = "123456"
     insurance.rxPCN = "abcdefg"

@@ -29,6 +29,29 @@ class ProviderService {
     return providers
   }
 
+  async getLeastBusyFromList(providerIds: string[], update = false) {
+    // Only return providers where the type === "Practitioner"
+    const providers = await ProviderModel.find({
+      type: Role.Practitioner,
+      _ids: { $in: [providerIds] },
+    })
+      .sort({ numberOfPatients: "asc" })
+      .limit(1)
+
+    if (providers.length === 0) {
+      throw new Error("NO_PROVIDERS")
+    }
+
+    const provider = providers[0]
+
+    if (update) {
+      provider.numberOfPatients = provider.numberOfPatients + 1
+      await provider.save()
+    }
+
+    return provider
+  }
+
   async getNextAvailableProvider(state: string, update = false) {
     // Only return providers where the type === "Practitioner"
     const providers = await ProviderModel.find({

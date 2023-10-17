@@ -127,6 +127,7 @@ export default class UserResolver {
   getAllPatientsByHealthCoach() {
     return this.userService.getAllUsersByAHealthCoach()
   }
+
   @Authorized([
     Role.Doctor,
     Role.Admin,

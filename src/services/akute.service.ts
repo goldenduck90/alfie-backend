@@ -10,23 +10,19 @@ import {
   DocUploadInput,
   PharmacyLocationInput,
 } from "../schema/akute.schema"
-import {
-  CreatePatientInput,
-  UserModel,
-  Insurance,
-  User,
-} from "../schema/user.schema"
+import { CreatePatientInput, UserModel, User } from "../schema/user.schema"
 import { calculateBMI } from "../utils/calculateBMI"
 import { Provider } from "../schema/provider.schema"
 import { calculateSetting, SettingsList } from "../utils/calculateSetting"
 import { captureEvent, captureException } from "../utils/sentry"
 import EmailService from "./email.service"
+import { InsuranceDetails } from "../schema/insurance.schema"
 
 export interface AkuteCreateInsuranceRequest {
   patient_id: string
   member_id: string
   group_id: string
-  group_name: string
+  group_name?: string
   type: string
   rx_bin: string
   rx_pcn?: string
@@ -585,7 +581,7 @@ class AkuteService {
 
   async createInsurance(
     akuteId: string,
-    input: Insurance
+    input: InsuranceDetails
   ): Promise<AkuteInsuranceResponse> {
     try {
       const createInsuranceRequest: AkuteCreateInsuranceRequest = {
@@ -593,11 +589,10 @@ class AkuteService {
         patient_id: akuteId,
         member_id: input.memberId,
         group_id: input.groupId,
-        group_name: input.groupName,
         rx_bin: input.rxBIN,
         rx_pcn: input.rxPCN,
         rx_group: input.rxGroup,
-        payor: input.payor,
+        payor: input.payorId,
         status: "active",
         relationship_to_subscriber: "self",
         order: 1,
