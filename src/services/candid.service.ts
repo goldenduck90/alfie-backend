@@ -27,7 +27,10 @@ import { UserTask } from "../schema/task.user.schema"
 import TaskService from "../services/task.service"
 import { calculateSetting, SettingsList } from "../utils/calculateSetting"
 import { calculateBMI } from "../utils/calculateBMI"
-import { InsuranceDetails } from "../schema/insurance.schema"
+import {
+  InsuranceDetails,
+  InsuranceDetailsInput,
+} from "../schema/insurance.schema"
 
 export const authorizationTokenProvider = "candidhealth"
 
@@ -197,7 +200,7 @@ export default class CandidService {
     cpid,
   }: {
     user: BasicUserInfo
-    insurance: InsuranceDetails
+    insurance: InsuranceDetailsInput
     cpid: string
   }): Promise<{
     eligible: boolean
@@ -206,17 +209,26 @@ export default class CandidService {
       payorName: string
     }
     errors: string[]
+    dependents?: CandidEligibilityCheckResponse["dependents"]
+    primary?: CandidEligibilityCheckResponse["subscriber"]
   }> {
     await this.authenticate()
 
     try {
       // check each insurance/cpid until an eligible result
-      const { eligible, payor, errors, request, response } =
-        await this.checkCPIDEligibility({
-          user,
-          insurance,
-          cpid,
-        })
+      const {
+        eligible,
+        payor,
+        errors,
+        request,
+        response,
+        dependents,
+        primary,
+      } = await this.checkCPIDEligibility({
+        user,
+        insurance,
+        cpid,
+      })
 
       captureEvent(
         "info",
@@ -227,6 +239,8 @@ export default class CandidService {
           errors,
           request,
           response,
+          dependents,
+          primary,
         }
       )
       return {
@@ -236,6 +250,8 @@ export default class CandidService {
           errors && errors.length > 0
             ? errors.map((e) => `${e.code}: ${e.description}`)
             : [],
+        primary,
+        dependents,
       }
     } catch (error) {
       captureException(error, "[CANDID] ELIGIBILITY CHECK: ERROR")
@@ -253,7 +269,7 @@ export default class CandidService {
     cpid,
   }: {
     user: BasicUserInfo
-    insurance: InsuranceDetails
+    insurance: InsuranceDetailsInput
     cpid: string
   }): Promise<{
     errors: CandidResponseError[]
@@ -264,6 +280,8 @@ export default class CandidService {
       payorName: string
       payorId: string
     }
+    primary?: CandidEligibilityCheckResponse["subscriber"]
+    dependents?: CandidEligibilityCheckResponse["dependents"]
   }> {
     try {
       const [userFirstName, userLastName] = user.name
@@ -310,7 +328,7 @@ export default class CandidService {
         }
       }
 
-      const { eligible, payorId, payorName } =
+      const { eligible, payorId, payorName, dependents, primary } =
         this.getEligibilityFromResponse(data)
       return {
         eligible,
@@ -319,6 +337,8 @@ export default class CandidService {
           payorName,
         },
         request,
+        primary,
+        dependents,
         response: data,
         errors,
       }
@@ -335,16 +355,22 @@ export default class CandidService {
     payorName: string
     payorId: string
     eligible: boolean
+    primary: CandidEligibilityCheckResponse["subscriber"]
+    dependents?: CandidEligibilityCheckResponse["dependents"]
   } {
     const status = data.planStatus
     const eligible = status.some((item) => item.statusCode == "1")
     const payorName = data.payer.name
     const payorId = data.payer.payorIdentification
+    const primary = data.subscriber
+    const dependents = data.dependents || []
 
     return {
       payorName,
       payorId,
       eligible,
+      primary,
+      dependents,
     }
   }
 
@@ -856,7 +882,6 @@ function getSandboxObjects(
 
   if (fromInsurance) {
     insurance.groupId = "0000000000"
-    insurance.groupName = "group name"
     insurance.memberId = "0000000000"
     insurance.rxBIN = "123456"
     insurance.rxPCN = "abcdefg"

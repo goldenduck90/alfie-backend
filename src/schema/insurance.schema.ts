@@ -34,6 +34,31 @@ registerEnumType(InsuranceStatus, {
     "Status of insurance, whether it's active, not active, or coming soon.",
 })
 
+@ObjectType()
+@InputType("InsuranceAddressInput")
+@ModelOptions({ schemaOptions: { _id: false } })
+export class InsuranceAddress {
+  @Field(() => String)
+  @prop({ required: true })
+  address1: string
+
+  @Field(() => String, { nullable: true })
+  @prop()
+  address2?: string
+
+  @Field(() => String)
+  @prop({ required: true })
+  city: string
+
+  @Field(() => String)
+  @prop({ required: true })
+  state: string
+
+  @Field(() => String)
+  @prop({ required: true })
+  postalCode: string
+}
+
 /** Insurance State */
 @ObjectType()
 @ModelOptions({ schemaOptions: { _id: false } })
@@ -58,9 +83,9 @@ export class InsuranceState {
   @prop({ required: true })
   cpid: string
 
-  @Field(() => [Provider], { nullable: true })
-  @prop({ ref: () => Provider, type: [String], required: true, default: [] })
-  providers: Ref<Provider>[]
+  @Field(() => [String])
+  @prop({ type: [String], required: true, default: [] })
+  providers: string[]
 }
 
 /** Insurance plans. */
@@ -82,6 +107,43 @@ export class Insurance {
 export const InsuranceModel = getModelForClass<typeof Insurance>(Insurance, {
   schemaOptions: { timestamps: true },
 })
+
+@ObjectType()
+@InputType("InsurancePersonInput")
+@ModelOptions({ schemaOptions: { _id: false } })
+export class InsurancePerson {
+  @Field(() => String)
+  @prop({ required: true })
+  firstName: string
+
+  @Field(() => String)
+  @prop({ required: true })
+  lastName: string
+
+  @Field(() => String, { nullable: true })
+  @prop({ required: false })
+  gender?: string
+
+  @Field(() => String, { nullable: true })
+  @prop({ required: false })
+  dateOfBirth?: string
+
+  @Field(() => String, { nullable: true })
+  @prop({ required: false })
+  relationToSubscriber?: string
+
+  @Field(() => String, { nullable: true })
+  @prop({ required: false })
+  relationToSubscriberCode?: string
+
+  @Field(() => String, { nullable: true })
+  @prop({ required: false })
+  insuredIndicator?: string
+
+  @Field(() => InsuranceAddress, { nullable: true })
+  @prop({ required: false })
+  address?: InsuranceAddress
+}
 
 @ObjectType()
 @ModelOptions({ schemaOptions: { _id: false } })
@@ -117,10 +179,6 @@ export class InsuranceDetails {
 
   @Field(() => String, { nullable: true })
   @prop()
-  groupName?: string
-
-  @Field(() => String, { nullable: true })
-  @prop()
   rxBIN?: string
 
   @Field(() => String, { nullable: true })
@@ -130,6 +188,14 @@ export class InsuranceDetails {
   @Field(() => String, { nullable: true })
   @prop()
   rxGroup?: string
+
+  @Field(() => InsurancePerson)
+  @prop({ required: true })
+  primary: InsurancePerson
+
+  @Field(() => [InsurancePerson], { nullable: true })
+  @prop({ required: false, default: [] })
+  dependents?: InsurancePerson[]
 }
 
 @ObjectType()
@@ -152,6 +218,15 @@ export class InsuranceCheckResponse {
   @Field(() => InsurancePayor, { nullable: true })
   payor?: InsurancePayor
 
+  @Field(() => Provider, { nullable: true })
+  provider?: Provider
+
+  @Field(() => InsurancePerson, { nullable: true })
+  primary?: InsurancePerson
+
+  @Field(() => [InsurancePerson], { nullable: true })
+  dependents?: InsurancePerson[]
+
   @Field(() => [String], { defaultValue: [] })
   errors: string[]
 }
@@ -165,10 +240,7 @@ export class InsuranceDetailsInput {
   groupId: string
 
   @Field(() => String)
-  insurance: string
-
-  @Field(() => InsuranceStatus, { nullable: true })
-  status?: InsuranceStatus
+  insuranceId: string
 
   @Field(() => InsuranceType)
   type: InsuranceType
@@ -191,6 +263,12 @@ export class InsuranceDetailsInput {
 
   @Field(() => String, { nullable: true })
   rxGroup?: string
+
+  @Field(() => InsurancePerson, { nullable: true })
+  primary?: InsurancePerson
+
+  @Field(() => [InsurancePerson], { nullable: true })
+  dependents?: InsurancePerson[]
 }
 
 @InputType()

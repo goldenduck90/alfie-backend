@@ -35,11 +35,24 @@ export default class InsuranceResolver {
 
       if (result.eligible) {
         checkout.insurance = {
-          ...input.insurance,
+          insurance: input.insurance.insuranceId,
+          memberId: input.insurance.memberId,
+          groupId: input.insurance.groupId,
+          type: input.insurance.type,
+          rxBIN: input.insurance.rxBIN,
+          rxPCN: input.insurance.rxPCN,
+          rxGroup: input.insurance.rxGroup,
           status: result.status,
           payorId: result.payor?.payorId,
           payorName: result.payor?.payorName,
+          primary: result.primary,
+          dependents: result.dependents,
         }
+
+        if (result.provider) {
+          checkout.provider = result.provider._id
+        }
+
         await checkout.save()
       }
 

@@ -427,6 +427,26 @@ export interface CandidEligibilityCheckResponse {
   /** The provider. */
   provider: CandidResponseProvider
 
+  /** The dependents */
+  dependents?: {
+    firstName: string
+    lastName: string
+    gender?: string
+    entityType: string
+    dateOfBirth: string
+    groupNumber: string
+    relationToSubscriber?: string
+    relationToSubscriberCode?: string
+    insuredIndicator?: string
+    address?: {
+      address1: string
+      address2?: string
+      city: string
+      state: string
+      postalCode: string
+    }
+  }[]
+
   /** The subscriber. */
   subscriber: {
     /** Diagnosis codes. */
