@@ -3,11 +3,15 @@ import { ProviderModel } from "./../schema/provider.schema"
 import { TaskModel } from "./../schema/task.schema"
 import { ApolloError } from "apollo-server-errors"
 import { UserModel } from "./../schema/user.schema"
-import { PatientReassignInput, BulkPatientReassignInput, PatientModifyInput, ProviderModifyInput, ProviderCreateInput } from "../types/InternalServiceTypes"
-
+import {
+  PatientReassignInput,
+  BulkPatientReassignInput,
+  PatientModifyInput,
+  ProviderModifyInput,
+  ProviderCreateInput,
+} from "../types/InternalServiceTypes"
 
 class InternalOperationsService {
-
   async internalPatientReassign(input: PatientReassignInput) {
     try {
       const { patientId, newProviderId } = input
@@ -72,7 +76,10 @@ class InternalOperationsService {
             postalCode,
             city,
           },
-          insurance,
+          insurance: {
+            insurance: insurance.insuranceId,
+            ...insurance,
+          },
         }
       )
 
@@ -139,7 +146,7 @@ class InternalOperationsService {
       return patient
     } catch (e) {
       throw new ApolloError("An error occurred while fetching the patient")
-    }        
+    }
   }
   async internalGetAllTaskTypes() {
     try {
@@ -159,7 +166,7 @@ class InternalOperationsService {
   }
   async internalGetAllProviders() {
     try {
-      const providers = await ProviderModel.find({ role: "Practitioner"})
+      const providers = await ProviderModel.find({ role: "Practitioner" })
       return providers
     } catch (e) {
       throw new ApolloError("An error occurred while fetching the providers")
