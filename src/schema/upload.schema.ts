@@ -3,9 +3,6 @@ import { InsuranceType } from "./insurance.schema"
 
 @ObjectType()
 export class InsuranceTextractDetails {
-  @Field(() => String, { nullable: true })
-  company: string
-
   @Field(() => InsuranceType, { nullable: true })
   type?: InsuranceType
 
