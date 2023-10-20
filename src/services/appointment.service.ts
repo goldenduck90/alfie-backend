@@ -31,6 +31,9 @@ import Role from "../schema/enums/Role"
 import CandidService from "./candid.service"
 import EmailService from "./email.service"
 
+/** Default appointment timezone used to communicate with ea provider */
+const DEFAULT_TIMEZONE = "America/New_York"
+
 /** Convert appointment object from EA to the format used in graphQL. */
 function eaResponseToEAAppointment(
   response: IEAAppointmentResponse
@@ -456,7 +459,8 @@ class AppointmentService extends EmailService {
       | "provider_attended"
       | "attendance_email_sent"
       | "claim_submitted"
-    )[] = []
+    )[] = [],
+    timezone: string = DEFAULT_TIMEZONE
   ): Promise<MessageResponse> {
     const params: {
       patient_attended?: boolean
@@ -479,8 +483,13 @@ class AppointmentService extends EmailService {
     flags.forEach((flag) => (params[flag] = true))
 
     try {
-      await this.axios.put(`/appointments/${eaAppointmentId}/attended`, params)
-      return { message: "Marked appointment attended." }
+      const res = await this.axios.put(
+        `/appointments/${eaAppointmentId}/attended?timezone=${timezone}`,
+        params
+      )
+      if (res.status === 200) {
+        return { message: "Marked appointment attended." }
+      }
     } catch (error) {
       captureException(error, "AppointmentService.updateAppointmentAttended", {
         flags,
@@ -637,13 +646,14 @@ class AppointmentService extends EmailService {
    * if no appointment has been completed yet.
    */
   async getInitialAppointment(
-    eaCustomerId: string
+    eaCustomerId: string,
+    timezone: string = DEFAULT_TIMEZONE
   ): Promise<IEAAppointment | null> {
     try {
       const { data } = await this.axios.get<IEAAppointmentResponse>(
         "/appointments/initial",
         {
-          params: { eaCustomerId, timezone: "America/New_York" },
+          params: { eaCustomerId, timezone },
         }
       )
 
@@ -1056,9 +1066,12 @@ class AppointmentService extends EmailService {
       }
 
       const emailResult = await this.sendAppointmentPatientSkippedEmail(params)
-      await this.updateAppointmentAttended(null, appointment.eaAppointmentId, [
-        "attendance_email_sent",
-      ])
+      await this.updateAppointmentAttended(
+        null,
+        appointment.eaAppointmentId,
+        ["attendance_email_sent"],
+        appointment.timezone
+      )
 
       captureEvent(
         "info",
@@ -1082,9 +1095,12 @@ class AppointmentService extends EmailService {
           .format("h:mm A (z)"),
       }
       const emailResult = await this.sendAppointmentProviderSkippedEmail(params)
-      await this.updateAppointmentAttended(null, appointment.eaAppointmentId, [
-        "attendance_email_sent",
-      ])
+      await this.updateAppointmentAttended(
+        null,
+        appointment.eaAppointmentId,
+        ["attendance_email_sent"],
+        appointment.timezone
+      )
 
       captureEvent(
         "info",
@@ -1098,7 +1114,8 @@ class AppointmentService extends EmailService {
       try {
         if (user.insurance) {
           const initialAppointment = await this.getInitialAppointment(
-            appointment.eaCustomer.id
+            appointment.eaCustomer.id,
+            appointment.timezone
           )
 
           const claimResult =
@@ -1110,7 +1127,8 @@ class AppointmentService extends EmailService {
           await this.updateAppointmentAttended(
             null,
             appointment.eaAppointmentId,
-            ["claim_submitted"]
+            ["claim_submitted"],
+            appointment.timezone
           )
 
           captureEvent(
@@ -1146,7 +1164,7 @@ class AppointmentService extends EmailService {
    * appointments that were attended by both patient and provider.
    */
   async postAppointmentJob(): Promise<void> {
-    const timezone = "America/New_York"
+    const timezone = DEFAULT_TIMEZONE
     const now = dayjs.tz(new Date(), timezone)
 
     // queries to EasyAppointments for yesterday, today and tomorrow to account for possible
