@@ -1,14 +1,12 @@
 import { ApolloError } from "apollo-server-errors"
 import Textract from "aws-sdk/clients/textract"
 import { captureException } from "./sentry"
-import { InsuranceModel, InsuranceType } from "../schema/insurance.schema"
+import { InsuranceType } from "../schema/insurance.schema"
 
 export interface AnalyzeS3InsuranceCardImageResult {
   insurance: {
-    insurance_company: string
     insurance_type: InsuranceType
     group_number: string
-    group_name: string
     member_id: string
   }
   words: string[]
@@ -22,19 +20,10 @@ export const analyzeS3InsuranceCardImage = async (
   bucket: string,
   objectName: string
 ): Promise<AnalyzeS3InsuranceCardImageResult> => {
-  const insurances = await InsuranceModel.find()
-
   const result = await textractS3Object(bucket, objectName, [
     { question: "What is the Group Number?", key: "group_number" },
-    { question: "What is the Group Name?", key: "group_name" },
     {
-      question: `Select the Insurance Company from the following options: ${insurances
-        .map((i) => i.name)
-        .join(", ")}`,
-      key: "insurance_name",
-    },
-    {
-      question: `Select the Insurance Type from the following options: ${Object.values(
+      question: `Select the insurance plan type from the following options: ${Object.values(
         InsuranceType
       ).join(", ")}`,
       key: "insurance_type",
@@ -75,6 +64,8 @@ export const textractS3Object = async (
   const textract = new Textract({
     region: "us-east-1",
   })
+
+  console.log(bucket, objectName)
 
   try {
     const data = await new Promise<TextractS3ObjectResult>(
@@ -140,6 +131,8 @@ export const textractS3Object = async (
 
     return data
   } catch (error) {
+    console.log(error)
+
     captureException(error, "textractS3Object", {
       bucket,
       objectName,

@@ -77,7 +77,6 @@ import {
   SignupPartnerProviderModel,
 } from "../schema/partner.schema"
 import { captureException, captureEvent } from "../utils/sentry"
-import InsuranceService from "./insurance.service"
 import StripeService from "./stripe.service"
 import { calculateBMI } from "../utils/calculateBMI"
 import { InsuranceDetails, InsuranceStatus } from "../schema/insurance.schema"
@@ -110,7 +109,6 @@ class UserService extends EmailService {
   private candidService: CandidService
   private withingsService: WithingsService
   private faxService: FaxService
-  private insuranceService: InsuranceService
   public awsDynamo: AWS.DynamoDB
   private stripeService: StripeService
 
@@ -126,7 +124,6 @@ class UserService extends EmailService {
     this.candidService = new CandidService()
     this.withingsService = new WithingsService()
     this.faxService = new FaxService()
-    this.insuranceService = new InsuranceService()
     this.stripeService = new StripeService(this)
 
     this.awsDynamo = new AWS.DynamoDB({
@@ -423,32 +420,41 @@ class UserService extends EmailService {
     }
 
     // create insurance in akute
-    if (user.insurance) {
-      try {
-        await this.akuteService.createInsurance(
-          user.akutePatientId,
-          user.insurance
-        )
-      } catch (err) {
-        console.log(err)
-      }
-    }
+    // NOTE: Currently, this is not supported as we dont store rx details
+    // on insurance which is required by akute
+    // if (user.insurance) {
+    //   try {
+    //     await this.akuteService.createInsurance(
+    //       user.akutePatientId,
+    //       user.insurance
+    //     )
+    //   } catch (err) {
+    //     console.log(err)
+    //   }
+    // }
 
     if (process.env.NODE_ENV === "production") {
-      const zapierCreateUserWebhook = config.get(
-        "zapierCreateUserWebhook"
-      ) as string
+      try {
+        const zapierCreateUserWebhook = config.get(
+          "zapierCreateUserWebhook"
+        ) as string
 
-      // zapier webhook send
-      await axios.post(zapierCreateUserWebhook, {
-        user: {
-          _id: user._id,
-          email: user.email,
-          phone: user.phone,
-          address: user.address,
-          name: user.name,
-        },
-      })
+        // zapier webhook send
+        await axios.post(zapierCreateUserWebhook, {
+          user: {
+            _id: user._id,
+            email: user.email,
+            phone: user.phone,
+            address: user.address,
+            name: user.name,
+          },
+        })
+      } catch (err) {
+        console.log(
+          "An error occured hitting zappier create user webhook",
+          err.message
+        )
+      }
     }
 
     // Create withings dropshipping order and send email to patients@joinalfie.com
@@ -1329,14 +1335,6 @@ class UserService extends EmailService {
         subscriptionExpiresAt: expiresAt,
         stripeSubscriptionId,
         textOptIn: checkout.textOptIn,
-        insurance:
-          checkout.insurance &&
-          checkout.insurance?.status !== InsuranceStatus.NOT_ACTIVE
-            ? {
-                ...checkout.insurance,
-                insurance: checkout.insurance.insurance.toString(),
-              }
-            : undefined,
         signupPartnerId: checkout.signupPartner.toString(),
         signupPartnerProviderId: checkout.signupPartnerProvider.toString(),
       })
@@ -1357,11 +1355,7 @@ class UserService extends EmailService {
           userId: user._id,
           signupPartner: checkout.signupPartner || "None",
           signupPartnerProvider: checkout.signupPartnerProvider || "None",
-          insurancePay:
-            checkout.insurance &&
-            checkout.insurance.status !== InsuranceStatus.NOT_ACTIVE
-              ? true
-              : false,
+          insurancePay: false,
           environment: process.env.NODE_ENV,
         },
       })
@@ -1526,6 +1520,18 @@ class UserService extends EmailService {
     checkout.billingAddress = sameAsShipping ? shipping : billing
     await checkout.save()
 
+    let insurance
+    if (
+      checkout.insurance &&
+      checkout.insurance?.status !== InsuranceStatus.NOT_ACTIVE
+    ) {
+      insurance = {
+        ...checkout.insurance,
+        insuranceId: checkout.insurance.insurance.toString(),
+      }
+      delete insurance.insurance
+    }
+
     const userInput = {
       name: checkout.name,
       textOptIn: checkout.textOptIn,
@@ -1536,14 +1542,8 @@ class UserService extends EmailService {
       weightInLbs: checkout.weightInLbs,
       gender: checkout.gender,
       heightInInches: checkout.heightInInches,
-      insurance:
-        checkout.insurance &&
-        checkout.insurance?.status !== InsuranceStatus.NOT_ACTIVE
-          ? {
-              ...checkout.insurance,
-              insurance: checkout.insurance.insurance.toString(),
-            }
-          : undefined,
+      ...(checkout.provider && { providerId: checkout.provider.toString() }),
+      ...(insurance && { insurance }),
       signupPartnerId: checkout.signupPartner?.toString(),
       signupPartnerProviderId: checkout.signupPartnerProvider?.toString(),
     }
@@ -2098,6 +2098,20 @@ class UserService extends EmailService {
       }
 
       try {
+        let insurance
+        let providerId
+        if (
+          pICheckout.insurance &&
+          pICheckout.insurance?.status !== InsuranceStatus.NOT_ACTIVE
+        ) {
+          insurance = {
+            ...pICheckout.insurance,
+            insuranceId: pICheckout.insurance.insurance.toString(),
+          }
+          providerId = pICheckout.provider.toString()
+          delete insurance.insurance
+        }
+
         const pINewUser = await this.createUser({
           name: pICheckout.name,
           textOptIn: pICheckout.textOptIn,
@@ -2111,14 +2125,8 @@ class UserService extends EmailService {
           stripeCustomerId: checkoutId,
           stripePaymentIntentId: null,
           stripeSubscriptionId: null,
-          insurance:
-            pICheckout.insurance &&
-            pICheckout.insurance?.status !== InsuranceStatus.NOT_ACTIVE
-              ? {
-                  ...pICheckout.insurance,
-                  insurance: pICheckout.insurance.insurance.toString(),
-                }
-              : undefined,
+          ...(providerId && { providerId }),
+          ...(insurance && { insurance }),
           signupPartnerId: pICheckout.signupPartner?.toString(),
           signupPartnerProviderId: pICheckout.signupPartnerProvider?.toString(),
         })

@@ -1,45 +1,15 @@
+import { UserTaskModel } from "./../schema/task.user.schema"
+import { ProviderModel } from "./../schema/provider.schema"
+import { TaskModel } from "./../schema/task.schema"
 import { ApolloError } from "apollo-server-errors"
-import { Address, UserModel } from "./../schema/user.schema"
-import { InsuranceDetails } from "../schema/insurance.schema"
-interface PatientReassignInput {
-  patientId: string
-  newProviderId: string
-}
-
-interface BulkPatientReassignInput {
-  patientIds: string[]
-  newProviderId: string
-}
-
-interface PatientModifyInput {
-  patientId: string
-  name: string
-  dateOfBirth: Date
-  email: string
-  phoneNumber: string
-  gender: string
-  address: Address
-  insurance?: InsuranceDetails
-}
-
-interface ProviderModifyInput {
-  providerId: string
-  firstName: string
-  lastName: string
-  email: string
-  npi: string
-  licensedStates: string[]
-  providerCode: string
-}
-
-interface ProviderCreateInput {
-  firstName: string
-  lastName: string
-  email: string
-  npi: string
-  licensedStates: string[]
-  providerCode: string
-}
+import { UserModel } from "./../schema/user.schema"
+import {
+  PatientReassignInput,
+  BulkPatientReassignInput,
+  PatientModifyInput,
+  ProviderModifyInput,
+  ProviderCreateInput,
+} from "../types/InternalServiceTypes"
 
 class InternalOperationsService {
   async internalPatientReassign(input: PatientReassignInput) {
@@ -79,6 +49,7 @@ class InternalOperationsService {
     }
   }
 
+  // TODO: add insurance eligibility check upon changes and validation for insurance
   async internalPatientModify(input: PatientModifyInput) {
     try {
       const {
@@ -88,17 +59,7 @@ class InternalOperationsService {
         phoneNumber,
         gender,
         address: { line1, city, state, postalCode },
-        insurance: {
-          memberId,
-          groupId,
-          groupName,
-          rxBIN,
-          rxGroup,
-          payorId,
-          payorName,
-          insurance,
-          status,
-        },
+        insurance,
       } = input
 
       const modifiedPatient = await UserModel.findByIdAndUpdate(
@@ -116,15 +77,8 @@ class InternalOperationsService {
             city,
           },
           insurance: {
-            memberId,
-            insurance,
-            groupId,
-            groupName,
-            rxBIN,
-            rxGroup,
-            payorId,
-            payorName,
-            status,
+            insurance: insurance.insuranceId,
+            ...insurance,
           },
         }
       )
@@ -176,6 +130,54 @@ class InternalOperationsService {
       return newProvider
     } catch (e) {
       throw new ApolloError("An error occurred while creating the provider")
+    }
+  }
+  async internalFindAllPatients() {
+    try {
+      const patients = await UserModel.find({ role: "Patient" })
+      return patients
+    } catch (e) {
+      throw new ApolloError("An error occurred while fetching the patients")
+    }
+  }
+  async internalFindPatientById(patientId: string) {
+    try {
+      const patient = await UserModel.findById(patientId)
+      return patient
+    } catch (e) {
+      throw new ApolloError("An error occurred while fetching the patient")
+    }
+  }
+  async internalGetAllTaskTypes() {
+    try {
+      const taskTypes = await TaskModel.find()
+      return taskTypes
+    } catch (e) {
+      throw new ApolloError("An error occurred while fetching the task types")
+    }
+  }
+  async internalGetProviderById(providerId: string) {
+    try {
+      const provider = await ProviderModel.findById(providerId)
+      return provider
+    } catch (e) {
+      throw new ApolloError("An error occurred while fetching the provider")
+    }
+  }
+  async internalGetAllProviders() {
+    try {
+      const providers = await ProviderModel.find({ role: "Practitioner" })
+      return providers
+    } catch (e) {
+      throw new ApolloError("An error occurred while fetching the providers")
+    }
+  }
+  async internalGetUserTasksByPatientId(patientId: string) {
+    try {
+      const tasks = await UserTaskModel.find({ patientId })
+      return tasks
+    } catch (e) {
+      throw new ApolloError("An error occurred while fetching the tasks")
     }
   }
 }

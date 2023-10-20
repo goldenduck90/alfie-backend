@@ -257,6 +257,18 @@ export default class StripeService {
         )
       }
 
+      let insurance
+      if (
+        checkout.insurance &&
+        checkout.insurance?.status !== InsuranceStatus.NOT_ACTIVE
+      ) {
+        insurance = {
+          ...checkout.insurance,
+          insuranceId: checkout.insurance.insurance.toString(),
+        }
+        delete insurance.insurance
+      }
+
       const newUser = await this.userService.createUser({
         name: checkout.name,
         textOptIn: checkout.textOptIn,
@@ -270,14 +282,8 @@ export default class StripeService {
         stripeCustomerId: customerId,
         stripeSubscriptionId: subscriptionId,
         subscriptionExpiresAt: new Date(),
-        insurance:
-          checkout.insurance &&
-          checkout.insurance?.status !== InsuranceStatus.NOT_ACTIVE
-            ? {
-                ...checkout.insurance,
-                insurance: checkout.insurance.insurance.toString(),
-              }
-            : undefined,
+        ...(insurance && { insurance }),
+        ...(checkout.provider && { providerId: checkout.provider.toString() }),
         signupPartnerId: checkout.signupPartner?.toString(),
         signupPartnerProviderId: checkout.signupPartnerProvider?.toString(),
       })
@@ -447,6 +453,18 @@ export default class StripeService {
         )
       }
 
+      let insurance
+      if (
+        checkout.insurance &&
+        checkout.insurance?.status !== InsuranceStatus.NOT_ACTIVE
+      ) {
+        insurance = {
+          ...checkout.insurance,
+          insuranceId: checkout.insurance.insurance.toString(),
+        }
+        delete insurance.insurance
+      }
+
       const { user: newUser } = await this.userService.createUser({
         name: checkout.name,
         textOptIn: checkout.textOptIn,
@@ -460,14 +478,8 @@ export default class StripeService {
         stripeCustomerId: customerId,
         stripePaymentIntentId: paymentIntentId,
         stripeSubscriptionId: null,
-        insurance:
-          checkout.insurance &&
-          checkout.insurance?.status !== InsuranceStatus.NOT_ACTIVE
-            ? {
-                ...checkout.insurance,
-                insurance: checkout.insurance.insurance.toString(),
-              }
-            : undefined,
+        ...(insurance && { insurance }),
+        ...(checkout.provider && { providerId: checkout.provider.toString() }),
         signupPartnerId: checkout.signupPartner?.toString(),
         signupPartnerProviderId: checkout.signupPartnerProvider?.toString(),
       })
