@@ -1,13 +1,13 @@
 import { User } from "../schema/user.schema"
 import { Task, TaskType } from "../schema/task.schema"
 import { UserTask } from "../schema/task.user.schema"
-import { AlertModel, SeverityType, Alert } from "../schema/alert.schema"
+import { AlertModel, SeverityType } from "../schema/alert.schema"
 import { UserModel } from "../schema/user.schema"
 import Role from "../schema/enums/Role"
 import { UserTaskModel } from "../schema/task.user.schema"
 import { TaskModel } from "../schema/task.schema"
 import EmailService from "./email.service"
-// import { Provider } from "../schema/provider.schema"
+import { Provider, ProviderModel } from "../schema/provider.schema"
 
 export default class AlertService {
   private emailService: EmailService
@@ -16,16 +16,50 @@ export default class AlertService {
     this.emailService = new EmailService()
   }
 
-  async createAlert(alert: Partial<Alert>) {
+  async createAlert(alert: {
+    title: string
+    description: string
+    task: Task
+    user: User
+    provider: Provider
+    severity: SeverityType
+    medical: boolean
+  }) {
     if (
       [SeverityType.EXTREME, SeverityType.HIGH].includes(alert.severity) &&
       alert.medical
     ) {
       // Send alert email
-      // const subject = "Medical Alert"
-      // const body = "Medical Alert"
-      // const toEmails = ["patients@joinalfie.com"]
-      // this.emailService.sendEmail(subject, body, toEmails)
+      const subject = `ATTN: Alert for ${alert.user.name}`
+      const body = `
+      Hi,
+      <br />
+      This is an alert from Alfie about your patient ${alert.user.name}.
+      <br />
+      There is something in their profile that requires your clinical attention. Please take a look at your earliest convenience.
+      <br />
+      <br />
+      Thanks,
+      <br />
+      Alfie Alerts
+      `
+      const doctors = await ProviderModel.find({ type: Role.Doctor })
+
+      const licensedDoctors = doctors.filter((doctor: Provider) =>
+        doctor.licensedStates.includes(alert.user.address.state)
+      )
+
+      const provider = await ProviderModel.findById(alert.provider)
+
+      const toEmails = [
+        "billy@joinalfie.com",
+        "patients@joinalfie.com",
+        "chelsea@joinalfie.com",
+        provider.email,
+        ...licensedDoctors.map((doctor: Provider) => doctor.email),
+      ]
+
+      await this.emailService.sendEmail(subject, body, toEmails)
     }
 
     await AlertModel.create(alert)
@@ -51,7 +85,7 @@ export default class AlertService {
             description: "The patients blood pressure requires attention",
             task: task,
             user: user,
-            provider: user.provider,
+            provider: user.provider as Provider,
             severity: SeverityType.HIGH,
             medical: true,
           })
@@ -96,7 +130,7 @@ export default class AlertService {
                 "The patient has had a large shift in their MP and may need new medications",
               task: task,
               user: user,
-              provider: user.provider,
+              provider: user.provider as Provider,
               severity: SeverityType.LOW,
               medical: true,
             })
@@ -137,7 +171,7 @@ export default class AlertService {
               description: "The patient has lost too much weight too quickly",
               task: task,
               user: user,
-              provider: user.provider,
+              provider: user.provider as Provider,
               severity: SeverityType.HIGH,
               medical: true,
             })
@@ -180,6 +214,7 @@ export default class AlertService {
             "Patient has not weighed themselves this week, and prevents RPM. May need to message patient on inform care coordination",
           task: task,
           user: patient,
+          provider: patient.provider as Provider,
           severity: SeverityType.LOW,
           medical: false,
         })
