@@ -38,6 +38,16 @@ export default class InsuranceService {
         dbInsurance.providers
       )
 
+      if (dbInsurance.insuranceStatus === InsuranceStatus.COMING_SOON) {
+        return {
+          status: dbInsurance.insuranceStatus,
+          eligible: true, // for coming soon purposes
+          payor: undefined,
+          provider,
+          errors: [],
+        }
+      }
+
       const { eligible, errors, payor, primary, dependents } =
         await this.candidService.checkInsuranceEligibility({
           user,
