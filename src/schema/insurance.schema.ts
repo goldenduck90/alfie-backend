@@ -152,9 +152,9 @@ export class InsuranceDetails {
   @prop({ required: true })
   memberId: string
 
-  @Field(() => String)
-  @prop({ required: true })
-  groupId: string
+  @Field(() => String, { nullable: true })
+  @prop({ required: false })
+  groupId?: string
 
   @Field(() => Insurance)
   @prop({ ref: () => Insurance, required: true })
@@ -236,8 +236,8 @@ export class InsuranceDetailsInput {
   @Field(() => String)
   memberId: string
 
-  @Field(() => String)
-  groupId: string
+  @Field(() => String, { nullable: true })
+  groupId?: string
 
   @Field(() => String)
   insuranceId: string
