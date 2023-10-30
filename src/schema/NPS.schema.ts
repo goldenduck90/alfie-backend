@@ -1,30 +1,7 @@
-import {
-  Ref,
-  getModelForClass,
-  prop,
-  ModelOptions,
-  Severity,
-} from "@typegoose/typegoose"
-import { Field, ObjectType, InputType } from "type-graphql"
+import { Ref, getModelForClass, prop } from "@typegoose/typegoose"
+import { Field, ObjectType } from "type-graphql"
 import { User } from "./user.schema"
 import { Provider } from "./provider.schema"
-
-@ObjectType()
-@InputType("NPSQuestionsInput")
-@ModelOptions({ schemaOptions: { _id: false, discriminatorKey: "question" } })
-export class NPSQuestion {
-  @Field(() => String)
-  @prop({ required: true })
-  question: string
-
-  @Field(() => Number, { nullable: true })
-  @prop({ required: false })
-  value?: number
-
-  @Field(() => String, { nullable: true })
-  @prop({ required: false })
-  textAnswer?: string
-}
 
 @ObjectType()
 export class NPS {
@@ -43,9 +20,17 @@ export class NPS {
   @prop({ ref: () => Provider, required: true })
   provider: Ref<Provider>
 
-  @Field(() => [NPSQuestion], { nullable: true })
-  @prop({ required: false, allowMixed: Severity.ALLOW })
-  questions?: NPSQuestion[]
+  @Field(() => Number, { nullable: true })
+  @prop({ required: false })
+  value: number
+
+  @Field(() => String, { nullable: true })
+  @prop({ required: false })
+  textAnswer?: string
+
+  @Field(() => String, { nullable: true })
+  @prop({ required: false })
+  feedback?: string
 
   @Field(() => Date, { nullable: true })
   createdAt?: Date
