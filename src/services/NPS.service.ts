@@ -50,6 +50,8 @@ class NPSService extends EmailService {
       nps.textAnswer = input.textAnswer
       nps.feedback = input.feedback
       await nps.save()
+
+      return nps
     } catch (err) {
       throw new ApolloError(err.message, "ERROR")
     }
