@@ -30,6 +30,7 @@ import { UserModel, MessageResponse, User } from "../schema/user.schema"
 import Role from "../schema/enums/Role"
 import CandidService from "./candid.service"
 import EmailService from "./email.service"
+import NPSService from "./NPS.service"
 
 /** Default appointment timezone used to communicate with ea provider */
 const DEFAULT_TIMEZONE = "America/New_York"
@@ -112,11 +113,13 @@ class AppointmentService extends EmailService {
   public eaUrl: string
   public axios: AxiosInstance
   private candidService: CandidService
+  private npsService: NPSService
 
   constructor() {
     super()
     const eaUrl = config.get("easyAppointmentsApiUrl") as string
     this.candidService = new CandidService()
+    this.npsService = new NPSService()
 
     this.eaUrl = eaUrl
     this.axios = axios.create({
@@ -1014,6 +1017,15 @@ class AppointmentService extends EmailService {
     const user = await UserModel.findOne({
       eaCustomerId: appointment.eaCustomer.id,
     })
+
+    try {
+      await this.npsService.createSurvey(user, appointment.eaAppointmentId)
+    } catch (error) {
+      captureEvent(
+        "info",
+        "AppointmentService.handleAppointmentEnded, failed creating NPS survey"
+      )
+    }
 
     const getAppointment = async () => {
       try {

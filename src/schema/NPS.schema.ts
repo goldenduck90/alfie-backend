@@ -1,7 +1,6 @@
 import { Ref, getModelForClass, prop } from "@typegoose/typegoose"
-import { Field, ObjectType } from "type-graphql"
+import { Field, ObjectType, InputType } from "type-graphql"
 import { User } from "./user.schema"
-import { Provider } from "./provider.schema"
 
 @ObjectType()
 export class NPS {
@@ -16,13 +15,9 @@ export class NPS {
   @prop({ ref: () => User, required: true })
   user: Ref<User>
 
-  @Field(() => Provider)
-  @prop({ ref: () => Provider, required: true })
-  provider: Ref<Provider>
-
   @Field(() => Number, { nullable: true })
   @prop({ required: false })
-  value: number
+  score: number
 
   @Field(() => String, { nullable: true })
   @prop({ required: false })
@@ -42,3 +37,18 @@ export class NPS {
 export const NPSModel = getModelForClass<typeof NPS>(NPS, {
   schemaOptions: { timestamps: true },
 })
+
+@InputType()
+export class NPSInput {
+  @Field(() => String)
+  id: string
+
+  @Field(() => Number)
+  score: number
+
+  @Field(() => String, { nullable: true })
+  textAnswer?: string
+
+  @Field(() => String, { nullable: true })
+  feedback?: string
+}
