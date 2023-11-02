@@ -80,6 +80,7 @@ import { captureException, captureEvent } from "../utils/sentry"
 import StripeService from "./stripe.service"
 import { calculateBMI } from "../utils/calculateBMI"
 import { InsuranceDetails, InsuranceStatus } from "../schema/insurance.schema"
+import { AlertModel, Alert } from "../schema/alert.schema"
 
 export const initialUserTasks = [
   TaskType.ID_AND_INSURANCE_UPLOAD,
@@ -900,20 +901,54 @@ class UserService extends EmailService {
         )
         return []
       } else if (provider.type === Role.Doctor) {
-        const results = await UserModel.find({
+        const results: LeanDocument<User[]> = await UserModel.find({
           state: { $in: provider.licensedStates },
           role: Role.Patient,
         }).populate<{ provider: Provider }>("provider")
         return results
       } else {
-        const results = await UserModel.find({
+        const results: LeanDocument<User[]> = await UserModel.find({
           provider: providerId,
           role: Role.Patient,
         }).populate<{ provider: Provider }>("provider")
+
         return results
       }
     } catch (error) {
       captureException(error, "UserService.getAllUsersByAProvider")
+      throw new ApolloError(error.message, error.code)
+    }
+  }
+
+  async getAllUsersWithAlerts(providerId: string) {
+    try {
+      const provider = await ProviderModel.findById(providerId)
+
+      if (!provider) {
+        const user = await UserModel.findById(providerId)
+        const message = user
+          ? `called getAllUsersHasAlert with a user ${user._id} instead of a provider`
+          : `providerId ${providerId} not found`
+        captureEvent("warning", `UserService.getAllUsersHasAlert ${message}`, {
+          providerId,
+        })
+        return []
+      } else {
+        const results = await AlertModel.find({
+          provider: providerId,
+        }).populate("user")
+
+        return (
+          results
+            .map((alert: Alert) => alert.user)
+            // Filter out duplicated patients
+            .filter((value: User, index, self) => {
+              return self.findIndex((v: User) => v._id === value._id) === index
+            })
+        )
+      }
+    } catch (error) {
+      captureException(error, "UserService.getAllUsersWithAlerts")
       throw new ApolloError(error.message, error.code)
     }
   }

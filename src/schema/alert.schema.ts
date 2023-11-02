@@ -1,5 +1,5 @@
 import { Ref, getModelForClass, prop } from "@typegoose/typegoose"
-import { Field, ObjectType, registerEnumType } from "type-graphql"
+import { Field, ObjectType, InputType, registerEnumType } from "type-graphql"
 import { Task } from "./task.schema"
 import { User } from "./user.schema"
 import { Provider } from "./provider.schema"
@@ -67,3 +67,9 @@ export class Alert {
 export const AlertModel = getModelForClass<typeof Alert>(Alert, {
   schemaOptions: { timestamps: true },
 })
+
+@InputType()
+export class AcknowledgeAlertInput {
+  @Field(() => String)
+  id: string
+}
