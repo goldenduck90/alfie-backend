@@ -45,6 +45,11 @@ export const tasksEligibleForProfiling = [
   TaskType.MP_ACTIVITY,
 ]
 
+export const primaryTasksForPatient = [
+  TaskType.ID_AND_INSURANCE_UPLOAD,
+  TaskType.NEW_PATIENT_INTAKE_FORM,
+]
+
 class TaskService {
   private akuteService: AkuteService
   private emailService: EmailService
@@ -149,7 +154,7 @@ class TaskService {
   async didUserCompletedRequiredTasks(userId: string) {
     const tasks = await TaskModel.find({
       type: {
-        $in: tasksEligibleForProfiling,
+        $in: [...tasksEligibleForProfiling, ...primaryTasksForPatient],
       },
     })
     const userTasks = await UserTaskModel.find({
@@ -159,20 +164,38 @@ class TaskService {
       },
     }).populate<{ task: Task }>("task")
 
+    const userTasksEligibleForProfiling = []
+    const primaryUserTasks = []
+    for (const ut of userTasks) {
+      if (tasksEligibleForProfiling.includes(ut.task.type)) {
+        userTasksEligibleForProfiling.push(ut)
+      } else {
+        primaryUserTasks.push(ut)
+      }
+    }
+
+    // User should complete the Medical Questionnaire and ID & Insurance Verification
+    if (!primaryUserTasks.every((ut) => ut.completed)) {
+      return false
+    }
+
     // Required user tasks for eligibility check
     const hasCompletedRequiredTasks =
-      userTasks.length === tasksEligibleForProfiling.length &&
-      userTasks.every(({ task, completed, completedAt }) => {
-        let hasCompletedInTimeLimit = false
-        if (completedAt) {
-          hasCompletedInTimeLimit = isBefore(
-            subDays(new Date(), task.interval),
-            completedAt
-          )
-        }
+      userTasksEligibleForProfiling.length ===
+        tasksEligibleForProfiling.length &&
+      userTasksEligibleForProfiling.every(
+        ({ task, completed, completedAt }) => {
+          let hasCompletedInTimeLimit = false
+          if (completedAt) {
+            hasCompletedInTimeLimit = isBefore(
+              subDays(new Date(), task.interval),
+              completedAt
+            )
+          }
 
-        return completed && hasCompletedInTimeLimit
-      })
+          return completed && hasCompletedInTimeLimit
+        }
+      )
 
     return hasCompletedRequiredTasks
   }

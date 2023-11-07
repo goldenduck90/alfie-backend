@@ -6,9 +6,65 @@ import { UserModel } from "../schema/user.schema"
 import Role from "../schema/enums/Role"
 import { UserTaskModel } from "../schema/task.user.schema"
 import { TaskModel } from "../schema/task.schema"
-// import { Provider } from "../schema/provider.schema"
+import EmailService from "./email.service"
+import { Provider, ProviderModel } from "../schema/provider.schema"
 
 export default class AlertService {
+  private emailService: EmailService
+
+  constructor() {
+    this.emailService = new EmailService()
+  }
+
+  async createAlert(alert: {
+    title: string
+    description: string
+    task: Task
+    user: User
+    provider: Provider
+    severity: SeverityType
+    medical: boolean
+  }) {
+    if (
+      [SeverityType.EXTREME, SeverityType.HIGH].includes(alert.severity) &&
+      alert.medical
+    ) {
+      // Send alert email
+      const subject = `ATTN: Alert for ${alert.user.name}`
+      const body = `
+      Hi,
+      <br />
+      This is an alert from Alfie about your patient ${alert.user.name}.
+      <br />
+      There is something in their profile that requires your clinical attention. Please take a look at your earliest convenience.
+      <br />
+      <br />
+      Thanks,
+      <br />
+      Alfie Alerts
+      `
+      const doctors = await ProviderModel.find({ type: Role.Doctor })
+
+      const licensedDoctors = doctors.filter((doctor: Provider) =>
+        doctor.licensedStates.includes(alert.user.address.state)
+      )
+
+      const provider = await ProviderModel.findById(alert.provider)
+
+      const toEmails = [
+        "billy@joinalfie.com",
+        "patients@joinalfie.com",
+        "chelsea@joinalfie.com",
+        provider.email,
+        ...licensedDoctors.map((doctor: Provider) => doctor.email),
+      ]
+
+      await this.emailService.sendEmail(subject, body, toEmails)
+    }
+
+    await AlertModel.create(alert)
+  }
+
   async checkUserTaskCompletion(user: User, task: Task, userTask: UserTask) {
     switch (task.type) {
       case TaskType.BP_LOG: {
@@ -24,12 +80,12 @@ export default class AlertService {
           (systolicBp.value as number) >= 140 ||
           (diastolicBp.value as number) >= 90
         ) {
-          await AlertModel.create({
+          await this.createAlert({
             title: "Hypertension Alert",
             description: "The patients blood pressure requires attention",
             task: task,
             user: user,
-            provider: user.provider,
+            provider: user.provider as Provider,
             severity: SeverityType.HIGH,
             medical: true,
           })
@@ -68,13 +124,13 @@ export default class AlertService {
           const maxScoreChange =
             (Math.abs(lastScore - maxScore) / lastScore) * 100
           if (minScoreChange >= 20 || maxScoreChange >= 20) {
-            await AlertModel.create({
+            await this.createAlert({
               title: "Large Metabolic Profile Shift",
               description:
                 "The patient has had a large shift in their MP and may need new medications",
               task: task,
               user: user,
-              provider: user.provider,
+              provider: user.provider as Provider,
               severity: SeverityType.LOW,
               medical: true,
             })
@@ -110,12 +166,12 @@ export default class AlertService {
           const maxWeightChange =
             (Math.abs(lastWeight - maxWeight) / lastWeight) * 100
           if (minWeightChange >= 10 || maxWeightChange >= 10) {
-            await AlertModel.create({
+            await this.createAlert({
               title: "Abnormal Weight Loss",
               description: "The patient has lost too much weight too quickly",
               task: task,
               user: user,
-              provider: user.provider,
+              provider: user.provider as Provider,
               severity: SeverityType.HIGH,
               medical: true,
             })
@@ -152,12 +208,13 @@ export default class AlertService {
 
       if (completedTasksWithinAWeek.length === 0) {
         // Add alert
-        await AlertModel.create({
+        await this.createAlert({
           title: "Patient has not been weighing themselves on scale",
           description:
             "Patient has not weighed themselves this week, and prevents RPM. May need to message patient on inform care coordination",
           task: task,
           user: patient,
+          provider: patient.provider as Provider,
           severity: SeverityType.LOW,
           medical: false,
         })
@@ -168,12 +225,30 @@ export default class AlertService {
     // TODO: TBD
   }
 
-  async getAlertByProvider(user: User) {
-    const alerts = await AlertModel.find({
-      provider: user._id,
-    })
+  async getAlertsByPatient(provider: User, patientId?: string) {
+    let query
+    if (patientId) {
+      query = {
+        provider: provider._id,
+        user: patientId,
+      }
+    } else {
+      query = {
+        provider: provider._id,
+      }
+    }
+    const alerts = await AlertModel.find({ ...query })
       .populate("user")
+      .populate("task")
       .sort({ createdAt: -1 })
     return alerts
+  }
+
+  async acknowledgeAlert(alertId: string) {
+    const alert = await AlertModel.findById(alertId)
+    alert.acknowledgedAt = new Date()
+    await alert.save()
+
+    return alert
   }
 }

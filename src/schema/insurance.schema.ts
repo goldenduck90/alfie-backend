@@ -272,9 +272,18 @@ export class InsuranceDetailsInput {
 }
 
 @InputType()
-export class InsuranceCheckInput {
+export class InsuranceCheckByCheckoutInput {
   @Field(() => String)
   checkoutId: string
+
+  @Field(() => InsuranceDetailsInput)
+  insurance: InsuranceDetailsInput
+}
+
+@InputType()
+export class InsuranceCheckByUserInput {
+  @Field(() => String)
+  userId: string
 
   @Field(() => InsuranceDetailsInput)
   insurance: InsuranceDetailsInput
