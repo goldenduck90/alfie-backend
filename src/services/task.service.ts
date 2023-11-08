@@ -2,7 +2,7 @@ import * as Sentry from "@sentry/node"
 import { ApolloError } from "apollo-server"
 import config from "config"
 import dayjs from "dayjs"
-import { addDays, subDays, isPast, isBefore, differenceInDays } from "date-fns"
+import { addDays, subDays, isPast, differenceInDays } from "date-fns"
 import { calculateScore } from "../PROAnalysis"
 import { Provider } from "../schema/provider.schema"
 import {
@@ -232,6 +232,8 @@ class TaskService {
 
           if (daysLeft <= 0) {
             eligibility.daysLeft = 0
+          } else {
+            eligibility.daysLeft = daysLeft
           }
         }
       }
@@ -264,6 +266,7 @@ class TaskService {
         daysLeft,
         completedRequiredTasks,
       } = await this.getUserScheduleAppointmentEligibility(userId)
+
       if (completedRequiredTasks) {
         if (!userAppointmentTask) {
           // Assign a new SCHEDULE_APPOINTMENT task
@@ -272,7 +275,7 @@ class TaskService {
             userId: userId.toString(),
           }
           await this.assignTaskToUser(newTaskInput)
-        } else if (0 > daysLeft) {
+        } else if (daysLeft === 0) {
           // Re-assign SCHEDULE_APPOINTMENT task
           scheduledAppointmentTask.completed = false
           scheduledAppointmentTask.completedAt = null

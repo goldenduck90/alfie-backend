@@ -5,8 +5,6 @@ import { format } from "date-fns"
 
 async function getPatientMetriportList() {
   try {
-    const data: any[] = []
-
     const users = await UserModel.find({
       _id: [
         "63a5ff67ec5d0f9a4f55bed6",

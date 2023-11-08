@@ -23,9 +23,11 @@ import MetriportService, {
 } from "./services/metriport.service"
 import StripeService from "./services/stripe.service"
 import { initializeSendBirdWebhook } from "./utils/sendBird"
+import TaskService from "./services/task.service"
 
 const userService = new UserService()
 const metriportService = new MetriportService()
+const taskService = new TaskService()
 
 async function bootstrap() {
   const path = "/graphql"
@@ -221,6 +223,25 @@ cron.schedule(
     console.log(`[METRIPORT DOCUMENT JOB][${new Date().toString()}] RUNNING...`)
     await metriportService.runPatientJob()
     console.log(`[METRIPORT DOCUMENT JOB][${new Date().toString()}] COMPLETED`)
+  },
+  {
+    runOnInit: true,
+  }
+)
+
+cron.schedule(
+  "0 0 * * *",
+  async () => {
+    console.log(
+      `[SCHEDULE APPOINTMENT JOB][${new Date().toString()}] RUNNING...`
+    )
+    const users = await userService.getAllUsers()
+    for (const user of users) {
+      await taskService.checkEligibilityForAppointment(user._id)
+    }
+    console.log(
+      `[SCHEDULE APPOINTMENT JOB][${new Date().toString()}] COMPLETED`
+    )
   },
   {
     runOnInit: true,
