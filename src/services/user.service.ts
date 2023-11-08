@@ -940,30 +940,36 @@ class UserService extends EmailService {
   async getAllUsersWithAlerts(providerId: string) {
     try {
       const provider = await ProviderModel.findById(providerId)
+      let results
 
       if (!provider) {
-        const user = await UserModel.findById(providerId)
-        const message = user
-          ? `called getAllUsersHasAlert with a user ${user._id} instead of a provider`
-          : `providerId ${providerId} not found`
-        captureEvent("warning", `UserService.getAllUsersHasAlert ${message}`, {
-          providerId,
-        })
-        return []
-      } else {
-        const results = await AlertModel.find({
-          provider: providerId,
+        results = await AlertModel.find({
+          acknowledgedAt: { $exists: false },
         }).populate("user")
-
-        return (
-          results
-            .map((alert: Alert) => alert.user)
-            // Filter out duplicated patients
-            .filter((value: User, index, self) => {
-              return self.findIndex((v: User) => v._id === value._id) === index
-            })
-        )
+      } else if (provider.type === Role.Doctor) {
+        const providers = await ProviderModel.find({
+          licensedStates: { $in: provider.licensedStates },
+        }).select("_id")
+        const providerIds = providers.map((p) => p._id)
+        results = await AlertModel.find({
+          acknowledgedAt: { $exists: false },
+          provider: { $in: providerIds },
+        }).populate("user")
+      } else {
+        results = await AlertModel.find({
+          provider: providerId,
+          acknowledgedAt: { $exists: false },
+        }).populate("user")
       }
+
+      return (
+        results
+          .map((alert: Alert) => alert.user)
+          // Filter out duplicated patients
+          .filter((value: User, index, self) => {
+            return self.findIndex((v: User) => v._id === value._id) === index
+          })
+      )
     } catch (error) {
       captureException(error, "UserService.getAllUsersWithAlerts")
       throw new ApolloError(error.message, error.code)
