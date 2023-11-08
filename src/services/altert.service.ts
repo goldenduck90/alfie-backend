@@ -52,9 +52,7 @@ export default class AlertService {
       const provider = await ProviderModel.findById(alert.provider)
 
       const toEmails = [
-        "billy@joinalfie.com",
         "patients@joinalfie.com",
-        "chelsea@joinalfie.com",
         provider.email,
         ...licensedDoctors.map((doctor: Provider) => doctor.email),
       ]
@@ -76,15 +74,35 @@ export default class AlertService {
         const diastolicBp = userTask.answers.find(
           (answer) => answer.key === "diastolicBp"
         )
+
+        const heartRate = userTask.answers.find(
+          (answer) => answer.key === "heartRate"
+        )
+
         if (
           (systolicBp.value as number) >= 140 ||
           (diastolicBp.value as number) >= 90
         ) {
           await this.createAlert({
             title: "Hypertension Alert",
-            description: "The patients blood pressure requires attention",
+            description: `The patients blood pressure requires attention: ${systolicBp.value}/${diastolicBp.value}`,
             task: task,
             user: user,
+            provider: user.provider as Provider,
+            severity: SeverityType.HIGH,
+            medical: true,
+          })
+        }
+
+        if (
+          (heartRate.value as number) >= 100 ||
+          (heartRate.value as number) <= 60
+        ) {
+          await this.createAlert({
+            title: "Heart Rate Alert",
+            description: `The patients heart rate requires attention: ${heartRate.value} HR`,
+            task,
+            user,
             provider: user.provider as Provider,
             severity: SeverityType.HIGH,
             medical: true,
