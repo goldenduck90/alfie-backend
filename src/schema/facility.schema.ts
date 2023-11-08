@@ -14,4 +14,8 @@ export class Facility {
   states: string[]
 }
 
-export const FacilityModel = getModelForClass<typeof Facility>(Facility)
+export const FacilityModel = getModelForClass<typeof Facility>(Facility, {
+  options: {
+    customName: "facilities",
+  },
+})
