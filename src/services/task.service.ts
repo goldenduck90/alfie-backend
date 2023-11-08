@@ -151,12 +151,13 @@ class TaskService {
   }
 
   /** Get user completed required tasks */
-  async didUserCompletedRequiredTasks(userId: string) {
+  async didUserCompletedRequiredTasks(userId: string): Promise<boolean> {
     const tasks = await TaskModel.find({
       type: {
         $in: [...tasksEligibleForProfiling, ...primaryTasksForPatient],
       },
     })
+
     const userTasks = await UserTaskModel.find({
       user: userId,
       task: {
@@ -169,7 +170,7 @@ class TaskService {
     for (const ut of userTasks) {
       if (tasksEligibleForProfiling.includes(ut.task.type)) {
         userTasksEligibleForProfiling.push(ut)
-      } else {
+      } else if (primaryTasksForPatient.includes(ut.task.type)) {
         primaryUserTasks.push(ut)
       }
     }
@@ -179,25 +180,19 @@ class TaskService {
       return false
     }
 
-    // Required user tasks for eligibility check
-    const hasCompletedRequiredTasks =
-      userTasksEligibleForProfiling.length ===
-        tasksEligibleForProfiling.length &&
-      userTasksEligibleForProfiling.every(
-        ({ task, completed, completedAt }) => {
-          let hasCompletedInTimeLimit = false
-          if (completedAt) {
-            hasCompletedInTimeLimit = isBefore(
-              subDays(new Date(), task.interval),
-              completedAt
-            )
-          }
+    // Create a set of completed eligible task types
+    const completedEligibleTaskTypes = new Set(
+      userTasksEligibleForProfiling
+        .filter((ut) => ut.completed)
+        .map((ut) => ut.task.type)
+    )
 
-          return completed && hasCompletedInTimeLimit
-        }
-      )
+    // Determine if userTasksEligibleForProfiling contains all task types in tasksEligibleForProfiling
+    const hasCompletedAllEligibleTasks = tasksEligibleForProfiling.every(
+      (taskType) => completedEligibleTaskTypes.has(taskType)
+    )
 
-    return hasCompletedRequiredTasks
+    return hasCompletedAllEligibleTasks
   }
 
   /** Get user completed schedule appointment tasks within a month */
@@ -212,9 +207,10 @@ class TaskService {
     )
     const eligibility: UserAppointmentEligibility = {
       task: null,
-      daysLeft: null,
+      daysLeft: 0,
       completedRequiredTasks: hasCompletedRequiredTasks,
     }
+
     const appointmentTask = await TaskModel.findOne({
       type: TaskType.SCHEDULE_APPOINTMENT,
     })
@@ -229,10 +225,14 @@ class TaskService {
 
         // Calculate the remaining days with in schedule appointment task interval
         if (completed && completedAt) {
-          eligibility.daysLeft = differenceInDays(
+          const daysLeft = differenceInDays(
             new Date(completedAt),
-            subDays(new Date(), appointmentTask.interval)
+            subDays(new Date(), appointmentTask.interval - 3)
           )
+
+          if (daysLeft <= 0) {
+            eligibility.daysLeft = 0
+          }
         }
       }
     }
