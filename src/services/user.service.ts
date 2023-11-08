@@ -81,6 +81,7 @@ import StripeService from "./stripe.service"
 import { calculateBMI } from "../utils/calculateBMI"
 import { InsuranceDetails, InsuranceStatus } from "../schema/insurance.schema"
 import { AlertModel, Alert } from "../schema/alert.schema"
+import MetriportService from "./metriport.service"
 
 export const initialUserTasks = [
   TaskType.ID_AND_INSURANCE_UPLOAD,
@@ -111,6 +112,7 @@ class UserService extends EmailService {
   private faxService: FaxService
   public awsDynamo: AWS.DynamoDB
   private stripeService: StripeService
+  private metriportService: MetriportService
 
   constructor() {
     super()
@@ -125,6 +127,7 @@ class UserService extends EmailService {
     this.withingsService = new WithingsService()
     this.faxService = new FaxService()
     this.stripeService = new StripeService(this)
+    this.metriportService = new MetriportService()
 
     this.awsDynamo = new AWS.DynamoDB({
       accessKeyId: process.env.AWS_ACCESS_KEY_ID,
@@ -333,6 +336,20 @@ class UserService extends EmailService {
     })
     if (!user) {
       throw new ApolloError(unknownError.message, unknownError.code)
+    }
+
+    try {
+      await this.metriportService.createPatient({
+        userId: user._id,
+        name,
+        address,
+        gender,
+        dob: dateOfBirth,
+      })
+    } catch (err) {
+      console.log(
+        "Metriport patient creation failed... skipping but logging to sentry"
+      )
     }
 
     // delete user from email subscribers table

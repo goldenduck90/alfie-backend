@@ -16,11 +16,16 @@ import Context from "./types/context"
 import { connectToMongo } from "./utils/mongo"
 import * as cron from "node-cron"
 import UserService from "./services/user.service"
-import { MetriportUser } from "./services/metriport.service"
+import MetriportService, {
+  ConsolidatedPatient,
+  ConversionPatient,
+  MetriportUser,
+} from "./services/metriport.service"
 import StripeService from "./services/stripe.service"
 import { initializeSendBirdWebhook } from "./utils/sendBird"
 
 const userService = new UserService()
+const metriportService = new MetriportService()
 
 async function bootstrap() {
   const path = "/graphql"
@@ -104,6 +109,52 @@ async function bootstrap() {
         console.log(JSON.stringify(req.body))
 
         switch (meta.type) {
+          case "medical.document-conversion":
+            const conversionPatients: ConversionPatient[] = req.body.patients
+            const seenConversionPatientIds: Record<string, boolean> = {}
+            const filteredConversionPatients = conversionPatients.filter(
+              (patient) => {
+                if (!seenConversionPatientIds[patient.patientId]) {
+                  seenConversionPatientIds[patient.patientId] = true
+                  return true
+                }
+                return false
+              }
+            )
+
+            for (const patient of filteredConversionPatients) {
+              await metriportService.startConsolidatedDataQuery({
+                metriportPatientId: patient.patientId,
+              })
+            }
+            break
+          case "medical.consolidated-data":
+            const consolidatedPatients: ConsolidatedPatient[] =
+              req.body.patients
+            const seenConsolidatedPatientIds: Record<string, boolean> = {}
+            const filteredConsolidatedPatients = consolidatedPatients.filter(
+              (patient) => {
+                if (!seenConsolidatedPatientIds[patient.patientId]) {
+                  seenConsolidatedPatientIds[patient.patientId] = true
+                  return true
+                }
+                return false
+              }
+            )
+
+            for (const patient of filteredConsolidatedPatients) {
+              const success = await metriportService.parseConsolidatedData({
+                metriportPatientId: patient.patientId,
+                resources: patient.filters.resources.split(","),
+                entries: patient.bundle.entry,
+              })
+
+              if (!success) {
+                console.log(patient)
+                throw Error("An error occured parsing consolidated data")
+              }
+            }
+            break
           case "devices.provider-connected":
             await Promise.all(
               users.map(async (metriportUser: MetriportUser) => {
@@ -163,5 +214,17 @@ cron.schedule("0 0 * * *", async () => {
   await userService.taskJob()
   console.log(`[TASK JOB][${new Date().toString()}] COMPLETED`)
 })
+
+cron.schedule(
+  "0 * * * *",
+  async () => {
+    console.log(`[METRIPORT DOCUMENT JOB][${new Date().toString()}] RUNNING...`)
+    await metriportService.runPatientJob()
+    console.log(`[METRIPORT DOCUMENT JOB][${new Date().toString()}] COMPLETED`)
+  },
+  {
+    runOnInit: true,
+  }
+)
 
 bootstrap()

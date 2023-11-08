@@ -489,6 +489,26 @@ export class User {
   @prop()
   metriportUserId?: string
 
+  @Field(() => String, { nullable: true })
+  @prop()
+  metriportPatientId?: string
+
+  @Field(() => String, { nullable: true })
+  @prop()
+  metriportFacilityId?: string
+
+  @Field(() => String, { nullable: true })
+  @prop()
+  metriportDocumentQueryId?: string
+
+  @Field(() => String, { nullable: true })
+  @prop()
+  metriportConsolidatedQueryStatus?: string
+
+  @Field(() => Date, { nullable: true })
+  @prop()
+  lastMetriportConsolidatedQuery?: Date
+
   @Field(() => Date)
   @prop({ default: Date.now(), required: true })
   subscriptionExpiresAt: Date
