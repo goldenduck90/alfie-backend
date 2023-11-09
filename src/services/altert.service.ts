@@ -163,30 +163,33 @@ export default class AlertService {
         dt.setDate(dt.getDate() - 7)
 
         const weightsWithin7Days = user.weights
-          .filter((weight) => weight.date >= dt && weight.value)
-          .sort((a, b) => (a.date > b.date ? -1 : 1))
+          .filter((weight) => new Date(weight.date) >= dt && weight.value) // Ensure weight.date is comparable to dt
+          .sort((a, b) => (new Date(a.date) > new Date(b.date) ? -1 : 1)) // Convert strings to Date objects for comparison
 
         if (weightsWithin7Days.length > 1) {
-          const lastWeight = weightsWithin7Days.pop().value
+          const lastWeight =
+            weightsWithin7Days[weightsWithin7Days.length - 1].value // Access the last weight directly
 
           const minWeight = weightsWithin7Days.reduce(
-            (a, b) => (a < b.value ? a : b.value),
-            0
+            (min, weight) => Math.min(min, weight.value),
+            Infinity // Start with Infinity for minWeight
           )
 
           const maxWeight = weightsWithin7Days.reduce(
-            (a, b) => (a < b.value ? a : b.value),
-            0
+            (max, weight) => Math.max(max, weight.value),
+            -Infinity // Start with -Infinity for maxWeight
           )
 
-          const minWeightChange =
-            (Math.abs(lastWeight - minWeight) / lastWeight) * 100
-          const maxWeightChange =
-            (Math.abs(lastWeight - maxWeight) / lastWeight) * 100
-          if (minWeightChange >= 10 || maxWeightChange >= 10) {
+          const minWeightChange = ((lastWeight - minWeight) / lastWeight) * 100
+          const maxWeightChange = ((maxWeight - lastWeight) / lastWeight) * 100
+
+          if (
+            Math.abs(minWeightChange) >= 10 ||
+            Math.abs(maxWeightChange) >= 10
+          ) {
             await this.createAlert({
-              title: "Abnormal Weight Loss",
-              description: "The patient has lost too much weight too quickly",
+              title: "Abnormal Weight Change",
+              description: "The patient has had an abnormal weight change.",
               task: task,
               user: user,
               provider: user.provider as Provider,
@@ -195,7 +198,6 @@ export default class AlertService {
             })
           }
         }
-
         break
       }
       default:
