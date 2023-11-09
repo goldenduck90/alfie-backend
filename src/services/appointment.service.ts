@@ -403,6 +403,7 @@ class AppointmentService extends EmailService {
       }
 
       userTask.completed = true
+      userTask.completedAt = new Date()
       await userTask.save()
     }
 

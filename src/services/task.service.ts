@@ -218,7 +218,9 @@ class TaskService {
       eligibility.task = await UserTaskModel.findOne({
         user: userId,
         task: appointmentTask._id,
-      })
+        completed: true,
+        completedAt: { $exists: true },
+      }).sort({ completedAt: -1 })
 
       if (eligibility.task) {
         const { completed, completedAt } = eligibility.task
@@ -227,7 +229,7 @@ class TaskService {
         if (completed && completedAt) {
           const daysLeft = differenceInDays(
             new Date(completedAt),
-            subDays(new Date(), appointmentTask.interval - 3)
+            subDays(new Date(), appointmentTask.interval - 1)
           )
 
           if (daysLeft <= 0) {
@@ -257,32 +259,15 @@ class TaskService {
         throw new ApolloError("Schedule Appointment Task not found ")
       }
 
-      const scheduledAppointmentTask = await UserTaskModel.findOne({
-        user: userId,
-        task: appointmentTask._id,
-      })
-      const {
-        task: userAppointmentTask,
-        daysLeft,
-        completedRequiredTasks,
-      } = await this.getUserScheduleAppointmentEligibility(userId)
+      const { daysLeft, completedRequiredTasks } =
+        await this.getUserScheduleAppointmentEligibility(userId)
 
-      if (completedRequiredTasks) {
-        if (!userAppointmentTask) {
-          // Assign a new SCHEDULE_APPOINTMENT task
-          const newTaskInput = {
-            taskType: TaskType.SCHEDULE_APPOINTMENT,
-            userId: userId.toString(),
-          }
-          await this.assignTaskToUser(newTaskInput)
-        } else if (daysLeft === 0) {
-          // Re-assign SCHEDULE_APPOINTMENT task
-          scheduledAppointmentTask.completed = false
-          scheduledAppointmentTask.completedAt = null
-          scheduledAppointmentTask.dueAt = addDays(new Date(), 1)
-
-          await scheduledAppointmentTask.save()
+      if (completedRequiredTasks && daysLeft === 0) {
+        const newTaskInput = {
+          taskType: TaskType.SCHEDULE_APPOINTMENT,
+          userId: userId.toString(),
         }
+        await this.assignTaskToUser(newTaskInput)
       }
     } catch (error) {
       captureException(error, "TaskService.checkEligibilityForAppointment")
