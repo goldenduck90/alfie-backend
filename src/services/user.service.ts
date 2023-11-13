@@ -829,6 +829,9 @@ class UserService extends EmailService {
         name: user.name,
         email: user.email,
         role: user.role,
+        ...(user.role === Role.HealthCoach && {
+          eaHealthCoachId: user.eaHealthCoachId,
+        }),
       },
       {
         ...(!noExpire
