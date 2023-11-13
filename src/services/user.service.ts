@@ -2146,7 +2146,11 @@ class UserService extends EmailService {
     }
   }
 
-  async transferPatients(oldProviderId: string, newProviderId: string) {
+  async transferPatients(
+    oldProviderId: string,
+    newProviderId: string,
+    patientIds?: string[]
+  ) {
     // Find providers
     const providers: Provider[] = await ProviderModel.find({
       _id: {
@@ -2175,10 +2179,19 @@ class UserService extends EmailService {
     }
 
     // Pull old provider patients
-    const patients = await UserModel.find({
-      provider: oldProviderId,
-      role: Role.Patient,
-    })
+    let patients
+    if (patientIds) {
+      patients = await UserModel.find({
+        provider: oldProviderId,
+        role: Role.Patient,
+        _id: { $in: patientIds }, // Add this line
+      })
+    } else {
+      patients = await UserModel.find({
+        provider: oldProviderId,
+        role: Role.Patient,
+      })
+    }
 
     // Validate Sendbird User existence for the providers
     for (const provider of providers) {

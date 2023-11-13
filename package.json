@@ -13,6 +13,7 @@
     "provider:fix-assignment": "cross-env NODE_ENV=production ts-node-dev --respawn --transpile-only src/fixProviderPatientAssignment.ts",
     "db:populate": "cross-env NODE_ENV=development ts-node scripts/populateCollection.ts",
     "provider:replace": "cross-env NODE_ENV=production ts-node ./scripts/transferProviderPatients.ts",
+    "patient:akute": "cross-env NODE_ENV=production ts-node ./scripts/createAkutePatient.ts",
     "format": "prettier --check . --config ./.prettierrc",
     "format:fix": "prettier --write . --config ./.prettierrc",
     "lint": "eslint . --ext .js,.ts",
