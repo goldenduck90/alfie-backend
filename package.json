@@ -12,6 +12,8 @@
     "provider:fix-count": "cross-env NODE_ENV=production ts-node-dev --respawn --transpile-only src/fixProviderPatientCount.ts",
     "provider:fix-assignment": "cross-env NODE_ENV=production ts-node-dev --respawn --transpile-only src/fixProviderPatientAssignment.ts",
     "db:populate": "cross-env NODE_ENV=development ts-node scripts/populateCollection.ts",
+    "provider:reassign": "cross-env NODE_ENV=production ts-node ./scripts/transferProviderPatientsSpecific.ts",
+    "patients:classify": "cross-env NODE_ENV=production ts-node ./scripts/recalculateClassifications.ts",
     "provider:replace": "cross-env NODE_ENV=production ts-node ./scripts/transferProviderPatients.ts",
     "patient:akute": "cross-env NODE_ENV=production ts-node ./scripts/createAkutePatient.ts",
     "format": "prettier --check . --config ./.prettierrc",

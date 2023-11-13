@@ -2171,11 +2171,13 @@ class UserService extends EmailService {
 
     // Validate the licensed state of two providers
     if (
-      !oldProvider.licensedStates.every((state) =>
+      !oldProvider.licensedStates.some((state) =>
         newProvider.licensedStates.includes(state)
       )
     ) {
-      throw new Error("Error: Providers must licensed in same state.")
+      throw new Error(
+        "Error: New provider must be licensed in at least one state as the old provider."
+      )
     }
 
     // Pull old provider patients
@@ -2234,6 +2236,14 @@ class UserService extends EmailService {
         // Reassign the patient to new provider
         patient.provider = newProviderId.toString()
         await patient.save()
+        await ProviderModel.updateOne(
+          { _id: newProviderId },
+          { numberOfPatients: newProvider.numberOfPatients + 1 }
+        )
+        await ProviderModel.updateOne(
+          { _id: oldProviderId },
+          { numberOfPatients: oldProvider.numberOfPatients - 1 }
+        )
 
         records.push({
           oldProvider: oldProviderId,
