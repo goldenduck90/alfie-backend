@@ -1,4 +1,4 @@
-import { ModelOptions, Ref, getModelForClass, prop } from "@typegoose/typegoose"
+import { Ref, getModelForClass, prop } from "@typegoose/typegoose"
 import { Field, ObjectType } from "type-graphql"
 import { User } from "./user.schema"
 
@@ -9,8 +9,11 @@ export class MetriportConnectResponse {
 }
 
 @ObjectType()
-@ModelOptions({ schemaOptions: { _id: false, discriminatorKey: "user" } })
 export class MetriportMedicalData {
+  @Field(() => String)
+  @prop()
+  _id: string
+
   @Field(() => User, { nullable: true })
   @prop({ ref: () => User, required: true })
   user: Ref<User>

@@ -186,10 +186,13 @@ class MetriportService {
         today
       )
 
-      user.metriportConsolidatedQueryStatus = response
+      const r = response as any
+      const status = r.status
+
+      user.metriportConsolidatedQueryStatus = status
       await user.save()
 
-      if (response === "failed") {
+      if (status === "failed") {
         throw Error(`Consolidated document query failed for user: ${user._id}`)
       }
 
@@ -202,7 +205,7 @@ class MetriportService {
         }
       )
 
-      return response
+      return status
     } catch (err) {
       console.log(
         `An error occured starting consolidated query for patient in metriport: ${metriportPatientId}`
