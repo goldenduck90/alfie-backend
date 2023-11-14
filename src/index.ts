@@ -103,12 +103,6 @@ async function bootstrap() {
           })
         }
 
-        if (!meta || !users) {
-          return res.status(400).send({
-            message: "Bad Request",
-          })
-        }
-
         console.log(req.body)
 
         switch (meta.type) {
