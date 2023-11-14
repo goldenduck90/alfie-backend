@@ -109,7 +109,7 @@ async function bootstrap() {
           })
         }
 
-        console.log(JSON.stringify(req.body))
+        console.log(req.body)
 
         switch (meta.type) {
           case "medical.document-conversion":
