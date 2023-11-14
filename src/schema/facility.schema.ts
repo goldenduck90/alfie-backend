@@ -2,11 +2,13 @@ import { ModelOptions, getModelForClass, prop } from "@typegoose/typegoose"
 import { Field, ObjectType } from "type-graphql"
 
 @ObjectType()
-@ModelOptions({
-  schemaOptions: { _id: false, discriminatorKey: "metriportId" },
-})
 export class Facility {
   @Field(() => String)
+  @prop()
+  _id: string
+
+  @Field(() => String)
+  @prop({ required: true })
   metriportId: string
 
   @Field(() => [String])

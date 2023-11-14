@@ -24,6 +24,7 @@ import MetriportService, {
 import StripeService from "./services/stripe.service"
 import { initializeSendBirdWebhook } from "./utils/sendBird"
 import TaskService from "./services/task.service"
+import { Gender } from "./schema/user.schema"
 
 const userService = new UserService()
 const metriportService = new MetriportService()
@@ -229,23 +230,13 @@ cron.schedule(
   }
 )
 
-cron.schedule(
-  "0 0 * * *",
-  async () => {
-    console.log(
-      `[SCHEDULE APPOINTMENT JOB][${new Date().toString()}] RUNNING...`
-    )
-    const users = await userService.getAllUsers()
-    for (const user of users) {
-      await taskService.checkEligibilityForAppointment(user._id)
-    }
-    console.log(
-      `[SCHEDULE APPOINTMENT JOB][${new Date().toString()}] COMPLETED`
-    )
-  },
-  {
-    runOnInit: true,
+cron.schedule("0 0 * * *", async () => {
+  console.log(`[SCHEDULE APPOINTMENT JOB][${new Date().toString()}] RUNNING...`)
+  const users = await userService.getAllUsers()
+  for (const user of users) {
+    await taskService.checkEligibilityForAppointment(user._id)
   }
-)
+  console.log(`[SCHEDULE APPOINTMENT JOB][${new Date().toString()}] COMPLETED`)
+})
 
 bootstrap()

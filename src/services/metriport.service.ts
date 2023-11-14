@@ -217,7 +217,7 @@ class MetriportService {
   async startDocumentQuery({ userId }: { userId: string }): Promise<string> {
     try {
       const user = await UserModel.findById(userId)
-      if (user.metriportFacilityId || user.metriportPatientId) {
+      if (!user.metriportFacilityId || !user.metriportPatientId) {
         throw Error(
           `User does not have a metriport facility and/or patient id: ${userId}`
         )
@@ -275,8 +275,6 @@ class MetriportService {
       const firstName = parts[0] || "" // The first part is the first name
       const lastName = parts.length > 1 ? parts.slice(1).join(" ") : "" // Join the remaining parts for the last name
 
-      console.log(facility)
-
       const response = await this.medicalClient.createPatient(
         {
           address: {
@@ -292,16 +290,16 @@ class MetriportService {
           dob: formatDob,
           genderAtBirth,
         },
-        facility.metriportId.toString()
+        facility.metriportId
       )
 
       if (userId) {
         const resp = await UserModel.updateOne(
+          { _id: userId },
           {
             metriportPatientId: response.id,
             metriportFacilityId: facility.metriportId,
-          },
-          { _id: userId }
+          }
         )
         if (!resp.acknowledged)
           throw Error(
@@ -326,7 +324,9 @@ class MetriportService {
           address,
         })}`
       )
-      captureException(err, "Metirport create patient error", {
+      console.log(err)
+
+      captureException(err, "Metriport create patient error", {
         userId,
         name,
         dob,
