@@ -72,7 +72,6 @@ class MetriportService {
 
       const users = await UserModel.find({
         metriportPatientId: { $exists: true },
-        metriportDocumentQueryId: { $exists: false },
         $or: [
           { lastMetriportConsolidatedQuery: { $exists: false } },
           { lastMetriportConsolidatedQuery: { $lt: sixMonthsAgo } },
@@ -130,7 +129,6 @@ class MetriportService {
           entries,
         })
         user.lastMetriportConsolidatedQuery = new Date()
-        user.metriportDocumentQueryId = undefined
         await user.save()
         return true
       }
@@ -142,7 +140,6 @@ class MetriportService {
       medicalEntry.resources = [...medicalEntry.resources, ...newResources]
       await medicalEntry.save()
       user.lastMetriportConsolidatedQuery = new Date()
-      user.metriportDocumentQueryId = undefined
       await user.save()
 
       return true
@@ -230,8 +227,6 @@ class MetriportService {
         user.metriportPatientId,
         user.metriportFacilityId
       )
-      user.metriportDocumentQueryId = response.requestId
-      await user.save()
 
       captureEvent("info", "Started document query for metriport user", {
         userId: user._id,
@@ -240,7 +235,7 @@ class MetriportService {
         requestId: response.requestId,
       })
 
-      return response.requestId
+      return response.download.status
     } catch (err) {
       console.log(
         `An error occured starting document query for patient in metriport: ${userId}`

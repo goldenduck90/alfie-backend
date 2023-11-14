@@ -499,10 +499,6 @@ export class User {
 
   @Field(() => String, { nullable: true })
   @prop()
-  metriportDocumentQueryId?: string
-
-  @Field(() => String, { nullable: true })
-  @prop()
   metriportConsolidatedQueryStatus?: string
 
   @Field(() => Date, { nullable: true })
