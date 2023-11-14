@@ -275,6 +275,8 @@ class MetriportService {
       const firstName = parts[0] || "" // The first part is the first name
       const lastName = parts.length > 1 ? parts.slice(1).join(" ") : "" // Join the remaining parts for the last name
 
+      console.log(facility)
+
       const response = await this.medicalClient.createPatient(
         {
           address: {
@@ -290,7 +292,7 @@ class MetriportService {
           dob: formatDob,
           genderAtBirth,
         },
-        facility.metriportId
+        facility.metriportId.toString()
       )
 
       if (userId) {
