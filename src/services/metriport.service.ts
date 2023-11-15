@@ -195,6 +195,7 @@ class MetriportService {
           "MedicationAdministration",
           "MedicationRequest",
           "AllergyIntolerance",
+          "DiagnosticReport",
         ],
         sixMonthsAgo,
         today
