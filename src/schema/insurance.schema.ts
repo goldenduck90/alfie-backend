@@ -189,9 +189,9 @@ export class InsuranceDetails {
   @prop()
   rxGroup?: string
 
-  @Field(() => InsurancePerson)
-  @prop({ required: true })
-  primary: InsurancePerson
+  @Field(() => InsurancePerson, { nullable: true })
+  @prop({ required: false })
+  primary?: InsurancePerson
 
   @Field(() => [InsurancePerson], { nullable: true })
   @prop({ required: false, default: [] })

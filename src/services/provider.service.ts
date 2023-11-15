@@ -33,7 +33,7 @@ class ProviderService {
     // Only return providers where the type === "Practitioner"
     const providers = await ProviderModel.find({
       type: Role.Practitioner,
-      _ids: { $in: [providerIds] },
+      _id: { $in: [providerIds] },
     })
       .sort({ numberOfPatients: "asc" })
       .limit(1)
