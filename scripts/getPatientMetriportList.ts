@@ -96,6 +96,12 @@ async function getPatientMetriportList() {
         "652e0bfd1d889483a86cdd17",
         "65287eb61d889483a86c9ba9",
         "65241c50c7333532fa6fb7d0",
+        "654a7738931d182cc6c7e5d5",
+        "654ae90f931d182cc6c7f4d6",
+        "654bc511931d182cc6c7fce9",
+        "654d2813931d182cc6c815df",
+        "65527f3d8e3ba5e414b088ec",
+        "65553bbb3f4caf91217f02b6",
       ],
     })
 
@@ -109,7 +115,9 @@ async function getPatientMetriportList() {
         lastname,
         dob: format(new Date(u.dateOfBirth), "yyyy-MM-dd"),
         gender: u.gender === Gender.Male ? "M" : "F",
-        zip: u.address.postalCode,
+        zip: u.address.postalCode.includes("-")
+          ? u.address.postalCode.split("-")[0]
+          : u.address.postalCode,
         city: u.address.city,
         state: u.address.state,
         addressLine1: u.address.line1,
@@ -118,6 +126,7 @@ async function getPatientMetriportList() {
         email1: u.email,
         phone2: "",
         email2: "",
+        externalId: u._id.toString(),
       }
     })
 
@@ -137,6 +146,7 @@ async function getPatientMetriportList() {
         { id: "email1", title: "email1" },
         { id: "phone2", title: "phone2" },
         { id: "email2", title: "email2" },
+        { id: "externalId", title: "externalId" },
       ],
     })
 
