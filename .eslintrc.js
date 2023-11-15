@@ -26,6 +26,7 @@ module.exports = {
     "@typescript-eslint/no-explicit-any": "off",
     "@typescript-eslint/semi": ["warn", "never"],
     "quotes": "off",
+    "no-case-declarations": "off",
     "@typescript-eslint/quotes": ["warn", "double"],
     "@typescript-eslint/no-unused-vars": ["warn"],
     "@typescript-eslint/member-delimiter-style": [

@@ -2,7 +2,7 @@ import * as Sentry from "@sentry/node"
 import { ApolloError } from "apollo-server"
 import config from "config"
 import dayjs from "dayjs"
-import { addDays, subDays, isPast, isBefore, differenceInDays } from "date-fns"
+import { addDays, subDays, isPast, differenceInDays } from "date-fns"
 import { calculateScore } from "../PROAnalysis"
 import { Provider } from "../schema/provider.schema"
 import {
@@ -43,6 +43,11 @@ export const tasksEligibleForProfiling = [
   TaskType.MP_FEELING,
   TaskType.AD_LIBITUM,
   TaskType.MP_ACTIVITY,
+]
+
+export const primaryTasksForPatient = [
+  TaskType.ID_AND_INSURANCE_UPLOAD,
+  TaskType.NEW_PATIENT_INTAKE_FORM,
 ]
 
 class TaskService {
@@ -146,12 +151,13 @@ class TaskService {
   }
 
   /** Get user completed required tasks */
-  async didUserCompletedRequiredTasks(userId: string) {
+  async didUserCompletedRequiredTasks(userId: string): Promise<boolean> {
     const tasks = await TaskModel.find({
       type: {
-        $in: tasksEligibleForProfiling,
+        $in: [...tasksEligibleForProfiling, ...primaryTasksForPatient],
       },
     })
+
     const userTasks = await UserTaskModel.find({
       user: userId,
       task: {
@@ -159,22 +165,34 @@ class TaskService {
       },
     }).populate<{ task: Task }>("task")
 
-    // Required user tasks for eligibility check
-    const hasCompletedRequiredTasks =
-      userTasks.length === tasksEligibleForProfiling.length &&
-      userTasks.every(({ task, completed, completedAt }) => {
-        let hasCompletedInTimeLimit = false
-        if (completedAt) {
-          hasCompletedInTimeLimit = isBefore(
-            subDays(new Date(), task.interval),
-            completedAt
-          )
-        }
+    const userTasksEligibleForProfiling = []
+    const primaryUserTasks = []
+    for (const ut of userTasks) {
+      if (tasksEligibleForProfiling.includes(ut.task.type)) {
+        userTasksEligibleForProfiling.push(ut)
+      } else if (primaryTasksForPatient.includes(ut.task.type)) {
+        primaryUserTasks.push(ut)
+      }
+    }
 
-        return completed && hasCompletedInTimeLimit
-      })
+    // User should complete the Medical Questionnaire and ID & Insurance Verification
+    if (!primaryUserTasks.every((ut) => ut.completed)) {
+      return false
+    }
 
-    return hasCompletedRequiredTasks
+    // Create a set of completed eligible task types
+    const completedEligibleTaskTypes = new Set(
+      userTasksEligibleForProfiling
+        .filter((ut) => ut.completed)
+        .map((ut) => ut.task.type)
+    )
+
+    // Determine if userTasksEligibleForProfiling contains all task types in tasksEligibleForProfiling
+    const hasCompletedAllEligibleTasks = tasksEligibleForProfiling.every(
+      (taskType) => completedEligibleTaskTypes.has(taskType)
+    )
+
+    return hasCompletedAllEligibleTasks
   }
 
   /** Get user completed schedule appointment tasks within a month */
@@ -189,9 +207,10 @@ class TaskService {
     )
     const eligibility: UserAppointmentEligibility = {
       task: null,
-      daysLeft: null,
+      daysLeft: 0,
       completedRequiredTasks: hasCompletedRequiredTasks,
     }
+
     const appointmentTask = await TaskModel.findOne({
       type: TaskType.SCHEDULE_APPOINTMENT,
     })
@@ -199,17 +218,25 @@ class TaskService {
       eligibility.task = await UserTaskModel.findOne({
         user: userId,
         task: appointmentTask._id,
-      })
+        completed: true,
+        completedAt: { $exists: true },
+      }).sort({ completedAt: -1 })
 
       if (eligibility.task) {
         const { completed, completedAt } = eligibility.task
 
         // Calculate the remaining days with in schedule appointment task interval
         if (completed && completedAt) {
-          eligibility.daysLeft = differenceInDays(
+          const daysLeft = differenceInDays(
             new Date(completedAt),
-            subDays(new Date(), appointmentTask.interval)
+            subDays(new Date(), appointmentTask.interval - 1)
           )
+
+          if (daysLeft <= 0) {
+            eligibility.daysLeft = 0
+          } else {
+            eligibility.daysLeft = daysLeft
+          }
         }
       }
     }
@@ -232,31 +259,15 @@ class TaskService {
         throw new ApolloError("Schedule Appointment Task not found ")
       }
 
-      const scheduledAppointmentTask = await UserTaskModel.findOne({
-        user: userId,
-        task: appointmentTask._id,
-      })
-      const {
-        task: userAppointmentTask,
-        daysLeft,
-        completedRequiredTasks,
-      } = await this.getUserScheduleAppointmentEligibility(userId)
-      if (completedRequiredTasks) {
-        if (!userAppointmentTask) {
-          // Assign a new SCHEDULE_APPOINTMENT task
-          const newTaskInput = {
-            taskType: TaskType.SCHEDULE_APPOINTMENT,
-            userId: userId.toString(),
-          }
-          await this.assignTaskToUser(newTaskInput)
-        } else if (0 > daysLeft) {
-          // Re-assign SCHEDULE_APPOINTMENT task
-          scheduledAppointmentTask.completed = false
-          scheduledAppointmentTask.completedAt = null
-          scheduledAppointmentTask.dueAt = addDays(new Date(), 1)
+      const { daysLeft, completedRequiredTasks } =
+        await this.getUserScheduleAppointmentEligibility(userId)
 
-          await scheduledAppointmentTask.save()
+      if (completedRequiredTasks && daysLeft === 0) {
+        const newTaskInput = {
+          taskType: TaskType.SCHEDULE_APPOINTMENT,
+          userId: userId.toString(),
         }
+        await this.assignTaskToUser(newTaskInput)
       }
     } catch (error) {
       captureException(error, "TaskService.checkEligibilityForAppointment")
