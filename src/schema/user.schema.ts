@@ -406,6 +406,10 @@ export class User {
   @prop()
   phone?: string
 
+  @Field(() => Boolean, { nullable: true })
+  @prop()
+  inactive?: boolean
+
   @Field(() => String)
   @prop()
   password?: string
@@ -484,6 +488,18 @@ export class User {
   @Field(() => String, { nullable: true })
   @prop()
   metriportUserId?: string
+
+  @Field(() => String, { nullable: true })
+  @prop()
+  metriportPatientId?: string
+
+  @Field(() => String, { nullable: true })
+  @prop()
+  metriportFacilityId?: string
+
+  @Field(() => Date, { nullable: true })
+  @prop()
+  lastMetriportConsolidatedQuery?: Date
 
   @Field(() => Date)
   @prop({ default: Date.now(), required: true })

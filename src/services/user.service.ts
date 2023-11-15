@@ -80,6 +80,8 @@ import { captureException, captureEvent } from "../utils/sentry"
 import StripeService from "./stripe.service"
 import { calculateBMI } from "../utils/calculateBMI"
 import { InsuranceDetails, InsuranceStatus } from "../schema/insurance.schema"
+import { AlertModel, Alert } from "../schema/alert.schema"
+import MetriportService from "./metriport.service"
 
 export const initialUserTasks = [
   TaskType.ID_AND_INSURANCE_UPLOAD,
@@ -110,6 +112,7 @@ class UserService extends EmailService {
   private faxService: FaxService
   public awsDynamo: AWS.DynamoDB
   private stripeService: StripeService
+  private metriportService: MetriportService
 
   constructor() {
     super()
@@ -124,6 +127,7 @@ class UserService extends EmailService {
     this.withingsService = new WithingsService()
     this.faxService = new FaxService()
     this.stripeService = new StripeService(this)
+    this.metriportService = new MetriportService()
 
     this.awsDynamo = new AWS.DynamoDB({
       accessKeyId: process.env.AWS_ACCESS_KEY_ID,
@@ -332,6 +336,20 @@ class UserService extends EmailService {
     })
     if (!user) {
       throw new ApolloError(unknownError.message, unknownError.code)
+    }
+
+    try {
+      await this.metriportService.createPatient({
+        userId: user._id,
+        name,
+        address,
+        gender,
+        dob: dateOfBirth,
+      })
+    } catch (err) {
+      console.log(
+        "Metriport patient creation failed... skipping but logging to sentry"
+      )
     }
 
     // delete user from email subscribers table
@@ -903,20 +921,60 @@ class UserService extends EmailService {
         )
         return []
       } else if (provider.type === Role.Doctor) {
-        const results = await UserModel.find({
+        const results: LeanDocument<User[]> = await UserModel.find({
           state: { $in: provider.licensedStates },
           role: Role.Patient,
         }).populate<{ provider: Provider }>("provider")
         return results
       } else {
-        const results = await UserModel.find({
+        const results: LeanDocument<User[]> = await UserModel.find({
           provider: providerId,
           role: Role.Patient,
         }).populate<{ provider: Provider }>("provider")
+
         return results
       }
     } catch (error) {
       captureException(error, "UserService.getAllUsersByAProvider")
+      throw new ApolloError(error.message, error.code)
+    }
+  }
+
+  async getAllUsersWithAlerts(providerId: string) {
+    try {
+      const provider = await ProviderModel.findById(providerId)
+      let results
+
+      if (!provider) {
+        results = await AlertModel.find({
+          acknowledgedAt: { $exists: false },
+        }).populate("user")
+      } else if (provider.type === Role.Doctor) {
+        const providers = await ProviderModel.find({
+          licensedStates: { $in: provider.licensedStates },
+        }).select("_id")
+        const providerIds = providers.map((p) => p._id)
+        results = await AlertModel.find({
+          acknowledgedAt: { $exists: false },
+          provider: { $in: providerIds },
+        }).populate("user")
+      } else {
+        results = await AlertModel.find({
+          provider: providerId,
+          acknowledgedAt: { $exists: false },
+        }).populate("user")
+      }
+
+      return (
+        results
+          .map((alert: Alert) => alert.user)
+          // Filter out duplicated patients
+          .filter((value: User, index, self) => {
+            return self.findIndex((v: User) => v._id === value._id) === index
+          })
+      )
+    } catch (error) {
+      captureException(error, "UserService.getAllUsersWithAlerts")
       throw new ApolloError(error.message, error.code)
     }
   }
