@@ -497,10 +497,6 @@ export class User {
   @prop()
   metriportFacilityId?: string
 
-  @Field(() => String, { nullable: true })
-  @prop()
-  metriportConsolidatedQueryStatus?: string
-
   @Field(() => Date, { nullable: true })
   @prop()
   lastMetriportConsolidatedQuery?: Date

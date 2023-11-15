@@ -1,5 +1,5 @@
 import { ApolloError } from "apollo-server"
-import { MetriportDevicesApi } from "@metriport/api"
+import { MetriportDevicesApi, USState } from "@metriport/api"
 import { Address, Gender, UserModel } from "../schema/user.schema"
 import {
   MetriportConnectResponse,
@@ -11,6 +11,7 @@ import { captureEvent, captureException } from "../utils/sentry"
 import { MetriportMedicalApi } from "@metriport/api-sdk"
 
 export type ConsolidatedPatient = {
+  externalId?: string
   patientId: string
   status: string
   filters: {
@@ -26,6 +27,7 @@ export type ConsolidatedPatient = {
 
 export type ConversionPatient = {
   patientId: string
+  externalId?: string
   type: string
   status: string
   documents: any[]
@@ -109,16 +111,16 @@ class MetriportService {
   }
 
   async parseConsolidatedData({
-    metriportPatientId,
+    externalId,
     resources,
     entries,
   }: {
-    metriportPatientId: string
+    externalId: string
     resources: string[]
     entries: any[]
   }): Promise<boolean> {
     try {
-      const user = await UserModel.findOne({ metriportPatientId })
+      const user = await UserModel.findOne({ _id: externalId })
       const medicalEntry = await MetriportMedicalDataModel.findOne({
         user: user._id,
       })
@@ -126,32 +128,31 @@ class MetriportService {
       if (!medicalEntry?._id) {
         await MetriportMedicalDataModel.create({
           user: user._id,
-          resources,
+          resources: resources.map((r) => r.trim()),
           entries,
         })
-        user.metriportConsolidatedQueryStatus = undefined
         user.lastMetriportConsolidatedQuery = new Date()
         await user.save()
         return true
       }
 
       medicalEntry.entries.push(entries)
-      const newResources = resources.filter((r) =>
-        medicalEntry.resources.includes(r)
-      )
+      const newResources = resources
+        .map((r) => r.trim())
+        .filter((r) => medicalEntry.resources.includes(r))
+        .map((r) => r.trim())
       medicalEntry.resources = [...medicalEntry.resources, ...newResources]
       await medicalEntry.save()
-      user.metriportConsolidatedQueryStatus = undefined
       user.lastMetriportConsolidatedQuery = new Date()
       await user.save()
 
       return true
     } catch (err) {
       console.log(
-        `An error occured parsing consolidated data for patient in metriport: ${metriportPatientId}`
+        `An error occured parsing consolidated data for patient in metriport: ${externalId}`
       )
       captureException(err, "Metirport parsing consolidated data error", {
-        metriportPatientId,
+        externalId,
         resources,
       })
       return err
@@ -162,15 +163,8 @@ class MetriportService {
     metriportPatientId,
   }: {
     metriportPatientId: string
-  }): Promise<"processing" | "completed"> {
+  }): Promise<"processing" | "completed" | "failed"> {
     try {
-      const user = await UserModel.findOne({ metriportPatientId })
-      if (!user) {
-        throw Error(
-          `Could not find user for metriport patient id: ${metriportPatientId}`
-        )
-      }
-
       const sixMonthsAgo = format(addMonths(new Date(), -6), "yyyy-MM-dd")
       const today = format(new Date(), "yyyy-MM-dd")
 
@@ -186,14 +180,10 @@ class MetriportService {
         today
       )
 
-      const r = response as any
-      const status = r.status
-
-      user.metriportConsolidatedQueryStatus = status
-      await user.save()
-
-      if (status === "failed") {
-        throw Error(`Consolidated document query failed for user: ${user._id}`)
+      if (response.status === "failed") {
+        throw Error(
+          `Consolidated document query failed for metriport patient id: ${metriportPatientId}`
+        )
       }
 
       captureEvent(
@@ -205,7 +195,7 @@ class MetriportService {
         }
       )
 
-      return status
+      return response.status
     } catch (err) {
       console.log(
         `An error occured starting consolidated query for patient in metriport: ${metriportPatientId}`
@@ -275,14 +265,16 @@ class MetriportService {
       const parts = name.trim().split(" ") // Split the name into parts, trimming any extra whitespace
       const firstName = parts[0] || "" // The first part is the first name
       const lastName = parts.length > 1 ? parts.slice(1).join(" ") : "" // Join the remaining parts for the last name
+      const state = address.state as USState
 
       const response = await this.medicalClient.createPatient(
         {
+          externalId: userId,
           address: {
             addressLine1: address.line1,
             addressLine2: address.line2 || "",
             city: address.city,
-            state: address.state,
+            state,
             zip: address.postalCode,
             country: "USA",
           },

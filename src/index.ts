@@ -103,8 +103,6 @@ async function bootstrap() {
           })
         }
 
-        console.log(req.body)
-
         switch (meta.type) {
           case "medical.document-conversion":
             const conversionPatients: ConversionPatient[] = req.body.patients
@@ -141,7 +139,7 @@ async function bootstrap() {
 
             for (const patient of filteredConsolidatedPatients) {
               const success = await metriportService.parseConsolidatedData({
-                metriportPatientId: patient.patientId,
+                externalId: patient.externalId,
                 resources: patient.filters.resources.split(","),
                 entries: patient.bundle.entry,
               })
