@@ -129,6 +129,7 @@ class MetriportService {
           resources,
           entries,
         })
+        user.metriportConsolidatedQueryStatus = undefined
         user.lastMetriportConsolidatedQuery = new Date()
         await user.save()
         return true
@@ -140,6 +141,7 @@ class MetriportService {
       )
       medicalEntry.resources = [...medicalEntry.resources, ...newResources]
       await medicalEntry.save()
+      user.metriportConsolidatedQueryStatus = undefined
       user.lastMetriportConsolidatedQuery = new Date()
       await user.save()
 
