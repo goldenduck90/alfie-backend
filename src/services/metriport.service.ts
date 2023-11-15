@@ -111,10 +111,12 @@ class MetriportService {
   }
 
   async parseConsolidatedData({
+    patientId,
     externalId,
     resources,
     entries,
   }: {
+    patientId: string
     externalId: string
     resources: string[]
     entries: any[]
@@ -132,6 +134,15 @@ class MetriportService {
           entries,
         })
         user.lastMetriportConsolidatedQuery = new Date()
+        if (!user.metriportPatientId) {
+          user.metriportPatientId = patientId
+        }
+        if (!user.metriportFacilityId) {
+          const facilityId = await this.getFacilityMetriportId({
+            state: user.address.state,
+          })
+          user.metriportFacilityId = facilityId
+        }
         await user.save()
         return true
       }
@@ -144,6 +155,15 @@ class MetriportService {
       medicalEntry.resources = [...medicalEntry.resources, ...newResources]
       await medicalEntry.save()
       user.lastMetriportConsolidatedQuery = new Date()
+      if (!user.metriportPatientId) {
+        user.metriportPatientId = patientId
+      }
+      if (!user.metriportFacilityId) {
+        const facilityId = await this.getFacilityMetriportId({
+          state: user.address.state,
+        })
+        user.metriportFacilityId = facilityId
+      }
       await user.save()
 
       return true
@@ -207,13 +227,29 @@ class MetriportService {
     }
   }
 
+  async getFacilityMetriportId({ state }: { state: string }): Promise<string> {
+    const facility = await FacilityModel.findOne({ states: state })
+    if (!facility) {
+      const defaultFacility = await FacilityModel.findOne({ states: "MD" })
+      return defaultFacility.metriportId
+    }
+
+    return facility.metriportId
+  }
+
   async startDocumentQuery({ userId }: { userId: string }): Promise<string> {
     try {
       const user = await UserModel.findById(userId)
-      if (!user.metriportFacilityId || !user.metriportPatientId) {
-        throw Error(
-          `User does not have a metriport facility and/or patient id: ${userId}`
-        )
+      if (!user.metriportPatientId) {
+        throw Error(`User does not have a metriport patient id: ${userId}`)
+      }
+
+      if (!user.metriportFacilityId) {
+        const facilityId = await this.getFacilityMetriportId({
+          state: user.address.state,
+        })
+        user.metriportFacilityId = facilityId
+        await user.save()
       }
 
       const response = await this.medicalClient.startDocumentQuery(
@@ -254,11 +290,9 @@ class MetriportService {
     address: Address
   }): Promise<string> {
     try {
-      const facility = await FacilityModel.findOne({ states: address.state })
-      if (!facility) {
-        throw Error(`Could not find a facility in the state: ${address.state}`)
-      }
-
+      const facilityId = await this.getFacilityMetriportId({
+        state: address.state,
+      })
       const genderAtBirth = gender === Gender.Male ? "M" : "F"
       const formatDob = format(dob, "yyyy-MM-dd")
 
@@ -283,7 +317,7 @@ class MetriportService {
           dob: formatDob,
           genderAtBirth,
         },
-        facility.metriportId
+        facilityId
       )
 
       if (userId) {
@@ -291,7 +325,7 @@ class MetriportService {
           { _id: userId },
           {
             metriportPatientId: response.id,
-            metriportFacilityId: facility.metriportId,
+            metriportFacilityId: facilityId,
           }
         )
         if (!resp.acknowledged)
@@ -303,7 +337,7 @@ class MetriportService {
       captureEvent("info", "Created metriport patient for user", {
         userId: userId,
         metriportPatientId: response.id,
-        metriportFacilityId: facility.metriportId,
+        metriportFacilityId: facilityId,
       })
 
       return response.id

@@ -139,6 +139,7 @@ async function bootstrap() {
 
             for (const patient of filteredConsolidatedPatients) {
               const success = await metriportService.parseConsolidatedData({
+                patientId: patient.patientId,
                 externalId: patient.externalId,
                 resources: patient.filters.resources.split(","),
                 entries: patient.bundle.entry,
