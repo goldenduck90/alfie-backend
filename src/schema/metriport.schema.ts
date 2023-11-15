@@ -11,7 +11,6 @@ export class MetriportConnectResponse {
 @ObjectType()
 export class MetriportMedicalData {
   @Field(() => String)
-  @prop()
   _id: string
 
   @Field(() => User, { nullable: true })
@@ -26,5 +25,8 @@ export class MetriportMedicalData {
   entries?: any[]
 }
 
-export const MetriportMedicalDataModel =
-  getModelForClass<typeof MetriportMedicalData>(MetriportMedicalData)
+export const MetriportMedicalDataModel = getModelForClass<
+  typeof MetriportMedicalData
+>(MetriportMedicalData, {
+  schemaOptions: { timestamps: true },
+})

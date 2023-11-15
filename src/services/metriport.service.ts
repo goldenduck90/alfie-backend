@@ -122,7 +122,8 @@ class MetriportService {
       const medicalEntry = await MetriportMedicalDataModel.findOne({
         user: user._id,
       })
-      if (!medicalEntry) {
+
+      if (!medicalEntry?._id) {
         await MetriportMedicalDataModel.create({
           user: user._id,
           resources,
